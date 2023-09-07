@@ -1,0 +1,32 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class Product extends Model
+{
+    use HasFactory;
+    protected $guarded = ['id','product_categories_id','account_id'];
+    protected $fillable = ['product_categories_id','configs','subscription_link','panel_link','isActive','account_id'];
+
+    /**
+     * Get the user that owns the Product
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function product_categorie(): BelongsTo
+    {
+        return $this->belongsTo(ProductCategory::class, 'product_categories_id');
+    }
+    /**
+     * Get all of the comments for the Product
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function transaction(): HasMany
+    {
+        return $this->hasMany(Order::class, 'product_id');
+    }
+}
