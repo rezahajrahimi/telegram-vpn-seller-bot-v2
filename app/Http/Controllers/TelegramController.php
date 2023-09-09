@@ -33,7 +33,7 @@ class TelegramController extends Controller
         }
         $text = 'یک گزینه را انتخاب کنید.';
 
-        // try {
+        try {
             if ($chat_id == env('DEV_ID')) {
                 if (str_contains($userText, 'کاربر:')) {
                     $arr = explode(' - ', $userText);
@@ -295,13 +295,13 @@ class TelegramController extends Controller
 
                 return response()->json($result, 200);
             }
-        // } catch (\Throwable $th) {
-        //     $opr = [[['text' => 'خرید اشتراک'], ['text' => 'سابقه خرید']], [['text' => 'اطلاعات حساب'], ['text' => 'دریافت آموزش'], ['text' => 'پشتیبانی']]];
+        } catch (\Throwable $th) {
+            $opr = [[['text' => 'خرید اشتراک'], ['text' => 'سابقه خرید']], [['text' => 'اطلاعات حساب'], ['text' => 'دریافت آموزش'], ['text' => 'پشتیبانی']]];
 
-        //     $result = app('telegram_bot')->buttonMessage($text, $opr, $chat_id, $reply_to_message);
+            $result = app('telegram_bot')->buttonMessage($text, $opr, $chat_id, $reply_to_message);
 
-        //     return response()->json($result, 200);
-        // }
+            return response()->json($result, 200);
+        }
     }
     public function isSelectedProduct($str)
     {
