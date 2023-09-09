@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('type')->nullable();
             $table->string('message')->nullable();
+            $table->bigInteger('account_id')->nullable();
             $table->string('username')->nullable();
             $table->string('event')->nullable();
 

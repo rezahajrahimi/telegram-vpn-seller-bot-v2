@@ -17,15 +17,12 @@ class TransactionImage extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function transaction(): BelongsTo
+    public function transaction()
     {
         return $this->belongsTo(Transaction::class, 'transaction_id');
     }
-    public function transaction(): BelongsTo
-    {
-        return $this->belongsTo(Transaction::class, 'transaction_id');
-    }
-    public function payment_type(): BelongsTo
+
+    public function payment_type()
     {
         return $this->belongsTo(PaymentType::class, 'payment_type_id');
     }

@@ -8,6 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 class Log extends Model
 {
     use HasFactory;
-    protected $fillable = ['type', 'message','username','event'];
+    protected $fillable = ['type', 'message','account_id','username','event'];
 
 }
