@@ -128,9 +128,9 @@ class TelegramController extends Controller
                         case 'serviceType':
                             $this->selectServicetype();
                             break;
-                        // case 'selectedProductCategory':
-                        //     $this->buySubscription();
-                        //     break;
+                        case 'selectedProductCategory':
+                            $this->selectedProductCategory();
+                            break;
                         default:
                             $this->defaultMenu();
                             break;
@@ -210,12 +210,16 @@ class TelegramController extends Controller
         $srtyCtrl = new ServiceTypeController();
 
         $service_type_id = $srtyCtrl->getServiceTypesIDByServiceName($this->userCommandArr[1]);
+
         $prcaCtrl = new ProductCategoryController();
 
         $allprCat = $prcaCtrl->getAllProdctCategort($service_type_id);
+        $servicetypeName =$this->userCommandArr[1];
+        \Log::info("service_type_id:  $servicetypeName");
 
         foreach ($allprCat as $key => $value) {
-            array_push($opr, [['text' => "$value->category_name - تومان $value->price", 'callback_data' => "selectedProductCategory-$value->category_name"]]);
+            $price = $value->price;
+            array_push($opr, [['text' => "$value->category_name - تومان $value->price", 'callback_data' => "selectedProductCategory-$value->category_name-$service_type_id"]]);
         }
 
         array_push($opr, [['text' => 'بازگشت', 'callback_data' => 'بازگشت'], ['text' => 'پشتیبانی', 'callback_data' => 'پشتیبانی']]);
@@ -223,6 +227,105 @@ class TelegramController extends Controller
         $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
         $this->setNewLevel($this->buySubSelectTypeLevel);
         return response()->json($result, 200);
+    }
+    public function selectedProductCategory()
+    {
+        $srtyCtrl = new ServiceTypeController();
+        $prcaCtrl = new ProductCategoryController();
+        $accBlCtrl = new AccountBallanceController();
+
+        $prCtrl = new ProductController();
+
+        $productCategoryName = $this->userCommandArr[1];
+        $serviceTypeID = $this->userCommandArr[2];
+
+        $productPrice = $prcaCtrl->getProdctPrice($productCategoryName,$serviceTypeID);
+
+        if ($productPrice != -1) {
+            if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice)) {
+                $selectedProductCatID = $prcaCtrl->getProdctCategoryID($productCategoryName, $serviceTypeID);
+
+                // config ra deactice kon
+
+                $config = $prCtrl->getProductConfigAndChangeStatus($selectedProductCatID, $this->chat_id);
+                // check kardan mojod bodan config
+                if ($config != null) {
+                    // az hesab mojodi ra kam kon
+                    $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice);
+
+                    // to trakonesh ha zakhire kon
+                    $ordCtrl = new OrderController();
+
+                    $ordCtrl->addUserOrder($this->chat_id, $productPrice, $selectedProductCatID, $config->id);
+                    // config ra behesh bede
+                    $text = "کانفیگ: \r\n";
+                    $result = app('telegram_bot')->sendMessage($text, $this->chat_id, $this->reply_to_message);
+
+                    $text = $config->configs;
+                    $result = app('telegram_bot')->sendMessage($text, $this->chat_id, $this->reply_to_message);
+
+                    $text = 'subscription link:';
+
+                    $text .= $config->subscription_link;
+                    $result = app('telegram_bot')->sendMessage($text, $this->chat_id, $this->reply_to_message);
+
+                    $text = "برای مشاهده دیگر کانفیگها و همچین میزان مصرف و زمان  باقی مانده به لینک زیر بروید: \r\n ";
+
+                    $text .= $config->panel_link;
+
+                    $result = app('telegram_bot')->sendMessage($text, $this->chat_id, $this->reply_to_message);
+
+                    // menu ra bede
+                    $opr = [[['text' => 'بازگشت به منوی اصلی'], ['text' => 'آموزش وارد کردن کانفیگها']]];
+
+                    $result = app('telegram_bot')->buttonMessage(' خرید شما با موفقیت انجام گرفت.', $opr, $this->chat_id, $this->reply_to_message);
+
+                    return response()->json($result, 200);
+                } else {
+                    $result = app('telegram_bot')->sendMessage('این محصول در حال حاضر موجود نمی باشد، لطفا محصولی دیگر انتخاب کنید.', $this->chat_id, $this->reply_to_message);
+                    return response()->json($result, 200);
+                }
+            } else {
+                $accBlCtrl = new AccountBallanceController();
+
+                $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
+                $text = "موجودی شما کم تر از قیمت بسته انتخابی می باشد. لطفا حساب خود را شارژ بفرمایید. \r\n";
+
+                $text .= "موجودی حساب شما: $userAccouintBallance";
+                $opr = [[['text' => 'افزایش اعتبار']]];
+                array_push($opr, [['text' => 'بازگشت به منوی اصلی'], ['text' => 'پشتیبانی']]);
+
+                $result = app('telegram_bot')->buttonMessage($text, $opr, $this->chat_id, $this->reply_to_message);
+
+                return response()->json($result, 200);
+            }
+        } else {
+            $service_type_id = $this->userCommandArr[1];
+
+            $text = "$service_type_id";
+            $result = app('telegram_bot')->sendMessage($text, $chat, $this->reply_to_message);
+            return response()->json($result, 200);
+        }
+
+        // $text = 'زمان و حجم اکانت را انتخاب کنید.';
+        // $opr = [];
+
+        // $srtyCtrl = new ServiceTypeController();
+
+        // $service_type_id = $srtyCtrl->getServiceTypesIDByServiceName($this->userCommandArr[1]);
+        // $prcaCtrl = new ProductCategoryController();
+
+        // $allprCat = $prcaCtrl->getAllProdctCategort($service_type_id);
+
+        // foreach ($allprCat as $key => $value) {
+        //     array_push($opr, [['text' => "$value->category_name - تومان $value->price", 'callback_data' => "selectedProductCategory-$value->category_name"]]);
+        // }
+
+        // // array_push($opr, [['text' => 'بازگشت', 'callback_data' => 'بازگشت'], ['text' => 'پشتیبانی', 'callback_data' => 'پشتیبانی']]);
+
+        // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        // $this->setNewLevel($this->buySubSelectTypeLevel);
+        // return response()->json($result, 200);
     }
 
     public function changeMenuLevel()
