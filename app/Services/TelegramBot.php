@@ -56,6 +56,7 @@ class TelegramBot
             'chat_id' => $chat_id,
             'reply_to_message_id' => $reply_to_message_id,
             'text' => $text,
+            'allow_sending_without_reply'=>true,
         ];
 
         // Create url -> https://api.telegram.org/bot{token}/sendMessage
@@ -83,6 +84,7 @@ class TelegramBot
         $params = [
             'chat_id' => $chat_id,
             'reply_to_message_id' => $reply_to_message_id,
+            'allow_sending_without_reply'=>true,
             'text' => $text,
             'reply_markup' => ['keyboard' => $opr,  'resize_keyboard' => true],
         ];
@@ -114,10 +116,41 @@ class TelegramBot
             'chat_id' => $chat_id,
             'photo' => $image,
             'caption' => $caption,
+
         ];
 
         // Create url -> https://api.telegram.org/bot{token}/sendMessage
         $url = "{$this->api_endpoint}/{$this->token}/sendPhoto";
+
+        // Send the request
+        try {
+            $response = Http::withHeaders($this->headers)->post($url, $params);
+            $result = ['success' => $response->ok(), 'body' => $response->json()];
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+        }
+
+        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
+
+        return $result;
+    }
+    public function commandMessage($command,$chat_id,$text)
+    {
+        // Default result array
+        $result = ['success' => false, 'body' => []];
+
+        // Create params array
+
+        $params = [
+            'chat_id' => $chat_id,
+            'text' => $text,
+            'reply_markup' => ['inline_keyboard' => $command,  'resize_keyboard' => true],
+
+
+        ];
+
+        // Create url -> https://api.telegram.org/bot{token}/sendMessage
+        $url = "{$this->api_endpoint}/{$this->token}/sendMessage";
 
         // Send the request
         try {
