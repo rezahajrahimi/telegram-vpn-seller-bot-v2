@@ -5,6 +5,7 @@ use App\Http\Controllers\ServiceTypeController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\MainMenuItemController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -40,4 +41,12 @@ Route::post('addNewProductDetails', [ProductController::class, 'addNewProductDet
 //Settings
 Route::get('getBotSetting', [SettingController::class, 'getBotSetting']);
 Route::post('updateBotSetting', [SettingController::class, 'updateBotSetting']);
+
+// menu items
+Route::get('getAllMainMenuItems', [MainMenuItemController::class, 'getAllMainMenuItems']);
+Route::get('getAllActivatedMainMenuItems', [MainMenuItemController::class, 'getAllActivatedMainMenuItems']);
+Route::get('deActiveMainMenuItem/{$name}', [MainMenuItemController::class, 'deActiveMainMenuItem']);
+Route::get('reActiveMainMenuItem/{$name}', [MainMenuItemController::class, 'reActiveMainMenuItem']);
+Route::post('changeMainMenuAliasName', [MainMenuItemController::class, 'changeMainMenuAliasName']);
+Route::post('changeMainMenuPosition', [MainMenuItemController::class, 'changeMainMenuPosition']);
 
