@@ -4,6 +4,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ServiceTypeController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\SettingController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -34,3 +35,9 @@ Route::get('getAllProdctCategort/{servicetypeID}', [ProductCategoryController::c
 Route::post('addNewProductCategory', [ProductCategoryController::class, 'addNewProductCategory']);
 Route::get('getActiveProductsByProductCatID/{selectedProductCatID}', [ProductController::class, 'getActiveProductsByProductCatID']);
 Route::post('addNewProductDetails', [ProductController::class, 'addNewProductDetails']);
+
+
+//Settings
+Route::get('getBotSetting', [SettingController::class, 'getBotSetting']);
+Route::post('updateBotSetting', [SettingController::class, 'updateBotSetting']);
+

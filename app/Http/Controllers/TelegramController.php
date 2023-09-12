@@ -21,7 +21,7 @@ class TelegramController extends Controller
     public $currentMenuLevel = 0;
     public $userCommandArr = [];
 
-    // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://877f-104-28-197-15.ngrok-free.app/api/telegram/webhooks/inbound
+    // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://61ad-104-28-229-13.ngrok-free.app /api/telegram/webhooks/inbound
 
     public function inbound(Request $request)
     {
@@ -173,8 +173,8 @@ class TelegramController extends Controller
 
         $opr = [[['text' => 'خرید اشتراک', 'callback_data' => 'buySubscription'], ['text' => 'سابقه خرید', 'callback_data' => 'subscriptionHistory']], [['text' => 'اطلاعات حساب', 'callback_data' => 'accountDetails'], ['text' => 'دریافت آموزش', 'callback_data' => 'learning'], ['text' => 'پشتیبانی', 'callback_data' => 'support']]];
 
-        $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
-        // $result = app('telegram_bot')->commandMessage($this->text, $opr, $this->chat_id, '');
+        $result = app('telegram_bot')->buttonMessage($text,$opr, $this->chat_id, "");
+        // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
     }
