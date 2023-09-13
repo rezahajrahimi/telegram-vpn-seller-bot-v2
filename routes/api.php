@@ -45,8 +45,8 @@ Route::post('updateBotSetting', [SettingController::class, 'updateBotSetting']);
 // menu items
 Route::get('getAllMainMenuItems', [MainMenuItemController::class, 'getAllMainMenuItems']);
 Route::get('getAllActivatedMainMenuItems', [MainMenuItemController::class, 'getAllActivatedMainMenuItems']);
-Route::get('deActiveMainMenuItem/{$name}', [MainMenuItemController::class, 'deActiveMainMenuItem']);
-Route::get('reActiveMainMenuItem/{$name}', [MainMenuItemController::class, 'reActiveMainMenuItem']);
+Route::get('deActiveMainMenuItem/{name}', [MainMenuItemController::class, 'deActiveMainMenuItem']);
+Route::get('reActiveMainMenuItem/{name}', [MainMenuItemController::class, 'reActiveMainMenuItem']);
 Route::post('changeMainMenuAliasName', [MainMenuItemController::class, 'changeMainMenuAliasName']);
 Route::post('changeMainMenuPosition', [MainMenuItemController::class, 'changeMainMenuPosition']);
 

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('alias_name');
-            $table->bool('is_active')->default(true);
+            $table->boolean('is_active')->default(true);
             $table->tinyInteger('position')->default(0)->unique();
         });
     }

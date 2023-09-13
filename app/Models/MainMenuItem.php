@@ -10,5 +10,5 @@ class MainMenuItem extends Model
     use HasFactory;
     protected $guarded = ['id'];
     protected $fillable = ['name', 'alias_name', 'is_active', 'position'];
-
+    public $timestamps = false;
 }

@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-namespace App\Models\MainMenuItem;
+use App\Models\MainMenuItem;
 
 use Illuminate\Http\Request;
 
@@ -39,7 +39,7 @@ class MainMenuItemController extends Controller
     }
     public function changeMainMenuAliasName(Request $request)
     {
-        $data = MainMenuItem::where('alias_name', $request->oldName)->first();
+        $data = MainMenuItem::where('name', $request->oldName)->first();
         if ($data != null) {
             $data->alias_name = $request->newName;
             $data->update();
