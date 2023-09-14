@@ -6,6 +6,7 @@ use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\MainMenuItemController;
+use App\Http\Controllers\PaymentTypeController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -50,3 +51,11 @@ Route::get('reActiveMainMenuItem/{name}', [MainMenuItemController::class, 'reAct
 Route::post('changeMainMenuAliasName', [MainMenuItemController::class, 'changeMainMenuAliasName']);
 Route::post('changeMainMenuPosition', [MainMenuItemController::class, 'changeMainMenuPosition']);
 
+// payment type
+Route::get('getPaymentTypes', [PaymentTypeController::class, 'getPaymentTypes']);
+Route::get('getPaymentAddressByPaymentName/{name}', [PaymentTypeController::class, 'getPaymentAddressByPaymentName']);
+Route::get('isPaymentType/{name}', [PaymentTypeController::class, 'isPaymentType']);
+Route::get('getAllOnlinePayments', [PaymentTypeController::class, 'getAllOnlinePayments']);
+Route::get('getAllOfflinePayments', [PaymentTypeController::class, 'getAllOfflinePayments']);
+Route::get('getZarinpalPaymentDetails', [PaymentTypeController::class, 'getZarinpalPaymentDetails']);
+Route::post('createNewPaymentType', [PaymentTypeController::class, 'createNewPaymentType']);
