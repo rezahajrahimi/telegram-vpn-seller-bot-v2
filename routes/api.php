@@ -59,3 +59,6 @@ Route::get('getAllOnlinePayments', [PaymentTypeController::class, 'getAllOnlineP
 Route::get('getAllOfflinePayments', [PaymentTypeController::class, 'getAllOfflinePayments']);
 Route::get('getZarinpalPaymentDetails', [PaymentTypeController::class, 'getZarinpalPaymentDetails']);
 Route::post('createNewPaymentType', [PaymentTypeController::class, 'createNewPaymentType']);
+Route::get('getAllActivePaymentTypes', [PaymentTypeController::class, 'getAllActivePaymentTypes']);
+Route::get('deActivePaymentType/{name}', [PaymentTypeController::class, 'deActivePaymentType']);
+Route::get('reActivePaymentType/{name}', [PaymentTypeController::class, 'reActivePaymentType']);

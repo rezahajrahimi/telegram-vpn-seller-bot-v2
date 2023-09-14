@@ -9,7 +9,7 @@ class PaymentType extends Model
 {
     use HasFactory;
     protected $guarded = ['id'];
-    protected $fillable = ['name', 'merchant_id','type'];
+    protected $fillable = ['name', 'merchant_id','type','is_active'];
 
     /**
      * Get all of the comments for the PaymentType

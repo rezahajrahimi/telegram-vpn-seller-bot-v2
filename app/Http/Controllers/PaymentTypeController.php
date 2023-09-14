@@ -11,6 +11,10 @@ class PaymentTypeController extends Controller
     {
         return PaymentType::all();
     }
+    public function getAllActivePaymentTypes()
+    {
+        return PaymentType::where('is_active', true)->get();
+    }
     public function getPaymentAddressByPaymentName($name)
     {
         $data = PaymentType::where('name', $name)->first();
@@ -49,12 +53,12 @@ class PaymentTypeController extends Controller
     }
     public function getZarinpalPaymentDetails()
     {
-        $data = PaymentType::where('name', 'zarinpal')->first();
+        $data = PaymentType::where('name', 'زرین پال')->first();
         if ($data != null) {
             return $data;
         } else {
             $data = new PaymentType();
-            $data->name = 'zarinpal';
+            $data->name = 'زرین پال';
             $data->type = 'online';
             $data->merchant_id = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
             $data->save();
@@ -69,5 +73,27 @@ class PaymentTypeController extends Controller
         $data->merchant_id = $request->merchant_id;
         $data->save();
         return $data;
+    }
+    public function deActivePaymentType($name)
+    {
+        $data = PaymentType::where('name', $name)->first();
+        if ($data != null) {
+            $data->is_active = false;
+            $data->update();
+            return true;
+        } else {
+            return false;
+        }
+    }
+    public function reActivePaymentType($name)
+    {
+        $data = PaymentType::where('name', $name)->first();
+        if ($data != null) {
+            $data->is_active = true;
+            $data->update();
+            return true;
+        } else {
+            return false;
+        }
     }
 }

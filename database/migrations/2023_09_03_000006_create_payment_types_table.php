@@ -15,6 +15,7 @@ return new class extends Migration {
             $table->string('name', 100)->unique();
             $table->string('merchant_id')->unique();
             $table->string('type')->default('offline');
+            $table->boolean('is_active')->default(true);
 
             $table->timestamps();
         });
