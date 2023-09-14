@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\PaymentType;
+use App\Models\Transaction;
+use App\Models\TransactionImage;
 use Illuminate\Http\Request;
 
 class PaymentTypeController extends Controller
@@ -71,8 +73,36 @@ class PaymentTypeController extends Controller
         $data->name = $request->name;
         $data->type = $request->type;
         $data->merchant_id = $request->merchant_id;
+        $data->is_active = true;
         $data->save();
         return $data;
+    }
+    public function chanegeMerChantIdByPaymentTypeName(Request $request)
+    {
+        $data = PaymentType::where('name', $request->name)->first();
+        if ($data != null) {
+            $data->merchant_id = $request->merchant_id;
+            $data->update();
+            return $data;
+        } else {
+            return false;
+        }
+    }
+    public function removePaymentType($name)
+    {
+        $data = PaymentType::where('name', $name)->first();
+        if ($data != null) {
+            $trImage = TransactionImage::where('payment_type_id', $data->id)->count();
+            $tr = Transaction::where('payment_type_id', $data->id)->count();
+            if ($trImage == 0 && $tr == 0) {
+                $data->delete();
+                return true;
+            } else {
+                return response()->json("این گزینه دارای تراکنش می باشد.", 202);
+            }
+        } else {
+            return false;
+        }
     }
     public function deActivePaymentType($name)
     {

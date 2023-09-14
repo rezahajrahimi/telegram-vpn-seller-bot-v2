@@ -62,3 +62,5 @@ Route::post('createNewPaymentType', [PaymentTypeController::class, 'createNewPay
 Route::get('getAllActivePaymentTypes', [PaymentTypeController::class, 'getAllActivePaymentTypes']);
 Route::get('deActivePaymentType/{name}', [PaymentTypeController::class, 'deActivePaymentType']);
 Route::get('reActivePaymentType/{name}', [PaymentTypeController::class, 'reActivePaymentType']);
+Route::get('removePaymentType/{name}', [PaymentTypeController::class, 'removePaymentType']);
+Route::post('chanegeMerChantIdByPaymentTypeName', [PaymentTypeController::class, 'chanegeMerChantIdByPaymentTypeName']);
