@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TransactionController;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,10 +18,12 @@ use App\Http\Controllers\TransactionController;
 Route::get('/', function () {
     return view('welcome');
 });
-Route::get('buy/{account_id}/{invoiceID}/{price}',function($account_id,$invoiceID,$price){
-    return view('shop',['account_id'=>$account_id , 'invoiceID'=>$invoiceID, 'price'=>$price]);
+Route::get('buy/{account_id}/{invoiceID}/{price}', function ($account_id, $invoiceID, $price) {
+    return view('shop', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
 });
 
-Route::get('order', [TransactionController::class, 'order']);
-Route::post('shop', [TransactionController::class, 'add_order']);
+Route::get('order', function (Request $request) {
+    return redirect()->action([TransactionController::class, 'order'], ['transaction_id' => $request->Authority, 'status' => $request->Status]);
+});
 
+Route::post('shop', [TransactionController::class, 'add_order']);

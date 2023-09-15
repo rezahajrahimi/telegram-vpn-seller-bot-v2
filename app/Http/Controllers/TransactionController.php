@@ -48,22 +48,22 @@ class TransactionController extends Controller
     public function order(Request $request)
     {
         try {
-            // $transaction_id = 1212984;
-            $transaction_id = $receipt->getReferenceId();
-            \Log::info("VV receipt $receipt");
-            \Log::info("VV transaction_id $transaction_id");
+            $transaction_id = $request->transaction_id;
+            $status = $request->status;
 
             $amount = $this->getAmountByRecipeNUmber($transaction_id);
             \Log::info("VV amount $amount");
 
-            $receipt = Payment::amount(1000)
+            $receipt = Payment::amount($amount)
                 ->transactionId($transaction_id)
                 ->verify();
+            // confirm transaction
+            $this->setConfirmedTransaction($transaction_id);
+            // add to user account balance.
 
-            // You can show payment referenceId to the user.
-            // echo $receipt->getReferenceId();
-            \Log::info($receipt->getReferenceId());
-
+            $accBlCtrl = new AccountBallanceController();
+            $userID = $this->getUserAccountIDByTransactionId($transaction_id);
+            $accBlCtrl->incUserAccuntBalance($userID, $amount);
             return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید و برای ادامه خرید به تلگرام برگردید.';
         } catch (InvalidPaymentException $exception) {
             \Log::info($exception->getMessage());
@@ -97,6 +97,26 @@ class TransactionController extends Controller
             return $data->amount;
         } else {
             return 0;
+        }
+    }
+    public function setConfirmedTransaction($recipeNUmber)
+    {
+        $data = Transaction::where('recipe_number', $recipeNUmber)->first();
+        if ($data != null) {
+            $data->confirmed = true;
+            $data->update();
+            return true;
+        } else {
+            return false;
+        }
+    }
+    public function getUserAccountIDByTransactionId($recipeNUmber)
+    {
+        $data = Transaction::where('recipe_number', $recipeNUmber)->first();
+        if ($data != null) {
+            return $data->account_id;
+        } else {
+            return null;
         }
     }
 }

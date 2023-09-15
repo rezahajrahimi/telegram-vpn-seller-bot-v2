@@ -7,6 +7,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\MainMenuItemController;
 use App\Http\Controllers\PaymentTypeController;
+use App\Http\Controllers\TransactionController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -64,3 +65,7 @@ Route::get('deActivePaymentType/{name}', [PaymentTypeController::class, 'deActiv
 Route::get('reActivePaymentType/{name}', [PaymentTypeController::class, 'reActivePaymentType']);
 Route::get('removePaymentType/{name}', [PaymentTypeController::class, 'removePaymentType']);
 Route::post('chanegeMerChantIdByPaymentTypeName', [PaymentTypeController::class, 'chanegeMerChantIdByPaymentTypeName']);
+
+
+
+Route::get('/order', [TransactionController::class, 'order']);
