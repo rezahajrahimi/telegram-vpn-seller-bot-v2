@@ -67,6 +67,36 @@ class PaymentTypeController extends Controller
             return $data;
         }
     }
+    public function getZarinpalMerchantID()
+    {
+        $data = PaymentType::where('name', 'زرین پال')->first();
+        if ($data != null) {
+
+            return $data->merchant_id;
+        } else {
+            $data = new PaymentType();
+            $data->name = 'زرین پال';
+            $data->type = 'online';
+            $data->merchant_id = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+            $data->save();
+            return $data->merchant_id;
+        }
+    }
+    public function getZarinpalTableID()
+    {
+        $data = PaymentType::where('name', 'زرین پال')->first();
+        if ($data != null) {
+
+            return $data->id;
+        } else {
+            $data = new PaymentType();
+            $data->name = 'زرین پال';
+            $data->type = 'online';
+            $data->merchant_id = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+            $data->save();
+            return $data->id;
+        }
+    }
     public function createNewPaymentType(Request $request)
     {
         $data = new PaymentType();

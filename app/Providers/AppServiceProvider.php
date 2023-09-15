@@ -3,6 +3,7 @@
 namespace App\Providers;
 use App\Services\ImageDetectText;
 use App\Services\TelegramBot;
+use App\Services\Zarinpal;
 
 use Illuminate\Support\ServiceProvider;
 
@@ -21,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
         // create a singleton image_detect_text.
         $this->app->singleton('image_detect_text',function(){
             return new ImageDetectText();
+        });
+        $this->app->singleton('zarinpal',function(){
+            return new Zarinpal();
         });
     }
 

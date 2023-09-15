@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TransactionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,9 +17,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
-Route::get('buy/{price}/{invoiceID}',function($price,$invoiceID){
-    return view('shop',['price'=>$price , 'invoiceID'=>$invoiceID]);
+Route::get('buy/{account_id}/{invoiceID}/{price}',function($account_id,$invoiceID,$price){
+    return view('shop',['account_id'=>$account_id , 'invoiceID'=>$invoiceID, 'price'=>$price]);
 });
 
-// Route::get('order','siteController@order');
-// Route::post('shop','siteController@add_order');
+Route::get('order', [TransactionController::class, 'order']);
+Route::post('shop', [TransactionController::class, 'add_order']);
+
