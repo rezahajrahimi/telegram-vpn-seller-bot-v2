@@ -10,6 +10,7 @@ use App\Http\Controllers\PaymentTypeController;
 use App\Http\Controllers\PaymentMenuItemController;
 
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\GiftCardMenuItemController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -78,4 +79,12 @@ Route::post('updatePaymentMenuAlisNameByLevel', [PaymentMenuItemController::clas
 Route::get('/order', [TransactionController::class, 'order']);
 
 
-//
+// GiftCard menu
+Route::get('getGiftCardMainMenuTitle', [GiftCardMenuItemController::class, 'getGiftCardMainMenuTitle']);
+Route::get('getAllGiftCardMenues', [GiftCardMenuItemController::class, 'getAllGiftCardMenues']);
+Route::post('updateGiftCardMenuAlisNameByLevel', [GiftCardMenuItemController::class, 'updateGiftCardMenuAlisNameByLevel']);
+
+// GiftCard
+Route::post('createNewGiftCard', [GiftCardController::class, 'createNewGiftCard']);
+Route::post('updateGiftCard', [GiftCardController::class, 'updateGiftCard']);
+Route::get('deleteGiftCardByCode', [GiftCardController::class, 'deleteGiftCardByCode']);
