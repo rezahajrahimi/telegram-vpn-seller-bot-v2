@@ -7,6 +7,8 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\MainMenuItemController;
 use App\Http\Controllers\PaymentTypeController;
+use App\Http\Controllers\PaymentMenuItemController;
+
 use App\Http\Controllers\TransactionController;
 
 use Illuminate\Http\Request;
@@ -66,6 +68,14 @@ Route::get('reActivePaymentType/{name}', [PaymentTypeController::class, 'reActiv
 Route::get('removePaymentType/{name}', [PaymentTypeController::class, 'removePaymentType']);
 Route::post('chanegeMerChantIdByPaymentTypeName', [PaymentTypeController::class, 'chanegeMerChantIdByPaymentTypeName']);
 
+// paymenyt type menu
+Route::get('getPaymentTypeMainMenuTitle', [PaymentMenuItemController::class, 'getPaymentTypeMainMenuTitle']);
+Route::get('getAllPaymentTypeMenues', [PaymentMenuItemController::class, 'getAllPaymentTypeMenues']);
+Route::post('updatePaymentMenuAlisNameByLevel', [PaymentMenuItemController::class, 'updatePaymentMenuAlisNameByLevel']);
 
 
+// online payment
 Route::get('/order', [TransactionController::class, 'order']);
+
+
+//
