@@ -52,7 +52,6 @@ class TransactionController extends Controller
             $status = $request->status;
 
             $amount = $this->getAmountByRecipeNUmber($transaction_id);
-            \Log::info("VV amount $amount");
 
             $receipt = Payment::amount($amount)
                 ->transactionId($transaction_id)
@@ -66,8 +65,6 @@ class TransactionController extends Controller
             $accBlCtrl->incUserAccuntBalance($userID, $amount);
             return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید و برای ادامه خرید به تلگرام برگردید.';
         } catch (InvalidPaymentException $exception) {
-            \Log::info($exception->getMessage());
-
             return 'خطا در انجام عملیات';
         }
     }
