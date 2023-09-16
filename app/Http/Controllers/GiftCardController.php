@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 use App\Models\GiftCard;
 use Verta;
+use Carbon\Carbon;
 
 use Illuminate\Http\Request;
 
@@ -10,23 +11,35 @@ class GiftCardController extends Controller
 {
     public function createNewGiftCard(Request $request)
     {
-        $giftCard = new GiftCard();
-        $giftCard->code = $request->code;
-        $giftCard->start_date = $this->getMiladyDate($request->start_date);
-        $giftCard->end_date = $this->getMiladyDate($request->end_date);
-        $giftCard->discount = $request->discount;
-        $giftCard->count_of_use = $request->count_of_use;
-        $giftCard->count_of_use_per_user = $request->count_of_use_per_user;
-        $giftCard->save();
-        return $giftCard;
+        $giftCard = GiftCard::where('code', $request->code)->first();
+        if ($giftCard) {
+            return response()->json('duplicate', 401);
+        } else {
+            $giftCard = new GiftCard();
+            $giftCard->code = $request->code;
+            $giftCard->start_date = $request->start_date;
+            $giftCard->end_date = $request->end_date;
+            $giftCard->discount = $request->discount;
+            $giftCard->count_of_use = $request->count_of_use;
+            $giftCard->count_of_use_per_user = $request->count_of_use_per_user;
+            $giftCard->save();
+            return $giftCard;
+        }
+    }
+    public function getGiftCardList()
+    {
+        return GiftCard::all();
     }
     public function updateGiftCard(Request $request)
     {
-        $giftCard = GiftCard::where('code', $code)->first();
+        \Log::info("aaaaaaaaaaaaaaaa $request->start_date");
+        \Log::info("bbbbbbbbbbbbbbb $request->end_date");
+
+        $giftCard = GiftCard::where('code', $request->code)->first();
         if ($giftCard) {
             $giftCard->code = $request->code;
-            $giftCard->start_date = $this->getMiladyDate($request->start_date);
-            $giftCard->end_date = $this->getMiladyDate($request->end_date);
+            $giftCard->start_date = $request->start_date;
+            $giftCard->end_date = $request->end_date;
             $giftCard->discount = $request->discount;
             $giftCard->count_of_use = $request->count_of_use;
             $giftCard->count_of_use_per_user = $request->count_of_use_per_user;
@@ -36,27 +49,28 @@ class GiftCardController extends Controller
             return false;
         }
     }
-    public function checkGiftCardActive($code,$usedCount){
+    public function checkGiftCardActive($code, $usedCount)
+    {
         $giftCard = GiftCard::where('code', $code)->first();
         if ($giftCard) {
-            $today = date("Y-m-d H:i:s");
+            $today = date('Y-m-d H:i:s');
             if ($giftCard->start_date <= $today && $giftCard->end_date >= $today) {
-               if($giftCard->count_of_use >= $usedCount){
-                   return true;
-               }
+                if ($giftCard->count_of_use >= $usedCount) {
+                    return true;
+                }
             } else {
                 return false;
             }
         }
     }
-    public function getGifcardDiscount($code){
+    public function getGifcardDiscount($code)
+    {
         $giftCard = GiftCard::where('code', $code)->first();
         if ($giftCard) {
             return $giftCard->discount;
         } else {
             return 0;
         }
-
     }
     public function deleteGiftCardByCode($code)
     {
@@ -71,6 +85,8 @@ class GiftCardController extends Controller
 
     public function getMiladyDate($oldDate)
     {
+        \Log::info("aaaaaaaaaaaaaaaa $oldDate");
+
         try {
             if ($oldDate != null) {
                 $v = explode('/', $oldDate);
@@ -100,6 +116,7 @@ class GiftCardController extends Controller
                 $car->month = $newDat[1];
                 $car->day = $newDat[2];
                 return $car;
+
             } else {
                 return null;
             }
