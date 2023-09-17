@@ -9,15 +9,15 @@ class FaqController extends Controller
 {
     public function createNewFac(Request $request)
     {
-        try {
+        // try {
             $faq = new Faq();
             $faq->question = $request->question;
             $faq->answer = $request->answer;
             $faq->save();
             return true;
-        } catch (\Throwable $th) {
-            return response()->json(false, 401);
-        }
+        // } catch (\Throwable $th) {
+        //     return response()->json(false, 401);
+        // }
     }
     public function updateFac(Request $request)
     {

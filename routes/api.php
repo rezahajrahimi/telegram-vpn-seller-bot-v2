@@ -12,7 +12,6 @@ use App\Http\Controllers\PaymentMenuItemController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\GiftCardMenuItemController;
 use App\Http\Controllers\GiftCardController;
-use App\Http\Controllers\SupportCategoryController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\FaqController;
 
@@ -96,15 +95,11 @@ Route::get('deleteGiftCardByCode/{code}', [GiftCardController::class, 'deleteGif
 Route::get('getGiftCardList', [GiftCardController::class, 'getGiftCardList']);
 
 
-// Support Category
-Route::post('createNewSupportCategoryItem', [SupportCategoryController::class, 'createNewSupportCategoryItem']);
-Route::post('editSupportCategoryName', [SupportCategoryController::class, 'editSupportCategoryName']);
-Route::get('deleteSupportCategoryByName/{name}', [SupportCategoryController::class, 'deleteSupportCategoryByName']);
-Route::get('getAllSuportCategory', [SupportCategoryController::class, 'getAllSuportCategory']);
 
 // support
-Route::get('getSupportByCategoryId/{catId}', [SupportController::class, 'getSupportByCategoryId']);
-Route::get('deleteSupportById/{catId}', [SupportController::class, 'deleteSupportById']);
+Route::get('getSupporstList', [SupportController::class, 'getSupporstList']);
+Route::get('getSupportById/{id}', [SupportController::class, 'getSupportById']);
+Route::get('deleteSupportById/{id}', [SupportController::class, 'deleteSupportById']);
 Route::post('createNewSupport', [SupportController::class, 'createNewSupport']);
 Route::post('updateSupportById', [SupportController::class, 'updateSupportById']);
 

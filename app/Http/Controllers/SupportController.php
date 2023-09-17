@@ -8,10 +8,19 @@ use Illuminate\Http\Request;
 
 class SupportController extends Controller
 {
-    public function getSupportByCategoryId($catId)
+    public function getSupporstList()
     {
         try {
-            return Support::where('support_categories_id', $catID)->get();
+            return Support::all();
+        } catch (\Throwable $th) {
+            \Log::info($th);
+            return response()->json(false, 401);
+        }
+    }
+    public function getSupportById($catId)
+    {
+        try {
+            return Support::where('id', $catID)->first();
         } catch (\Throwable $th) {
             \Log::info($th);
             return response()->json(false, 401);
@@ -20,12 +29,12 @@ class SupportController extends Controller
     public function createNewSupport(Request $request)
     {
         try {
-            $support = new Support();
-            $support->support_categories_id = $request->support_categories_id;
-            $support->content = $request->content;
-            $support->response_type = $request->response_type;
-            $support->save();
-            return true;
+        $support = new Support();
+        $support->question = $request->question;
+        $support->answer = $request->answer;
+        $support->response_type = $request->response_type;
+        $support->save();
+        return true;
         } catch (\Throwable $th) {
             \Log::info($th);
             return response()->json(false, 401);
@@ -36,8 +45,8 @@ class SupportController extends Controller
         try {
             $support = Support::where('id', $request->id)->first();
             if ($support != null) {
-                $support->support_categories_id = $request->support_categories_id;
-                $support->content = $request->content;
+                $support->question = $request->question;
+                $support->answer = $request->answer;
                 $support->response_type = $request->response_type;
                 $support->update();
                 return true;
@@ -49,7 +58,7 @@ class SupportController extends Controller
             return response()->json(false, 401);
         }
     }
-    public function deleteSupportById( $id)
+    public function deleteSupportById($id)
     {
         try {
             $support = Support::where('id', $id)->first();
