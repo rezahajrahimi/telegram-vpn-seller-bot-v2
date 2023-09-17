@@ -32,8 +32,6 @@ class GiftCardController extends Controller
     }
     public function updateGiftCard(Request $request)
     {
-        \Log::info("aaaaaaaaaaaaaaaa $request->start_date");
-        \Log::info("bbbbbbbbbbbbbbb $request->end_date");
 
         $giftCard = GiftCard::where('code', $request->code)->first();
         if ($giftCard) {

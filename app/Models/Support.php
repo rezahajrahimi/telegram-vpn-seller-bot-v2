@@ -9,7 +9,7 @@ class Support extends Model
 {
     use HasFactory;
     protected $guarded = ['id','support_categories_id'];
-    protected $fillable = ['support_categories_id','content'];
+    protected $fillable = ['support_categories_id','content','response_type'];
 
     /**
      * Get the user that owns the Support

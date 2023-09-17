@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->bigInteger('support_categories_id')->unsigned();
             $table->text('content');
-
+            $table->string('response_type', 100)->nullable()->default('text');
             $table
                 ->foreign('support_categories_id')
                 ->references('id')

@@ -12,6 +12,8 @@ use App\Http\Controllers\PaymentMenuItemController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\GiftCardMenuItemController;
 use App\Http\Controllers\GiftCardController;
+use App\Http\Controllers\SupportCategoryController;
+
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -90,3 +92,10 @@ Route::post('createNewGiftCard', [GiftCardController::class, 'createNewGiftCard'
 Route::post('updateGiftCard', [GiftCardController::class, 'updateGiftCard']);
 Route::get('deleteGiftCardByCode/{code}', [GiftCardController::class, 'deleteGiftCardByCode']);
 Route::get('getGiftCardList', [GiftCardController::class, 'getGiftCardList']);
+
+
+// Support Category
+Route::post('createNewSupportCategoryItem', [SupportCategoryController::class, 'createNewSupportCategoryItem']);
+Route::post('editSupportCategoryName', [SupportCategoryController::class, 'editSupportCategoryName']);
+Route::get('deleteSupportCategoryByName/{name}', [SupportCategoryController::class, 'deleteSupportCategoryByName']);
+Route::get('getAllSuportCategory', [SupportCategoryController::class, 'getAllSuportCategory']);
