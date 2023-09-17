@@ -1,10 +1,67 @@
 <?php
 
 namespace App\Http\Controllers;
+use App\Models\Support;
+use App\Models\SupportCategory;
 
 use Illuminate\Http\Request;
 
 class SupportController extends Controller
 {
-    //
+    public function getSupportByCategoryId($catId)
+    {
+        try {
+            return Support::where('support_categories_id', $catID)->get();
+        } catch (\Throwable $th) {
+            \Log::info($th);
+            return response()->json(false, 401);
+        }
+    }
+    public function createNewSupport(Request $request)
+    {
+        try {
+            $support = new Support();
+            $support->support_categories_id = $request->support_categories_id;
+            $support->content = $request->content;
+            $support->response_type = $request->response_type;
+            $support->save();
+            return true;
+        } catch (\Throwable $th) {
+            \Log::info($th);
+            return response()->json(false, 401);
+        }
+    }
+    public function updateSupportById(Request $request)
+    {
+        try {
+            $support = Support::where('id', $request->id)->first();
+            if ($support != null) {
+                $support->support_categories_id = $request->support_categories_id;
+                $support->content = $request->content;
+                $support->response_type = $request->response_type;
+                $support->update();
+                return true;
+            } else {
+                return response()->json(false, 401);
+            }
+        } catch (\Throwable $th) {
+            \Log::info($th);
+            return response()->json(false, 401);
+        }
+    }
+    public function deleteSupportById( $id)
+    {
+        try {
+            $support = Support::where('id', $id)->first();
+            if ($support != null) {
+                $support->delete();
+                return true;
+            } else {
+                return response()->json(false, 401);
+            }
+        } catch (\Throwable $th) {
+            \Log::info($th);
+            return response()->json(false, 401);
+        }
+    }
 }
