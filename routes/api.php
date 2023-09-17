@@ -14,6 +14,7 @@ use App\Http\Controllers\GiftCardMenuItemController;
 use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\SupportCategoryController;
 use App\Http\Controllers\SupportController;
+use App\Http\Controllers\FaqController;
 
 
 use Illuminate\Http\Request;
@@ -106,3 +107,10 @@ Route::get('getSupportByCategoryId/{catId}', [SupportController::class, 'getSupp
 Route::get('deleteSupportById/{catId}', [SupportController::class, 'deleteSupportById']);
 Route::post('createNewSupport', [SupportController::class, 'createNewSupport']);
 Route::post('updateSupportById', [SupportController::class, 'updateSupportById']);
+
+//Faq
+Route::post('createNewFac', [FaqController::class, 'createNewFac']);
+Route::post('updateFac', [FaqController::class, 'updateFac']);
+Route::get('deleteFacById/{id}', [FaqController::class, 'deleteFacById']);
+Route::get('getFacById/{id}', [FaqController::class, 'getFacById']);
+Route::get('getFaqList', [FaqController::class, 'getFaqList']);
