@@ -14,6 +14,8 @@ use App\Http\Controllers\GiftCardMenuItemController;
 use App\Http\Controllers\GiftCardController;
 use App\Http\Controllers\SupportController;
 use App\Http\Controllers\FaqController;
+use App\Http\Controllers\ChannelLockMenuItemController;
+use App\Http\Controllers\ChannelLockController;
 
 
 use Illuminate\Http\Request;
@@ -109,3 +111,17 @@ Route::post('updateFac', [FaqController::class, 'updateFac']);
 Route::get('deleteFacById/{id}', [FaqController::class, 'deleteFacById']);
 Route::get('getFacById/{id}', [FaqController::class, 'getFacById']);
 Route::get('getFaqList', [FaqController::class, 'getFaqList']);
+
+
+// channel lock menu
+Route::get('getChannelLockMainMenuTitle', [ChannelLockMenuItemController::class, 'getChannelLockMainMenuTitle']);
+Route::post('updateChannelLockMenuAlisNameByLevel', [ChannelLockMenuItemController::class, 'updateChannelLockMenuAlisNameByLevel']);
+
+// channel lock menu
+Route::post('createNewChannelLock', [ChannelLockController::class, 'createNewChannelLock']);
+Route::post('editChannelLock', [ChannelLockController::class, 'editChannelLock']);
+Route::get('deActiveChannelLockByID/{id}', [ChannelLockController::class, 'deActiveChannelLockByID']);
+Route::get('reActiveChannelLockByID/{id}', [ChannelLockController::class, 'reActiveChannelLockByID']);
+Route::get('deleteChannelLockByID/{id}', [ChannelLockController::class, 'deleteChannelLockByID']);
+Route::get('getAllChannelLock', [ChannelLockController::class, 'getAllChannelLock']);
+Route::get('getAllActiveChannelLock', [ChannelLockController::class, 'getAllActiveChannelLock']);
