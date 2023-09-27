@@ -16,6 +16,9 @@ use App\Http\Controllers\SupportController;
 use App\Http\Controllers\FaqController;
 use App\Http\Controllers\ChannelLockMenuItemController;
 use App\Http\Controllers\ChannelLockController;
+use App\Http\Controllers\PannelController;
+use App\Http\Controllers\ProxyController;
+use App\Http\Controllers\InboundController;
 
 
 use Illuminate\Http\Request;
@@ -125,3 +128,23 @@ Route::get('reActiveChannelLockByID/{id}', [ChannelLockController::class, 'reAct
 Route::get('deleteChannelLockByID/{id}', [ChannelLockController::class, 'deleteChannelLockByID']);
 Route::get('getAllChannelLock', [ChannelLockController::class, 'getAllChannelLock']);
 Route::get('getAllActiveChannelLock', [ChannelLockController::class, 'getAllActiveChannelLock']);
+
+// Pannel
+Route::post('addNewPannel', [PannelController::class, 'addNewPannel']);
+Route::post('updatePannel', [PannelController::class, 'updatePannel']);
+Route::get('deletePannel/{id}', [PannelController::class, 'deletePannel']);
+
+
+//  Proxy
+Route::post('addNewProxy', [ProxyController::class, 'addNewProxy']);
+Route::post('updateProxy', [ProxyController::class, 'updateProxy']);
+Route::get('deleteProxy/{id}', [ProxyController::class, 'deleteProxy']);
+Route::get('reActiveProxy/{id}', [ProxyController::class, 'reActiveProxy']);
+Route::get('deActiveProxy/{id}', [ProxyController::class, 'deActiveProxy']);
+
+//  Inbound
+Route::post('addInbound', [InboundController::class, 'addInbound']);
+Route::post('updateInbound', [InboundController::class, 'updateInbound']);
+Route::get('deleteInbound/{id}', [InboundController::class, 'deleteInbound']);
+Route::get('reActiveInbound/{id}', [InboundController::class, 'reActiveInbound']);
+Route::get('deActiveInbound/{id}', [InboundController::class, 'deActiveInbound']);

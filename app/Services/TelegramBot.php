@@ -46,7 +46,7 @@ class TelegramBot
      * @param  mixed $reply_to_message_id
      * @return void
      */
-    public function sendMessage($text = '', $chat_id, $reply_to_message_id)
+    public function sendMessage($text = '', $chat_id, $reply_to_message_id,$parse,$key = null)
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
@@ -57,6 +57,10 @@ class TelegramBot
             'reply_to_message_id' => $reply_to_message_id,
             'text' => $text,
             'allow_sending_without_reply'=>true,
+            // 'reply_markup' => $key,
+
+            'parse_mode' => $parse,
+
         ];
 
         // Create url -> https://api.telegram.org/bot{token}/sendMessage
