@@ -13,6 +13,7 @@ class InboundController extends Controller
             $inbound = new Inbound();
             $inbound->name = $request->name;
             $inbound->data = $request->data;
+            $inbound->proxy_id  = $request->proxy_id ;
             $inbound->is_active = true;
             $inbound->save();
             return true;
@@ -26,6 +27,7 @@ class InboundController extends Controller
             $inbound = Inbound::where('id', $request->id)->first();
             $inbound->name = $request->name;
             $inbound->data = $request->data;
+            $inbound->data = $request->proxy_id ;
             $inbound->is_active = $request->is_active;
             $inbound->update();
             return true;

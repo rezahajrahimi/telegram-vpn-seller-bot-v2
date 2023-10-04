@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('type', 100)->default('other');
             $table->string('username', 100)->nullable()->default('admin');
             $table->string('password', 100)->nullable()->default('123456');
-            $table->string('token', 100)->nullable()->default('Bearer ');
+            $table->string('token', 255)->nullable()->default('Bearer ');
             $table->string('location', 100)->nullable();
             $table->string('url_port', 255)->nullable();
             $table->string('admin_url', 255)->nullable();
