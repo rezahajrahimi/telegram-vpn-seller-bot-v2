@@ -7,13 +7,13 @@ use Illuminate\Http\Request;
 
 class ProductCategoryController extends Controller
 {
-    public function getAllProdctCategort($servicetypeID)
+    public function getAllProdctCategory()
     {
-        return ProductCategory::where('service_types_id', $servicetypeID)->get();
+        return ProductCategory::all();
     }
-    public function getProdctCategoryID($name, $servicetypeID)
+    public function getProdctPannelID($name, $pannel_id)
     {
-        $data = ProductCategory::where('service_types_id', $servicetypeID)
+        $data = ProductCategory::where('pannel_id', $pannel_id)
             ->where('category_name', $name)
             ->first();
         if ($data != null) {
@@ -25,20 +25,39 @@ class ProductCategoryController extends Controller
     public function addNewProductCategory(Request $request)
     {
         $data = new ProductCategory();
-        $data->service_types_id = $request->service_types_id;
+        $data->pannel_id = $request->pannel_id;
         $data->category_name = $request->category_name;
         $data->price = $request->price;
+        $data->expire_day = $request->expire_day;
 
         if ($data->save()) {
-            return $this->getAllProdctCategort($request->service_types_id);
+            return $this->getAllProdctCategory();
         } else {
             return false;
+        }
+    }
+    public function editProductCategory(Request $request)
+    {
+        try {
+            $data = ProductCategory::find($request->id);
+            $data->pannel_id = $request->pannel_id;
+            $data->category_name = $request->category_name;
+            $data->price = $request->price;
+            $data->expire_day = $request->expire_day;
+
+            if ($data->update()) {
+                return response()->json(true, 200);
+            } else {
+                return response()->json(false, 401);
+            }
+        } catch (\Throwable $th) {
+            return response()->json(false, 500);
         }
     }
 
     public function getProdctPrice($name, $servicetypeID)
     {
-        $data = ProductCategory::where('service_types_id', $servicetypeID)
+        $data = ProductCategory::where('pannel_id', $pannel_id)
             ->where('category_name', $name)
             ->first();
         if ($data != null) {

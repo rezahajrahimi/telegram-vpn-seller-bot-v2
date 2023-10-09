@@ -19,4 +19,8 @@ class Pannel extends Model
     {
         return $this->hasMany(Proxy::class, 'pannel_id');
     }
+    public function product_category()
+    {
+        return $this->hasMany(ProductCategory::class, 'pannel_id');
+    }
 }

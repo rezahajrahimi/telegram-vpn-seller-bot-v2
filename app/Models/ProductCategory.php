@@ -8,16 +8,17 @@ use Illuminate\Database\Eloquent\Model;
 class ProductCategory extends Model
 {
     use HasFactory;
-    protected $guarded = ['id','service_types_id'];
-    protected $fillable = ['service_types_id','category_name','price'];
+    protected $guarded = ['id','pannel_id'];
+    protected $fillable = ['pannel_id','category_name','price','expire_day'];
     /**
      * Get the user that owns the ProductCategory
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function service_type(): BelongsTo
+     public function pannel()
     {
-        return $this->belongsTo(ServiceType::class, 'service_types_id');
+        return $this->belongsTo(Pannel::class, 'pannel_id');
     }
+
 
 }

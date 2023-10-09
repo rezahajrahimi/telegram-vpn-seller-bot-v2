@@ -48,17 +48,17 @@ class PannelController extends Controller
                 $proxy->save();
                 if ($request->vmessTCP != null && $request->vmessTCP != false) {
                     $inbound = new Inbound();
-                    $inbound->name = "VMess TCP";
-                    $inbound->data = "VMess TCP";
-                    $inbound->proxy_id  = $proxy->id ;
+                    $inbound->name = 'VMess TCP';
+                    $inbound->data = 'VMess TCP';
+                    $inbound->proxy_id = $proxy->id;
                     $inbound->is_active = true;
                     $inbound->save();
                 }
                 if ($request->vmessWebSocket != null && $request->vmessWebSocket != false) {
                     $inbound = new Inbound();
-                    $inbound->name = "VMess Websocket";
-                    $inbound->data = "VMess Websocket";
-                    $inbound->proxy_id  = $proxy->id ;
+                    $inbound->name = 'VMess Websocket';
+                    $inbound->data = 'VMess Websocket';
+                    $inbound->proxy_id = $proxy->id;
                     $inbound->is_active = true;
                     $inbound->save();
                 }
@@ -71,17 +71,17 @@ class PannelController extends Controller
                 $proxy->save();
                 if ($request->vlessTcpReality != null && $request->vlessTcpReality != false) {
                     $inbound = new Inbound();
-                    $inbound->name = "VLESS TCP REALITY";
-                    $inbound->data = "VLESS TCP REALITY";
-                    $inbound->proxy_id  = $proxy->id ;
+                    $inbound->name = 'VLESS TCP REALITY';
+                    $inbound->data = 'VLESS TCP REALITY';
+                    $inbound->proxy_id = $proxy->id;
                     $inbound->is_active = true;
                     $inbound->save();
                 }
                 if ($request->vlessGprcReality != null && $request->vlessGprcReality != false) {
                     $inbound = new Inbound();
-                    $inbound->name = "VLESS GRPC REALITY";
-                    $inbound->data = "VLESS GRPC REALITY";
-                    $inbound->proxy_id  = $proxy->id ;
+                    $inbound->name = 'VLESS GRPC REALITY';
+                    $inbound->data = 'VLESS GRPC REALITY';
+                    $inbound->proxy_id = $proxy->id;
                     $inbound->is_active = true;
                     $inbound->save();
                 }
@@ -94,9 +94,9 @@ class PannelController extends Controller
                 $proxy->save();
                 if ($request->trojanWebsocketTLS != null && $request->trojanWebsocketTLS != false) {
                     $inbound = new Inbound();
-                    $inbound->name = "Trojan Websocket TLS";
-                    $inbound->data = "Trojan Websocket TLS";
-                    $inbound->proxy_id  = $proxy->id ;
+                    $inbound->name = 'Trojan Websocket TLS';
+                    $inbound->data = 'Trojan Websocket TLS';
+                    $inbound->proxy_id = $proxy->id;
                     $inbound->is_active = true;
                     $inbound->save();
                 }
@@ -109,9 +109,9 @@ class PannelController extends Controller
                 $proxy->save();
                 if ($request->shadowsocksTCP != null && $request->shadowsocksTCP != false) {
                     $inbound = new Inbound();
-                    $inbound->name = "Shadowsocks TCP";
-                    $inbound->data = "chacha20-poly1305";
-                    $inbound->proxy_id  = $proxy->id ;
+                    $inbound->name = 'Shadowsocks TCP';
+                    $inbound->data = 'chacha20-poly1305';
+                    $inbound->proxy_id = $proxy->id;
                     $inbound->is_active = true;
                     $inbound->save();
                 }
@@ -156,6 +156,19 @@ class PannelController extends Controller
     {
         try {
             return $pannel = Pannel::find($id);
+        } catch (\Throwable $th) {
+            return response()->json(false, 500);
+        }
+    }
+    public function getPannelByIdWithProxiesInbounds($id)
+    {
+        try {
+            $pannel = Pannel::findOrFail($id);
+            $proxyInbounds = Pannel::findOrFail($id)
+                ->proxies()
+                ->with('inbounds')
+                ->get();
+            return response()->json([$pannel, $proxyInbounds], 200);
         } catch (\Throwable $th) {
             return response()->json(false, 500);
         }

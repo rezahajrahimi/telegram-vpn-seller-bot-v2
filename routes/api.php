@@ -46,8 +46,16 @@ Route::prefix('telegram/webhooks')->group(function () {
 // });
 Route::get('getUserOrder/{userID}', [OrderController::class, 'getUserOrder']);
 Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
-Route::get('getAllProdctCategort/{servicetypeID}', [ProductCategoryController::class, 'getAllProdctCategort']);
+
+
+//  ProductCategory
+Route::get('getAllProdctCategory', [ProductCategoryController::class, 'getAllProdctCategory']);
+Route::get('getProdctPrice', [ProductCategoryController::class, 'getProdctPrice']);
+Route::get('getProdctPannelID/{name}/pannelID', [ProductCategoryController::class, 'getProdctPannelID']);
 Route::post('addNewProductCategory', [ProductCategoryController::class, 'addNewProductCategory']);
+Route::post('editProductCategory', [ProductCategoryController::class, 'editProductCategory']);
+
+
 Route::get('getActiveProductsByProductCatID/{selectedProductCatID}', [ProductController::class, 'getActiveProductsByProductCatID']);
 Route::post('addNewProductDetails', [ProductController::class, 'addNewProductDetails']);
 
@@ -136,6 +144,7 @@ Route::post('updatePannel', [PannelController::class, 'updatePannel']);
 Route::get('deletePannel/{id}', [PannelController::class, 'deletePannel']);
 Route::get('getPannels', [PannelController::class, 'getPannels']);
 Route::get('getPannelById/{id}', [PannelController::class, 'getPannelById']);
+Route::get('getPannelByIdWithProxiesInbounds/{id}', [PannelController::class, 'getPannelByIdWithProxiesInbounds']);
 
 
 //  Proxy

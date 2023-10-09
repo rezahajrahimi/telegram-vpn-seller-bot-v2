@@ -24,7 +24,7 @@ class Proxy extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function comments()
+    public function inbounds()
     {
         return $this->hasMany(Inbound::class, 'proxy_id');
     }
