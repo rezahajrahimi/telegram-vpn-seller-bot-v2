@@ -9,7 +9,7 @@ class ProductCategory extends Model
 {
     use HasFactory;
     protected $guarded = ['id','pannel_id'];
-    protected $fillable = ['pannel_id','category_name','price','expire_day'];
+    protected $fillable = ['pannel_id','category_name','price','expire_day','volume'];
     /**
      * Get the user that owns the ProductCategory
      *

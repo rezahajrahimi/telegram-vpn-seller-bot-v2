@@ -9,7 +9,7 @@ class ProductCategoryController extends Controller
 {
     public function getAllProdctCategory()
     {
-        return ProductCategory::all();
+        return ProductCategory::with('pannel')->orderBy('created_at')->get();
     }
     public function getProdctPannelID($name, $pannel_id)
     {
@@ -29,6 +29,7 @@ class ProductCategoryController extends Controller
         $data->category_name = $request->category_name;
         $data->price = $request->price;
         $data->expire_day = $request->expire_day;
+        $data->volume = $request->volume;
 
         if ($data->save()) {
             return $this->getAllProdctCategory();
@@ -44,6 +45,7 @@ class ProductCategoryController extends Controller
             $data->category_name = $request->category_name;
             $data->price = $request->price;
             $data->expire_day = $request->expire_day;
+            $data->volume = $request->volume;
 
             if ($data->update()) {
                 return response()->json(true, 200);
