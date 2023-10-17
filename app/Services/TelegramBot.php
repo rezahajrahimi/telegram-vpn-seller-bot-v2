@@ -78,6 +78,44 @@ class TelegramBot
 
         return $result;
     }
+    public function checkMember($channelID, $chat_id)
+    {
+        // Default result array
+        $result = ['success' => false, 'body' => []];
+
+        // Create params array
+        $params = [
+            'chat_id' => $channelID,
+            'user_id' => $chat_id,
+
+        ];
+
+        // Create url -> https://api.telegram.org/bot{token}/sendMessage
+        $url = "{$this->api_endpoint}/{$this->token}/getChatMember";
+
+        // Send the request
+        try {
+            $response = Http::withHeaders($this->headers)->post($url, $params);
+            if($response->ok() != false) {
+                $result = ['success' => $response->ok(), 'body' => $response->json()];
+            return true;
+
+            } else {
+                $result = ['False' => $response->ok(), 'body' => $response->json()];
+            return false;
+
+            }
+
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+            return false;
+
+        }
+
+        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
+
+        return false;
+    }
     public function buttonMessage($text = '', $opr,$chat_id, $reply_to_message_id)
     {
         // Default result array
@@ -108,6 +146,38 @@ class TelegramBot
 
         return $result;
     }
+    public function inlineKeyboardButton($text = '',  $opr,$chat_id, $reply_to_message_id)
+    {
+        // Default result array
+        $result = ['success' => false, 'body' => []];
+
+        // Create params array
+
+        $params = [
+            'chat_id' => $chat_id,
+            'reply_to_message_id' => $reply_to_message_id,
+            'allow_sending_without_reply'=>true,
+            'text' => $text,
+            'reply_markup' => ['inline_keyboard' => $opr,  'resize_keyboard' => true],
+
+        ];
+
+        // Create url -> https://api.telegram.org/bot{token}/sendMessage
+        $url = "{$this->api_endpoint}/{$this->token}/sendMessage";
+
+        // Send the request
+        try {
+            $response = Http::withHeaders($this->headers)->post($url, $params);
+            $result = ['success' => $response->ok(), 'body' => $response->json()];
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+        }
+
+        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
+
+        return $result;
+    }
+
 
     public function imageMessage($image,$chat_id,$caption)
     {

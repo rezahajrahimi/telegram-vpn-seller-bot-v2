@@ -13,13 +13,18 @@ class ChannelLockMenuItemController extends Controller
         if ($data != null) {
             return $data;
         } else {
-            $payment = new ChannelLockMenuItem();
-            $payment->name = 'main';
-            $payment->alias_name = 'برای شروع، لطفا در کانالهای زیر عضو بشوید.';
-            $payment->level = 1;
-            $payment->save();
-            return $payment;
+            $data = new ChannelLockMenuItem();
+            $data->name = 'main';
+            $data->alias_name = 'برای شروع، لطفا در کانالهای زیر عضو بشوید.';
+            $data->level = 1;
+            $data->save();
+            return $data;
         }
+    }
+    public function getChannelLockMenuText(){
+        $data = ChannelLockMenuItem::where('name', "main")->first();
+        return $data->alias_name;
+
     }
     public function updateChannelLockMenuAlisNameByLevel(Request $request)
     {
