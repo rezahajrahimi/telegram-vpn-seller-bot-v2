@@ -46,7 +46,9 @@ class TelegramController extends Controller
         \Log::info($request->all());
         try {
             try {
+
                 if (isset($request->message)) {
+
                     $this->from_id = $request->message['from']['id'];
                     $this->text = $request->message['text'];
                     $this->first_name = $request->message['from']['first_name'];
@@ -58,11 +60,8 @@ class TelegramController extends Controller
                     $this->forward_from_name = $request->message['reply_to_message']['forward_sender_name'] ?? 0;
                     $this->forward_from_id = $request->message['reply_to_message']['forward_from']['id'] ?? 0;
                     $this->reply_text = $request->message['reply_to_message']['text'] ?? '0';
-                }
-            } catch (\Throwable $th) {
-                \Log::info("Throwable:  $th");
+                } elseif (isset($request->callback_query)) {
 
-                if (isset($request->callback_query)) {
                     $this->callbackId = $request->callback_query['id'];
                     $this->data = $request->callback_query['data'];
                     $this->text = $request->callback_query['message']['text'];
@@ -72,42 +71,82 @@ class TelegramController extends Controller
                     $this->username = $request->callback_query['from']['username'] ?? ' ندارد ';
                     $this->from_id = $request->callback_query['from']['id'];
                     $this->first_name = $request->callback_query['from']['first_name'];
+                    $this->last_name = $request->callback_query['from']['last_name'];
+
+                    $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
+                    $this->recogniseMessage();
+                }
+            } catch (\Throwable $th) {
+
+                if (isset($request->callback_query)) {
+
+                    $this->callbackId = $request->callback_query['id'];
+                    $this->data = $request->callback_query['data'];
+                    $this->text = $request->callback_query['message']['text'];
+                    $this->message_id = $request->callback_query['message']['message_id'];
+                    $this->chat_id = $request->callback_query['message']['chat']['id'];
+                    $this->chat_type = $request->callback_query['message']['chat']['type'];
+                    $this->username = $request->callback_query['from']['username'] ?? ' ندارد ';
+                    $this->from_id = $request->callback_query['from']['id'];
+                    $this->first_name = $request->callback_query['from']['first_name'];
+                    $this->last_name = $request->callback_query['from']['last_name'];
+
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
                     $this->recogniseMessage();
                 }
             }
 
             // if (!cache()->has("chat_id_{$this->from_id}") && $this->currentMenuLevel == 0) {
-            //     $this->text = $settingCtrl->getWelcomeMessage();
-            //     cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
-            //     app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
-            // } else {
+            // \Log::info("from_id:  $this->from_id");
+
+            if (!$botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name)) {
+                $this->text = $settingCtrl->getWelcomeMessage();
+                cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
+                app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
+                $this->defaultMenu();
+            } else {
                 $channelLock = $this->checkIsChannelsMember($this->from_id);
-                if( $channelLock) {
+                if ($channelLock == true || $channelLock == 1) {
                     $this->defaultMenu();
                 } else {
                     $this->channelLockMenu();
                 }
-            // }
+            }
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
         }
     }
     public function defaultMenu()
     {
+        $this->deleteMessage();
         // array_push($opr, [['text' => 'بازگشت', 'callback_data' => 'بازگشت'], ['text' => 'پشتیبانی', 'callback_data' => 'پشتیبانی']]);
         $text = 'یک گزینه را انتخاب کنید.';
 
-        $opr = [[['text' => 'خرید اشتراک', 'callback_data' => 'buySubscription'], ['text' => 'سابقه خرید', 'callback_data' => 'subscriptionHistory']], [['text' => 'اطلاعات حساب', 'callback_data' => 'accountDetails'], ['text' => 'دریافت آموزش', 'callback_data' => 'learning'], ['text' => 'پشتیبانی', 'callback_data' => 'support']]];
+        $menu = new MainMenuItemController();
+        $menuItem = $menu->getAllActivatedMainMenuItems();
+        $opr = [];
+        $index = 0;
+        foreach ($menuItem as $key => $value) {
+            array_push($opr, [['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"]]);
+        }
+        // $opr = [[['text' => 'خرید اشتراک', 'callback_data' => 'buySubscription'], ['text' => 'سابقه خرید', 'callback_data' => 'subscriptionHistory']], [['text' => 'اطلاعات حساب', 'callback_data' => 'accountDetails'], ['text' => 'دریافت آموزش', 'callback_data' => 'learning'], ['text' => 'پشتیبانی', 'callback_data' => 'support']]];
 
-        $result = app('telegram_bot')->buttonMessage($text, $opr, $this->chat_id, '');
+        $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
         // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
     }
+    public function deleteMessage(){
+        try {
+            $result = app('telegram_bot')->deleteMessage($this->chat_id, $this->message_id);
+
+        } catch (\Throwable $th) {
+            \Log::info("Throwable deleteMessage: $th");
+        }
+    }
     public function recogniseMessage()
     {
-        $this->userCommandArr = explode('-', $this->callback_data);
+        $this->userCommandArr = explode('-', $this->data);
         $command = $this->userCommandArr[0];
         \Log::info("command recognise: $command");
 
@@ -147,13 +186,14 @@ class TelegramController extends Controller
     {
         $channelLockCtrl = new ChannelLockController();
         $channels = $channelLockCtrl->getAllActiveChannelLock();
+        $response = true;
         foreach ($channels as $channel) {
             $res = app('telegram_bot')->checkMember($channel->channel_id, $chat_id);
             if ($res == false) {
-                return false;
+                $response == false;
             }
         }
-        return true;
+        return $response;
     }
     public function channelLockMenu()
     {
@@ -162,18 +202,19 @@ class TelegramController extends Controller
         $opr = [];
 
         foreach ($channels as $channel => $value) {
-
-             array_push($opr, [[
-             'text' => "$value->channel_id","url"=>"https://t.me/$value->channel_id"]]);
+            array_push($opr, [
+                [
+                    'text' => "$value->channel_id",
+                    'url' => "https://t.me/$value->channel_id",
+                ],
+            ]);
         }
 
         $channelLockMenuCtrl = new ChannelLockMenuItemController();
 
-        // array_push($opr, [['text' => 'بازگشت', 'callback_data' => 'بازگشت'], ['text' => 'پشتیبانی', 'callback_data' => 'پشتیبانی']]);
         $text = $channelLockMenuCtrl->getChannelLockMenuText();
 
         $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
-        // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
         return response()->json($result, 200);
     }
 }

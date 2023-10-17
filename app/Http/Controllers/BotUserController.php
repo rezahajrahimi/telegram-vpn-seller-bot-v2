@@ -18,4 +18,14 @@ class BotUserController extends Controller
             'last_name' => $lastName,
         ]);
     }
+    public function hasRegistred($account_id, $userName, $firstName, $lastName)
+    {
+        $user = BotUser::where('account_id', $account_id)->first();
+        if ($user != null) {
+            return true;
+        } else {
+            $this->createNewUserBot($account_id, $userName, $firstName, $lastName);
+            return false;
+        }
+    }
 }
