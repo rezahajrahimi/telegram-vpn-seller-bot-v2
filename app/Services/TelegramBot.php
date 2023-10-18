@@ -104,6 +104,33 @@ class TelegramBot
 
         return true;
     }
+    public function editMessage($chat_id, $message_id)
+    {
+        // Default result array
+        $result = ['success' => false, 'body' => []];
+
+        // Create params array
+        $params = [
+            'chat_id' => $chat_id,
+            'message_id' => $message_id,
+        ];
+
+        // Create url -> https://api.telegram.org/bot{token}/sendMessage
+        $url = "{$this->api_endpoint}/{$this->token}/editMessage";
+
+        // Send the request
+        try {
+            $response = Http::withHeaders($this->headers)->post($url, $params);
+            $result = ['success' => $response->ok(), 'body' => $response->json()];
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+            return false;
+
+        }
+
+
+        return true;
+    }
     public function checkMember($channelID, $chat_id)
     {
         // Default result array

@@ -113,7 +113,6 @@ class TelegramController extends Controller
     }
     public function defaultMenu()
     {
-        $this->deleteMessage();
         // array_push($opr, [['text' => 'بازگشت', 'callback_data' => 'بازگشت'], ['text' => 'پشتیبانی', 'callback_data' => 'پشتیبانی']]);
         $text = 'یک گزینه را انتخاب کنید.';
 
@@ -137,6 +136,14 @@ class TelegramController extends Controller
             $result = app('telegram_bot')->deleteMessage($this->chat_id, $this->message_id);
         } catch (\Throwable $th) {
             \Log::info("Throwable deleteMessage: $th");
+        }
+    }
+    public function editMessage()
+    {
+        try {
+            $result = app('telegram_bot')->editMessage($this->chat_id, $this->message_id);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable editMessage: $th");
         }
     }
     public function recogniseMessage()
@@ -231,7 +238,7 @@ class TelegramController extends Controller
     }
     public function buySubscription()
     {
-        $this->deleteMessage();
+        // $this->deleteMessage();
 
         $text = 'بسته خود را انتخاب کنید.';
         $prCatCntrl = new ProductCategoryController();
