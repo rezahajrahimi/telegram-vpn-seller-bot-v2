@@ -11,6 +11,10 @@ class ProductCategoryController extends Controller
     {
         return ProductCategory::with('pannel')->orderBy('created_at')->get();
     }
+    public function getAllProdctCategoryOrderByPrice()
+    {
+        return ProductCategory::orderBy('price')->get();
+    }
     public function getProdctPannelID($name, $pannel_id)
     {
         $data = ProductCategory::where('pannel_id', $pannel_id)
