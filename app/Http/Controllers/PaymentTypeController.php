@@ -177,6 +177,15 @@ class PaymentTypeController extends Controller
             return null;
         }
     }
+    public function getPaymentTypeNyID($id)
+    {
+        $data = PaymentType::find($id);
+        if ($data != null) {
+            return $data;
+        } else {
+            return null;
+        }
+    }
     public function reActivePaymentType($name)
     {
         $data = PaymentType::where('name', $name)->first();

@@ -61,6 +61,26 @@ class PaymentMenuItemController extends Controller
             return $data;
         }
     }
+    public function getResponseOfSelectedOfflineMenu()
+    {
+        $data = PaymentMenuItem::where('name', 'reponse')->first();
+        if ($data != null) {
+            return $data->alias_name;
+        } else {
+            $payment = new PaymentMenuItem();
+            $payment->name = 'main';
+            $payment->alias_name = 'گزینه پرداخت را انتخاب کنید.';
+            $payment->level = 1;
+            $payment->save();
+            $response = new PaymentMenuItem();
+            $response->name = 'response';
+            $response->alias_name = 'لطفا مبلغ را به شماره زیر واریز کنید و تصویر رسید را در ربات ارسال کنید.';
+            $response->level = 2;
+            $response->save();
+            return $response->alias_name;
+        }
+    }
+
     public function updatePaymentMenuAlisNameByLevel(Request $request)
     {
         $data = PaymentMenuItem::where('level', $request->level)->first();
