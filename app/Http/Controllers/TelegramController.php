@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://bc35-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://7d6e-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -177,6 +177,15 @@ class TelegramController extends Controller
             case 'main':
                 $this->subMainMenu();
                 break;
+            case 'buySubscription':
+                $this->subBuySubscription();
+                break;
+            case 'addAccountBalance':
+                $this->addAccountBalance();
+                break;
+            case 'subAccountBalance':
+                $this->subAccountBalance();
+                break;
 
             default:
                 $this->defaultMenu();
@@ -248,12 +257,190 @@ class TelegramController extends Controller
         $index = 0;
         array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
         foreach ($prCat as $key => $value) {
-            array_push($opr, [['text' => "$value->price", 'callback_data' => 'buySubscription-$value->id'], ['text' => "$value->category_name", 'callback_data' => 'buySubscription-$value->id']]);
+            array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
         }
 
         $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        // $result = app('telegram_bot')->editMessageReplyMarkup( $this->chat_id,$this->message_id,$opr,);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
+    }
+    public function subBuySubscription()
+    {
+        $this->deleteMessage();
+
+        $prCat = new ProductCategoryController();
+
+        $id = $this->userCommandArr[1];
+        \Log::info("userCommandArr: $id");
+
+        $selectedPrCat = $prCat->getProdctCategoryNameByID($this->userCommandArr[1]);
+        // check user account balance
+        $productPrice = $selectedPrCat->price;
+        \Log::info("selectedPrCat->price: $productPrice");
+        $opr = [];
+        $accBlCtrl = new AccountBallanceController();
+        if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice)) {
+            $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
+            $text = "پول داره \r\n";
+
+            $text .= "موجودی حساب شما: $userAccouintBallance";
+            $opr = [[['text' => 'افزایش اعتبار', 'callback_data' => 'addAccountBalance']]];
+            array_push($opr, [['text' => 'بازگشت به منوی اصلی', 'callback_data' => '0'], ['text' => 'پشتیبانی', 'callback_data' => 'support']]);
+
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+
+            return response()->json($result, 200);
+        } else {
+            $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
+            // get item price
+            $estimatedPrice = $productPrice - $userAccouintBallance;
+
+            // create new invoice
+            $billCntrl = new BillController();
+            $request = new Request();
+            $request->account_id = $this->chat_id;
+            $request->amount = $estimatedPrice;
+            $bill = $billCntrl->createNewBill($request);
+            // create link
+            $text = "موجودی شما کم تر از قیمت بسته انتخابی می باشد. لطفا حساب خود را شارژ بفرمایید. \r\n";
+            $text .= "موجودی حساب شما: $userAccouintBallance تومان  \r\n";
+
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            $pymCntrl = new PaymentTypeController();
+            $hasZarinPal = $pymCntrl->getZarinpalStatus();
+            if ($hasZarinPal == true) {
+                $openLink = $pymCntrl->getZarinpalLink();
+
+                array_push($opr, [
+                    [
+                        'text' => "پرداخت آنلاین",
+                        'url' => "$openLink/$this->chat_id/$bill->bill_id/$bill->amount",
+                    ],
+                ]);
+                $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
+
+            }
+
+            // send link
+
+            // send offline item
+
+            $opr = [];
+            foreach ($offlinePayment as $key => $value) {
+                \Log::info("offlinePayment:$value->name");
+                array_push($opr, [['text' => "$value->name", 'callback_data' => "subAccountBalance-$value->name "]]);
+            }
+
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+
+            // $text = "موجودی شما کم تر از قیمت بسته انتخابی می باشد. لطفا حساب خود را شارژ بفرمایید. \r\n";
+
+            // $text .= "موجودی حساب شما: $userAccouintBallance تومان";
+            // $opr = [[['text' => 'افزایش اعتبار', 'callback_data' => 'addAccountBalance']]];
+            // array_push($opr, [['text' => 'بازگشت به منوی اصلی', 'callback_data' => '0'], ['text' => 'پشتیبانی', 'callback_data' => 'support']]);
+
+            // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+
+            return response()->json($result, 200);
+        }
+        // $text = 'بسته خود را انتخاب کنید.';
+        // $prCatCntrl = new ProductCategoryController();
+
+        // $prCat = $prCatCntrl->getAllProdctCategoryOrderByPrice();
+        // $opr = [];
+        // $index = 0;
+        // array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
+        // foreach ($prCat as $key => $value) {
+        //     array_push($opr, [['text' => "$value->price", 'callback_data' => 'buySubscription-$value->id'], ['text' => "$value->category_name", 'callback_data' => 'buySubscription-$value->id']]);
+        // }
+
+        // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        // // $result = app('telegram_bot')->editMessageReplyMarkup( $this->chat_id,$this->message_id,$opr,);
+        // $this->setNewLevel($this->buySubscriptionLevel);
+        // return response()->json($result, 200);
+    }
+    public function addAccountBalance()
+    {
+        $this->deleteMessage();
+
+        $text = 'نوع پرداخت را انتخاب کنید.';
+        $pymCntrl = new PaymentTypeController();
+        $opr = [];
+
+        $hasZarinPal = $pymCntrl->getZarinpalStatus();
+        if ($hasZarinPal == true) {
+            array_push($opr, [['text' => 'پرداخت آنلاین', 'callback_data' => 'subAccountBalance-zarinpal']]);
+        }
+        $offlinePayment = $pymCntrl->getAllActiveOfflinePaymentTypes();
+        $index = 0;
+
+        foreach ($offlinePayment as $key => $value) {
+            \Log::info("offlinePayment:$value->name");
+            array_push($opr, [['text' => "$value->name", 'callback_data' => "subAccountBalance-$value->name "]]);
+        }
+
+        $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        // $result = app('telegram_bot')->editMessageReplyMarkup( $this->chat_id,$this->message_id,$opr,);
+        $this->setNewLevel($this->buySubscriptionLevel);
+        return response()->json($result, 200);
+    }
+    public function subAccountBalance()
+    {
+        $this->deleteMessage();
+        $pymCntrl = new PaymentTypeController();
+
+        if ($this->userCommandArr[1] == 'zarinpal') {
+            $text = 'میزان افزایش اعتبار را انتخاب کنید.';
+            $opr = [];
+            array_push($opr, [['text' => '10 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-10000 ']]);
+            array_push($opr, [['text' => '15 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-15000 ']]);
+            array_push($opr, [['text' => '30 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-30000 ']]);
+            array_push($opr, [['text' => '50 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-50000 ']]);
+            array_push($opr, [['text' => '90 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-90000 ']]);
+            array_push($opr, [['text' => '100 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-100000 ']]);
+            array_push($opr, [['text' => '150 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-150000 ']]);
+            array_push($opr, [['text' => '180 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-180000 ']]);
+            array_push($opr, [['text' => '300 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-300000 ']]);
+            array_push($opr, [['text' => '500 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-500000 ']]);
+
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            // $this->setNewLevel($this->addZarinPalBalanceLevel);
+            return response()->json($result, 200);
+        } else {
+            $pymCntrl = new PaymentTypeController();
+            $pymentMenuCntrl = new PaymentMenuItemController();
+            $text = $pymentMenuCntrl->getPaymentTypeMainMenuAliasText();
+            $opr = [];
+
+            $selectedPayment = $pymCntrl->getPaymentTypeNyName($this->userCommandArr[1]);
+            array_push($opr, [['text' => "$selectedPayment->merchant_id", 'callback_data' => "$selectedPayment->merchant_id"]]);
+
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+
+            // $this->setNewLevel($this->buySubscriptionLevel);
+            return response()->json($result, 200);
+        }
+        // $text = 'نوع پرداخت را انتخاب کنید.';
+        // $pymCntrl = new PaymentTypeController();
+        // $opr = [];
+
+        // $hasZarinPal = $pymCntrl->getZarinpalStatus();
+        // if($hasZarinPal == true) {
+        //     array_push($opr, [['text' => 'پرداخت آنلاین', 'callback_data' => 'subAccountBalance-zarinpal']]);
+        // }
+        // $offlinePayment = $pymCntrl->getAllActiveOfflinePaymentTypes();
+        // $index = 0;
+
+        // foreach ($offlinePayment as $key => $value) {
+        //    \Log::info("offlinePayment:$value->name");
+        //     array_push($opr, [['text' => "$value->name", 'callback_data' => "subAccountBalance-$value->name "]]);
+        // }
+
+        // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        // // $result = app('telegram_bot')->editMessageReplyMarkup( $this->chat_id,$this->message_id,$opr,);
+        // $this->setNewLevel($this->buySubscriptionLevel);
+        // return response()->json($result, 200);
     }
     public function checkIsChannelsMember($chat_id)
     {

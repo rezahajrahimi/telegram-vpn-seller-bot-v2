@@ -17,6 +17,12 @@ class PaymentTypeController extends Controller
     {
         return PaymentType::where('is_active', true)->get();
     }
+    public function getAllActiveOfflinePaymentTypes()
+    {
+        return PaymentType::where('is_active', true)
+            ->where('type', 'offline')
+            ->get();
+    }
     public function getPaymentAddressByPaymentName($name)
     {
         $data = PaymentType::where('name', $name)->first();
@@ -67,11 +73,23 @@ class PaymentTypeController extends Controller
             return $data;
         }
     }
+    public function getZarinpalStatus()
+    {
+        $data = PaymentType::where('name', 'زرین پال')->first();
+        if ($data != null) {
+            if ($data->is_active == 1 || $data->is_active == true) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
     public function getZarinpalMerchantID()
     {
         $data = PaymentType::where('name', 'زرین پال')->first();
         if ($data != null) {
-
             return $data->merchant_id;
         } else {
             $data = new PaymentType();
@@ -86,7 +104,6 @@ class PaymentTypeController extends Controller
     {
         $data = PaymentType::where('name', 'زرین پال')->first();
         if ($data != null) {
-
             return $data->id;
         } else {
             $data = new PaymentType();
@@ -96,6 +113,12 @@ class PaymentTypeController extends Controller
             $data->save();
             return $data->id;
         }
+    }
+    public function getZarinpalLink()
+    {
+       $settingCntrl = new SettingController();
+       $mainUrl = $settingCntrl->getMainUrl();
+       return "$mainUrl/buy";
     }
     public function createNewPaymentType(Request $request)
     {
@@ -128,7 +151,7 @@ class PaymentTypeController extends Controller
                 $data->delete();
                 return true;
             } else {
-                return response()->json("این گزینه دارای تراکنش می باشد.", 202);
+                return response()->json('این گزینه دارای تراکنش می باشد.', 202);
             }
         } else {
             return false;
@@ -143,6 +166,15 @@ class PaymentTypeController extends Controller
             return true;
         } else {
             return false;
+        }
+    }
+    public function getPaymentTypeNyName($name)
+    {
+        $data = PaymentType::where('name', $name)->first();
+        if ($data != null) {
+            return $data;
+        } else {
+            return null;
         }
     }
     public function reActivePaymentType($name)

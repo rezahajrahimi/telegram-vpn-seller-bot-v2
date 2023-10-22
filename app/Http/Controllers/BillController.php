@@ -18,12 +18,14 @@ class BillController extends Controller
     }
     function generateBillId()
     {
-        $number = mt_rand(1000000000, 9999999999);
-        if (isBillIdExist($number)) {
-            return generateBillId();
-        }
+        // get last record
 
-        return $number;
+        $data = Bill::get()->last();
+        if($data == null) {
+            return 1000000000;
+        } else {
+            return $data->bill_id + 1;
+        }
     }
 
     public function createNewBill(Request $request)

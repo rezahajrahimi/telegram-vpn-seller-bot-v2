@@ -28,4 +28,18 @@ class SettingController extends Controller
             return false;
         }
     }
+    public function getMainUrl(){
+        $data = Setting::find(1);
+        $string = $data->panel_address;
+        $endsWith = '/';
+        $result = str_ends_with($string, $endsWith) ? 'is' : 'is not';
+        if($result == 'is not'){
+            return $data->panel_address;
+
+        } else {
+            // remove last charecter in string
+            $string = substr($string, 0, -1);
+            return $string;
+        }
+    }
 }

@@ -104,19 +104,21 @@ class TelegramBot
 
         return true;
     }
-    public function editMessage($chat_id, $message_id)
+    public function editMessageReplyMarkup($chat_id, $message_id,$command)
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
 
         // Create params array
+
         $params = [
             'chat_id' => $chat_id,
             'message_id' => $message_id,
+            'reply_markup' => ['inline_keyboard' => $command, 'resize_keyboard' => true],
         ];
 
         // Create url -> https://api.telegram.org/bot{token}/sendMessage
-        $url = "{$this->api_endpoint}/{$this->token}/editMessage";
+        $url = "{$this->api_endpoint}/{$this->token}/editMessageReplyMarkup";
 
         // Send the request
         try {
@@ -124,12 +126,11 @@ class TelegramBot
             $result = ['success' => $response->ok(), 'body' => $response->json()];
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
-            return false;
-
         }
 
+        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
-        return true;
+        return $result;
     }
     public function checkMember($channelID, $chat_id)
     {
