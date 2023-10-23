@@ -67,8 +67,8 @@ class TelegramController extends Controller
                     $this->chat_type = $request->callback_query['message']['chat']['type'];
                     $this->username = $request->callback_query['from']['username'] ?? ' ندارد ';
                     $this->from_id = $request->callback_query['from']['id'];
-                    $this->first_name = $request->callback_query['from']['first_name'];
-                    $this->last_name = $request->callback_query['from']['last_name'];
+                    $this->first_name = $request->callback_query['from']['first_name'] ?? '';
+                    $this->last_name = $request->callback_query['from']['last_name'] ?? '';
 
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
                     $this->recogniseMessage();
@@ -83,8 +83,8 @@ class TelegramController extends Controller
                     $this->chat_type = $request->callback_query['message']['chat']['type'];
                     $this->username = $request->callback_query['from']['username'] ?? ' ندارد ';
                     $this->from_id = $request->callback_query['from']['id'];
-                    $this->first_name = $request->callback_query['from']['first_name'];
-                    $this->last_name = $request->callback_query['from']['last_name'];
+                    $this->first_name = $request->callback_query['from']['first_name'] ?? '';
+                    $this->last_name = $request->callback_query['from']['last_name'] ?? '';
 
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
                     $this->recogniseMessage();
@@ -284,6 +284,35 @@ class TelegramController extends Controller
             $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
             $text = "پول داره \r\n";
 
+            // check pannel type
+            $pnlCntrl = new PanelTypeController();
+            $pannel = $pnlCntrl->getPannelById($this->chat_id);
+            // get selected item specefic data
+            $day = $selectedPrCat->expire_day;
+            $volume = $selectedPrCat->volume;
+            if ($pannel->type == 'hiddify') {
+                $newUUID = $this->generateUUID();
+
+            } elseif ($pannel->type == 'marzban') {
+            } else {
+                // fetch product from db
+                // if exist show data to user
+                // else show selected product unavillable to user
+            }
+            // creta new account
+
+            // create qr code
+
+            // create subscription
+
+            // create invoice
+
+            // minus balance
+
+            // send account details
+
+            // send how to use
+
             $text .= "موجودی حساب شما: $userAccouintBallance";
             $opr = [[['text' => 'افزایش اعتبار', 'callback_data' => 'addAccountBalance']]];
             array_push($opr, [['text' => 'بازگشت به منوی اصلی', 'callback_data' => '0'], ['text' => 'پشتیبانی', 'callback_data' => 'support']]);
@@ -405,10 +434,9 @@ class TelegramController extends Controller
             $selectedPayment = $pymCntrl->getPaymentTypeNyID($this->userCommandArr[1]);
             // array_push($opr, [['text' => "$selectedPayment->merchant_id", 'callback_data' => "$selectedPayment->merchant_id"]]);
             // $text = $selectedPayment->merchant_id;
-            $result= app('telegram_bot')->sendMessage($selectedPayment->merchant_id, $this->chat_id, null, 'MarkDown');
+            $result = app('telegram_bot')->sendMessage($selectedPayment->merchant_id, $this->chat_id, null, 'MarkDown');
 
             // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
-
 
             // $this->setNewLevel($this->buySubscriptionLevel);
             return response()->json($result, 200);
@@ -448,5 +476,19 @@ class TelegramController extends Controller
 
         $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
         return response()->json($result, 200);
+    }
+    public function generateUUID($data = null)
+    {
+        // Generate 16 bytes (128 bits) of random data or use the data passed into the function.
+        $data = $data ?? random_bytes(16);
+        assert(strlen($data) == 16);
+
+        // Set version to 0100
+        $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
+        // Set bits 6-7 to 10
+        $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
+
+        // Output the 36 character UUID.
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 }

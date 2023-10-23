@@ -6,6 +6,8 @@ use App\Models\Proxy;
 use App\Models\Inbound;
 
 use Illuminate\Http\Request;
+use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Http;
 
 class PannelController extends Controller
 {
@@ -187,5 +189,73 @@ class PannelController extends Controller
         } catch (\Throwable $th) {
             return response()->json(false, 500);
         }
+    }
+    public function createHiddifyUserMOC($accountId,$day,$vol)
+    {
+        $panel = Pannel::where('type', 'hiddify')->first();
+        $mainUrl = $panel->admin_url;
+
+        $mainUrl = str_replace('/admin/', '', $mainUrl);
+        $mainUrl = str_replace('/admin', '', $mainUrl);
+        // get substring from end of str until /
+
+        $adminUUID = substr($mainUrl,-36);
+        \Log::info("adminUUID:$adminUUID");
+        \Log::info("accountId:$accountId");
+        \Log::info("day:$day");
+        \Log::info("vol:$vol");
+
+        \Log::info("mainUrl:$mainUrl");
+        $uuid = $this->generateUUID();
+
+        \Log::info("uuid:$uuid");
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ];
+        $params = [
+            'uuid' => "$uuid",
+            'name' => "bot$accountId",
+            'current_usage_GB' => 0,
+            'usage_limit_GB' => $vol,
+            'package_days' =>$day,
+            'start_date' => null,
+            'comment' => null,
+            'mode' => 'no_reset',
+            'telegram_id' => null,
+            'telegram_token' => null,
+            "added_by_uuid" => "$adminUUID"
+        ];
+        $url = "$mainUrl/api/v1/user/";
+        \Log::info("url:$url");
+
+        $result = ['success' => false, 'body' => []];
+
+        try {
+            $response = Http::withHeaders($headers)->post($url, $params);
+            $result = ['success' => $response->ok(), 'body' => $response->json(),'server response' => $response->serverError()];
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+
+        }
+
+        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
+
+        return $result;
+    }
+
+    public function generateUUID($data = null)
+    {
+        // Generate 16 bytes (128 bits) of random data or use the data passed into the function.
+        $data = $data ?? random_bytes(16);
+        assert(strlen($data) == 16);
+
+        // Set version to 0100
+        $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
+        // Set bits 6-7 to 10
+        $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
+
+        // Output the 36 character UUID.
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 }
