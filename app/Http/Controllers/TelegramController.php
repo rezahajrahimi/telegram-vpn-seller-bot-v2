@@ -294,9 +294,12 @@ class TelegramController extends Controller
             if ($pannel->type == 'hiddify') {
                 $productID = $prCntrl->getLastInsertedProductId();
                 $productID += 1;
-                $newUUID = $pnlCntrl->createHiddifyUser("$this->chat_id-$productID", $day, $volume);
+                $newUUID = $pnlCntrl->createHiddifyUser("$this->chat_id-$productID", $day, $volume,$selectedPrCat->pannel_id);
+                $userPannelLink = $pnlCntrl->getHiddifyPannelLinkByPannelID($selectedPrCat->pannel_id);
+                $resualt = app('telegram_bot')->sendMessage("$userPannelLink/$newUUID/", $this->chat_id, null, 'MarkDown');
 
-                $resualt = app('telegram_bot')->sendMessage($newUUID, $this->chat_id, null, 'MarkDown');
+                $userSubscriptionLInk = "$userPannelLink/$newUUID/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+                $resualt = app('telegram_bot')->sendMessage($userSubscriptionLInk, $this->chat_id, null, 'MarkDown');
                 return response()->json($result, 200);
             } elseif ($pannel->type == 'marzban') {
                 $resualt = app('telegram_bot')->sendMessage('MarzBan Pannel', $this->chat_id, null, 'MarkDown');

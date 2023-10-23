@@ -190,9 +190,9 @@ class PannelController extends Controller
             return response()->json(false, 500);
         }
     }
-    public function createHiddifyUser($accountId,$day,$vol)
+    public function createHiddifyUser($accountId,$day,$vol,$pannelID)
     {
-        $panel = Pannel::where('type', 'hiddify')->first();
+        $panel = Pannel::find($pannelID);
         $mainUrl = $panel->admin_url;
 
         $mainUrl = str_replace('/admin/', '', $mainUrl);
@@ -243,7 +243,20 @@ class PannelController extends Controller
 
         return $uuid;
     }
+    public function getHiddifyPannelLinkByPannelID($pannelID){
+        $panel = Pannel::find($pannelID);
+        $mainUrl = $panel->admin_url;
 
+        $mainUrl = str_replace('/admin/', '', $mainUrl);
+        $mainUrl = str_replace('/admin', '', $mainUrl);
+        // get substring from end of str until /
+
+        $adminUUID = substr($mainUrl,-36);
+        $hidifyUrl = str_replace("/$adminUUID", '', $mainUrl);
+        \Log::info("hidifyUrl:$hidifyUrl");
+
+        return $hidifyUrl;
+    }
     public function generateUUID($data = null)
     {
         // Generate 16 bytes (128 bits) of random data or use the data passed into the function.
