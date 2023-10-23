@@ -57,4 +57,12 @@ class ProductController extends Controller
             return false;
         }
     }
+    public function getLastInsertedProductId(){
+        $data = Product::orderBy('id', 'desc')->first();
+        if($data != null){
+            return $data->id;
+        } else {
+            return 1;
+        }
+    }
 }

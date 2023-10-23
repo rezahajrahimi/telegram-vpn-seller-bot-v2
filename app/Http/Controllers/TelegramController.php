@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://7d6e-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://9b90-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -280,21 +280,31 @@ class TelegramController extends Controller
         \Log::info("selectedPrCat->price: $productPrice");
         $opr = [];
         $accBlCtrl = new AccountBallanceController();
+        $prCntrl = new ProductController();
         if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice)) {
             $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
             $text = "پول داره \r\n";
 
             // check pannel type
-            $pnlCntrl = new PanelTypeController();
-            $pannel = $pnlCntrl->getPannelById($this->chat_id);
+            $pnlCntrl = new PannelController();
+            $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
             // get selected item specefic data
             $day = $selectedPrCat->expire_day;
             $volume = $selectedPrCat->volume;
             if ($pannel->type == 'hiddify') {
-                $newUUID = $this->generateUUID();
+                $productID = $prCntrl->getLastInsertedProductId();
+                $productID += 1;
+                $newUUID = $pnlCntrl->createHiddifyUser("$this->chat_id-$productID", $day, $volume);
 
+                $resualt = app('telegram_bot')->sendMessage($newUUID, $this->chat_id, null, 'MarkDown');
+                return response()->json($result, 200);
             } elseif ($pannel->type == 'marzban') {
+                $resualt = app('telegram_bot')->sendMessage('MarzBan Pannel', $this->chat_id, null, 'MarkDown');
+                return response()->json($result, 200);
             } else {
+                $resualt = app('telegram_bot')->sendMessage('Custome Pannel', $this->chat_id, null, 'MarkDown');
+                return response()->json($result, 200);
+
                 // fetch product from db
                 // if exist show data to user
                 // else show selected product unavillable to user
@@ -312,12 +322,6 @@ class TelegramController extends Controller
             // send account details
 
             // send how to use
-
-            $text .= "موجودی حساب شما: $userAccouintBallance";
-            $opr = [[['text' => 'افزایش اعتبار', 'callback_data' => 'addAccountBalance']]];
-            array_push($opr, [['text' => 'بازگشت به منوی اصلی', 'callback_data' => '0'], ['text' => 'پشتیبانی', 'callback_data' => 'support']]);
-
-            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
 
             return response()->json($result, 200);
         } else {
@@ -476,19 +480,5 @@ class TelegramController extends Controller
 
         $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
         return response()->json($result, 200);
-    }
-    public function generateUUID($data = null)
-    {
-        // Generate 16 bytes (128 bits) of random data or use the data passed into the function.
-        $data = $data ?? random_bytes(16);
-        assert(strlen($data) == 16);
-
-        // Set version to 0100
-        $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
-        // Set bits 6-7 to 10
-        $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
-
-        // Output the 36 character UUID.
-        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 }

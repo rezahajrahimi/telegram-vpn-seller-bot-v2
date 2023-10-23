@@ -146,7 +146,6 @@ Route::get('getPannels', [PannelController::class, 'getPannels']);
 Route::get('getPannelById/{id}', [PannelController::class, 'getPannelById']);
 Route::get('getPannelByIdWithProxiesInbounds/{id}', [PannelController::class, 'getPannelByIdWithProxiesInbounds']);
 
-Route::get('createHiddifyUserMOC/{accountId}/{day}/{vol}', [PannelController::class, 'createHiddifyUserMOC']);
 
 
 //  Proxy

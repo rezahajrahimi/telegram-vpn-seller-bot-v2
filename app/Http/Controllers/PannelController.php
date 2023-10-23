@@ -157,7 +157,7 @@ class PannelController extends Controller
     public function getPannelById($id)
     {
         try {
-            return $pannel = Pannel::find($id);
+            return Pannel::find($id);
         } catch (\Throwable $th) {
             return response()->json(false, 500);
         }
@@ -190,7 +190,7 @@ class PannelController extends Controller
             return response()->json(false, 500);
         }
     }
-    public function createHiddifyUserMOC($accountId,$day,$vol)
+    public function createHiddifyUser($accountId,$day,$vol)
     {
         $panel = Pannel::where('type', 'hiddify')->first();
         $mainUrl = $panel->admin_url;
@@ -241,7 +241,7 @@ class PannelController extends Controller
 
         \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
-        return $result;
+        return $uuid;
     }
 
     public function generateUUID($data = null)
