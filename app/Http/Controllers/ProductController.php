@@ -57,6 +57,21 @@ class ProductController extends Controller
             return false;
         }
     }
+    public function addAutomatedProductDetails(Request $request)
+    {
+        $data = new Product();
+        $data->product_categories_id = $request->product_categories_id;
+        $data->configs = $request->configs;
+        $data->subscription_link = $request->subscription_link;
+        $data->panel_link = $request->panel_link;
+        $data->isActive = false;
+        $data->account_id = $request->account_id;
+        if ($data->save()) {
+            return $this->getActiveProductsByProductCatID($request->product_categories_id);
+        } else {
+            return false;
+        }
+    }
     public function getLastInsertedProductId(){
         $data = Product::orderBy('id', 'desc')->first();
         if($data != null){

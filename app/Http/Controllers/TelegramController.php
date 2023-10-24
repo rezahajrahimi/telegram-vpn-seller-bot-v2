@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
-
 use Illuminate\Http\Request;
 
 class TelegramController extends Controller
@@ -283,9 +282,10 @@ class TelegramController extends Controller
         $opr = [];
         $accBlCtrl = new AccountBallanceController();
         $prCntrl = new ProductController();
+        $prcCntrl = new ProductController();
+
         if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice)) {
             $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
-            $text = "پول داره \r\n";
 
             // check pannel type
             $pnlCntrl = new PannelController();
@@ -296,42 +296,68 @@ class TelegramController extends Controller
             if ($pannel->type == 'hiddify') {
                 $productID = $prCntrl->getLastInsertedProductId();
                 $productID += 1;
-                // $newUUID = $pnlCntrl->createHiddifyUser("$this->chat_id-$productID", $day, $volume, $selectedPrCat->pannel_id);
-                $newUUID = "aaaaaaaa";
+                $newUUID = $pnlCntrl->createHiddifyUser("$this->chat_id-$productID", $day, $volume, $selectedPrCat->pannel_id);
                 $userPannelLink = $pnlCntrl->getHiddifyPannelLinkByPannelID($selectedPrCat->pannel_id);
                 // $resualt = app('telegram_bot')->sendMessage("$userPannelLink/$newUUID/", $this->chat_id, null, 'MarkDown');
 
                 $userSubscriptionLInk = "$userPannelLink/$newUUID/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                // $resualt = app('telegram_bot')->sendMessage($userSubscriptionLInk, $this->chat_id, null, 'MarkDown');
+                //   $resualt = app('telegram_bot')->sendMessage($userSubscriptionLInk, $this->chat_id, null, 'MarkDown');
 
                 $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, "subscription link");
+                $text = "";
+                $text .= "خرید شما با موفقیت انجام شد\r\n";
+                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$userPannelLink/$newUUID/ \r\n";
+                $text .= "لینک سابسکریپشن شما برای استفاده: $userSubscriptionLInk \r\n";
+                $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
 
-                return response()->json($image, 200);
+                $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+                // save as dectivate product, So we can use it in future when user want to recharge it;
+                $request = new Request();
+                $request->account_id = $this->chat_id;
+                $request->subscription_link = $userSubscriptionLInk;
+                $request->product_categories_id = $selectedPrCat->id;
+                $request->panel_link = "$userPannelLink/$newUUID/";
+                $request->configs = "";
+
+                $prcCntrl->addAutomatedProductDetails($request);
+
             } elseif ($pannel->type == 'marzban') {
                 $resualt = app('telegram_bot')->sendMessage('MarzBan Pannel', $this->chat_id, null, 'MarkDown');
-                return response()->json($result, 200);
             } else {
                 $resualt = app('telegram_bot')->sendMessage('Custome Pannel', $this->chat_id, null, 'MarkDown');
-                return response()->json($result, 200);
 
                 // fetch product from db
                 // if exist show data to user
                 // else show selected product unavillable to user
             }
-            // creta new account
-
-            // create qr code
-
-            // create subscription
-
-            // create invoice
 
             // minus balance
+            $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice);
 
-            // send account details
 
             // send how to use
+            $opr = [];
+                array_push($opr, [
+                    [
+                        'text' => 'آموزش استفاده',
+                        'callback_data' => 'help-subscription',
+                    ],
+                ]);
+                array_push($opr, [
+                    [
+                        'text' => 'برنامه های مورد نیاز',
+                        'callback_data' => 'help-applications',
+                    ],
+                ]);
+                array_push($opr, [
+                    [
+                        'text' => 'بازگشت به منوی اصلی',
+                        'callback_data' => 'main menu',
+                    ],
+                ]);
+                $text = "یک گزینه را انتخاب کنید.";
+                $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+
 
             return response()->json($result, 200);
         } else {
