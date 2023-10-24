@@ -8,6 +8,7 @@ use App\Models\Inbound;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class PannelController extends Controller
 {
@@ -270,5 +271,28 @@ class PannelController extends Controller
 
         // Output the 36 character UUID.
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+    }
+    public function generateQrMOC($str)
+    {
+        $str = "reza";
+        $uuid = $this->generateUUID();
+        $image=  QrCode::format('png')->generate($str);
+
+
+        $path = public_path() . '/images/' . 'aa.png';
+        if (file_exists($path) ) {
+            unlink($path);
+        }
+
+       $res =  file_put_contents($path, $image);
+
+
+
+                // $image = QrCode::format('svg')
+                //     ->merge($path, 0.5, true)
+                //     ->size(500)
+                //     ->errorCorrection('H')
+                //     ->generate("rrrrrrrr");
+                return $path;
     }
 }

@@ -98,13 +98,11 @@ class TelegramBot
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
             return false;
-
         }
-
 
         return true;
     }
-    public function editMessageReplyMarkup($chat_id, $message_id,$command)
+    public function editMessageReplyMarkup($chat_id, $message_id, $command)
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
@@ -245,6 +243,33 @@ class TelegramBot
         // Send the request
         try {
             $response = Http::withHeaders($this->headers)->post($url, $params);
+            $result = ['success' => $response->ok(), 'body' => $response->json()];
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+        }
+
+        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
+
+        return $result;
+    }
+    public function imageMessageByLink($image, $chat_id, $caption)
+    {
+        // Default result array
+        $result = ['success' => false, 'body' => []];
+
+        $params = [
+            'chat_id' => $chat_id,
+            'caption' => $caption,
+        ];
+        // $file = public_path() . '/images/' . 'aa.png';
+        $url = "{$this->api_endpoint}/{$this->token}/sendPhoto";
+
+        // Send the request
+        try {
+            $response = Http::attach('photo', file_get_contents($image), 'aa.png')->post($url, [
+                'chat_id' => $chat_id,
+                'caption' => $caption,
+            ]);
             $result = ['success' => $response->ok(), 'body' => $response->json()];
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();

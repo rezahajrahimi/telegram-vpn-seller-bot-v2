@@ -1,8 +1,10 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://9b90-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://368e-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
+
 
 use Illuminate\Http\Request;
 
@@ -294,13 +296,18 @@ class TelegramController extends Controller
             if ($pannel->type == 'hiddify') {
                 $productID = $prCntrl->getLastInsertedProductId();
                 $productID += 1;
-                $newUUID = $pnlCntrl->createHiddifyUser("$this->chat_id-$productID", $day, $volume,$selectedPrCat->pannel_id);
+                // $newUUID = $pnlCntrl->createHiddifyUser("$this->chat_id-$productID", $day, $volume, $selectedPrCat->pannel_id);
+                $newUUID = "aaaaaaaa";
                 $userPannelLink = $pnlCntrl->getHiddifyPannelLinkByPannelID($selectedPrCat->pannel_id);
-                $resualt = app('telegram_bot')->sendMessage("$userPannelLink/$newUUID/", $this->chat_id, null, 'MarkDown');
+                // $resualt = app('telegram_bot')->sendMessage("$userPannelLink/$newUUID/", $this->chat_id, null, 'MarkDown');
 
                 $userSubscriptionLInk = "$userPannelLink/$newUUID/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                $resualt = app('telegram_bot')->sendMessage($userSubscriptionLInk, $this->chat_id, null, 'MarkDown');
-                return response()->json($result, 200);
+                // $resualt = app('telegram_bot')->sendMessage($userSubscriptionLInk, $this->chat_id, null, 'MarkDown');
+
+                $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, "subscription link");
+
+                return response()->json($image, 200);
             } elseif ($pannel->type == 'marzban') {
                 $resualt = app('telegram_bot')->sendMessage('MarzBan Pannel', $this->chat_id, null, 'MarkDown');
                 return response()->json($result, 200);
