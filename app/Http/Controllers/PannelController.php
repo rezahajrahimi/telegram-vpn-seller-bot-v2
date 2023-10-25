@@ -297,6 +297,8 @@ class PannelController extends Controller
         // crete an UTC date + $day
         $utc = new \DateTime('now', new \DateTimeZone('UTC'));
         $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
+        // convert utc to integer
+        $utc = $utc->getTimestamp();
         // \Log::info("utc : $utc");
         \Log::info("vol : $vol");
         $uuid = $this->generateUUID();
@@ -304,13 +306,13 @@ class PannelController extends Controller
         $headers = [
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
-            'authorization'=> "bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImFjY2VzcyI6InN1ZG8iLCJleHAiOjE2OTgzMDE3MzR9.Zl1Fx8kkIyb4kJyNFZ-GnlqthwqDaB8TvKdbQ2v5HLI"
+            'authorization'=> $token
         ];
         $result = ['success' => false, 'body' => []];
         $vmess = [];
         $params = [
             'username' => $accountId,
-            'expire' => 1698784199,
+            'expire' => $utc,
             'data_limit' => $vol,
             'allow_sending_without_reply' => true,
             "proxies"=> [
@@ -323,6 +325,55 @@ class PannelController extends Controller
 
         try {
             $response = Http::withHeaders($headers)->post($url, $params);
+            $result = ['success' => $response->ok(), 'body' => $response->json()];
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+        }
+
+        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
+
+        return $result;
+
+    }
+    public function modifyMarzbanUser($accountId,$day,$vol,$pannelID) {
+        $panel = Pannel::find($pannelID);
+        $token = $panel->token;
+        $mainUrl = $panel->url_port;
+        $mainUrl = str_replace('/dashboard/', '', $mainUrl);
+        $mainUrl = str_replace('/dashboard', '', $mainUrl);
+        //$vol must change to byte
+        $vol = $vol * 1024 * 1024 * 1024;
+        // crete an UTC date + $day
+        $utc = new \DateTime('now', new \DateTimeZone('UTC'));
+        $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
+        // convert utc to integer
+        $utc = $utc->getTimestamp();
+        // \Log::info("utc : $utc");
+        \Log::info("vol : $vol");
+        $uuid = $this->generateUUID();
+
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'authorization'=> $token
+        ];
+        $result = ['success' => false, 'body' => []];
+        $vmess = [];
+        $params = [
+            'username' => $accountId,
+            'expire' => $utc,
+            'data_limit' => $vol,
+            'allow_sending_without_reply' => true,
+            "proxies"=> [
+                'vless'=>[],
+                'trojan'=>[],
+
+            ]
+        ];
+        $url = "{$mainUrl}/api/user/$accountId";
+
+        try {
+            $response = Http::withHeaders($headers)->put($url, $params);
             $result = ['success' => $response->ok(), 'body' => $response->json()];
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
