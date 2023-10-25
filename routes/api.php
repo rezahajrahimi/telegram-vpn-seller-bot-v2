@@ -157,6 +157,7 @@ Route::post('updateProxy', [ProxyController::class, 'updateProxy']);
 Route::get('deleteProxy/{id}', [ProxyController::class, 'deleteProxy']);
 Route::get('reActiveProxy/{id}', [ProxyController::class, 'reActiveProxy']);
 Route::get('deActiveProxy/{id}', [ProxyController::class, 'deActiveProxy']);
+Route::get('getActiveProxiesByPannelID/{pannelID}', [ProxyController::class, 'getActiveProxiesByPannelID']);
 
 //  Inbound
 Route::post('addInbound', [InboundController::class, 'addInbound']);

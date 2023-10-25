@@ -8,6 +8,12 @@ use Illuminate\Http\Request;
 
 class ProxyController extends Controller
 {
+    public function getActiveProxiesByPannelID($pannelID){
+        $proxies = Proxy::where('pannel_id', $pannelID)->where('is_active', true)
+        ->with('inbounds')
+        ->get();
+        return $proxies;
+    }
     public function addNewProxy(Request $request)
     {
         try {

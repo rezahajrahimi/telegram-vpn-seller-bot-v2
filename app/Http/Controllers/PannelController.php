@@ -191,7 +191,7 @@ class PannelController extends Controller
             return response()->json(false, 500);
         }
     }
-    public function createHiddifyUser($accountId,$day,$vol,$pannelID)
+    public function createHiddifyUser($accountId, $day, $vol, $pannelID)
     {
         $panel = Pannel::find($pannelID);
         $mainUrl = $panel->admin_url;
@@ -200,7 +200,7 @@ class PannelController extends Controller
         $mainUrl = str_replace('/admin', '', $mainUrl);
         // get substring from end of str until /
 
-        $adminUUID = substr($mainUrl,-36);
+        $adminUUID = substr($mainUrl, -36);
         \Log::info("adminUUID:$adminUUID");
         \Log::info("accountId:$accountId");
         \Log::info("day:$day");
@@ -219,13 +219,13 @@ class PannelController extends Controller
             'name' => "bot$accountId",
             'current_usage_GB' => 0,
             'usage_limit_GB' => $vol,
-            'package_days' =>$day,
+            'package_days' => $day,
             'start_date' => null,
             'comment' => null,
             'mode' => 'no_reset',
             'telegram_id' => null,
             'telegram_token' => null,
-            "added_by_uuid" => "$adminUUID"
+            'added_by_uuid' => "$adminUUID",
         ];
         $url = "$mainUrl/api/v1/user/";
         \Log::info("url:$url");
@@ -234,17 +234,17 @@ class PannelController extends Controller
 
         try {
             $response = Http::withHeaders($headers)->post($url, $params);
-            $result = ['success' => $response->ok(), 'body' => $response->json(),'server response' => $response->serverError()];
+            $result = ['success' => $response->ok(), 'body' => $response->json(), 'server response' => $response->serverError()];
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
-
         }
 
         \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $uuid;
     }
-    public function getHiddifyPannelLinkByPannelID($pannelID){
+    public function getHiddifyPannelLinkByPannelID($pannelID)
+    {
         $panel = Pannel::find($pannelID);
         $mainUrl = $panel->admin_url;
 
@@ -252,7 +252,7 @@ class PannelController extends Controller
         $mainUrl = str_replace('/admin', '', $mainUrl);
         // get substring from end of str until /
 
-        $adminUUID = substr($mainUrl,-36);
+        $adminUUID = substr($mainUrl, -36);
         $hidifyUrl = str_replace("/$adminUUID", '', $mainUrl);
 
         return $hidifyUrl;
@@ -273,20 +273,20 @@ class PannelController extends Controller
     }
     public function generateQrMOC($str)
     {
-        $str = "reza";
+        $str = 'reza';
         $uuid = $this->generateUUID();
-        $image=  QrCode::format('png')->generate($str);
-
+        $image = QrCode::format('png')->generate($str);
 
         $path = public_path() . '/images/' . 'aa.png';
-        if (file_exists($path) ) {
+        if (file_exists($path)) {
             unlink($path);
         }
 
-       $res =  file_put_contents($path, $image);
-                return $path;
+        $res = file_put_contents($path, $image);
+        return $path;
     }
-    public function createMarzbanUser($accountId,$day,$vol,$pannelID) {
+    public function createMarzbanUser($accountId, $day, $vol, $pannelID)
+    {
         $panel = Pannel::find($pannelID);
         $token = $panel->token;
         $mainUrl = $panel->url_port;
@@ -299,28 +299,44 @@ class PannelController extends Controller
         $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
         // convert utc to integer
         $utc = $utc->getTimestamp();
-        // \Log::info("utc : $utc");
-        \Log::info("vol : $vol");
-        $uuid = $this->generateUUID();
-
         $headers = [
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
-            'authorization'=> $token
+            'authorization' => $token,
         ];
         $result = ['success' => false, 'body' => []];
-        $vmess = [];
+        // get active proxies
+        $proCntrl = new ProxyController();
+        $proxies = $proCntrl->getActiveProxiesByPannelID($pannelID);
+
+        $proxy = [];
+        $inbounds = [];
+        foreach ($proxies as $key => $pr) {
+            $proxy[$pr->type] = [];
+            foreach ($pr->inbounds as $key => $in) {
+                // merge inbounds
+                $inbounds[$pr->type][] = $in->name;
+            }
+
+        }
+
+        // dd($inbounds);
         $params = [
             'username' => $accountId,
             'expire' => $utc,
             'data_limit' => $vol,
-            'allow_sending_without_reply' => true,
-            "proxies"=> [
-                'vless'=>[],
-                'trojan'=>[],
-
-            ]
+            'proxies' => $proxy,
+            'inbounds'=>$inbounds
         ];
+        // $params = [
+        //     'username' => $accountId,
+        //     'expire' => $utc,
+        //     'data_limit' => $vol,
+        //     'proxies' => [
+        //         'vless' => [],
+        //         'trojan' => [],
+        //     ],
+        // ];
         $url = "{$mainUrl}/api/user";
 
         try {
@@ -333,9 +349,9 @@ class PannelController extends Controller
         \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
-
     }
-    public function modifyMarzbanUser($accountId,$day,$vol,$pannelID) {
+    public function modifyMarzbanUser($accountId, $day, $vol, $pannelID)
+    {
         $panel = Pannel::find($pannelID);
         $token = $panel->token;
         $mainUrl = $panel->url_port;
@@ -348,14 +364,23 @@ class PannelController extends Controller
         $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
         // convert utc to integer
         $utc = $utc->getTimestamp();
-        // \Log::info("utc : $utc");
-        \Log::info("vol : $vol");
-        $uuid = $this->generateUUID();
+        $proCntrl = new ProxyController();
+        $proxies = $proCntrl->getActiveProxiesByPannelID($pannelID);
 
+        $proxy = [];
+        $inbounds = [];
+        foreach ($proxies as $key => $pr) {
+            $proxy[$pr->type] = [];
+            foreach ($pr->inbounds as $key => $in) {
+                // merge inbounds
+                $inbounds[$pr->type][] = $in->name;
+            }
+
+        }
         $headers = [
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
-            'authorization'=> $token
+            'authorization' => $token,
         ];
         $result = ['success' => false, 'body' => []];
         $vmess = [];
@@ -363,13 +388,10 @@ class PannelController extends Controller
             'username' => $accountId,
             'expire' => $utc,
             'data_limit' => $vol,
-            'allow_sending_without_reply' => true,
-            "proxies"=> [
-                'vless'=>[],
-                'trojan'=>[],
-
-            ]
+            'proxies' => $proxy,
+            'inbounds'=>$inbounds
         ];
+
         $url = "{$mainUrl}/api/user/$accountId";
 
         try {
@@ -382,6 +404,5 @@ class PannelController extends Controller
         \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
-
     }
 }
