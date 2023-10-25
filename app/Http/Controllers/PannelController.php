@@ -254,7 +254,6 @@ class PannelController extends Controller
 
         $adminUUID = substr($mainUrl,-36);
         $hidifyUrl = str_replace("/$adminUUID", '', $mainUrl);
-        \Log::info("hidifyUrl:$hidifyUrl");
 
         return $hidifyUrl;
     }
@@ -285,14 +284,53 @@ class PannelController extends Controller
         }
 
        $res =  file_put_contents($path, $image);
-
-
-
-                // $image = QrCode::format('svg')
-                //     ->merge($path, 0.5, true)
-                //     ->size(500)
-                //     ->errorCorrection('H')
-                //     ->generate("rrrrrrrr");
                 return $path;
+    }
+    public function createMarzbanUser($accountId,$day,$vol,$pannelID) {
+        $panel = Pannel::find($pannelID);
+        $token = $panel->token;
+        $mainUrl = $panel->url_port;
+        $mainUrl = str_replace('/dashboard/', '', $mainUrl);
+        $mainUrl = str_replace('/dashboard', '', $mainUrl);
+        //$vol must change to byte
+        $vol = $vol * 1024 * 1024 * 1024;
+        // crete an UTC date + $day
+        $utc = new \DateTime('now', new \DateTimeZone('UTC'));
+        $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
+        // \Log::info("utc : $utc");
+        \Log::info("vol : $vol");
+        $uuid = $this->generateUUID();
+
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'authorization'=> "bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImFjY2VzcyI6InN1ZG8iLCJleHAiOjE2OTgzMDE3MzR9.Zl1Fx8kkIyb4kJyNFZ-GnlqthwqDaB8TvKdbQ2v5HLI"
+        ];
+        $result = ['success' => false, 'body' => []];
+        $vmess = [];
+        $params = [
+            'username' => $accountId,
+            'expire' => 1698784199,
+            'data_limit' => $vol,
+            'allow_sending_without_reply' => true,
+            "proxies"=> [
+                'vless'=>[],
+                'trojan'=>[],
+
+            ]
+        ];
+        $url = "{$mainUrl}/api/user";
+
+        try {
+            $response = Http::withHeaders($headers)->post($url, $params);
+            $result = ['success' => $response->ok(), 'body' => $response->json()];
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+        }
+
+        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
+
+        return $result;
+
     }
 }

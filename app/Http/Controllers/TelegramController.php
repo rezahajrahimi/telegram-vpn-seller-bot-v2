@@ -307,7 +307,7 @@ class TelegramController extends Controller
                 $text = "";
                 $text .= "خرید شما با موفقیت انجام شد\r\n";
                 $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$userPannelLink/$newUUID/ \r\n";
-                $text .= "لینک سابسکریپشن شما برای استفاده: $userSubscriptionLInk \r\n";
+                $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
                 $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
 
                 $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
