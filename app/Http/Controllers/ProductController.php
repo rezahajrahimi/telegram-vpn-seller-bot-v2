@@ -9,6 +9,7 @@ class ProductController extends Controller
 {
     public function getProductConfigAndChangeStatus($selectedProductCatID, $userID)
     {
+
         $data = Product::where('product_categories_id', $selectedProductCatID)
             ->where('isActive', true)
             ->first();
@@ -18,6 +19,7 @@ class ProductController extends Controller
             $data->update();
             return $data;
         } else {
+
             return null;
         }
     }

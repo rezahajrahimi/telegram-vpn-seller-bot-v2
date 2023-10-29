@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://e675-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://8eba-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -320,8 +320,8 @@ class TelegramController extends Controller
                 $prcCntrl->addAutomatedProductDetails($request);
             } elseif ($pannel->type == 'marzban') {
                 $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id$productID", $day, $volume, $selectedPrCat->pannel_id);
-                $userSub = $userData["subscription_link"];
-                $links = $userData["links"];
+                $userSub = $userData['subscription_link'];
+                $links = $userData['links'];
 
                 $text = '';
                 $text .= "خرید شما با موفقیت انجام شد\r\n";
@@ -330,7 +330,9 @@ class TelegramController extends Controller
                 $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
                 foreach ($links as $key => $link) {
-                    $resualt = app('telegram_bot')->sendMessage($link, $this->chat_id, null, 'MarkDown');
+                    $image = $pnlCntrl->generateQrMOC($link);
+
+                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
 
                     // $text .= "$link \r\n";
                 }
@@ -341,7 +343,7 @@ class TelegramController extends Controller
                 // save as dectivate product, So we can use it in future when user want to recharge it;
                 $request = new Request();
                 $request->account_id = $this->chat_id;
-                $request->subscription_link = "";
+                $request->subscription_link = '';
                 $request->product_categories_id = $selectedPrCat->id;
                 $request->panel_link = $userSub;
                 // convert links arrey to string
@@ -351,11 +353,45 @@ class TelegramController extends Controller
 
                 $prcCntrl->addAutomatedProductDetails($request);
             } else {
-                $resualt = app('telegram_bot')->sendMessage('Custome Pannel', $this->chat_id, null, 'MarkDown');
+                $userData = $prcCntrl->getProductConfigAndChangeStatus($selectedPrCat->id, $this->chat_id);
+                // $pannelLink = $userData["panel_link"];
 
-                // fetch product from db
-                // if exist show data to user
-                // else show selected product unavillable to user
+                $text = '';
+                $text .= "خرید شما با موفقیت انجام شد\r\n";
+                if ($userData->panel_link != null) {
+                    $pannel = $userData->panel_link;
+                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$pannel\r\n";
+                }
+                if ($userData->subscription_link != null) {
+                    $userSub = $userData->subscription_link;
+                    $text .= "لینک سابسکریپشن: $userSub \r\n";
+                    $image = $pnlCntrl->generateQrMOC($userSub);
+                    $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
+
+                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+                    $text = '';
+                }
+                if ($userData->configs != null) {
+                    // json decode $userData->configs
+                    $links = json_decode($userData->configs);
+                    // check is $links is array or not
+                    if (is_array($links)) {
+                        foreach ($links as $key => $link) {
+                            $image = $pnlCntrl->generateQrMOC($link);
+
+                            $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
+                        }
+                        $text = '';
+                    } else {
+                        $text .= "کانفیگ: \r\n";
+                        $text .= "$userData->configs \r\n";
+                    }
+                }
+                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+                // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+                $text = "جهت نیاز به راهنمایی بر روی یکی از این گزینه ها کلیک کنید. \r\n";
+                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
             }
 
             // minus balance
