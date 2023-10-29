@@ -187,6 +187,9 @@ class TelegramController extends Controller
             case 'subAccountBalance':
                 $this->subAccountBalance();
                 break;
+            case 'subBuyHistory':
+                $this->subBuyHistory();
+                break;
 
             default:
                 $this->defaultMenu();
@@ -219,9 +222,9 @@ class TelegramController extends Controller
             case 'خرید اشتراک':
                 $this->buySubscription();
                 break;
-            // case "سابقه خرید":
-            // $this->buySubscription();
-            //     break;
+            case 'سابقه خرید':
+                $this->buyHistory();
+                break;
             // case "پشتیبانی":
             // $this->buySubscription();
             //     break;
@@ -577,5 +580,130 @@ class TelegramController extends Controller
 
         $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
         return response()->json($result, 200);
+    }
+    public function buyHistory()
+    {
+        $prCtrl = new ProductController();
+        $histories = $prCtrl->getUserProductsHistoryByAccountID($this->chat_id);
+        $opr = [];
+        if ($histories != null) {
+            foreach ($histories as $key => $history) {
+                if ($history['product_category'] != null) {
+                    $catName = $history->product_category->category_name;
+                    // remove charecter '-' from $catName
+                    $catName = str_replace('-', ' ', $catName);
+
+                    array_push($opr, [
+                        [
+                            'text' => "$catName",
+                            'callback_data' => 'subBuyHistory-' . $history->id,
+                        ],
+                    ]);
+                }
+            }
+            array_push($opr, [
+                [
+                    'text' => 'بازگشت به منوی اصلی',
+                    'callback_data' => '0',
+                ],
+            ]);
+            $text = 'تاریخچه خرید شما:';
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            return response()->json($result, 200);
+        }
+    }
+    public function subBuyHistory()
+    {
+        // check is userCommandArr[1] an integer or not
+        try {
+            $this->deleteMessage();
+            $selectedHistoryID = $this->userCommandArr[1];
+            $text = "ایتم انتخابی: $selectedHistoryID";
+            $prCtrl = new ProductController();
+            $prCatCntrl = new ProductCategoryController();
+            $pnlCntrl = new PannelController();
+
+            $selectedProduct = $prCtrl->getProductConfigById($selectedHistoryID, $this->chat_id);
+            $selectedProductCategory = $prCatCntrl->getProdctCategoryNameByID($selectedProduct->product_categories_id);
+            $pannel = $pnlCntrl->getPannelById($selectedProductCategory->pannel_id);
+
+            // check pannel type
+            if ($pannel->type == 'hiddify') {
+                $userSubscriptionLInk = $selectedProduct->subscription_link;
+                $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+                $text = '';
+                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$selectedProduct->panel_link \r\n";
+                $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+                $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
+                $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+            } else {
+                if ($selectedProduct->panel_link != null) {
+                    $panel_link = $selectedProduct->panel_link;
+                    $text = '';
+                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده: $selectedProduct->panel_link \r\n";
+                    $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+                }
+
+                if ($selectedProduct->subscription_link != null) {
+                    $userSubscriptionLInk = $selectedProduct->subscription_link;
+                    $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+                    $text = '';
+                    $text .= "لینک subscription: $selectedProduct->subscription_link \r\n";
+                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+                }
+
+                $links = $selectedProduct->configs;
+                // json decode links
+                $links = json_decode($links);
+                if (is_array($links)) {
+                    foreach ($links as $key => $value) {
+                        $text = "$value";
+                        $image = $pnlCntrl->generateQrMOC($text);
+
+                        $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+                    }
+                } else {
+                    $text = "$selectedProduct->configs \r\n";
+                    $image = $pnlCntrl->generateQrMOC($selectedProduct->configs);
+
+                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+                }
+            }
+            // sent data by pannel type
+
+            // check is enough volume or  time or not
+            // send how to use
+            $opr = [];
+            array_push($opr, [
+                [
+                    'text' => 'آموزش استفاده',
+                    'callback_data' => 'help-subscription',
+                ],
+            ]);
+            array_push($opr, [
+                [
+                    'text' => 'برنامه های مورد نیاز',
+                    'callback_data' => 'help-applications',
+                ],
+            ]);
+            array_push($opr, [
+                [
+                    'text' => 'بازگشت به سابقه خرید',
+                    'callback_data' => 'main menu',
+                ],
+            ]);
+            array_push($opr, [
+                [
+                    'text' => 'بازگشت به منوی اصلی',
+                    'callback_data' => 'main menu',
+                ],
+            ]);
+            $text = 'یک گزینه را انتخاب کنید.';
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+
+            return response()->json($resualt, 200);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+        }
     }
 }

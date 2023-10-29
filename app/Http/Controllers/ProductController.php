@@ -27,7 +27,19 @@ class ProductController extends Controller
     {
         $data = Product::where('id', $id)
             ->where('account_id', $userID)
+            ->with('product_category')
             ->first();
+        if ($data != null) {
+            return $data;
+        } else {
+            return null;
+        }
+    }
+    public function getUserProductsHistoryByAccountID($userID)
+    {
+        $data = Product::where('account_id', $userID)
+            ->with('product_category')
+            ->get();
         if ($data != null) {
             return $data;
         } else {

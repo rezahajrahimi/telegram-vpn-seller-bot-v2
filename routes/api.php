@@ -56,6 +56,7 @@ Route::post('addNewProductCategory', [ProductCategoryController::class, 'addNewP
 Route::post('editProductCategory', [ProductCategoryController::class, 'editProductCategory']);
 
 
+//ProductController
 Route::get('getActiveProductsByProductCatID/{selectedProductCatID}', [ProductController::class, 'getActiveProductsByProductCatID']);
 Route::post('addNewProductDetails', [ProductController::class, 'addNewProductDetails']);
 
