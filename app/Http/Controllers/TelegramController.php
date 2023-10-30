@@ -193,6 +193,9 @@ class TelegramController extends Controller
             case 'subSupport':
                 $this->subSupport();
                 break;
+            case 'subFaq':
+                $this->subFaq();
+                break;
 
             default:
                 $this->defaultMenu();
@@ -231,9 +234,9 @@ class TelegramController extends Controller
             case "پشتیبانی":
             $this->supports();
                 break;
-            // case "آموزش استفاده و سوالات متداول":
-            // $this->buySubscription();
-            //     break;
+            case "آموزش استفاده و سوالات متداول":
+            $this->faqs();
+                break;
             // case "اطلاعات حساب":
             // $this->buySubscription();
             //     break;
@@ -767,6 +770,76 @@ class TelegramController extends Controller
                  // set back buttun
             $mainCntrl = new MainMenuItemController();
             $menuItem = $mainCntrl->getMenuIdByName('پشتیبانی');
+
+            array_push($opr, [
+                [
+                    'text' => "بازگشت به {$menuItem->alias_name}",
+                    'callback_data' => "main-{$menuItem->id}",
+                ],
+            ]);
+            array_push($opr, [
+                [
+                    'text' => 'بازگشت به منوی اصلی',
+                    'callback_data' => '0',
+                ],
+            ]);
+            $text = 'یک گزینه را انتخاب کنید.:';
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            return response()->json($result, 200);
+        }
+    }
+    public function faqs()
+    {
+
+        $faqCtrl = new FaqController();
+        $faqs = $faqCtrl->getFaqList();
+        $opr = [];
+        if ($faqs != null) {
+            foreach ($faqs as $key => $faq) {
+                if ($faq['question'] != null) {
+                    $question = $faq->question;
+                    // remove charecter '-' from $catName
+                    $catName = str_replace('-', ' ', $question);
+
+                    array_push($opr, [
+                        [
+                            'text' => "$question",
+                            'callback_data' => 'subFaq-' . $faq->id,
+                        ],
+                    ]);
+                }
+            }
+            array_push($opr, [
+                [
+                    'text' => 'بازگشت به منوی اصلی',
+                    'callback_data' => '0',
+                ],
+            ]);
+            $text = 'یک گزینه را انتخاب کنید.:';
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            return response()->json($result, 200);
+        }
+    }
+    public function subFaq()
+    {
+        $this->deleteMessage();
+            $selectedFaqID = $this->userCommandArr[1];
+            \Log::info("selectedFaqID:$selectedFaqID");
+            $text = "";
+
+        $supportCtrl = new FaqController();
+        $supports = $supportCtrl->getFacById($selectedFaqID);
+        $opr = [];
+        if ($supports != null) {
+            $text = $supports->question."\r\n";
+
+            $text = $supports->answer;
+
+                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+                 // set back buttun
+            $mainCntrl = new MainMenuItemController();
+            $menuItem = $mainCntrl->getMenuIdByName('آموزش استفاده و سوالات متداول');
 
             array_push($opr, [
                 [
