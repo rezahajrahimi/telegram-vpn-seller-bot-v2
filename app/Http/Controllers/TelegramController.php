@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://8eba-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://8323-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -686,12 +686,18 @@ class TelegramController extends Controller
                     'callback_data' => 'help-applications',
                 ],
             ]);
+
+            // set back buttun
+            $mainCntrl = new MainMenuItemController();
+            $menuItem = $mainCntrl->getMenuIdByName('سابقه خرید');
+
             array_push($opr, [
                 [
                     'text' => 'بازگشت به سابقه خرید',
-                    'callback_data' => 'main menu',
+                    'callback_data' => "main-{$menuItem->id}",
                 ],
             ]);
+
             array_push($opr, [
                 [
                     'text' => 'بازگشت به منوی اصلی',

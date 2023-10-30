@@ -15,6 +15,10 @@ class MainMenuItemController extends Controller
     {
         return MainMenuItem::where('id',$id)->first();
     }
+    public function getMenuIdByName($name)
+    {
+        return MainMenuItem::where('name',$name)->first();
+    }
     public function getAllActivatedMainMenuItems()
     {
         return MainMenuItem::where('is_active', true)->get();
