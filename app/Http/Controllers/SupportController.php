@@ -17,10 +17,10 @@ class SupportController extends Controller
             return response()->json(false, 401);
         }
     }
-    public function getSupportById($catId)
+    public function getSupportById($id)
     {
         try {
-            return Support::where('id', $catID)->first();
+            return Support::where('id', $id)->first();
         } catch (\Throwable $th) {
             \Log::info($th);
             return response()->json(false, 401);

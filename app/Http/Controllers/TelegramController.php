@@ -190,6 +190,9 @@ class TelegramController extends Controller
             case 'subBuyHistory':
                 $this->subBuyHistory();
                 break;
+            case 'subSupport':
+                $this->subSupport();
+                break;
 
             default:
                 $this->defaultMenu();
@@ -225,9 +228,9 @@ class TelegramController extends Controller
             case 'سابقه خرید':
                 $this->buyHistory();
                 break;
-            // case "پشتیبانی":
-            // $this->buySubscription();
-            //     break;
+            case "پشتیبانی":
+            $this->supports();
+                break;
             // case "آموزش استفاده و سوالات متداول":
             // $this->buySubscription();
             //     break;
@@ -710,6 +713,76 @@ class TelegramController extends Controller
             return response()->json($resualt, 200);
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
+        }
+    }
+    public function supports()
+    {
+
+        $supportCtrl = new SupportController();
+        $supports = $supportCtrl->getSupporstList();
+        $opr = [];
+        if ($supports != null) {
+            foreach ($supports as $key => $support) {
+                if ($support['question'] != null) {
+                    $question = $support->question;
+                    // remove charecter '-' from $catName
+                    $catName = str_replace('-', ' ', $question);
+
+                    array_push($opr, [
+                        [
+                            'text' => "$question",
+                            'callback_data' => 'subSupport-' . $support->id,
+                        ],
+                    ]);
+                }
+            }
+            array_push($opr, [
+                [
+                    'text' => 'بازگشت به منوی اصلی',
+                    'callback_data' => '0',
+                ],
+            ]);
+            $text = 'یک گزینه را انتخاب کنید.:';
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            return response()->json($result, 200);
+        }
+    }
+    public function subSupport()
+    {
+        $this->deleteMessage();
+            $selectedSupportID = $this->userCommandArr[1];
+            \Log::info("selectedSupportID:$selectedSupportID");
+            $text = "";
+
+        $supportCtrl = new SupportController();
+        $supports = $supportCtrl->getSupportById($selectedSupportID);
+        $opr = [];
+        if ($supports != null) {
+            $text = $supports->question."\r\n";
+
+            $text = $supports->answer;
+
+                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+                 // set back buttun
+            $mainCntrl = new MainMenuItemController();
+            $menuItem = $mainCntrl->getMenuIdByName('پشتیبانی');
+
+            array_push($opr, [
+                [
+                    'text' => "بازگشت به {$menuItem->alias_name}",
+                    'callback_data' => "main-{$menuItem->id}",
+                ],
+            ]);
+            array_push($opr, [
+                [
+                    'text' => 'بازگشت به منوی اصلی',
+                    'callback_data' => '0',
+                ],
+            ]);
+            $text = 'یک گزینه را انتخاب کنید.:';
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            return response()->json($result, 200);
         }
     }
 }
