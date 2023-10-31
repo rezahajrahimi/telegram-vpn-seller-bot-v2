@@ -196,6 +196,9 @@ class TelegramController extends Controller
             case 'subFaq':
                 $this->subFaq();
                 break;
+            // case 'addAccountBalance':
+            //     $this->subFaq();
+            //     break;
 
             default:
                 $this->defaultMenu();
@@ -237,8 +240,8 @@ class TelegramController extends Controller
             case 'آموزش استفاده و سوالات متداول':
                 $this->faqs();
                 break;
-            case "اطلاعات حساب":
-            $this->accountDetails();
+            case 'اطلاعات حساب':
+                $this->accountDetails();
                 break;
             // case "اکانت تستی":
             // $this->buySubscription();
@@ -518,22 +521,47 @@ class TelegramController extends Controller
         $pymCntrl = new PaymentTypeController();
 
         if ($this->userCommandArr[1] == 'zarinpal') {
-            $text = 'میزان افزایش اعتبار را انتخاب کنید.';
-            $opr = [];
-            array_push($opr, [['text' => '10 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-10000 ']]);
-            array_push($opr, [['text' => '15 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-15000 ']]);
-            array_push($opr, [['text' => '30 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-30000 ']]);
-            array_push($opr, [['text' => '50 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-50000 ']]);
-            array_push($opr, [['text' => '90 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-90000 ']]);
-            array_push($opr, [['text' => '100 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-100000 ']]);
-            array_push($opr, [['text' => '150 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-150000 ']]);
-            array_push($opr, [['text' => '180 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-180000 ']]);
-            array_push($opr, [['text' => '300 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-300000 ']]);
-            array_push($opr, [['text' => '500 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-500000 ']]);
+            // check if $this->userCommandArr[] lenght
 
-            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
-            // $this->setNewLevel($this->addZarinPalBalanceLevel);
-            return response()->json($result, 200);
+            if (count($this->userCommandArr) >= 3) {
+                $amount = $this->userCommandArr[2];
+
+                $request = new Request();
+
+                $request->account_id = $this->chat_id;
+                $request->amount = $amount;
+                $billCntrl = new BillController();
+
+                $bill = $billCntrl->createNewBill($request);
+
+                $openLink = $pymCntrl->getZarinpalLink();
+                $text = "پرداخت مبلغ $amount تومان از طریق درگاه آنلاین \r\n";
+                $opr = [];
+                array_push($opr, [
+                    [
+                        'text' => 'پرداخت آنلاین',
+                        'url' => "$openLink/$this->chat_id/$bill->bill_id/$bill->amount",
+                    ],
+                ]);
+                $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
+            } else {
+                $text = 'میزان افزایش اعتبار را انتخاب کنید.';
+                $opr = [];
+                array_push($opr, [['text' => '10 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-10000 ']]);
+                array_push($opr, [['text' => '15 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-15000 ']]);
+                array_push($opr, [['text' => '30 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-30000 ']]);
+                array_push($opr, [['text' => '50 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-50000 ']]);
+                array_push($opr, [['text' => '90 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-90000 ']]);
+                array_push($opr, [['text' => '100 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-100000 ']]);
+                array_push($opr, [['text' => '150 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-150000 ']]);
+                array_push($opr, [['text' => '180 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-180000 ']]);
+                array_push($opr, [['text' => '300 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-300000 ']]);
+                array_push($opr, [['text' => '500 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-500000 ']]);
+
+                $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+                // $this->setNewLevel($this->addZarinPalBalanceLevel);
+                return response()->json($result, 200);
+            }
         } else {
             $pymCntrl = new PaymentTypeController();
             $pymentMenuCntrl = new PaymentMenuItemController();
@@ -858,7 +886,6 @@ class TelegramController extends Controller
     }
     public function accountDetails()
     {
-
         $accCntrl = new AccountBallanceController();
         $ballance = $accCntrl->getUserAccuntBalance($this->chat_id);
         $text = "♦️ اطلاعات حساب شما: \n\r";
@@ -867,7 +894,7 @@ class TelegramController extends Controller
         $text .= "نام: $this->first_name \n\r";
         $text .= "نام خانوادگی: $this->last_name \n\r";
         $text .= "آیدی عددی: $this->chat_id \n\r";
-
+        $text .= 'موجودی کیف پول شما: ';
         // show $ballance with thousands seperator
         $text .= number_format($ballance, 0, '.', ',');
         $text .= " تومان \n\r";
@@ -875,6 +902,13 @@ class TelegramController extends Controller
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
         $opr = [];
+
+        array_push($opr, [
+            [
+                'text' => 'شارژ کیف پول 💰',
+                'callback_data' => 'addAccountBalance',
+            ],
+        ]);
         array_push($opr, [
             [
                 'text' => 'بازگشت به منوی اصلی',
