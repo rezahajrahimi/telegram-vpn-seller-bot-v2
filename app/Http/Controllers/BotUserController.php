@@ -10,7 +10,7 @@ class BotUserController extends Controller
     public function createNewUserBot($account_id, $userName, $firstName, $lastName)
     {
         $logCtrl = new LogController();
-        $logCtrl->addNewLog('user', 'new user', $account_id, $userName, 'create');
+        $logCtrl->addNewLog('user', 'کاربر جدید وارد ربات شد.', $account_id, $userName, 'new user');
         return BotUser::firstOrCreate([
             'account_id' => $account_id,
             'username' => $userName,

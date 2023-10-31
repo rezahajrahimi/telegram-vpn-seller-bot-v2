@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://2b2a-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://3e4f-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -222,6 +222,8 @@ class TelegramController extends Controller
     }
     public function subMainMenu()
     {
+        $this->addNewBotLog('menu', 'وارد منوی اصلی ربات شد.', 'show');
+
         $menu = new MainMenuItemController();
 
         $selectedSubMenu = $menu->getMenuNameByID($this->userCommandArr[1]);
@@ -261,6 +263,7 @@ class TelegramController extends Controller
     public function buySubscription()
     {
         // $this->deleteMessage();
+        $this->addNewBotLog('subscription', 'وارد بخش خرید اشتراک شد.', 'show');
 
         $text = 'بسته خود را انتخاب کنید.';
         $prCatCntrl = new ProductCategoryController();
@@ -288,6 +291,8 @@ class TelegramController extends Controller
         \Log::info("userCommandArr: $id");
 
         $selectedPrCat = $prCat->getProdctCategoryNameByID($this->userCommandArr[1]);
+        $this->addNewBotLog('subscription', "بسته $selectedPrCat->category_name را انتخاب کرد.", 'buy subscription');
+
         // check user account balance
         $productPrice = $selectedPrCat->price;
         \Log::info("selectedPrCat->price: $productPrice");
@@ -400,6 +405,7 @@ class TelegramController extends Controller
                     }
                 }
                 $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+                $this->addNewBotLog('subscription', "خرید یسته با موفقیت انجام شد.", 'successfull buy subscription');
 
                 // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
                 $text = "جهت نیاز به راهنمایی بر روی یکی از این گزینه ها کلیک کنید. \r\n";
@@ -408,6 +414,7 @@ class TelegramController extends Controller
 
             // minus balance
             $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice);
+            $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
 
             // send how to use
             $opr = [];
@@ -486,12 +493,15 @@ class TelegramController extends Controller
 
                 $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             }
+            $this->addNewBotLog('subscription', "موجودی کیف پول کاربر برای حرید بسته کافی نبود.", 'low account ballance');
 
             return response()->json($result, 200);
         }
     }
     public function addAccountBalance()
     {
+        $this->addNewBotLog('ballance', "گزینه های شارژ حساب به کاربر نمایش داده شد.", 'show');
+
         $this->deleteMessage();
 
         $text = 'نوع پرداخت را انتخاب کنید.';
@@ -543,45 +553,43 @@ class TelegramController extends Controller
                         'url' => "$openLink/$this->chat_id/$bill->bill_id/$bill->amount",
                     ],
                 ]);
+                $this->addNewBotLog('ballance', "صورتحساب به مبلغ $amount برای پرداهت از طریق درگاه زرین پال برای کاربر ارسال شد.", 'show');
+
                 $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
             } else {
                 $text = 'میزان افزایش اعتبار را انتخاب کنید.';
                 $opr = [];
-                array_push($opr, [['text' => '10 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-10000 ']]);
-                array_push($opr, [['text' => '15 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-15000 ']]);
-                array_push($opr, [['text' => '30 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-30000 ']]);
-                array_push($opr, [['text' => '50 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-50000 ']]);
-                array_push($opr, [['text' => '90 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-90000 ']]);
-                array_push($opr, [['text' => '100 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-100000 ']]);
-                array_push($opr, [['text' => '150 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-150000 ']]);
-                array_push($opr, [['text' => '180 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-180000 ']]);
-                array_push($opr, [['text' => '300 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-300000 ']]);
-                array_push($opr, [['text' => '500 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-500000 ']]);
+                array_push($opr, [['text' => '10 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-10000 '], ['text' => '15 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-15000 ']]);
+                array_push($opr, [['text' => '30 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-30000 '], ['text' => '50 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-50000 ']]);
+                array_push($opr, [['text' => '90 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-90000 '], ['text' => '100 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-100000 ']]);
+                array_push($opr, [['text' => '150 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-150000 '], ['text' => '180 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-180000 ']]);
+                array_push($opr, [['text' => '300 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-300000 '], ['text' => '500 هزار تومان', 'callback_data' => 'subAccountBalance-zarinpal-500000 ']]);
 
                 $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
                 // $this->setNewLevel($this->addZarinPalBalanceLevel);
+                $this->addNewBotLog('ballance', "مبالغ مورد نیاز برای پرداخت از طریق درگاه زرین پال برای کاربر ارسال شد.", 'show');
+
                 return response()->json($result, 200);
             }
         } else {
             $pymCntrl = new PaymentTypeController();
             $pymentMenuCntrl = new PaymentMenuItemController();
-            // $text = $pymentMenuCntrl->getResponseOfSelectedOfflineMenu();
             app('telegram_bot')->sendMessage($pymentMenuCntrl->getResponseOfSelectedOfflineMenu(), $this->chat_id, null, 'MarkDown');
 
             $name = $this->userCommandArr[1];
             $selectedPayment = $pymCntrl->getPaymentTypeNyID($this->userCommandArr[1]);
-            // array_push($opr, [['text' => "$selectedPayment->merchant_id", 'callback_data' => "$selectedPayment->merchant_id"]]);
-            // $text = $selectedPayment->merchant_id;
             $result = app('telegram_bot')->sendMessage($selectedPayment->merchant_id, $this->chat_id, null, 'MarkDown');
 
-            // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            $this->addNewBotLog('ballance', "مشخصات پرداخت آفلاین انتخابی به کاربر نمایش داده شد.", 'show');
 
-            // $this->setNewLevel($this->buySubscriptionLevel);
+
             return response()->json($result, 200);
         }
     }
     public function checkIsChannelsMember($chat_id)
     {
+        $this->addNewBotLog('lock', "بررسی عضو بودن کاربر در کانالهای قفل ربات", 'check');
+
         $channelLockCtrl = new ChannelLockController();
         $channels = $channelLockCtrl->getAllActiveChannelLock();
         $response = true;
@@ -595,6 +603,8 @@ class TelegramController extends Controller
     }
     public function channelLockMenu()
     {
+        $this->addNewBotLog('lock', "درخواست از کاربر برای عضویت در کانالهای قفل ربات.", 'show');
+
         $channelLockCtrl = new ChannelLockController();
         $channels = $channelLockCtrl->getAllActiveChannelLock();
         $opr = [];
@@ -643,6 +653,8 @@ class TelegramController extends Controller
             ]);
             $text = 'تاریخچه خرید شما:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            $this->addNewBotLog('history', "نمایش گزینه های تاریخچه خرید کاربر.", 'show');
+
             return response()->json($result, 200);
         }
     }
@@ -660,6 +672,7 @@ class TelegramController extends Controller
             $selectedProduct = $prCtrl->getProductConfigById($selectedHistoryID, $this->chat_id);
             $selectedProductCategory = $prCatCntrl->getProdctCategoryNameByID($selectedProduct->product_categories_id);
             $pannel = $pnlCntrl->getPannelById($selectedProductCategory->pannel_id);
+            $this->addNewBotLog('history', "نمایش اطلاعات تاریخچه خرید انتخابی به کاربر", 'show');
 
             // check pannel type
             if ($pannel->type == 'hiddify') {
@@ -748,6 +761,8 @@ class TelegramController extends Controller
     }
     public function supports()
     {
+        $this->addNewBotLog('support', "نمایش گزینه های پشتیبانی به کاربر.", 'show');
+
         $supportCtrl = new SupportController();
         $supports = $supportCtrl->getSupporstList();
         $opr = [];
@@ -779,6 +794,8 @@ class TelegramController extends Controller
     }
     public function subSupport()
     {
+        $this->addNewBotLog('support', "نمایش جزییات گزینه انتخابی پشتیبانی به کاربر.", 'show');
+
         $this->deleteMessage();
         $selectedSupportID = $this->userCommandArr[1];
         \Log::info("selectedSupportID:$selectedSupportID");
@@ -817,6 +834,8 @@ class TelegramController extends Controller
     }
     public function faqs()
     {
+        $this->addNewBotLog('faq', "نمایش گزینه های سوالات متدوال به کاربر.", 'show');
+
         $faqCtrl = new FaqController();
         $faqs = $faqCtrl->getFaqList();
         $opr = [];
@@ -848,6 +867,8 @@ class TelegramController extends Controller
     }
     public function subFaq()
     {
+        $this->addNewBotLog('faq', "نمایش جزییات گزینه انتخابی سوالات متداول به کاربر.", 'show');
+
         $this->deleteMessage();
         $selectedFaqID = $this->userCommandArr[1];
         \Log::info("selectedFaqID:$selectedFaqID");
@@ -886,6 +907,8 @@ class TelegramController extends Controller
     }
     public function accountDetails()
     {
+        $this->addNewBotLog('ballance', "نمایش اطلاعات حساب کاربر.", 'show');
+
         $accCntrl = new AccountBallanceController();
         $ballance = $accCntrl->getUserAccuntBalance($this->chat_id);
         $text = "♦️ اطلاعات حساب شما: \n\r";
@@ -918,5 +941,10 @@ class TelegramController extends Controller
         $text = 'یک گزینه را انتخاب کنید.:';
         $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
         return response()->json($result, 200);
+    }
+    public function addNewBotLog($type, $message, $event){
+        $logCtrl = new LogController();
+        $logCtrl->addNewLog($type, $message, $this->chat_id, $this->username, $event);
+        return true;
     }
 }
