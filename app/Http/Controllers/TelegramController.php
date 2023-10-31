@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://8323-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://2b2a-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -231,15 +231,15 @@ class TelegramController extends Controller
             case 'سابقه خرید':
                 $this->buyHistory();
                 break;
-            case "پشتیبانی":
-            $this->supports();
+            case 'پشتیبانی':
+                $this->supports();
                 break;
-            case "آموزش استفاده و سوالات متداول":
-            $this->faqs();
+            case 'آموزش استفاده و سوالات متداول':
+                $this->faqs();
                 break;
-            // case "اطلاعات حساب":
-            // $this->buySubscription();
-            //     break;
+            case "اطلاعات حساب":
+            $this->accountDetails();
+                break;
             // case "اکانت تستی":
             // $this->buySubscription();
             //     break;
@@ -720,7 +720,6 @@ class TelegramController extends Controller
     }
     public function supports()
     {
-
         $supportCtrl = new SupportController();
         $supports = $supportCtrl->getSupporstList();
         $opr = [];
@@ -753,21 +752,21 @@ class TelegramController extends Controller
     public function subSupport()
     {
         $this->deleteMessage();
-            $selectedSupportID = $this->userCommandArr[1];
-            \Log::info("selectedSupportID:$selectedSupportID");
-            $text = "";
+        $selectedSupportID = $this->userCommandArr[1];
+        \Log::info("selectedSupportID:$selectedSupportID");
+        $text = '';
 
         $supportCtrl = new SupportController();
         $supports = $supportCtrl->getSupportById($selectedSupportID);
         $opr = [];
         if ($supports != null) {
-            $text = $supports->question."\r\n";
+            $text = $supports->question . "\r\n";
 
             $text = $supports->answer;
 
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
-                 // set back buttun
+            // set back buttun
             $mainCntrl = new MainMenuItemController();
             $menuItem = $mainCntrl->getMenuIdByName('پشتیبانی');
 
@@ -790,7 +789,6 @@ class TelegramController extends Controller
     }
     public function faqs()
     {
-
         $faqCtrl = new FaqController();
         $faqs = $faqCtrl->getFaqList();
         $opr = [];
@@ -823,21 +821,21 @@ class TelegramController extends Controller
     public function subFaq()
     {
         $this->deleteMessage();
-            $selectedFaqID = $this->userCommandArr[1];
-            \Log::info("selectedFaqID:$selectedFaqID");
-            $text = "";
+        $selectedFaqID = $this->userCommandArr[1];
+        \Log::info("selectedFaqID:$selectedFaqID");
+        $text = '';
 
         $supportCtrl = new FaqController();
         $supports = $supportCtrl->getFacById($selectedFaqID);
         $opr = [];
         if ($supports != null) {
-            $text = $supports->question."\r\n";
+            $text = $supports->question . "\r\n";
 
             $text = $supports->answer;
 
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
-                 // set back buttun
+            // set back buttun
             $mainCntrl = new MainMenuItemController();
             $menuItem = $mainCntrl->getMenuIdByName('آموزش استفاده و سوالات متداول');
 
@@ -857,5 +855,34 @@ class TelegramController extends Controller
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             return response()->json($result, 200);
         }
+    }
+    public function accountDetails()
+    {
+
+        $accCntrl = new AccountBallanceController();
+        $ballance = $accCntrl->getUserAccuntBalance($this->chat_id);
+        $text = "♦️ اطلاعات حساب شما: \n\r";
+
+        $text .= "نام کاربری: $this->username \n\r";
+        $text .= "نام: $this->first_name \n\r";
+        $text .= "نام خانوادگی: $this->last_name \n\r";
+        $text .= "آیدی عددی: $this->chat_id \n\r";
+
+        // show $ballance with thousands seperator
+        $text .= number_format($ballance, 0, '.', ',');
+        $text .= " تومان \n\r";
+        $text .= ' ➖➖➖ ';
+        $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+        $opr = [];
+        array_push($opr, [
+            [
+                'text' => 'بازگشت به منوی اصلی',
+                'callback_data' => '0',
+            ],
+        ]);
+        $text = 'یک گزینه را انتخاب کنید.:';
+        $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        return response()->json($result, 200);
     }
 }
