@@ -9,11 +9,13 @@ class ProductCategoryController extends Controller
 {
     public function getAllProdctCategory()
     {
-        return ProductCategory::with('pannel')->orderBy('created_at')->get();
+        return ProductCategory::with('pannel')
+            ->orderBy('created_at')
+            ->get();
     }
     public function getProdctCategoryNameByID($id)
     {
-        return ProductCategory::where('id',$id)->first();
+        return ProductCategory::where('id', $id)->first();
     }
     public function getAllProdctCategoryOrderByPrice()
     {
@@ -38,7 +40,9 @@ class ProductCategoryController extends Controller
         $data->price = $request->price;
         $data->expire_day = $request->expire_day;
         $data->volume = $request->volume;
-
+        $data->rechargable = $request->rechargable;
+        $data->show_subscription_link = $request->show_subscription_link;
+        $data->show_pannel_link = $request->show_pannel_link;
         if ($data->save()) {
             return $this->getAllProdctCategory();
         } else {
@@ -54,6 +58,9 @@ class ProductCategoryController extends Controller
             $data->price = $request->price;
             $data->expire_day = $request->expire_day;
             $data->volume = $request->volume;
+            $data->rechargable = $request->rechargable;
+            $data->show_subscription_link = $request->show_subscription_link;
+            $data->show_pannel_link = $request->show_pannel_link;
 
             if ($data->update()) {
                 return response()->json(true, 200);
