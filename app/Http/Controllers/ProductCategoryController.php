@@ -43,6 +43,7 @@ class ProductCategoryController extends Controller
         $data->rechargable = $request->rechargable;
         $data->show_subscription_link = $request->show_subscription_link;
         $data->show_pannel_link = $request->show_pannel_link;
+        $data->is_active = true;
         if ($data->save()) {
             return $this->getAllProdctCategory();
         } else {
@@ -61,6 +62,7 @@ class ProductCategoryController extends Controller
             $data->rechargable = $request->rechargable;
             $data->show_subscription_link = $request->show_subscription_link;
             $data->show_pannel_link = $request->show_pannel_link;
+            $data->is_active = $request->is_active;
 
             if ($data->update()) {
                 return response()->json(true, 200);
@@ -81,6 +83,34 @@ class ProductCategoryController extends Controller
             return $data->price;
         } else {
             return -1;
+        }
+    }
+    public function reActiveProductCategory($id)
+    {
+        try {
+            $data = ProductCategory::find($id);
+            $data->is_active = true;
+            if ($data->update()) {
+                return response()->json(true, 200);
+            } else {
+                return response()->json(false, 401);
+            }
+        } catch (\Throwable $th) {
+            return response()->json(false, 401);
+        }
+    }
+    public function deActiveProductCategory($id)
+    {
+        try {
+            $data = ProductCategory::find($id);
+            $data->is_active = false;
+            if ($data->update()) {
+                return response()->json(true, 200);
+            } else {
+                return response()->json(false, 401);
+            }
+        } catch (\Throwable $th) {
+            return response()->json(false, 401);
         }
     }
 }
