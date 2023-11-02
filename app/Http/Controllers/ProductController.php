@@ -111,14 +111,14 @@ class ProductController extends Controller
             return response()->json(false, 500);
         }
     }
-    public function getLastTenBuyersByCatID($product_categories_id)
+    public function getLastBuyersByCatIdAndCount($product_categories_id,$count)
     {
         try {
             $data = Product::where('product_categories_id', $product_categories_id)
                 ->where('isActive', false)
                 ->with('user')
                 ->orderBy('id', 'desc')
-                ->take(10)
+                ->take($count)
                 ->get();
             if ($data != null) {
                 return response()->json($data, 200);
@@ -135,7 +135,8 @@ class ProductController extends Controller
             $last30 = $this->getCountOfSellProductBYCatIdAndMonth($product_categories_id, 1);
             $last90 = $this->getCountOfSellProductBYCatIdAndMonth($product_categories_id, 3);
             $last180 = $this->getCountOfSellProductBYCatIdAndMonth($product_categories_id, 6);
-            return response()->json(['last30' => $last30, 'last90' => $last90, 'last180' => $last180], 200);
+            $last365 = $this->getCountOfSellProductBYCatIdAndMonth($product_categories_id, 12);
+            return response()->json(['ماه گذشته' => $last30, 'سه ماه گذشته' => $last90, 'شش ماه گذشته' => $last180, 'یکسال گذشته' => $last365], 200);
         } catch (\Throwable $th) {
             return response()->json(false, 500);
         }

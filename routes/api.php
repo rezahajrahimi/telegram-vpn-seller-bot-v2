@@ -63,7 +63,7 @@ Route::get('deActiveProductCategory/{id}', [ProductCategoryController::class, 'd
 Route::get('getActiveProductsByProductCatID/{selectedProductCatID}', [ProductController::class, 'getActiveProductsByProductCatID']);
 Route::post('addNewProductDetails', [ProductController::class, 'addNewProductDetails']);
 Route::get('deleteProduct/{id}', [ProductController::class, 'deleteProduct']);
-Route::get('getLastTenBuyersByCatID/{id}', [ProductController::class, 'getLastTenBuyersByCatID']);
+Route::get('getLastBuyersByCatIdAndCount/{id}/{count}', [ProductController::class, 'getLastBuyersByCatIdAndCount']);
 Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
 
 
