@@ -54,11 +54,17 @@ Route::get('getProdctPrice', [ProductCategoryController::class, 'getProdctPrice'
 Route::get('getProdctPannelID/{name}/pannelID', [ProductCategoryController::class, 'getProdctPannelID']);
 Route::post('addNewProductCategory', [ProductCategoryController::class, 'addNewProductCategory']);
 Route::post('editProductCategory', [ProductCategoryController::class, 'editProductCategory']);
+Route::get('reActiveProductCategory/{id}', [ProductCategoryController::class, 'reActiveProductCategory']);
+Route::get('deActiveProductCategory/{id}', [ProductCategoryController::class, 'deActiveProductCategory']);
+
 
 
 //ProductController
 Route::get('getActiveProductsByProductCatID/{selectedProductCatID}', [ProductController::class, 'getActiveProductsByProductCatID']);
 Route::post('addNewProductDetails', [ProductController::class, 'addNewProductDetails']);
+Route::get('deleteProduct/{id}', [ProductController::class, 'deleteProduct']);
+Route::get('getLastTenBuyersByCatID/{id}', [ProductController::class, 'getLastTenBuyersByCatID']);
+Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
 
 
 //Settings

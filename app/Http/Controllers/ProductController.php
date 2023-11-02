@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 use App\Models\Product;
-
 use Illuminate\Http\Request;
+// use carbon
+use Carbon\Carbon;
 
 class ProductController extends Controller
 {
     public function getProductConfigAndChangeStatus($selectedProductCatID, $userID)
     {
-
         $data = Product::where('product_categories_id', $selectedProductCatID)
             ->where('isActive', true)
             ->first();
@@ -19,10 +19,10 @@ class ProductController extends Controller
             $data->update();
             return $data;
         } else {
-
             return null;
         }
     }
+
     public function getProductConfigById($id, $userID)
     {
         $data = Product::where('id', $id)
@@ -86,12 +86,75 @@ class ProductController extends Controller
             return false;
         }
     }
-    public function getLastInsertedProductId(){
+    public function getLastInsertedProductId()
+    {
         $data = Product::orderBy('id', 'desc')->first();
-        if($data != null){
+        if ($data != null) {
             return $data->id;
         } else {
             return 1;
         }
+    }
+    public function deleteProduct($id)
+    {
+        try {
+            $data = Product::find($id);
+            if ($data != null) {
+                $catId = $data->product_categories_id;
+                $data->delete();
+
+                return $this->getActiveProductsByProductCatID($catId);
+            } else {
+                return response()->json(false, 401);
+            }
+        } catch (\Throwable $th) {
+            return response()->json(false, 500);
+        }
+    }
+    public function getLastTenBuyersByCatID($product_categories_id)
+    {
+        try {
+            $data = Product::where('product_categories_id', $product_categories_id)
+                ->where('isActive', false)
+                ->with('user')
+                ->orderBy('id', 'desc')
+                ->take(10)
+                ->get();
+            if ($data != null) {
+                return response()->json($data, 200);
+            } else {
+                return response()->json(false, 401);
+            }
+        } catch (\Throwable $th) {
+            return response()->json(false, 500);
+        }
+    }
+    public function getCountOfProductSelledSummeryByCatID($product_categories_id)
+    {
+        try {
+            $last30 = $this->getCountOfSellProductBYCatIdAndMonth($product_categories_id, 1);
+            $last90 = $this->getCountOfSellProductBYCatIdAndMonth($product_categories_id, 3);
+            $last180 = $this->getCountOfSellProductBYCatIdAndMonth($product_categories_id, 6);
+            return response()->json(['last30' => $last30, 'last90' => $last90, 'last180' => $last180], 200);
+        } catch (\Throwable $th) {
+            return response()->json(false, 500);
+        }
+    }
+    public function getCountOfSellProductBYCatIdAndMonth($product_categories_id, $month)
+    {
+        // get count of Product in last month  by id
+        $fromDate = Carbon::now()
+            ->subMonth()
+            ->startOfMonth()
+            ->toDateString();
+        $tillDate = Carbon::now()
+            ->subMonth()
+            ->endOfMonth($month)
+            ->toDateString();
+
+        $data = Product::where('product_categories_id', $product_categories_id)
+            ->whereBetween('updated_at', [$fromDate, $tillDate])
+            ->count();
+        return $data;
     }
 }

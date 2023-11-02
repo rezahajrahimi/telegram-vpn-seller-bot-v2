@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Verta;
 
 class Product extends Model
 {
@@ -20,13 +21,25 @@ class Product extends Model
     {
         return $this->belongsTo(ProductCategory::class, 'product_categories_id');
     }
+    public function user(){
+        return $this->belongsTo(BotUser::class, 'account_id', 'account_id');
+    }
     /**
      * Get all of the comments for the Product
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function transaction(): HasMany
+    public function transaction()
     {
         return $this->hasMany(Order::class, 'product_id');
     }
+    public function getCreatedAtAttribute($value)
+    {
+        return verta(verta($value))->formatDifference();
+    }
+    public function getUpdatedAtAttribute($value)
+    {
+        return verta(verta($value))->formatDifference();
+    }
+
 }
