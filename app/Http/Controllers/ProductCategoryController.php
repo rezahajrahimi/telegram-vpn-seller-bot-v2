@@ -65,7 +65,7 @@ class ProductCategoryController extends Controller
             $data->is_active = $request->is_active;
 
             if ($data->update()) {
-                return response()->json(true, 200);
+                return response()->json($this->getAllProdctCategory(), 200);
             } else {
                 return response()->json(false, 401);
             }

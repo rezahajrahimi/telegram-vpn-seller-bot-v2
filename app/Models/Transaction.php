@@ -10,13 +10,16 @@ class Transaction extends Model
     use HasFactory;
     protected $guarded = ['id','account_id','payment_type_id'];
     protected $fillable = ['account_id','username','payment_type_id','amount','confirmed','recipe_number'];
-
+    public function getCreatedAtAttribute($value)
+    {
+        return verta(verta($value))->formatDifference();
+    }
     /**
      * Get the user that owns the Transaction
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function payment_types(): BelongsTo
+    public function payment_types()
     {
         return $this->belongsTo(PaymentType::class, 'payment_type_id');
     }
@@ -25,9 +28,14 @@ class Transaction extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function transaction_image(): HasMany
+    public function transaction_image()
     {
         return $this->hasMany(TransactionImage::class, 'transaction_id');
     }
+    public function user(){
+        return $this->belongsTo(BotUser::class, 'account_id', 'account_id');
+    }
+
+
 
 }

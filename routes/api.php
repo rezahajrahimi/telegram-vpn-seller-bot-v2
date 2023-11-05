@@ -99,8 +99,12 @@ Route::get('getAllPaymentTypeMenues', [PaymentMenuItemController::class, 'getAll
 Route::post('updatePaymentMenuAlisNameByLevel', [PaymentMenuItemController::class, 'updatePaymentMenuAlisNameByLevel']);
 
 
-// online payment
+// TransactionController && online payment
+
 Route::get('/order', [TransactionController::class, 'order']);
+Route::get('/getConfirmedTransactions/{count?}', [TransactionController::class, 'getConfirmedTransactions']);
+Route::get('/getUnConfirmedTransactions/{count?}', [TransactionController::class, 'getUnConfirmedTransactions']);
+
 
 
 // GiftCard menu

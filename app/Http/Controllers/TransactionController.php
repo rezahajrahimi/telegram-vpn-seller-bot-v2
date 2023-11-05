@@ -116,4 +116,35 @@ class TransactionController extends Controller
             return null;
         }
     }
+
+    public function getConfirmedTransactions($count = 10){
+       try {
+        return Transaction::where('confirmed', true)
+        ->with([
+            'payment_types',
+            'transaction_image',
+            'user'
+
+        ])
+        ->take($count)->get();
+       } catch (\Throwable $th) {
+        return response()->json($data, 404);
+       }
+
+    }
+    public function getUnConfirmedTransactions($count = 10){
+       try {
+        return Transaction::where('confirmed', false)
+        ->with([
+            'payment_types',
+            'transaction_image',
+            'user'
+
+        ])
+        ->take($count)->get();
+       } catch (\Throwable $th) {
+        return response()->json($data, 404);
+       }
+
+    }
 }

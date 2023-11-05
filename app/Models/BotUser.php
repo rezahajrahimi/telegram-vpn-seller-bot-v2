@@ -21,6 +21,10 @@ class BotUser extends Model
     {
         return $this->hasMany(Product::class, 'account_id', 'account_id');
     }
+    public function transaction()
+    {
+        return $this->hasMany(Transaction::class, 'account_id', 'account_id');
+    }
     public function getCreatedAtAttribute($value)
     {
         return verta(verta($value))->formatDifference();
