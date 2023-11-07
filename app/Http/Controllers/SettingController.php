@@ -10,6 +10,10 @@ class SettingController extends Controller
     {
         return Setting::find(1)->welcome_message;
     }
+    public function getAdminId()
+    {
+        return Setting::find(1)->admin_id;
+    }
     public function getBotSetting()
     {
         return Setting::find(1);

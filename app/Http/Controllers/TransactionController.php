@@ -8,6 +8,7 @@ use SoapClient;
 use Illuminate\Support\Facades\Config;
 
 use App\Models\Transaction;
+use App\Models\PaymentType;
 
 use Illuminate\Http\Request;
 class TransactionController extends Controller
@@ -79,13 +80,21 @@ class TransactionController extends Controller
     }
     public function addUserTranaction($userID, $amount, $recipeNUmber, $paymentTypeId)
     {
+        if ($paymentTypeId == 0 || $paymentTypeId == null) {
+            $pay = PaymentType::where('is_active', true)
+                ->where('type', 'offline')
+                ->first();
+
+            $paymentTypeId = $pay->id;
+        }
         $transaction = new Transaction();
         $transaction->account_id = $userID;
         $transaction->username = '';
         $transaction->amount = $amount;
         $transaction->recipe_number = $recipeNUmber;
         $transaction->payment_type_id = $paymentTypeId;
-        return $transaction->save();
+        $transaction->save();
+        return $transaction->id;
     }
     public function getAmountByRecipeNUmber($recipeNUmber)
     {
@@ -117,34 +126,26 @@ class TransactionController extends Controller
         }
     }
 
-    public function getConfirmedTransactions($count = 10){
-       try {
-        return Transaction::where('confirmed', true)
-        ->with([
-            'payment_types',
-            'transaction_image',
-            'user'
-
-        ])
-        ->take($count)->get();
-       } catch (\Throwable $th) {
-        return response()->json($data, 404);
-       }
-
+    public function getConfirmedTransactions($count = 10)
+    {
+        try {
+            return Transaction::where('confirmed', true)
+                ->with(['payment_types', 'transaction_image', 'user'])
+                ->take($count)
+                ->get();
+        } catch (\Throwable $th) {
+            return response()->json($data, 404);
+        }
     }
-    public function getUnConfirmedTransactions($count = 10){
-       try {
-        return Transaction::where('confirmed', false)
-        ->with([
-            'payment_types',
-            'transaction_image',
-            'user'
-
-        ])
-        ->take($count)->get();
-       } catch (\Throwable $th) {
-        return response()->json($data, 404);
-       }
-
+    public function getUnConfirmedTransactions($count = 10)
+    {
+        try {
+            return Transaction::where('confirmed', false)
+                ->with(['payment_types', 'transaction_image', 'user'])
+                ->take($count)
+                ->get();
+        } catch (\Throwable $th) {
+            return response()->json($data, 404);
+        }
     }
 }

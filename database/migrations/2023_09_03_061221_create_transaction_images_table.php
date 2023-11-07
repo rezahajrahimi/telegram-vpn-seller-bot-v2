@@ -13,20 +13,15 @@ return new class extends Migration {
         Schema::create('transaction_images', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('account_id')->unsigned();
-            $table->string('username');
 
             $table->bigInteger('transaction_id')->unsigned();
-            $table->bigInteger('payment_type_id')->unsigned();
             $table->text('img_src')->nullable();
 
             $table
                 ->foreign('transaction_id')
                 ->references('id')
                 ->on('transactions');
-            $table
-                ->foreign('payment_type_id')
-                ->references('id')
-                ->on('payment_types');
+
 
             $table->timestamps();
         });

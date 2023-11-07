@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://27b4-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://0085-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -27,6 +27,7 @@ class TelegramController extends Controller
     public $data;
     public $chat_type;
     public $markup;
+    public $fileId;
 
     public function inbound(Request $request)
     {
@@ -47,7 +48,34 @@ class TelegramController extends Controller
         \Log::info($request->all());
         try {
             try {
-                if (isset($request->message)) {
+                if (isset($request->message['photo'])) {
+                    \Log::info('Messsss Photo Started');
+                    $this->message_id = $request->message['message_id'];
+                    $this->chat_id = $request->message['chat']['id'];
+                    $this->username = $request->message['from']['username'] ?? ' ندارد ';
+                    $this->from_id = $request->message['from']['id'];
+                    $this->first_name = $request->message['from']['first_name'] ?? '';
+                    $this->last_name = $request->message['from']['last_name'] ?? '';
+
+                    $text = 'رسید شما دریافت شد، منتظر تایید توسط مدیر باشید.';
+                    $this->fileId = app('telegram_bot')->getImageId($request->message['photo']);
+                    $result = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+                    //send image to admin
+                    $chId = $this->chat_id;
+                    $this->sendMessageToAdmin($this->chat_id, $this->fileId, "کاربر: $chId یک تصوبر ارسال کرد ", 'image');
+                    $transactionCntrl = new TransactionController();
+                    $imageTrCntrl = new TransactionImageController();
+                    $transactionID = $transactionCntrl->addUserTranaction($this->chat_id, 0, '000', 0);
+                    $request = new Request();
+                    $request->transaction_id = $transactionID;
+                    $request->img_src = $this->fileId;
+                    $request->account_id = $this->chat_id;
+
+                    $imageTrCntrl->addNewTransactionImage($request);
+                    return response()->json($result, 200);
+                    \Log::info('Messsss Photo Ended');
+                } elseif (isset($request->message)) {
                     $this->from_id = $request->message['from']['id'];
                     $this->text = $request->message['text'];
                     $this->first_name = $request->message['from']['first_name'];
@@ -75,6 +103,8 @@ class TelegramController extends Controller
                     $this->recogniseMessage();
                 }
             } catch (\Throwable $th) {
+                \Log::info("Throwable:  $th");
+
                 if (isset($request->callback_query)) {
                     $this->callbackId = $request->callback_query['id'];
                     $this->data = $request->callback_query['data'];
@@ -150,6 +180,11 @@ class TelegramController extends Controller
     public function recogniseMessage()
     {
         try {
+            if ($messageTYpe == 'image') {
+                $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
+
+                return response()->json($result, 200);
+            }
             $this->userCommandArr = explode('-', $this->data);
             $command = $this->userCommandArr[0];
             \Log::info("command recognise: $command");
@@ -405,7 +440,7 @@ class TelegramController extends Controller
                     }
                 }
                 $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-                $this->addNewBotLog('subscription', "خرید یسته با موفقیت انجام شد.", 'successfull buy subscription');
+                $this->addNewBotLog('subscription', 'خرید یسته با موفقیت انجام شد.', 'successfull buy subscription');
 
                 // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
                 $text = "جهت نیاز به راهنمایی بر روی یکی از این گزینه ها کلیک کنید. \r\n";
@@ -493,14 +528,14 @@ class TelegramController extends Controller
 
                 $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             }
-            $this->addNewBotLog('subscription', "موجودی کیف پول کاربر برای حرید بسته کافی نبود.", 'low account ballance');
+            $this->addNewBotLog('subscription', 'موجودی کیف پول کاربر برای حرید بسته کافی نبود.', 'low account ballance');
 
             return response()->json($result, 200);
         }
     }
     public function addAccountBalance()
     {
-        $this->addNewBotLog('ballance', "گزینه های شارژ حساب به کاربر نمایش داده شد.", 'show');
+        $this->addNewBotLog('ballance', 'گزینه های شارژ حساب به کاربر نمایش داده شد.', 'show');
 
         $this->deleteMessage();
 
@@ -567,7 +602,7 @@ class TelegramController extends Controller
 
                 $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
                 // $this->setNewLevel($this->addZarinPalBalanceLevel);
-                $this->addNewBotLog('ballance', "مبالغ مورد نیاز برای پرداخت از طریق درگاه زرین پال برای کاربر ارسال شد.", 'show');
+                $this->addNewBotLog('ballance', 'مبالغ مورد نیاز برای پرداخت از طریق درگاه زرین پال برای کاربر ارسال شد.', 'show');
 
                 return response()->json($result, 200);
             }
@@ -580,15 +615,14 @@ class TelegramController extends Controller
             $selectedPayment = $pymCntrl->getPaymentTypeNyID($this->userCommandArr[1]);
             $result = app('telegram_bot')->sendMessage($selectedPayment->merchant_id, $this->chat_id, null, 'MarkDown');
 
-            $this->addNewBotLog('ballance', "مشخصات پرداخت آفلاین انتخابی به کاربر نمایش داده شد.", 'show');
-
+            $this->addNewBotLog('ballance', 'مشخصات پرداخت آفلاین انتخابی به کاربر نمایش داده شد.', 'show');
 
             return response()->json($result, 200);
         }
     }
     public function checkIsChannelsMember($chat_id)
     {
-        $this->addNewBotLog('lock', "بررسی عضو بودن کاربر در کانالهای قفل ربات", 'check');
+        $this->addNewBotLog('lock', 'بررسی عضو بودن کاربر در کانالهای قفل ربات', 'check');
 
         $channelLockCtrl = new ChannelLockController();
         $channels = $channelLockCtrl->getAllActiveChannelLock();
@@ -603,7 +637,7 @@ class TelegramController extends Controller
     }
     public function channelLockMenu()
     {
-        $this->addNewBotLog('lock', "درخواست از کاربر برای عضویت در کانالهای قفل ربات.", 'show');
+        $this->addNewBotLog('lock', 'درخواست از کاربر برای عضویت در کانالهای قفل ربات.', 'show');
 
         $channelLockCtrl = new ChannelLockController();
         $channels = $channelLockCtrl->getAllActiveChannelLock();
@@ -653,7 +687,7 @@ class TelegramController extends Controller
             ]);
             $text = 'تاریخچه خرید شما:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
-            $this->addNewBotLog('history', "نمایش گزینه های تاریخچه خرید کاربر.", 'show');
+            $this->addNewBotLog('history', 'نمایش گزینه های تاریخچه خرید کاربر.', 'show');
 
             return response()->json($result, 200);
         }
@@ -672,7 +706,7 @@ class TelegramController extends Controller
             $selectedProduct = $prCtrl->getProductConfigById($selectedHistoryID, $this->chat_id);
             $selectedProductCategory = $prCatCntrl->getProdctCategoryNameByID($selectedProduct->product_categories_id);
             $pannel = $pnlCntrl->getPannelById($selectedProductCategory->pannel_id);
-            $this->addNewBotLog('history', "نمایش اطلاعات تاریخچه خرید انتخابی به کاربر", 'show');
+            $this->addNewBotLog('history', 'نمایش اطلاعات تاریخچه خرید انتخابی به کاربر', 'show');
 
             // check pannel type
             if ($pannel->type == 'hiddify') {
@@ -761,7 +795,7 @@ class TelegramController extends Controller
     }
     public function supports()
     {
-        $this->addNewBotLog('support', "نمایش گزینه های پشتیبانی به کاربر.", 'show');
+        $this->addNewBotLog('support', 'نمایش گزینه های پشتیبانی به کاربر.', 'show');
 
         $supportCtrl = new SupportController();
         $supports = $supportCtrl->getSupporstList();
@@ -794,7 +828,7 @@ class TelegramController extends Controller
     }
     public function subSupport()
     {
-        $this->addNewBotLog('support', "نمایش جزییات گزینه انتخابی پشتیبانی به کاربر.", 'show');
+        $this->addNewBotLog('support', 'نمایش جزییات گزینه انتخابی پشتیبانی به کاربر.', 'show');
 
         $this->deleteMessage();
         $selectedSupportID = $this->userCommandArr[1];
@@ -834,7 +868,7 @@ class TelegramController extends Controller
     }
     public function faqs()
     {
-        $this->addNewBotLog('faq', "نمایش گزینه های سوالات متدوال به کاربر.", 'show');
+        $this->addNewBotLog('faq', 'نمایش گزینه های سوالات متدوال به کاربر.', 'show');
 
         $faqCtrl = new FaqController();
         $faqs = $faqCtrl->getFaqList();
@@ -867,7 +901,7 @@ class TelegramController extends Controller
     }
     public function subFaq()
     {
-        $this->addNewBotLog('faq', "نمایش جزییات گزینه انتخابی سوالات متداول به کاربر.", 'show');
+        $this->addNewBotLog('faq', 'نمایش جزییات گزینه انتخابی سوالات متداول به کاربر.', 'show');
 
         $this->deleteMessage();
         $selectedFaqID = $this->userCommandArr[1];
@@ -907,7 +941,7 @@ class TelegramController extends Controller
     }
     public function accountDetails()
     {
-        $this->addNewBotLog('ballance', "نمایش اطلاعات حساب کاربر.", 'show');
+        $this->addNewBotLog('ballance', 'نمایش اطلاعات حساب کاربر.', 'show');
 
         $accCntrl = new AccountBallanceController();
         $ballance = $accCntrl->getUserAccuntBalance($this->chat_id);
@@ -942,9 +976,23 @@ class TelegramController extends Controller
         $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
         return response()->json($result, 200);
     }
-    public function addNewBotLog($type, $message, $event){
+    public function addNewBotLog($type, $message, $event)
+    {
         $logCtrl = new LogController();
         $logCtrl->addNewLog($type, $message, $this->chat_id, $this->username, $event);
         return true;
+    }
+    public function sendMessageToAdmin($chat_id, $image_url, $text, $messageType)
+    {
+        $settingCtrl = new SettingController();
+
+        $admin_id = $settingCtrl->getAdminId();
+        if ($messageType == 'image') {
+            $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
+
+            return response()->json($result, 200);
+        } else {
+            $result = app('telegram_bot')->sendMessage($text, $admin_id, '');
+        }
     }
 }
