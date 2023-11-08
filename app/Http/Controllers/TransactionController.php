@@ -96,6 +96,38 @@ class TransactionController extends Controller
         $transaction->save();
         return $transaction->id;
     }
+    public function editUserTranaction(Request $request)
+    {
+        try {
+            $transaction = Transaction::find($request->id);
+            if ($transaction != null) {
+                if ($transaction->amount != $request->amount) {
+                    $accBlCtrl = new AccountBallanceController();
+                    if ($transaction->amount > $request->amount) {
+
+                        $accBlCtrl->decUserAccuntBalance($transaction->account_id, $transaction->amount - $request->amount);
+
+                    } else {
+                        $accBlCtrl->incUserAccuntBalance($transaction->account_id, $request->amount - $transaction->amount);
+
+                    }
+
+                    $transaction->amount = $request->amount;
+                }
+                $transaction->recipe_number = $request->recipeNUmber;
+                $transaction->payment_type_id = $request->paymentTypeId;
+                $transaction->confirmed = $request->confirmed == 1 ? true : false;
+
+                return $transaction->update();
+            } else {
+                \Log::info('NO Data Founded');
+
+                return response()->json('NO Data Founded', 404);
+            }
+        } catch (\Throwable $th) {
+            \Log::info("Throwable  $th");
+        }
+    }
     public function getAmountByRecipeNUmber($recipeNUmber)
     {
         $data = Transaction::where('recipe_number', $recipeNUmber)->first();
@@ -132,6 +164,7 @@ class TransactionController extends Controller
             return Transaction::where('confirmed', true)
                 ->with(['payment_types', 'transaction_image', 'user'])
                 ->take($count)
+                ->orderBy('id', 'desc')
                 ->get();
         } catch (\Throwable $th) {
             return response()->json($data, 404);
@@ -143,6 +176,7 @@ class TransactionController extends Controller
             return Transaction::where('confirmed', false)
                 ->with(['payment_types', 'transaction_image', 'user'])
                 ->take($count)
+                ->orderBy('id', 'desc')
                 ->get();
         } catch (\Throwable $th) {
             return response()->json($data, 404);

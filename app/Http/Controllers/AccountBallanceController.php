@@ -33,6 +33,8 @@ class AccountBallanceController extends Controller
         $data = AccountBallance::where('account_id', $userID)->first();
         if ($data != null) {
              $data->ballance += $ballance;
+             \Log::info('inc Baaaaaaaaaal ballance '.$data->ballance);
+
              $data->update();
              return true;
         } else {
@@ -49,6 +51,7 @@ class AccountBallanceController extends Controller
         $data = AccountBallance::where('account_id', $userID)->first();
         if ($data != null) {
              $data->ballance -= $ballance;
+
              $data->update();
              return true;
         } else {

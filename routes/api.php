@@ -82,6 +82,7 @@ Route::post('changeMainMenuPosition', [MainMenuItemController::class, 'changeMai
 
 // payment type
 Route::get('getPaymentTypes', [PaymentTypeController::class, 'getPaymentTypes']);
+Route::get('getAllActiveOfflinePaymentTypes', [PaymentTypeController::class, 'getAllActiveOfflinePaymentTypes']);
 Route::get('getPaymentAddressByPaymentName/{name}', [PaymentTypeController::class, 'getPaymentAddressByPaymentName']);
 Route::get('isPaymentType/{name}', [PaymentTypeController::class, 'isPaymentType']);
 Route::get('getAllOnlinePayments', [PaymentTypeController::class, 'getAllOnlinePayments']);
@@ -105,6 +106,7 @@ Route::post('updatePaymentMenuAlisNameByLevel', [PaymentMenuItemController::clas
 Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/getConfirmedTransactions/{count?}', [TransactionController::class, 'getConfirmedTransactions']);
 Route::get('/getUnConfirmedTransactions/{count?}', [TransactionController::class, 'getUnConfirmedTransactions']);
+Route::post('/editUserTranaction', [TransactionController::class, 'editUserTranaction']);
 
 
 
