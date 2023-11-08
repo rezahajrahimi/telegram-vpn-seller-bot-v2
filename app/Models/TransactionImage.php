@@ -10,7 +10,7 @@ class TransactionImage extends Model
     use HasFactory;
     protected $guarded = ['id', 'transaction_id'];
 
-    protected $fillable = ['account_id', 'transaction_id', 'img_src'];
+    protected $fillable = ['account_id', 'transaction_id', 'img_src','user_text'];
 
     /**
      * Get the user that owns the TransactionImage

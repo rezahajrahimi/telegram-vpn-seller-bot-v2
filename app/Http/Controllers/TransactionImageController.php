@@ -29,6 +29,7 @@ class TransactionImageController extends Controller
             $data->transaction_id = $request->transaction_id;
             $data->img_src = $request->img_src;
             $data->account_id = $request->account_id;
+            $data->user_text = $request->user_text;
             $data->save();
             return $data->id;
         } catch (\Throwable $th) {

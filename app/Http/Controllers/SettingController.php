@@ -14,6 +14,10 @@ class SettingController extends Controller
     {
         return Setting::find(1)->admin_id;
     }
+    public function getBotToken()
+    {
+        return Setting::find(1)->bot_token;
+    }
     public function getBotSetting()
     {
         return Setting::find(1);

@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://0085-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://5f4a-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -56,6 +56,7 @@ class TelegramController extends Controller
                     $this->from_id = $request->message['from']['id'];
                     $this->first_name = $request->message['from']['first_name'] ?? '';
                     $this->last_name = $request->message['from']['last_name'] ?? '';
+                    $this->text = $request->message["caption"] ?? "";
 
                     $text = 'رسید شما دریافت شد، منتظر تایید توسط مدیر باشید.';
                     $this->fileId = app('telegram_bot')->getImageId($request->message['photo']);
@@ -71,6 +72,7 @@ class TelegramController extends Controller
                     $request->transaction_id = $transactionID;
                     $request->img_src = $this->fileId;
                     $request->account_id = $this->chat_id;
+                    $request->user_text = $this->text ?? "بدون متن";
 
                     $imageTrCntrl->addNewTransactionImage($request);
                     return response()->json($result, 200);

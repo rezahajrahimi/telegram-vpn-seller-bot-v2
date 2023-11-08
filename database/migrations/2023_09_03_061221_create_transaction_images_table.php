@@ -16,6 +16,7 @@ return new class extends Migration {
 
             $table->bigInteger('transaction_id')->unsigned();
             $table->text('img_src')->nullable();
+            $table->text('user_text')->nullable();
 
             $table
                 ->foreign('transaction_id')

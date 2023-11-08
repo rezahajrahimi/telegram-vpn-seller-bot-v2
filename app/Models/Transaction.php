@@ -24,14 +24,23 @@ class Transaction extends Model
         return $this->belongsTo(PaymentType::class, 'payment_type_id');
     }
     /**
-     * Get all of the comments for the Transaction
+     * Get the user associated with the Transaction
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
      */
     public function transaction_image()
     {
-        return $this->hasMany(TransactionImage::class, 'transaction_id');
+        return $this->hasOne(TransactionImage::class, 'transaction_id', 'id');
     }
+    // /**
+    //  * Get all of the comments for the Transaction
+    //  *
+    //  * @return \Illuminate\Database\Eloquent\Relations\HasMany
+    //  */
+    // public function transaction_image()
+    // {
+    //     return $this->hasMany(TransactionImage::class, 'transaction_id');
+    // }
     public function user(){
         return $this->belongsTo(BotUser::class, 'account_id', 'account_id');
     }

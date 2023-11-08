@@ -69,6 +69,7 @@ Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::cla
 
 //Settings
 Route::get('getBotSetting', [SettingController::class, 'getBotSetting']);
+Route::get('getBotToken', [SettingController::class, 'getBotToken']);
 Route::post('updateBotSetting', [SettingController::class, 'updateBotSetting']);
 
 // menu items
