@@ -28,4 +28,34 @@ class BotUserController extends Controller
             return false;
         }
     }
+    public function getBotUserList() {
+        try {
+            $data = BotUser::all();
+            if($data != null) {
+                return response()->json($data, 200);
+            } else {
+                return response()->json("No Data", 404);
+            }
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return response()->json("Server Error", 500);
+
+        }
+    }
+    public function getBotUserByID($id) {
+        try {
+            $data = BotUser::where('id',$id)->with(['products','transaction','ballance','logs'])->first();
+            if($data != null) {
+                return response()->json($data, 200);
+            } else {
+                return response()->json("No Data", 404);
+            }
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return response()->json("Server Error", 500);
+
+        }
+    }
 }

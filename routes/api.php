@@ -19,6 +19,7 @@ use App\Http\Controllers\ChannelLockController;
 use App\Http\Controllers\PannelController;
 use App\Http\Controllers\ProxyController;
 use App\Http\Controllers\InboundController;
+use App\Http\Controllers\BotUserController;
 
 
 use Illuminate\Http\Request;
@@ -179,3 +180,7 @@ Route::post('updateInbound', [InboundController::class, 'updateInbound']);
 Route::get('deleteInbound/{id}', [InboundController::class, 'deleteInbound']);
 Route::get('reActiveInbound/{id}', [InboundController::class, 'reActiveInbound']);
 Route::get('deActiveInbound/{id}', [InboundController::class, 'deActiveInbound']);
+
+//  BotUser
+Route::get('getBotUserList', [BotUserController::class, 'getBotUserList']);
+Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);

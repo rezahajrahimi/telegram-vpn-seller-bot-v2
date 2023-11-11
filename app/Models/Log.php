@@ -18,4 +18,8 @@ class Log extends Model
     {
         return verta(verta($value))->formatDifference();
     }
+    public function user()
+    {
+        return $this->hasOne(BotUser::class, 'account_id', 'account_id');
+    }
 }

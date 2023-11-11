@@ -101,7 +101,9 @@ class TransactionController extends Controller
         try {
             $transaction = Transaction::find($request->id);
             if ($transaction != null) {
-                if ($transaction->amount != $request->amount) {
+            $isConfirmed = $request->confirmed == 1 ? true : false;
+
+                if ($transaction->amount != $request->amount && $isConfirmed == true) {
                     $accBlCtrl = new AccountBallanceController();
                     if ($transaction->amount > $request->amount) {
 
@@ -116,8 +118,7 @@ class TransactionController extends Controller
                 }
                 $transaction->recipe_number = $request->recipeNUmber;
                 $transaction->payment_type_id = $request->paymentTypeId;
-                $transaction->confirmed = $request->confirmed == 1 ? true : false;
-
+                $transaction->confirmed = $isConfirmed;
                 return $transaction->update();
             } else {
                 \Log::info('NO Data Founded');
