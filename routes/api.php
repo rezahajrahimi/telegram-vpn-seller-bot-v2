@@ -20,6 +20,8 @@ use App\Http\Controllers\PannelController;
 use App\Http\Controllers\ProxyController;
 use App\Http\Controllers\InboundController;
 use App\Http\Controllers\BotUserController;
+use App\Http\Controllers\LogController;
+use App\Http\Controllers\AccountBallanceController;
 
 
 use Illuminate\Http\Request;
@@ -184,3 +186,11 @@ Route::get('deActiveInbound/{id}', [InboundController::class, 'deActiveInbound']
 //  BotUser
 Route::get('getBotUserList', [BotUserController::class, 'getBotUserList']);
 Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
+
+
+// Log
+Route::get('getAllLogs/{count}', [LogController::class, 'getAllLogs']);
+
+
+//  Account
+Route::post('setNewAccountBallance', [AccountBallanceController::class, 'setNewAccountBallance']);

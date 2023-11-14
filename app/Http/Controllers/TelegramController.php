@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://5f4a-77-105-147-128.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://cc72-104-28-197-15.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -60,6 +60,7 @@ class TelegramController extends Controller
 
                     $text = 'رسید شما دریافت شد، منتظر تایید توسط مدیر باشید.';
                     $this->fileId = app('telegram_bot')->getImageId($request->message['photo']);
+                    $this->chat_type = 'image';
                     $result = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
                     //send image to admin
@@ -89,6 +90,8 @@ class TelegramController extends Controller
                     $this->forward_from_name = $request->message['reply_to_message']['forward_sender_name'] ?? 0;
                     $this->forward_from_id = $request->message['reply_to_message']['forward_from']['id'] ?? 0;
                     $this->reply_text = $request->message['reply_to_message']['text'] ?? '0';
+                    $this->chat_type = 'text';
+
                 } elseif (isset($request->callback_query)) {
                     $this->callbackId = $request->callback_query['id'];
                     $this->data = $request->callback_query['data'];
@@ -102,6 +105,8 @@ class TelegramController extends Controller
                     $this->last_name = $request->callback_query['from']['last_name'] ?? '';
 
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
+                    $this->chat_type = 'callbacj';
+
                     $this->recogniseMessage();
                 }
             } catch (\Throwable $th) {
@@ -182,7 +187,7 @@ class TelegramController extends Controller
     public function recogniseMessage()
     {
         try {
-            if ($messageTYpe == 'image') {
+            if ($this->chat_type == 'image') {
                 $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
 
                 return response()->json($result, 200);
@@ -194,7 +199,7 @@ class TelegramController extends Controller
             return $this->userCommandArr;
         } catch (\Throwable $th) {
             $this->userCommandArr = ['start'];
-            \Log::info("command recognise: $this->userCommandArr");
+            \Log::info("Throwable $th");
 
             return $this->userCommandArr;
         }
@@ -370,6 +375,7 @@ class TelegramController extends Controller
                 $request->product_categories_id = $selectedPrCat->id;
                 $request->panel_link = "$userPannelLink/$newUUID/";
                 $request->configs = '';
+                $request->remark = "$this->chat_id-$productID";
 
                 $prcCntrl->addAutomatedProductDetails($request);
             } elseif ($pannel->type == 'marzban') {
@@ -404,6 +410,7 @@ class TelegramController extends Controller
                 $links = json_encode($links);
 
                 $request->configs = $links;
+                $request->remark = "BotUser$this->chat_id$productID";
 
                 $prcCntrl->addAutomatedProductDetails($request);
             } else {

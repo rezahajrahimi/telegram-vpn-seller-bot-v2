@@ -28,15 +28,15 @@ class AccountBallanceController extends Controller
             return 0;
         }
     }
-    public function incUserAccuntBalance($userID,$ballance)
+    public function incUserAccuntBalance($userID, $ballance)
     {
         $data = AccountBallance::where('account_id', $userID)->first();
         if ($data != null) {
-             $data->ballance += $ballance;
-             \Log::info('inc Baaaaaaaaaal ballance '.$data->ballance);
+            $data->ballance += $ballance;
+            \Log::info('inc Baaaaaaaaaal ballance ' . $data->ballance);
 
-             $data->update();
-             return true;
+            $data->update();
+            return true;
         } else {
             $newAcc = new AccountBallance();
             $newAcc->account_id = $userID;
@@ -46,16 +46,38 @@ class AccountBallanceController extends Controller
             return true;
         }
     }
-    public function decUserAccuntBalance($userID,$ballance)
+    public function decUserAccuntBalance($userID, $ballance)
     {
         $data = AccountBallance::where('account_id', $userID)->first();
         if ($data != null) {
-             $data->ballance -= $ballance;
+            $data->ballance -= $ballance;
 
-             $data->update();
-             return true;
+            $data->update();
+            return true;
         } else {
             return false;
+        }
+    }
+    public function setNewAccountBallance(Request $request)
+    {
+        try {
+            $data = AccountBallance::where('account_id', $request->userID)->first();
+            if ($data != null) {
+                $data->ballance = $request->ballance;
+
+                $data->update();
+                return true;
+            } else {
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = $request->userID;
+                $newAcc->ballance = $request->ballance;
+                $newAcc->save();
+
+                return true;
+            }
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json("Server Error",500);
         }
     }
 }

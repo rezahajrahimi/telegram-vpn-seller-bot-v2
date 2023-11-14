@@ -64,6 +64,7 @@ class ProductController extends Controller
         $data->configs = $request->configs;
         $data->subscription_link = $request->subscription_link;
         $data->panel_link = $request->panel_link;
+        $data->remark = $request->remark;
 
         if ($data->save()) {
             return $this->getActiveProductsByProductCatID($request->product_categories_id);
@@ -80,6 +81,7 @@ class ProductController extends Controller
         $data->panel_link = $request->panel_link;
         $data->isActive = false;
         $data->account_id = $request->account_id;
+        $data->remark = $request->remark;
         if ($data->save()) {
             return $this->getActiveProductsByProductCatID($request->product_categories_id);
         } else {

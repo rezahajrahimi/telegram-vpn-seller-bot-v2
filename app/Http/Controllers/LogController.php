@@ -18,4 +18,11 @@ class LogController extends Controller
         ]);
         return true;
     }
+    public function getAllLogs($count = 400) {
+        try {
+            return Log::take($count)->get();
+        } catch (\Throwable $th) {
+            return response()->json("server error",500);
+        }
+    }
 }

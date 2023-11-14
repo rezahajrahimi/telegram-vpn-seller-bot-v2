@@ -26,7 +26,7 @@ class BotUser extends Model
     }
     public function transaction()
     {
-        return $this->hasMany(Transaction::class, 'account_id', 'account_id');
+        return $this->hasMany(Transaction::class, 'account_id', 'account_id')->with('payment_types', 'transaction_image','user');
     }
    /**
     * Get the user associated with the BotUser

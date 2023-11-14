@@ -10,7 +10,7 @@ class Product extends Model
 {
     use HasFactory;
     protected $guarded = ['id','product_categories_id','account_id'];
-    protected $fillable = ['product_categories_id','configs','subscription_link','panel_link','isActive','account_id'];
+    protected $fillable = ['product_categories_id','configs','subscription_link','panel_link','isActive','account_id','remark'];
 
     /**
      * Get the user that owns the Product
