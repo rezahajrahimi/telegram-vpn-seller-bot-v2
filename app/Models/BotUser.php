@@ -22,11 +22,13 @@ class BotUser extends Model
      */
     public function products()
     {
-        return $this->hasMany(Product::class, 'account_id', 'account_id')->with('product_category');
+        return $this->hasMany(Product::class, 'account_id', 'account_id')->with('product_category')       ->orderBy('id', 'desc')
+;
     }
     public function transaction()
     {
-        return $this->hasMany(Transaction::class, 'account_id', 'account_id')->with('payment_types', 'transaction_image','user');
+        return $this->hasMany(Transaction::class, 'account_id', 'account_id')->with('payment_types', 'transaction_image','user')       ->orderBy('id', 'desc')
+;
     }
    /**
     * Get the user associated with the BotUser
@@ -39,7 +41,10 @@ class BotUser extends Model
    }
    public function logs()
    {
-       return $this->hasMany(Log::class, 'account_id', 'account_id');
+       return $this->hasMany(Log::class, 'account_id', 'account_id')
+       ->orderBy('id', 'desc')
+
+       ;
    }
 
 }

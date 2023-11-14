@@ -66,18 +66,23 @@ class AccountBallanceController extends Controller
                 $data->ballance = $request->ballance;
 
                 $data->update();
+
+                $logCtrl = new LogController();
+                $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر بصورت دستی به ' . $request->ballance . ' تومان تغییر کرد', $request->userID, '', 'edit');
+
                 return true;
             } else {
                 $newAcc = new AccountBallance();
                 $newAcc->account_id = $request->userID;
                 $newAcc->ballance = $request->ballance;
                 $newAcc->save();
+                $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر بصورت دستی به ' . $request->ballance . ' تومان تغییر کرد', $request->userID, '', 'edit');
 
                 return true;
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable $th");
-            return response()->json("Server Error",500);
+            return response()->json('Server Error', 500);
         }
     }
 }
