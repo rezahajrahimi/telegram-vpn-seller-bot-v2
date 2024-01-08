@@ -113,7 +113,22 @@ class ProductController extends Controller
             return response()->json(false, 500);
         }
     }
-    public function getLastBuyersByCatIdAndCount($product_categories_id,$count)
+    public function deleteProductByProductID($id)
+    {
+        try {
+
+            $data = Product::where('id', $id)->first();
+            if ($data != null) {
+                $data->delete();
+                return response()->json(true, 200);
+            } else {
+                return response()->json(false, 401);
+            }
+        } catch (\Throwable $th) {
+            return response()->json(false, 500);
+        }
+    }
+    public function getLastBuyersByCatIdAndCount($product_categories_id, $count)
     {
         try {
             $data = Product::where('product_categories_id', $product_categories_id)

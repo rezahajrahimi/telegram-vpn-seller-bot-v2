@@ -68,6 +68,7 @@ Route::post('addNewProductDetails', [ProductController::class, 'addNewProductDet
 Route::get('deleteProduct/{id}', [ProductController::class, 'deleteProduct']);
 Route::get('getLastBuyersByCatIdAndCount/{id}/{count}', [ProductController::class, 'getLastBuyersByCatIdAndCount']);
 Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
+Route::get('deleteProductByProductID/{id}', [ProductController::class, 'deleteProductByProductID']);
 
 
 //Settings
