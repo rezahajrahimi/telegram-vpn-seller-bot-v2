@@ -158,6 +158,7 @@ Route::get('getAllActiveChannelLock', [ChannelLockController::class, 'getAllActi
 // Pannel
 Route::post('addNewPannel', [PannelController::class, 'addNewPannel']);
 Route::post('addNewPannelMarzban', [PannelController::class, 'addNewPannelMarzban']);
+Route::post('editMarzbanPannel', [PannelController::class, 'editMarzbanPannel']);
 Route::post('updatePannel', [PannelController::class, 'updatePannel']);
 Route::get('deletePannel/{id}', [PannelController::class, 'deletePannel']);
 Route::get('getPannels', [PannelController::class, 'getPannels']);

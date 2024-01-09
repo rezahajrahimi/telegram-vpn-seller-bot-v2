@@ -124,6 +124,100 @@ class PannelController extends Controller
             return response()->json(false, 500);
         }
     }
+    public function editMarzbanPannel(Request $request)
+    {
+        try {
+            $pannel = Pannel::find($request->id);
+            $pannel->type = 'marzban';
+            $pannel->username = $request->username ?? 'admin';
+            $pannel->password = $request->password ?? '123456';
+            $pannel->token = $request->token ?? 'Bearer ';
+            $pannel->location = $request->location ?? null;
+            $pannel->url_port = $request->url_port ?? null;
+            $pannel->admin_url = $request->admin_url ?? null;
+            $pannel->capacity = $request->capacity ?? 1333333;
+            $pannel->update();
+            if ($request->vmess != null && $request->vmess == true) {
+                $proxy = Proxy::where('pannel_id', $pannel->id)
+                    ->where('type', 'vmess')
+                    ->first();
+                $proxy->is_active = $request->vmess;
+                $proxy->update();
+                if ($request->vmessTCP != null && $request->vmessTCP != false) {
+                    $inbound = Inbound::where('proxy_id', $proxy->id)
+                        ->where('name', 'VMess TCP')
+                        ->first();
+                    $inbound->is_active = true;
+                    $inbound->update();
+                }
+                if ($request->vmessWebSocket != null && $request->vmessWebSocket != false) {
+                    $inbound = Inbound::where('proxy_id', $proxy->id)
+                        ->where('name', 'VMess Websocket')
+                        ->first();
+                    $inbound->is_active = true;
+                    $inbound->update();
+                }
+            }
+            if ($request->vless != null && $request->vless == true) {
+                $proxy = Proxy::where('pannel_id', $pannel->id)
+                    ->where('type', 'vless')
+                    ->first();
+
+                $proxy->is_active = $request->vless;
+                $proxy->update();
+                if ($request->vlessTcpReality != null && $request->vlessTcpReality != false) {
+                    $inbound = Inbound::where('proxy_id', $proxy->id)
+                        ->where('name', 'VLESS TCP REALITY')
+                        ->first();
+                    $inbound->is_active = true;
+                    $inbound->update();
+                }
+                if ($request->vlessGprcReality != null && $request->vlessGprcReality != false) {
+                    $inbound = Inbound::where('proxy_id', $proxy->id)
+                        ->where('name', 'VLESS GRPC REALITY')
+                        ->first();
+                    $inbound->is_active = true;
+                    $inbound->update();
+                }
+            }
+            if ($request->trojan != null && $request->trojan == true) {
+                $proxy = Proxy::where('pannel_id', $pannel->id)
+                    ->where('type', 'trojan')
+                    ->first();
+
+                $proxy->is_active = $request->trojan;
+                $proxy->update();
+                if ($request->trojanWebsocketTLS != null && $request->trojanWebsocketTLS != false) {
+                    $inbound = Inbound::where('proxy_id', $proxy->id)
+                        ->where('name', 'Trojan Websocket TLS')
+                        ->first();
+                    $inbound->is_active = true;
+                    $inbound->update();
+                }
+            }
+            if ($request->shadowsocks != null && $request->shadowsocks == true) {
+                $proxy = Proxy::where('pannel_id', $pannel->id)
+                    ->where('type', 'shadowsocks')
+                    ->first();
+
+                $proxy->is_active = $request->shadowsocks;
+                $proxy->update();
+
+                if ($request->shadowsocksTCP != null && $request->shadowsocksTCP != false) {
+                    $inbound = Inbound::where('proxy_id', $proxy->id)
+                        ->where('name', 'Shadowsocks TCP')
+                        ->first();
+                    $inbound->is_active = true;
+                    $inbound->update();
+                }
+            }
+            return response()->json($pannel->id, 201);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return response()->json(false, 500);
+        }
+    }
     public function updatePannel(Request $request)
     {
         try {
@@ -179,15 +273,17 @@ class PannelController extends Controller
     public function deletePannel($id)
     {
         try {
-            $pannel = Pannel::find($id);
-            if ($pannel) {
-                if ($pannel->delete()) {
+            $panel = Pannel::find($id);
+            if ($panel) {
+                if ($panel->delete()) {
                     return true;
                 } else {
                     return response()->json(false, 500);
                 }
             }
         } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
             return response()->json(false, 500);
         }
     }
@@ -289,55 +385,55 @@ class PannelController extends Controller
     {
         \Log::info("accountIdaaaaaaaaaaaaaaaaaaaaaaaa:$accountId");
         // try {
-            $panel = Pannel::find($pannelID);
-            $token = $panel->token;
-            $mainUrl = $panel->url_port;
-            $mainUrl = str_replace('/dashboard/', '', $mainUrl);
-            $mainUrl = str_replace('/dashboard', '', $mainUrl);
-            //$vol must change to byte
-            $vol = $vol * 1024 * 1024 * 1024;
-            // crete an UTC date + $day
-            $utc = new \DateTime('now', new \DateTimeZone('UTC'));
-            $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
-            // convert utc to integer
-            $utc = $utc->getTimestamp();
-            $headers = [
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-                'authorization' => $token,
-            ];
-            $result = ['success' => false, 'body' => []];
-            // get active proxies
-            $proCntrl = new ProxyController();
-            $proxies = $proCntrl->getActiveProxiesByPannelID($pannelID);
+        $panel = Pannel::find($pannelID);
+        $token = $panel->token;
+        $mainUrl = $panel->url_port;
+        $mainUrl = str_replace('/dashboard/', '', $mainUrl);
+        $mainUrl = str_replace('/dashboard', '', $mainUrl);
+        //$vol must change to byte
+        $vol = $vol * 1024 * 1024 * 1024;
+        // crete an UTC date + $day
+        $utc = new \DateTime('now', new \DateTimeZone('UTC'));
+        $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
+        // convert utc to integer
+        $utc = $utc->getTimestamp();
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'authorization' => $token,
+        ];
+        $result = ['success' => false, 'body' => []];
+        // get active proxies
+        $proCntrl = new ProxyController();
+        $proxies = $proCntrl->getActiveProxiesByPannelID($pannelID);
 
-            $proxy = [];
-            $inbounds = [];
-            foreach ($proxies as $key => $pr) {
-                $proxy[$pr->type] = [];
-                foreach ($pr->inbounds as $key => $in) {
-                    // merge inbounds
-                    $inbounds[$pr->type][] = $in->name;
-                }
+        $proxy = [];
+        $inbounds = [];
+        foreach ($proxies as $key => $pr) {
+            $proxy[$pr->type] = [];
+            foreach ($pr->inbounds as $key => $in) {
+                // merge inbounds
+                $inbounds[$pr->type][] = $in->name;
             }
+        }
 
-            $params = [
-                'username' => $accountId,
-                'expire' => $utc,
-                'data_limit' => $vol,
-                'proxies' => $proxy,
-                'inbounds' => $inbounds,
-            ];
-            $url = "{$mainUrl}/api/user";
+        $params = [
+            'username' => $accountId,
+            'expire' => $utc,
+            'data_limit' => $vol,
+            'proxies' => $proxy,
+            'inbounds' => $inbounds,
+        ];
+        $url = "{$mainUrl}/api/user";
 
-            $response = Http::withHeaders($headers)->post($url, $params);
-            $result = ['success' => $response->ok(), 'body' => $response->json()];
-            \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
+        $response = Http::withHeaders($headers)->post($url, $params);
+        $result = ['success' => $response->ok(), 'body' => $response->json()];
+        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
-            $sub= $result['body']['subscription_url'];
+        $sub = $result['body']['subscription_url'];
 
-            $sublink = "$mainUrl$sub";
-            return ["links"=>$result['body']['links'],'subscription_link'=>$sublink];
+        $sublink = "$mainUrl$sub";
+        return ['links' => $result['body']['links'], 'subscription_link' => $sublink];
         // } catch (\Throwable $th) {
         //     \Log::info('Marzban Resault', ['error' => ($result['error'] = $th->getMessage())]);
 
