@@ -20,7 +20,7 @@ return new class extends Migration {
             $table
                 ->foreign('gift_cards_id')
                 ->references('id')
-                ->on('gift_cards');
+                ->on('gift_cards')->onDelete('cascade');
         });
     }
 

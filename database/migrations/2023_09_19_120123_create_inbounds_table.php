@@ -25,7 +25,7 @@ return new class extends Migration
             $table
                 ->foreign('proxy_id')
                 ->references('id')
-                ->on('proxies');
+                ->on('proxies')->onDelete('cascade');
 
         });
     }

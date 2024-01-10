@@ -21,7 +21,7 @@ return new class extends Migration {
             $table
                 ->foreign('transaction_id')
                 ->references('id')
-                ->on('transactions');
+                ->on('transactions')->onDelete('cascade');
 
 
             $table->timestamps();
