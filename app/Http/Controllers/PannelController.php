@@ -254,6 +254,8 @@ class PannelController extends Controller
                 }
             }
         } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
             return response()->json(false, 500);
         }
     }
