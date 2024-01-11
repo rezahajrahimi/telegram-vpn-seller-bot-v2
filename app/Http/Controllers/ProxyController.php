@@ -14,6 +14,12 @@ class ProxyController extends Controller
         ->get();
         return $proxies;
     }
+    public function getProxiesByPannelID($pannelID){
+        $proxies = Proxy::where('pannel_id', $pannelID)
+        ->with('inbounds')
+        ->get();
+        return $proxies;
+    }
     public function addNewProxy(Request $request)
     {
         try {

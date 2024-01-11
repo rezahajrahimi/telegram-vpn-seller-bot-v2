@@ -127,7 +127,6 @@ class PannelController extends Controller
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->update();
 
-            if ($request->vmess != null && $request->vmess != false) {
                 $proxy = Proxy::where('pannel_id', $pannel->id)
                     ->where('type', 'vmess')
                     ->first();
@@ -153,19 +152,12 @@ class PannelController extends Controller
                     $inbound->is_active = true;
                     $inbound->update();
                 }
-            } else {
-                $proxy = Proxy::where('pannel_id', $pannel->id)
-                    ->where('type', 'vmess')
-                    ->first();
-                $proxy->is_active = false;
-                $proxy->update();
-            }
-            if ($request->vless != null && $request->vless == true) {
+
                 $proxy = Proxy::where('pannel_id', $pannel->id)
                     ->where('type', 'vless')
                     ->first();
 
-                $proxy->is_active = true;
+                $proxy->is_active = $request->vless == true || $request->vless == 1 ? true : false;
                 $proxy->update();
                 if ($request->vlessTcpReality != null && $request->vlessTcpReality != false) {
                     $inbound = Inbound::where('proxy_id', $proxy->id)
@@ -193,20 +185,12 @@ class PannelController extends Controller
                     $inbound->is_active = false;
                     $inbound->update();
                 }
-            } else {
-                $proxy = Proxy::where('pannel_id', $pannel->id)
-                    ->where('type', 'vless')
-                    ->first();
 
-                $proxy->is_active = false;
-                $proxy->update();
-            }
-            if ($request->trojan != null && $request->trojan == true) {
                 $proxy = Proxy::where('pannel_id', $pannel->id)
                     ->where('type', 'trojan')
                     ->first();
 
-                $proxy->is_active = true;
+                $proxy->is_active = $request->trojan == true || $request->trojan == 1 ? true : false;
                 $proxy->update();
                 if ($request->trojanWebsocketTLS != null && $request->trojanWebsocketTLS != false) {
                     $inbound = Inbound::where('proxy_id', $proxy->id)
@@ -221,20 +205,12 @@ class PannelController extends Controller
                     $inbound->is_active = false;
                     $inbound->update();
                 }
-            } else {
-                $proxy = Proxy::where('pannel_id', $pannel->id)
-                    ->where('type', 'trojan')
-                    ->first();
 
-                $proxy->is_active = false;
-                $proxy->update();
-            }
-            if ($request->shadowsocks != null && $request->shadowsocks == true) {
                 $proxy = Proxy::where('pannel_id', $pannel->id)
                     ->where('type', 'shadowsocks')
                     ->first();
 
-                $proxy->is_active = true;
+                    $proxy->is_active = $request->shadowsocks == true || $request->shadowsocks == 1 ? true : false;
                 $proxy->update();
 
                 if ($request->shadowsocksTCP != null && $request->shadowsocksTCP != false) {
@@ -250,14 +226,7 @@ class PannelController extends Controller
                     $inbound->is_active = false;
                     $inbound->update();
                 }
-            } else {
-                $proxy = Proxy::where('pannel_id', $pannel->id)
-                    ->where('type', 'shadowsocks')
-                    ->first();
 
-                $proxy->is_active = false;
-                $proxy->update();
-            }
             return response()->json($pannel->id, 201);
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
@@ -317,6 +286,7 @@ class PannelController extends Controller
             return response()->json(false, 500);
         }
     }
+
     public function deletePannel($id)
     {
         try {
