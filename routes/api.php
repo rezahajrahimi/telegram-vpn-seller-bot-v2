@@ -8,7 +8,6 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\MainMenuItemController;
 use App\Http\Controllers\PaymentTypeController;
 use App\Http\Controllers\PaymentMenuItemController;
-
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\GiftCardMenuItemController;
 use App\Http\Controllers\GiftCardController;
@@ -22,6 +21,7 @@ use App\Http\Controllers\InboundController;
 use App\Http\Controllers\BotUserController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\AccountBallanceController;
+use App\Http\Controllers\ApplicationController;
 
 
 use Illuminate\Http\Request;
@@ -197,3 +197,14 @@ Route::get('getAllLogs/{count}', [LogController::class, 'getAllLogs']);
 
 //  Account
 Route::post('setNewAccountBallance', [AccountBallanceController::class, 'setNewAccountBallance']);
+
+
+// Application
+Route::get('getAllAplicationList', [ApplicationController::class, 'getAllAplicationList']);
+Route::get('getAllActiveAplicationList', [ApplicationController::class, 'getAllActiveAplicationList']);
+Route::get('getAllActiveAplicationListByOS/{os}', [ApplicationController::class, 'getAllActiveAplicationListByOS']);
+Route::get('getActiveAplicationListByName/{name}', [ApplicationController::class, 'getActiveAplicationListByName']);
+Route::get('getActiveAplicationListByID/{name}', [ApplicationController::class, 'getActiveAplicationListByID']);
+Route::post('createNewApplication', [ApplicationController::class, 'createNewApplication']);
+Route::post('updateApplication', [ApplicationController::class, 'updateApplication']);
+Route::delete('deleteApplication/{id}', [ApplicationController::class, 'deleteApplication']);

@@ -14,12 +14,12 @@ return new class extends Migration
         Schema::create('applications', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('download_link')->nullable();
+            $table->text('download_link')->nullable();
             $table->string('file_src')->nullable();
             $table->string('os')->nullable()->default('android');
-            $table->string('how_to_use')->nullable();
-            $table->string('description')->nullable();
-            $table->string('yourube_link')->nullable();
+            $table->text('how_to_use')->nullable();
+            $table->text('description')->nullable();
+            $table->text('yourube_link')->nullable();
             $table
                 ->boolean('is_active')
                 ->nullable()

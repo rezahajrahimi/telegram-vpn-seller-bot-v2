@@ -7,59 +7,110 @@ use Illuminate\Http\Request;
 
 class ApplicationController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function getAllAplicationList()
     {
-        //
+        try {
+            $application = Application::all();
+            return response()->json($application, 200);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
     }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function getAllActiveAplicationList()
     {
-        //
+        try {
+            $application = Application::where('is_active', true)->get();
+            return response()->json($application, 200);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
     }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function getAllActiveAplicationListByOS($os)
     {
-        //
+        try {
+            $application = Application::where('is_active', true)
+                ->where('os', $os)
+                ->get();
+            return response()->json($application, 200);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
     }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Application $application)
+    public function getActiveAplicationListByName($name)
     {
-        //
+        try {
+            $application = Application::where('is_active', true)
+                ->where('name', $name)
+                ->first();
+            return response()->json($application, 200);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
     }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Application $application)
+    public function getActiveAplicationListByID($id)
     {
-        //
+        try {
+            $application = Application::findOrFail($id);
+            return response()->json($application, 200);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
     }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Application $application)
+    public function createNewApplication(Request $request)
     {
-        //
+        try {
+            $application = new Application();
+            $application->name = $request->name;
+            $application->download_link = $request->download_link;
+            $application->file_src = $request->file_src;
+            $application->os = $request->os;
+            $application->how_to_use = $request->how_to_use;
+            $application->yourube_link = $request->yourube_link;
+            $application->is_active = $request->is_active;
+            $application->description = $request->description;
+            $application->save();
+            return response()->json($application, 200);
+
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Application $application)
+    public function updateApplication(Request $request)
     {
-        //
+        try {
+            $application = Application::findOrFail($request->id);
+            $application->name = $request->name;
+            $application->download_link = $request->download_link;
+            $application->file_src = $request->file_src;
+            $application->os = $request->os;
+            $application->how_to_use = $request->how_to_use;
+            $application->yourube_link = $request->yourube_link;
+            $application->is_active = $request->is_active;
+            $application->description = $request->description;
+            $application->update();
+            return response()->json($application, 200);
+
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
+    }
+    public function deleteApplication($id)
+    {
+        try {
+            $application = Application::findOrFail($id);
+            $application->delete();
+            return response()->json(true, 200);
+
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
     }
 }
