@@ -71,7 +71,7 @@ class ApplicationController extends Controller
             $application->os = $request->os;
             $application->how_to_use = $request->how_to_use;
             $application->yourube_link = $request->yourube_link;
-            $application->is_active = $request->is_active;
+            $application->is_active = $request->is_active == "true" ||$request->is_active == 1 ? true : false   ;
             $application->description = $request->description;
             $application->save();
             return response()->json($application, 200);
@@ -91,7 +91,7 @@ class ApplicationController extends Controller
             $application->os = $request->os;
             $application->how_to_use = $request->how_to_use;
             $application->yourube_link = $request->yourube_link;
-            $application->is_active = $request->is_active;
+            $application->is_active = $request->is_active == "true" ||$request->is_active == 1 ? true : false   ;
             $application->description = $request->description;
             $application->update();
             return response()->json($application, 200);

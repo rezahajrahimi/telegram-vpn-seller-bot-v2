@@ -204,7 +204,7 @@ Route::get('getAllAplicationList', [ApplicationController::class, 'getAllAplicat
 Route::get('getAllActiveAplicationList', [ApplicationController::class, 'getAllActiveAplicationList']);
 Route::get('getAllActiveAplicationListByOS/{os}', [ApplicationController::class, 'getAllActiveAplicationListByOS']);
 Route::get('getActiveAplicationListByName/{name}', [ApplicationController::class, 'getActiveAplicationListByName']);
-Route::get('getActiveAplicationListByID/{name}', [ApplicationController::class, 'getActiveAplicationListByID']);
+Route::get('getActiveAplicationListByID/{id}', [ApplicationController::class, 'getActiveAplicationListByID']);
 Route::post('createNewApplication', [ApplicationController::class, 'createNewApplication']);
 Route::post('updateApplication', [ApplicationController::class, 'updateApplication']);
 Route::delete('deleteApplication/{id}', [ApplicationController::class, 'deleteApplication']);
