@@ -28,34 +28,52 @@ class BotUserController extends Controller
             return false;
         }
     }
-    public function getBotUserList() {
+    public function getBotUserList()
+    {
         try {
             $data = BotUser::all();
-            if($data != null) {
+            if ($data != null) {
                 return response()->json($data, 200);
             } else {
-                return response()->json("No Data", 404);
+                return response()->json('No Data', 404);
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
 
-            return response()->json("Server Error", 500);
-
+            return response()->json('Server Error', 500);
         }
     }
-    public function getBotUserByID($id) {
+    public function getBotUserByID($id)
+    {
         try {
-            $data = BotUser::where('id',$id)->with(['products','transaction','ballance','logs'])->first();
-            if($data != null) {
+            $data = BotUser::where('id', $id)
+                ->with(['products', 'transaction', 'ballance', 'logs'])
+                ->first();
+            if ($data != null) {
                 return response()->json($data, 200);
             } else {
-                return response()->json("No Data", 404);
+                return response()->json('No Data', 404);
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
 
-            return response()->json("Server Error", 500);
-
+            return response()->json('Server Error', 500);
         }
     }
+    public function getLast10Users()
+    {
+        try {
+            $data = BotUser::orderBy('id', 'desc')
+                ->limit(10)
+                ->get();
+            if ($data != null) {
+                return $data;
+            } else {
+                return null;
+            }
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+        }
+    }
+
 }

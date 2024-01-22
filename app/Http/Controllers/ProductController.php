@@ -146,6 +146,7 @@ class ProductController extends Controller
             return response()->json(false, 500);
         }
     }
+
     public function getCountOfProductSelledSummeryByCatID($product_categories_id)
     {
         try {

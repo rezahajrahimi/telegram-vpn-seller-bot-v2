@@ -51,7 +51,7 @@ class ApplicationController extends Controller
             return response()->json('Server Error', 500);
         }
     }
-    public function getActiveAplicationListByID($id)
+    public function getActiveAplicationByID($id)
     {
         try {
             $application = Application::findOrFail($id);
@@ -70,7 +70,7 @@ class ApplicationController extends Controller
             $application->file_src = $request->file_src;
             $application->os = $request->os;
             $application->how_to_use = $request->how_to_use;
-            $application->yourube_link = $request->yourube_link;
+            $application->youtube_link = $request->youtube_link;
             $application->is_active = $request->is_active == "true" ||$request->is_active == 1 ? true : false   ;
             $application->description = $request->description;
             $application->save();
@@ -90,7 +90,7 @@ class ApplicationController extends Controller
             $application->file_src = $request->file_src;
             $application->os = $request->os;
             $application->how_to_use = $request->how_to_use;
-            $application->yourube_link = $request->yourube_link;
+            $application->youtube_link = $request->youtube_link;
             $application->is_active = $request->is_active == "true" ||$request->is_active == 1 ? true : false   ;
             $application->description = $request->description;
             $application->update();

@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('os')->nullable()->default('android');
             $table->text('how_to_use')->nullable();
             $table->text('description')->nullable();
-            $table->text('yourube_link')->nullable();
+            $table->text('youtube_link')->nullable();
             $table
                 ->boolean('is_active')
                 ->nullable()

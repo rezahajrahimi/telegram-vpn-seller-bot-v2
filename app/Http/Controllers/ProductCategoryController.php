@@ -113,4 +113,23 @@ class ProductCategoryController extends Controller
             return response()->json(false, 401);
         }
     }
+    public function mostSelledProductCategory($count)
+    {
+        try {
+            $data = ProductCategory::where('is_active', true)
+                ->leftJoin('products', 'products.product_categories_id', '=', 'product_categories.id')
+                ->groupBy('product_categories.category_name')
+                ->select('product_categories.category_name', \DB::raw('count(*) as count'))
+                ->orderBy('count', 'desc')
+                ->take($count)
+                ->get();
+            if ($data != null) {
+                return $data;
+            } else {
+                return null;
+            }
+        } catch (\Throwable $th) {
+            return $th;
+        }
+    }
 }

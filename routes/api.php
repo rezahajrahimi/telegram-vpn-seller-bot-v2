@@ -22,6 +22,7 @@ use App\Http\Controllers\BotUserController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\AccountBallanceController;
 use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\GeneralController;
 
 
 use Illuminate\Http\Request;
@@ -50,6 +51,9 @@ Route::prefix('telegram/webhooks')->group(function () {
 Route::get('getUserOrder/{userID}', [OrderController::class, 'getUserOrder']);
 Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
 
+
+// GeneralController
+Route::get('getDashboardAnalytics', [GeneralController::class, 'getDashboardAnalytics']);
 
 //  ProductCategory
 Route::get('getAllProdctCategory', [ProductCategoryController::class, 'getAllProdctCategory']);
@@ -189,6 +193,7 @@ Route::get('deActiveInbound/{id}', [InboundController::class, 'deActiveInbound']
 //  BotUser
 Route::get('getBotUserList', [BotUserController::class, 'getBotUserList']);
 Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
+Route::get('getLast10Users', [BotUserController::class, 'getLast10Users']);
 
 
 // Log
@@ -203,8 +208,8 @@ Route::post('setNewAccountBallance', [AccountBallanceController::class, 'setNewA
 Route::get('getAllAplicationList', [ApplicationController::class, 'getAllAplicationList']);
 Route::get('getAllActiveAplicationList', [ApplicationController::class, 'getAllActiveAplicationList']);
 Route::get('getAllActiveAplicationListByOS/{os}', [ApplicationController::class, 'getAllActiveAplicationListByOS']);
-Route::get('getActiveAplicationListByName/{name}', [ApplicationController::class, 'getActiveAplicationListByName']);
-Route::get('getActiveAplicationListByID/{id}', [ApplicationController::class, 'getActiveAplicationListByID']);
+Route::get('getActiveAplicationByName/{name}', [ApplicationController::class, 'getActiveAplicationListByName']);
+Route::get('getActiveAplicationByID/{id}', [ApplicationController::class, 'getActiveAplicationListByID']);
 Route::post('createNewApplication', [ApplicationController::class, 'createNewApplication']);
 Route::post('updateApplication', [ApplicationController::class, 'updateApplication']);
 Route::delete('deleteApplication/{id}', [ApplicationController::class, 'deleteApplication']);
