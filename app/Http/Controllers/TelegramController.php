@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://a9a6-77-232-143-246.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://41a7-2a12-5940-c976-00-2.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;

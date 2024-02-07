@@ -114,6 +114,7 @@ Route::post('updatePaymentMenuAlisNameByLevel', [PaymentMenuItemController::clas
 Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/getConfirmedTransactions/{count?}', [TransactionController::class, 'getConfirmedTransactions']);
 Route::get('/getUnConfirmedTransactions/{count?}', [TransactionController::class, 'getUnConfirmedTransactions']);
+Route::get('/removeUnconfirmedTransaction/{id}', [TransactionController::class, 'removeUnconfirmedTransaction']);
 Route::post('/editUserTranaction', [TransactionController::class, 'editUserTranaction']);
 
 

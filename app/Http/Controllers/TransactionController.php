@@ -54,9 +54,7 @@ class TransactionController extends Controller
 
             $amount = $this->getAmountByRecipeNUmber($transaction_id);
 
-            $receipt = Payment::amount($amount)
-                ->transactionId($transaction_id)
-                ->verify();
+            $receipt = Payment::amount($amount)->transactionId($transaction_id)->verify();
             // confirm transaction
             $this->setConfirmedTransaction($transaction_id);
             // add to user account balance.
@@ -81,9 +79,7 @@ class TransactionController extends Controller
     public function addUserTranaction($userID, $amount, $recipeNUmber, $paymentTypeId)
     {
         if ($paymentTypeId == 0 || $paymentTypeId == null) {
-            $pay = PaymentType::where('is_active', true)
-                ->where('type', 'offline')
-                ->first();
+            $pay = PaymentType::where('is_active', true)->where('type', 'offline')->first();
 
             $paymentTypeId = $pay->id;
         }
@@ -96,22 +92,35 @@ class TransactionController extends Controller
         $transaction->save();
         return $transaction->id;
     }
+    public function removeUnconfirmedTransaction($id)
+    {
+        try {
+            $transaction = Transaction::find($id);
+            if ($transaction->confirmed == false || $transaction->confirmed == 0) {
+                $transaction->delete();
+                return response()->json(true, 200);
+            } else {
+                return response()->json(false, 401);
+            }
+        } catch (\Throwable $th) {
+            \Log::info('NO Data Founded');
+
+            return response()->json('NO Data Founded', 404);
+        }
+    }
     public function editUserTranaction(Request $request)
     {
         try {
             $transaction = Transaction::find($request->id);
             if ($transaction != null) {
-            $isConfirmed = $request->confirmed == 1 ? true : false;
+                $isConfirmed = $request->confirmed == 1 ? true : false;
 
                 if ($transaction->amount != $request->amount && $isConfirmed == true) {
                     $accBlCtrl = new AccountBallanceController();
                     if ($transaction->amount > $request->amount) {
-
                         $accBlCtrl->decUserAccuntBalance($transaction->account_id, $transaction->amount - $request->amount);
-
                     } else {
                         $accBlCtrl->incUserAccuntBalance($transaction->account_id, $request->amount - $transaction->amount);
-
                     }
 
                     $transaction->amount = $request->amount;
@@ -119,7 +128,20 @@ class TransactionController extends Controller
                 $transaction->recipe_number = $request->recipeNUmber;
                 $transaction->payment_type_id = $request->paymentTypeId;
                 $transaction->confirmed = $isConfirmed;
-                return $transaction->update();
+
+                if ($transaction->update()) {
+                    if ($isConfirmed) {
+                        $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$transaction->amount} به حساب شما افزوده شد.", $transaction->account_id, null, 'MarkDown');
+                    } else {
+                        $result = app('telegram_bot')->sendMessage('تراکنش شما مورد تایید نمی باشد.', $transaction->account_id, null, 'MarkDown');
+                    }
+
+                    return response()->json($transaction, 200);
+                } else {
+                    \Log::info('Failed to update transaction');
+
+                    return response()->json($transaction, 404);
+                }
             } else {
                 \Log::info('NO Data Founded');
 
