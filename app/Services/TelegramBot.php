@@ -148,14 +148,31 @@ class TelegramBot
         try {
             $response = Http::withHeaders($this->headers)->post($url, $params);
             if ($response->ok() != false) {
+
                 $result = ['success' => $response->ok(), 'body' => $response->json()];
+                $json = $response->json();
+
+                // $res = $json['status'];
+                if( $json["result"]["status"] == "left"){
+                    return false;
+                }
+                // \Log::info('rss', ['json' => $json["result"]["status"]]);
+
+                // \Log::info('yesssssssss', ['result' => $result]);
+
+
                 return true;
             } else {
+
                 $result = ['False' => $response->ok(), 'body' => $response->json()];
+                // \Log::info('noooooooooo', ['result' => $result]);
+
                 return false;
             }
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
+            \Log::info("Throwable  $th");
+
             return false;
         }
 

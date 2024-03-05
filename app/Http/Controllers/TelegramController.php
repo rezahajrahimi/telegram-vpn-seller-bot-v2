@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://41a7-2a12-5940-c976-00-2.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://b88f-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -84,7 +84,7 @@ class TelegramController extends Controller
                     $this->first_name = $request->message['from']['first_name'];
                     $this->caption = $request->message['caption'] ?? '';
                     $this->chat_id = $request->message['chat']['id'] ?? 0;
-                    $this->last_name = $request->message['from']['last_name'];
+                    $this->last_name = $request->message['from']['last_name'] ?? "";
                     $this->username = $request->message['from']['username'] ?? ' ندارد ';
                     $this->message_id = $request->message['message_id'];
                     $this->forward_from_name = $request->message['reply_to_message']['forward_sender_name'] ?? 0;
@@ -637,10 +637,20 @@ class TelegramController extends Controller
         $channels = $channelLockCtrl->getAllActiveChannelLock();
         $response = true;
         foreach ($channels as $channel) {
-            $res = app('telegram_bot')->checkMember($channel->channel_id, $chat_id);
-            if ($res == false) {
-                $response == false;
+            $channel_name = $channel->channel_id;
+            // check $chanel start with @ char
+            if (!preg_match("/^@/", $channel_name)) {
+                $channel_name = "@$channel_name";
             }
+
+            $res = app('telegram_bot')->checkMember($channel_name, $chat_id);
+            if ($res == false || $res == null) {
+                $response = false;
+            } else {
+                $response = true;
+
+            }
+            \Log::info("checkIsChannelsMember: $response");
         }
         return $response;
     }

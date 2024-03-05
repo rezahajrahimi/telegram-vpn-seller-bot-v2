@@ -127,105 +127,105 @@ class PannelController extends Controller
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->update();
 
-                $proxy = Proxy::where('pannel_id', $pannel->id)
-                    ->where('type', 'vmess')
+            $proxy = Proxy::where('pannel_id', $pannel->id)
+                ->where('type', 'vmess')
+                ->first();
+            $proxy->is_active = $request->vmess == true || $request->vmess == 1 ? true : false;
+            $proxy->update();
+            if ($request->vmessTCP != null && $request->vmessTCP != false) {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'VMess TCP')
                     ->first();
-                $proxy->is_active = $request->vmess == true || $request->vmess == 1 ? true : false;
-                $proxy->update();
-                if ($request->vmessTCP != null && $request->vmessTCP != false) {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'VMess TCP')
-                        ->first();
-                    $inbound->is_active = true;
-                    $inbound->update();
-                } else {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'VMess TCP')
-                        ->first();
-                    $inbound->is_active = false;
-                    $inbound->update();
-                }
-                if ($request->vmessWebSocket != null && $request->vmessWebSocket != false) {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'VMess Websocket')
-                        ->first();
-                    $inbound->is_active = true;
-                    $inbound->update();
-                }
-
-                $proxy = Proxy::where('pannel_id', $pannel->id)
-                    ->where('type', 'vless')
+                $inbound->is_active = true;
+                $inbound->update();
+            } else {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'VMess TCP')
                     ->first();
-
-                $proxy->is_active = $request->vless == true || $request->vless == 1 ? true : false;
-                $proxy->update();
-                if ($request->vlessTcpReality != null && $request->vlessTcpReality != false) {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'VLESS TCP REALITY')
-                        ->first();
-                    $inbound->is_active = true;
-                    $inbound->update();
-                } else {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'VLESS TCP REALITY')
-                        ->first();
-                    $inbound->is_active = false;
-                    $inbound->update();
-                }
-                if ($request->vlessGprcReality != null && $request->vlessGprcReality != false) {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'VLESS GRPC REALITY')
-                        ->first();
-                    $inbound->is_active = true;
-                    $inbound->update();
-                } else {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'VLESS GRPC REALITY')
-                        ->first();
-                    $inbound->is_active = false;
-                    $inbound->update();
-                }
-
-                $proxy = Proxy::where('pannel_id', $pannel->id)
-                    ->where('type', 'trojan')
+                $inbound->is_active = false;
+                $inbound->update();
+            }
+            if ($request->vmessWebSocket != null && $request->vmessWebSocket != false) {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'VMess Websocket')
                     ->first();
+                $inbound->is_active = true;
+                $inbound->update();
+            }
 
-                $proxy->is_active = $request->trojan == true || $request->trojan == 1 ? true : false;
-                $proxy->update();
-                if ($request->trojanWebsocketTLS != null && $request->trojanWebsocketTLS != false) {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'Trojan Websocket TLS')
-                        ->first();
-                    $inbound->is_active = true;
-                    $inbound->update();
-                } else {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'Trojan Websocket TLS')
-                        ->first();
-                    $inbound->is_active = false;
-                    $inbound->update();
-                }
+            $proxy = Proxy::where('pannel_id', $pannel->id)
+                ->where('type', 'vless')
+                ->first();
 
-                $proxy = Proxy::where('pannel_id', $pannel->id)
-                    ->where('type', 'shadowsocks')
+            $proxy->is_active = $request->vless == true || $request->vless == 1 ? true : false;
+            $proxy->update();
+            if ($request->vlessTcpReality != null && $request->vlessTcpReality != false) {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'VLESS TCP REALITY')
                     ->first();
+                $inbound->is_active = true;
+                $inbound->update();
+            } else {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'VLESS TCP REALITY')
+                    ->first();
+                $inbound->is_active = false;
+                $inbound->update();
+            }
+            if ($request->vlessGprcReality != null && $request->vlessGprcReality != false) {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'VLESS GRPC REALITY')
+                    ->first();
+                $inbound->is_active = true;
+                $inbound->update();
+            } else {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'VLESS GRPC REALITY')
+                    ->first();
+                $inbound->is_active = false;
+                $inbound->update();
+            }
 
-                    $proxy->is_active = $request->shadowsocks == true || $request->shadowsocks == 1 ? true : false;
-                $proxy->update();
+            $proxy = Proxy::where('pannel_id', $pannel->id)
+                ->where('type', 'trojan')
+                ->first();
 
-                if ($request->shadowsocksTCP != null && $request->shadowsocksTCP != false) {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'Shadowsocks TCP')
-                        ->first();
-                    $inbound->is_active = true;
-                    $inbound->update();
-                } else {
-                    $inbound = Inbound::where('proxy_id', $proxy->id)
-                        ->where('name', 'Shadowsocks TCP')
-                        ->first();
-                    $inbound->is_active = false;
-                    $inbound->update();
-                }
+            $proxy->is_active = $request->trojan == true || $request->trojan == 1 ? true : false;
+            $proxy->update();
+            if ($request->trojanWebsocketTLS != null && $request->trojanWebsocketTLS != false) {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'Trojan Websocket TLS')
+                    ->first();
+                $inbound->is_active = true;
+                $inbound->update();
+            } else {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'Trojan Websocket TLS')
+                    ->first();
+                $inbound->is_active = false;
+                $inbound->update();
+            }
+
+            $proxy = Proxy::where('pannel_id', $pannel->id)
+                ->where('type', 'shadowsocks')
+                ->first();
+
+            $proxy->is_active = $request->shadowsocks == true || $request->shadowsocks == 1 ? true : false;
+            $proxy->update();
+
+            if ($request->shadowsocksTCP != null && $request->shadowsocksTCP != false) {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'Shadowsocks TCP')
+                    ->first();
+                $inbound->is_active = true;
+                $inbound->update();
+            } else {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', 'Shadowsocks TCP')
+                    ->first();
+                $inbound->is_active = false;
+                $inbound->update();
+            }
 
             return response()->json($pannel->id, 201);
         } catch (\Throwable $th) {
@@ -279,10 +279,7 @@ class PannelController extends Controller
     {
         try {
             $pannel = Pannel::findOrFail($id);
-            $proxyInbounds = Pannel::findOrFail($id)
-                ->proxies()
-                ->with('inbounds')
-                ->get();
+            $proxyInbounds = Pannel::findOrFail($id)->proxies()->with('inbounds')->get();
             return response()->json([$pannel, $proxyInbounds], 200);
         } catch (\Throwable $th) {
             return response()->json(false, 500);
@@ -357,6 +354,101 @@ class PannelController extends Controller
         \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $uuid;
+    }
+    public function checkHiddifyPanelUrl()
+    {
+        $client = new Client(['cookies' => true]);
+        $secretValue = '21cedf9b-54fa-4e2b-bfc2-227aa9c3f178';
+        $mainUrl = 'https://aw2.inini.xyz/Br3ehFw87ZtoISMegDhwSN/';
+
+        $response = $client->post($mainUrl, [
+            'form_params' => [
+                'secret_textbox' => $secretValue,
+            ],
+        ]);
+        $statusCode = $response->getStatusCode();
+
+        if ($statusCode === 200) {
+            $cookieJar = new \GuzzleHttp\Cookie\CookieJar();
+            $cookieJar = $response->getHeader('Set-Cookie');
+            \Log::info('cookieJar=>', ['cookieJar' => $cookieJar]);
+            $arr = explode(';', $cookieJar[0]);
+
+            $cook = $arr[0];
+            \Log::info('cookie1=>', [$cook]);
+            $delimiterPos = strpos($cook, '=');
+            $cook = substr($cook, $delimiterPos + 1);
+            \Log::info('cookie=>', [$cook]);
+
+            // Optional: Access individual cookie values
+            // $cookieValue = $cookieJar->getValue('season'); // Replace with actual cookie name
+
+            // Subsequent requests with the cookie
+
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+        ];
+
+            $cookies = [
+                'session' => $cook,
+            ];
+            $url = 'https://aw2.inini.xyz/Br3ehFw87ZtoISMegDhwSN/api/v2/admin/server_status/';
+            $subsequentResponse = Http::withCookies($cookies,'aw2.inini.xyz')->get($url);
+
+            \Log::info('aaaaaaaaaa=>', ['response' => $subsequentResponse->getBody()]);
+            return $subsequentResponse->getBody();
+
+            // Process the subsequent response
+        } else {
+            return $statusCode;
+        }
+
+        // $mainUrl ="https://aw2.inini.xyz/Br3ehFw87ZtoISMegDhwSN/21cedf9b-54fa-4e2b-bfc2-227aa9c3f178/";
+        // $secret_textbox = "21cedf9b-54fa-4e2b-bfc2-227aa9c3f178";
+
+        // $headers = [
+        //     'Content-Type' => 'application/json',
+        //     'Accept' => 'application/json',
+        // ];
+        // $params = [
+        //     'secret_textbox' => $secret_textbox,
+        // ];
+        // $url = $mainUrl;
+
+        // $result = ['success' => false, 'body' => []];
+
+        // try {
+        //     $response = Http::withHeaders($headers)->post($url, $params);
+        //     \Log::info('TelegramBot->sendMessage->result', ['response' => $response->headers()]);
+        //     // if($response->ok()){
+        //         $url = "https://aw2.inini.xyz/Br3ehFw87ZtoISMegDhwSN/api/v2/admin/user/";
+        //         // $headers = [
+        //         //     "set-cookie"=>["session=c781388b-90b7-4fe8-bfc2-438192c64e98; Expires=Thu, 14 Mar 2024 08:04:46 GMT; HttpOnly; Path=/"],            'Accept' => 'application/json',
+        //         // ];
+        //         $jar = new \GuzzleHttp\Cookie\CookieJar;
+        //         $jar = $response->headers()["set-cookie"];
+        //         \Log::info('jar=>',$jar);
+
+        //         // $cookies = $response->getCookies()->getCookieByName('session')->getValue();
+        //         // \Log::info('cookies:>',$cookies );
+        //         // $response->withCookie(cookie('session', $jar->getValue()));
+
+        //         $response = Http::withHeaders($jar)->get($url);
+        //         \Log::info('aaaaaaaaaa=>', ['response' => $response->body()]);
+
+        //         return $response->json();
+
+        //     // }
+
+        //     // $result = ['success' => $response->ok(), 'body' => $response->json(), 'server response' => $response->serverError()];
+        // } catch (\Throwable $th) {
+        //     $result['error'] = $th->getMessage();
+        //     return $result;
+
+        // }
+
+        // \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
     }
     public function getHiddifyPannelLinkByPannelID($pannelID)
     {
