@@ -23,6 +23,7 @@ use App\Http\Controllers\LogController;
 use App\Http\Controllers\AccountBallanceController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\GeneralController;
+use App\Http\Controllers\HiddifyPannelController;
 
 
 use Illuminate\Http\Request;
@@ -170,10 +171,11 @@ Route::get('getPannels', [PannelController::class, 'getPannels']);
 Route::get('getPannelById/{id}', [PannelController::class, 'getPannelById']);
 Route::get('getPannelByIdWithProxiesInbounds/{id}', [PannelController::class, 'getPannelByIdWithProxiesInbounds']);
 Route::get('createMarzbanUser/{accountId}/{day}/{vol}/{pannelID}', [PannelController::class, 'createMarzbanUser']);
-Route::get('checkHiddifyPanelUrl', [PannelController::class, 'checkHiddifyPanelUrl']);
 
 
+// Hiddify Panel
 
+Route::post('checkHiddifyPanelUrl', [HiddifyPannelController::class, 'checkHiddifyPanelUrl']);
 
 
 //  Proxy

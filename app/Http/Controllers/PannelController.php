@@ -355,50 +355,7 @@ class PannelController extends Controller
 
         return $uuid;
     }
-    public function checkHiddifyPanelUrl()
-    {
-        $client = new Client(['cookies' => true]);
-        $secretValue = '2bc0c955-6c33-43cc-97e7-6ff6718d18ea';
-        $mainUrl = 'https://irsub.powernad.ir/Br3ehFw87ZtoISMegDhwSN/';
 
-        $response = $client->post($mainUrl, [
-            'form_params' => [
-                'secret_textbox' => $secretValue,
-            ],
-        ]);
-        $statusCode = $response->getStatusCode();
-
-        if ($statusCode === 200) {
-            $cookieJar = new \GuzzleHttp\Cookie\CookieJar();
-            $cookieJar = $response->getHeader('Set-Cookie');
-            \Log::info('cookieJar=>', ['cookieJar' => $cookieJar]);
-            $arr = explode(';', $cookieJar[0]);
-
-            $cook = $arr[0];
-            \Log::info('cookie1=>', [$cook]);
-            $delimiterPos = strpos($cook, '=');
-            $cook = substr($cook, $delimiterPos + 1);
-            \Log::info('cookie=>', [$cook]);
-
-            $headers = [
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-            ];
-
-            $cookies = [
-                'session' => $cook,
-            ];
-            $url = 'https://aw2.inini.xyz/Br3ehFw87ZtoISMegDhwSN/api/v2/admin/server_status/';
-            $subsequentResponse = Http::withCookies($cookies, 'aw2.inini.xyz')->get($url);
-
-            \Log::info('aaaaaaaaaa=>', ['response' => $subsequentResponse->getBody()]);
-            return $subsequentResponse->getBody();
-
-            // Process the subsequent response
-        } else {
-            return $statusCode;
-        }
-    }
     public function getHiddifyPannelLinkByPannelID($pannelID)
     {
         $panel = Pannel::find($pannelID);
