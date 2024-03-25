@@ -358,8 +358,8 @@ class PannelController extends Controller
     public function checkHiddifyPanelUrl()
     {
         $client = new Client(['cookies' => true]);
-        $secretValue = '21cedf9b-54fa-4e2b-bfc2-227aa9c3f178';
-        $mainUrl = 'https://aw2.inini.xyz/Br3ehFw87ZtoISMegDhwSN/';
+        $secretValue = '2bc0c955-6c33-43cc-97e7-6ff6718d18ea';
+        $mainUrl = 'https://irsub.powernad.ir/Br3ehFw87ZtoISMegDhwSN/';
 
         $response = $client->post($mainUrl, [
             'form_params' => [
@@ -380,21 +380,16 @@ class PannelController extends Controller
             $cook = substr($cook, $delimiterPos + 1);
             \Log::info('cookie=>', [$cook]);
 
-            // Optional: Access individual cookie values
-            // $cookieValue = $cookieJar->getValue('season'); // Replace with actual cookie name
-
-            // Subsequent requests with the cookie
-
-        $headers = [
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-        ];
+            $headers = [
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+            ];
 
             $cookies = [
                 'session' => $cook,
             ];
             $url = 'https://aw2.inini.xyz/Br3ehFw87ZtoISMegDhwSN/api/v2/admin/server_status/';
-            $subsequentResponse = Http::withCookies($cookies,'aw2.inini.xyz')->get($url);
+            $subsequentResponse = Http::withCookies($cookies, 'aw2.inini.xyz')->get($url);
 
             \Log::info('aaaaaaaaaa=>', ['response' => $subsequentResponse->getBody()]);
             return $subsequentResponse->getBody();
@@ -403,52 +398,6 @@ class PannelController extends Controller
         } else {
             return $statusCode;
         }
-
-        // $mainUrl ="https://aw2.inini.xyz/Br3ehFw87ZtoISMegDhwSN/21cedf9b-54fa-4e2b-bfc2-227aa9c3f178/";
-        // $secret_textbox = "21cedf9b-54fa-4e2b-bfc2-227aa9c3f178";
-
-        // $headers = [
-        //     'Content-Type' => 'application/json',
-        //     'Accept' => 'application/json',
-        // ];
-        // $params = [
-        //     'secret_textbox' => $secret_textbox,
-        // ];
-        // $url = $mainUrl;
-
-        // $result = ['success' => false, 'body' => []];
-
-        // try {
-        //     $response = Http::withHeaders($headers)->post($url, $params);
-        //     \Log::info('TelegramBot->sendMessage->result', ['response' => $response->headers()]);
-        //     // if($response->ok()){
-        //         $url = "https://aw2.inini.xyz/Br3ehFw87ZtoISMegDhwSN/api/v2/admin/user/";
-        //         // $headers = [
-        //         //     "set-cookie"=>["session=c781388b-90b7-4fe8-bfc2-438192c64e98; Expires=Thu, 14 Mar 2024 08:04:46 GMT; HttpOnly; Path=/"],            'Accept' => 'application/json',
-        //         // ];
-        //         $jar = new \GuzzleHttp\Cookie\CookieJar;
-        //         $jar = $response->headers()["set-cookie"];
-        //         \Log::info('jar=>',$jar);
-
-        //         // $cookies = $response->getCookies()->getCookieByName('session')->getValue();
-        //         // \Log::info('cookies:>',$cookies );
-        //         // $response->withCookie(cookie('session', $jar->getValue()));
-
-        //         $response = Http::withHeaders($jar)->get($url);
-        //         \Log::info('aaaaaaaaaa=>', ['response' => $response->body()]);
-
-        //         return $response->json();
-
-        //     // }
-
-        //     // $result = ['success' => $response->ok(), 'body' => $response->json(), 'server response' => $response->serverError()];
-        // } catch (\Throwable $th) {
-        //     $result['error'] = $th->getMessage();
-        //     return $result;
-
-        // }
-
-        // \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
     }
     public function getHiddifyPannelLinkByPannelID($pannelID)
     {
