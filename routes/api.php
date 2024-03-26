@@ -176,6 +176,7 @@ Route::get('createMarzbanUser/{accountId}/{day}/{vol}/{pannelID}', [PannelContro
 // Hiddify Panel
 
 Route::post('checkHiddifyPanelUrl', [HiddifyPannelController::class, 'checkHiddifyPanelUrl']);
+Route::post('addHiddifyPannel', [HiddifyPannelController::class, 'addHiddifyPannel']);
 
 
 //  Proxy
