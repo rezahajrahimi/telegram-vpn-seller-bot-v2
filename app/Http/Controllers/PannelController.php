@@ -249,9 +249,8 @@ class PannelController extends Controller
                 $pannel->capacity = $request->capacity ?? 1333333;
                 if ($pannel->update()) {
                     return true;
-                } else {
-                    return response()->json(false, 500);
                 }
+                return response()->json(false, 500);
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");

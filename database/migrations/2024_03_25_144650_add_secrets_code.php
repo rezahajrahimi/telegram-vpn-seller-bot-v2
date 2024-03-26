@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('pannels', function (Blueprint $table) {
-            $table->string('secrets_code', 100)->nullable();
+            $table->string('secret_code', 100)->nullable();
             $table->text('cookie_session')->nullable();
         });
     }

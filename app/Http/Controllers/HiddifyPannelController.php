@@ -73,7 +73,7 @@ class HiddifyPannelController extends Controller
         $pannelUrl = $pannel->admin_url;
         // check is $pannelUrl ended with "/"
 
-        $secretValue = $pannel->secrets_code;
+        $secretValue = $pannel->secret_code;
         if (str_ends_with($pannelUrl, '/')) {
             $str = rtrim($pannelUrl, '/');
         }
@@ -113,12 +113,10 @@ class HiddifyPannelController extends Controller
                 if ($checkIsHtmlPage !== false) {
                     return;
                 }
-                    // save new header cookie
-                    $pannel->cookie_session = $cookies;
-                    $pannel->update();
-                    \Log::info('pannel cookie updated');
-
-
+                // save new header cookie
+                $pannel->cookie_session = $cookies;
+                $pannel->update();
+                \Log::info('pannel cookie updated');
             }
             return;
         } else {
@@ -133,13 +131,35 @@ class HiddifyPannelController extends Controller
             $pannel->location = $request->location ?? null;
             $pannel->admin_url = $request->admin_url;
             $pannel->capacity = $request->capacity ?? 1333333;
-            $pannel->secrets_code = $request->secretValue;
-            $pannel->url_port =  parse_url($request->admin_url, PHP_URL_HOST);
+            $pannel->secret_code = $request->secretValue;
+            $pannel->url_port = parse_url($request->admin_url, PHP_URL_HOST);
             // check cookie
             $pannel->save();
             $this->checkCookieSeason($pannel->id);
 
             return response()->json($pannel->id, 201);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+
+            return response()->json(false, 500);
+        }
+    }
+    public function updateHiddifyPannel(Request $request)
+    {
+        try {
+            $pannel = Pannel::find($request->id);
+            $pannel->location = $request->location ?? null;
+            $pannel->admin_url = $request->admin_url;
+            $pannel->capacity = $request->capacity ?? 1333333;
+            $pannel->secret_code = $request->secretValue;
+            $pannel->url_port = parse_url($request->admin_url, PHP_URL_HOST);
+            // check cookie
+            if ($pannel->update()) {
+                $this->getNewCookieToken($request->id);
+                return response()->json(true, 201);
+            }
+
+            return response()->json(false, 500);
         } catch (\Throwable $th) {
             \Log::info("Throwable $th");
 
@@ -152,7 +172,7 @@ class HiddifyPannelController extends Controller
         $checkLastTimeUpdated = $pannel->updated_at->diffInDays(now()) > 48;
         \Log::info("checkLastTimeUpdated:  $checkLastTimeUpdated");
 
-        if ($pannel->secrets_code == null || ($pannel->secrets_code = '' || $checkLastTimeUpdated == false)) {
+        if ($pannel->secret_code == null || ($pannel->secret_code = '' || $checkLastTimeUpdated == false)) {
             \Log::info('need update');
             $this->getNewCookieToken($pannelID);
             return;
