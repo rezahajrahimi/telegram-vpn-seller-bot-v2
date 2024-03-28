@@ -178,7 +178,10 @@ Route::get('createMarzbanUser/{accountId}/{day}/{vol}/{pannelID}', [PannelContro
 Route::post('checkHiddifyPanelUrl', [HiddifyPannelController::class, 'checkHiddifyPanelUrl']);
 Route::post('addHiddifyPannel', [HiddifyPannelController::class, 'addHiddifyPannel']);
 Route::post('updateHiddifyPannel', [HiddifyPannelController::class, 'updateHiddifyPannel']);
+Route::post('addUserToHiddifyPanel', [HiddifyPannelController::class, 'addUserToHiddifyPanel']);
+Route::post('updateUserOfHiddifyPanel', [HiddifyPannelController::class, 'updateUserOfHiddifyPanel']);
 Route::get('getHiddifyPanelUsersByPannelID/{pannelID}', [HiddifyPannelController::class, 'getHiddifyPanelUsersByPannelID']);
+Route::get('getHiddifyPanelUserByPannelID/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'getHiddifyPanelUserByPannelID']);
 
 
 //  Proxy
