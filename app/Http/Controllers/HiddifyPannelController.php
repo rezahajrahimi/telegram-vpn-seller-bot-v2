@@ -21,12 +21,12 @@ class HiddifyPannelController extends Controller
 
         $secretValue = $request->secretValue;
         if (str_ends_with($pannelUrl, '/')) {
-            $str = rtrim($pannelUrl, '/');
+            $pannelUrl = rtrim($pannelUrl, '/');
         }
 
         $client = new Client(['cookies' => true]);
 
-        $response = $client->post($pannelUrl, [
+        $response = $client->post("{$pannelUrl}/", [
             'form_params' => [
                 'secret_textbox' => $secretValue,
             ],
@@ -75,12 +75,12 @@ class HiddifyPannelController extends Controller
 
         $secretValue = $pannel->secret_code;
         if (str_ends_with($pannelUrl, '/')) {
-            $str = rtrim($pannelUrl, '/');
+            $pannelUrl = rtrim($pannelUrl, '/');
         }
 
         $client = new Client(['cookies' => true]);
 
-        $response = $client->post($pannelUrl, [
+        $response = $client->post("{$pannelUrl}/", [
             'form_params' => [
                 'secret_textbox' => $secretValue,
             ],
@@ -104,7 +104,7 @@ class HiddifyPannelController extends Controller
             $cookies = [
                 'session' => $cook,
             ];
-            $url = "$pannelUrl/api/v2/admin/server_status/";
+            $url = "{$pannelUrl}/api/v2/admin/server_status/";
 
             $subsequentResponse = Http::withCookies($cookies, parse_url($url, PHP_URL_HOST))->get($url);
 
@@ -114,7 +114,7 @@ class HiddifyPannelController extends Controller
                     return;
                 }
                 // save new header cookie
-                $pannel->cookie_session = $cookies;
+                $pannel->cookie_session = $cook;
                 $pannel->update();
                 \Log::info('pannel cookie updated');
             }
@@ -172,7 +172,7 @@ class HiddifyPannelController extends Controller
         $checkLastTimeUpdated = $pannel->updated_at->diffInDays(now()) > 48;
         \Log::info("checkLastTimeUpdated:  $checkLastTimeUpdated");
 
-        if ($pannel->secret_code == null || ($pannel->secret_code = '' || $checkLastTimeUpdated == false)) {
+        if ($pannel->secret_code == null || ($pannel->secret_code = '' || $checkLastTimeUpdated == true)) {
             \Log::info('need update');
             $this->getNewCookieToken($pannelID);
             return;
@@ -180,5 +180,75 @@ class HiddifyPannelController extends Controller
         \Log::info('doestnt need update');
 
         return;
+    }
+    public function getHiddifyPanelUsersByPannelID($pannelID)
+    {
+        // $client = new Client(['cookies' => true]);
+        // $pannel = Pannel::find($pannelID);
+        // $secretValue = $pannel->secret_code;
+        // $mainUrl = $pannel->admin_url;
+        // // $secretValue = '2bc0c955-6c33-43cc-97e7-6ff6718d18ea';
+        // // $mainUrl = 'https://irsub.powernad.ir/Br3ehFw87ZtoISMegDhwSN/';
+
+        // $response = $client->post($mainUrl, [
+        //     'form_params' => [
+        //         'secret_textbox' => $secretValue,
+        //     ],
+        // ]);
+        // $statusCode = $response->getStatusCode();
+
+        // if ($statusCode === 200) {
+        //     $cookieJar = new \GuzzleHttp\Cookie\CookieJar();
+        //     $cookieJar = $response->getHeader('Set-Cookie');
+        //     \Log::info('cookieJar=>', ['cookieJar' => $cookieJar]);
+        //     $arr = explode(';', $cookieJar[0]);
+
+        //     $cook = $arr[0];
+        //     \Log::info('cookie1=>', [$cook]);
+        //     $delimiterPos = strpos($cook, '=');
+        //     $cook = substr($cook, $delimiterPos + 1);
+        //     \Log::info('cookie=>', [$cook]);
+
+        //     $headers = [
+        //         'Content-Type' => 'application/json',
+        //         'Accept' => 'application/json',
+        //     ];
+
+        //     $cookies = [
+        //         'session' => $cook,
+        //     ];
+        //     $url = "{$mainUrl}api/v2/admin/user/";
+        //     $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->get($url);
+
+        //     \Log::info('aaaaaaaaaa=>', ['response' => $subsequentResponse->getBody()]);
+        //      return $subsequentResponse->getBody();
+
+        //     // Process the subsequent response
+        // } else {
+        //     return $statusCode;
+        // }
+
+        $pannel = Pannel::find($pannelID);
+        $this->checkCookieSeason($pannel->id);
+        $url = "{$pannel->admin_url}api/v2/admin/user/";
+        \Log::info("url => $url");
+        $cookies = [
+            'session' => $pannel->cookie_session,
+        ];
+
+        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->get($url);
+
+        if ($subsequentResponse->getStatusCode() == 200) {
+            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
+            if ($checkIsHtmlPage !== false) {
+                // return response()->json(false, 401);
+                return response()->json([$subsequentResponse->getBody(), $subsequentResponse->getStatusCode(), '111'], 401);
+            }
+            // dd($subsequentResponse);
+            return json_decode($subsequentResponse->getBody(), true);
+            // return $subsequentResponse->getBody();
+        }
+        // return response()->json(false, 401);
+        return response()->json([$subsequentResponse->getBody(), $subsequentResponse->getStatusCode(), '222'], 401);
     }
 }
