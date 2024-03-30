@@ -200,15 +200,18 @@ class HiddifyPannelController extends Controller
         $data = $this->sendGetRequestToHiddifyPannel($pannelID, 'api/v2/admin/user/');
         return $data;
     }
-    public function getHiddifyPanelUserByPannelID($pannelID, $userUUID) {
+    public function getHiddifyPanelUserByPannelID($pannelID, $userUUID)
+    {
         $data = $this->sendGetRequestToHiddifyPannel($pannelID, "api/v2/admin/user/$userUUID/");
         return $data;
     }
-    public function getHiddifyPanelAllConfigsUserByPannelID($pannelID, $userUUID) {
-        $data = $this->sendGetRequestToHiddifyPannel($pannelID, "/api/v2/user/all-configs/");
+    public function getHiddifyPanelAllConfigsUserByPannelID($pannelID, $userUUID)
+    {
+        $data = $this->sendGetRequestToHiddifyPannel($pannelID, '/api/v2/user/all-configs/');
         return $data;
     }
-    public function addUserToHiddifyPanel(Request $request) {
+    public function addUserToHiddifyPanel(Request $request)
+    {
         $pannelID = $request->pannelID;
         $vol = $request->vol;
         $day = $request->day;
@@ -224,10 +227,11 @@ class HiddifyPannelController extends Controller
             'mode' => 'no_reset',
             'added_by_uuid' => "$adminUUID",
         ];
-        $data = $this->sendPutRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/", $params);
+        $data = $this->sendPutRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/', $params);
         return $data;
     }
-    public function updateUserOfHiddifyPanel(Request $request) {
+    public function updateUserOfHiddifyPanel(Request $request)
+    {
         $pannelID = $request->pannelID;
         $vol = $request->vol;
         $day = $request->day;
@@ -246,6 +250,12 @@ class HiddifyPannelController extends Controller
             'comment' => "$comment",
         ];
         $data = $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
+        return $data;
+    }
+    public function deleteUserOfHiddifyPanel($pannelID, $userUUID)
+    {
+
+        $data = $this->sendDeleteRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$userUUID/");
         return $data;
     }
     public function sendGetRequestToHiddifyPannel($pannelID, $requestAPi)
@@ -275,7 +285,7 @@ class HiddifyPannelController extends Controller
         }
         return response()->json(false, 401);
     }
-    public function sendPutRequestToHiddifyPannel($pannelID, $requestAPi,$params = [])
+    public function sendDeleteRequestToHiddifyPannel($pannelID, $requestAPi)
     {
         $pannel = Pannel::find($pannelID);
         $this->checkCookieSeason($pannel->id);
@@ -290,7 +300,8 @@ class HiddifyPannelController extends Controller
             'session' => $pannel->cookie_session,
         ];
 
-        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->put($url,$params);
+        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->delete($url);
+
         if ($subsequentResponse->getStatusCode() == 200) {
             $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
             if ($checkIsHtmlPage !== false) {
@@ -301,7 +312,7 @@ class HiddifyPannelController extends Controller
         }
         return response()->json(false, 401);
     }
-    public function sendPatchRequestToHiddifyPannel($pannelID, $requestAPi,$params = [])
+    public function sendPutRequestToHiddifyPannel($pannelID, $requestAPi, $params = [])
     {
         $pannel = Pannel::find($pannelID);
         $this->checkCookieSeason($pannel->id);
@@ -316,7 +327,33 @@ class HiddifyPannelController extends Controller
             'session' => $pannel->cookie_session,
         ];
 
-        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->patch($url,$params);
+        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->put($url, $params);
+        if ($subsequentResponse->getStatusCode() == 200) {
+            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
+            if ($checkIsHtmlPage !== false) {
+                return response()->json(false, 401);
+            }
+            // dd($subsequentResponse);
+            return json_decode($subsequentResponse->getBody(), true);
+        }
+        return response()->json(false, 401);
+    }
+    public function sendPatchRequestToHiddifyPannel($pannelID, $requestAPi, $params = [])
+    {
+        $pannel = Pannel::find($pannelID);
+        $this->checkCookieSeason($pannel->id);
+        $url = '';
+        if (str_ends_with($pannel->admin_url, '/')) {
+            $url = "{$pannel->admin_url}{$requestAPi}";
+        } else {
+            $url = "{$pannel->admin_url}/{$requestAPi}";
+        }
+        \Log::info("url => $url");
+        $cookies = [
+            'session' => $pannel->cookie_session,
+        ];
+
+        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->patch($url, $params);
         \Log::info("getStatusCode => {$subsequentResponse->getStatusCode()}");
         \Log::info("getBody => {$subsequentResponse->getBody()}");
         if ($subsequentResponse->getStatusCode() == 200) {
