@@ -302,73 +302,73 @@ class PannelController extends Controller
             return response()->json(false, 500);
         }
     }
-    public function createHiddifyUser($accountId, $day, $vol, $pannelID)
-    {
-        $panel = Pannel::find($pannelID);
-        $mainUrl = $panel->admin_url;
+    // public function createHiddifyUser($accountId, $day, $vol, $pannelID)
+    // {
+    //     $panel = Pannel::find($pannelID);
+    //     $mainUrl = $panel->admin_url;
 
-        $mainUrl = str_replace('/admin/', '', $mainUrl);
-        $mainUrl = str_replace('/admin', '', $mainUrl);
-        // get substring from end of str until /
+    //     $mainUrl = str_replace('/admin/', '', $mainUrl);
+    //     $mainUrl = str_replace('/admin', '', $mainUrl);
+    //     // get substring from end of str until /
 
-        $adminUUID = substr($mainUrl, -36);
-        \Log::info("adminUUID:$adminUUID");
-        \Log::info("accountId:$accountId");
-        \Log::info("day:$day");
-        \Log::info("vol:$vol");
+    //     $adminUUID = substr($mainUrl, -36);
+    //     \Log::info("adminUUID:$adminUUID");
+    //     \Log::info("accountId:$accountId");
+    //     \Log::info("day:$day");
+    //     \Log::info("vol:$vol");
 
-        \Log::info("mainUrl:$mainUrl");
-        $uuid = $this->generateUUID();
+    //     \Log::info("mainUrl:$mainUrl");
+    //     $uuid = $this->generateUUID();
 
-        \Log::info("uuid:$uuid");
-        $headers = [
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-        ];
-        $params = [
-            'uuid' => "$uuid",
-            'name' => "bot$accountId",
-            'current_usage_GB' => 0,
-            'usage_limit_GB' => $vol,
-            'package_days' => $day,
-            'start_date' => null,
-            'comment' => null,
-            'mode' => 'no_reset',
-            'telegram_id' => null,
-            'telegram_token' => null,
-            'added_by_uuid' => "$adminUUID",
-        ];
-        $url = "$mainUrl/api/v1/user/";
-        \Log::info("url:$url");
+    //     \Log::info("uuid:$uuid");
+    //     $headers = [
+    //         'Content-Type' => 'application/json',
+    //         'Accept' => 'application/json',
+    //     ];
+    //     $params = [
+    //         'uuid' => "$uuid",
+    //         'name' => "bot$accountId",
+    //         'current_usage_GB' => 0,
+    //         'usage_limit_GB' => $vol,
+    //         'package_days' => $day,
+    //         'start_date' => null,
+    //         'comment' => null,
+    //         'mode' => 'no_reset',
+    //         'telegram_id' => null,
+    //         'telegram_token' => null,
+    //         'added_by_uuid' => "$adminUUID",
+    //     ];
+    //     $url = "$mainUrl/api/v1/user/";
+    //     \Log::info("url:$url");
 
-        $result = ['success' => false, 'body' => []];
+    //     $result = ['success' => false, 'body' => []];
 
-        try {
-            $response = Http::withHeaders($headers)->post($url, $params);
-            $result = ['success' => $response->ok(), 'body' => $response->json(), 'server response' => $response->serverError()];
-        } catch (\Throwable $th) {
-            $result['error'] = $th->getMessage();
-        }
+    //     try {
+    //         $response = Http::withHeaders($headers)->post($url, $params);
+    //         $result = ['success' => $response->ok(), 'body' => $response->json(), 'server response' => $response->serverError()];
+    //     } catch (\Throwable $th) {
+    //         $result['error'] = $th->getMessage();
+    //     }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
+    //     \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
-        return $uuid;
-    }
+    //     return $uuid;
+    // }
 
-    public function getHiddifyPannelLinkByPannelID($pannelID)
-    {
-        $panel = Pannel::find($pannelID);
-        $mainUrl = $panel->admin_url;
+    // public function getHiddifyPannelLinkByPannelID($pannelID)
+    // {
+    //     $panel = Pannel::find($pannelID);
+    //     $mainUrl = $panel->admin_url;
 
-        $mainUrl = str_replace('/admin/', '', $mainUrl);
-        $mainUrl = str_replace('/admin', '', $mainUrl);
-        // get substring from end of str until /
+    //     $mainUrl = str_replace('/admin/', '', $mainUrl);
+    //     $mainUrl = str_replace('/admin', '', $mainUrl);
+    //     // get substring from end of str until /
 
-        $adminUUID = substr($mainUrl, -36);
-        $hidifyUrl = str_replace("/$adminUUID", '', $mainUrl);
+    //     $adminUUID = substr($mainUrl, -36);
+    //     $hidifyUrl = str_replace("/$adminUUID", '', $mainUrl);
 
-        return $hidifyUrl;
-    }
+    //     return $hidifyUrl;
+    // }
 
     public function generateQrMOC($str)
     {

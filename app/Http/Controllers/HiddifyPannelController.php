@@ -216,7 +216,11 @@ class HiddifyPannelController extends Controller
         $vol = $request->vol;
         $day = $request->day;
         $accountId = $request->accountId;
-        $adminUUID = $request->adminUUID;
+        $pannel = Pannel::find($pannelID);
+
+        $adminUUID = $pannel->secret_code;
+        $comment = $request->comment ?? '';
+
         $uuid = $this->generateUUID();
         $params = [
             'uuid' => "$uuid",
@@ -226,6 +230,7 @@ class HiddifyPannelController extends Controller
             'package_days' => $day,
             'mode' => 'no_reset',
             'added_by_uuid' => "$adminUUID",
+            'comment' => "$comment",
         ];
         $data = $this->sendPutRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/', $params);
         return $data;
@@ -233,10 +238,12 @@ class HiddifyPannelController extends Controller
     public function updateUserOfHiddifyPanel(Request $request)
     {
         $pannelID = $request->pannelID;
+        $pannel = Pannel::find($pannelID);
+
         $vol = $request->vol;
         $day = $request->day;
         $accountId = $request->accountId;
-        $adminUUID = $request->adminUUID;
+        $adminUUID = $pannel->secret_code;
         $uuid = $request->uuid;
         $comment = $request->comment ?? '';
         $params = [
@@ -254,7 +261,6 @@ class HiddifyPannelController extends Controller
     }
     public function deleteUserOfHiddifyPanel($pannelID, $userUUID)
     {
-
         $data = $this->sendDeleteRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$userUUID/");
         return $data;
     }
