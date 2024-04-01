@@ -183,10 +183,10 @@ class HiddifyPannelController extends Controller
     public function checkCookieSeason($pannelID)
     {
         $pannel = Pannel::find($pannelID);
-        $checkLastTimeUpdated = $pannel->updated_at->diffInDays(now()) > 48;
+        $checkLastTimeUpdated = $pannel->updated_at->diffInDays(now()) > 5;
         \Log::info("checkLastTimeUpdated:  $checkLastTimeUpdated");
 
-        if ($pannel->secret_code == null || ($pannel->secret_code = '' || $checkLastTimeUpdated == true)) {
+        if ($pannel->secret_code == null || ($pannel->secret_code = '' || $checkLastTimeUpdated == false)) {
             \Log::info('need update');
             $this->getNewCookieToken($pannelID);
             return;
@@ -233,6 +233,9 @@ class HiddifyPannelController extends Controller
             'comment' => "$comment",
         ];
         $data = $this->sendPutRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/', $params);
+        if($data != false) {
+            return $uuid;
+        }
         return $data;
     }
     public function updateUserOfHiddifyPanel(Request $request)
@@ -284,11 +287,15 @@ class HiddifyPannelController extends Controller
         if ($subsequentResponse->getStatusCode() == 200) {
             $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
             if ($checkIsHtmlPage !== false) {
+                \Log::info("url => {$subsequentResponse->getBody()}");
+
                 return response()->json(false, 401);
             }
             // dd($subsequentResponse);
             return json_decode($subsequentResponse->getBody(), true);
         }
+        \Log::info("url => {$subsequentResponse->getBody()}");
+
         return response()->json(false, 401);
     }
     public function sendDeleteRequestToHiddifyPannel($pannelID, $requestAPi)

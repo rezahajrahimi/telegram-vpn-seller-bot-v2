@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://b88f-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://b964-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -355,7 +355,15 @@ class TelegramController extends Controller
             $productID = $prCntrl->getLastInsertedProductId();
             $productID += 1;
             if ($pannel->type == 'hiddify') {
-                $newUUID = $pnlCntrl->createHiddifyUser("$this->chat_id-$productID", $day, $volume, $selectedPrCat->pannel_id);
+                 $req = new Request();
+                 $req->accountId = "$this->chat_id-$productID";
+                 $req->pannelID = $selectedPrCat->pannel_id;
+                 $req->vol = $volume;
+                 $req->day = $day;
+                 $hiddifcCntrl = new HiddifyPannelController();
+
+                $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req);
+                // $newUUID = $pnlCntrl->createHiddifyUser("$this->chat_id-$productID", $day, $volume, $selectedPrCat->pannel_id);
                 $userPannelLink = $pnlCntrl->getHiddifyPannelLinkByPannelID($selectedPrCat->pannel_id);
 
                 $userSubscriptionLInk = "$userPannelLink/$newUUID/all.txt?name=sublink-unknown&asn=unknown&mode=new";

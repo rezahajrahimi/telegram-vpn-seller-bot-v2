@@ -355,25 +355,27 @@ class PannelController extends Controller
     //     return $uuid;
     // }
 
-    // public function getHiddifyPannelLinkByPannelID($pannelID)
-    // {
-    //     $panel = Pannel::find($pannelID);
-    //     $mainUrl = $panel->admin_url;
+    public function getHiddifyPannelLinkByPannelID($pannelID)
+    {
+        $panel = Pannel::find($pannelID);
+        $mainUrl = $panel->admin_url;
 
-    //     $mainUrl = str_replace('/admin/', '', $mainUrl);
-    //     $mainUrl = str_replace('/admin', '', $mainUrl);
-    //     // get substring from end of str until /
+        $mainUrl = str_replace('/admin/', '', $mainUrl);
+        $mainUrl = str_replace('/admin', '', $mainUrl);
+        // get substring from end of str until /
 
-    //     $adminUUID = substr($mainUrl, -36);
-    //     $hidifyUrl = str_replace("/$adminUUID", '', $mainUrl);
+        $adminUUID = substr($mainUrl, -36);
+        $hidifyUrl = str_replace("/$adminUUID", '', $mainUrl);
 
-    //     return $hidifyUrl;
-    // }
+        return $hidifyUrl;
+    }
 
     public function generateQrMOC($str)
     {
         $str = 'reza';
-        $uuid = $this->generateUUID();
+        $hiddifcCntrl = new HiddifyPannelController();
+
+        $uuid = $hiddifcCntrl->generateUUID();
         $image = QrCode::format('png')->generate($str);
 
         $path = public_path() . '/images/' . 'aa.png';
