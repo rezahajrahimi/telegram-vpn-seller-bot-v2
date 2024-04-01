@@ -23,6 +23,7 @@ class PannelController extends Controller
             $pannel->location = $request->location ?? null;
             $pannel->url_port = $request->url_port ?? null;
             $pannel->admin_url = $request->admin_url ?? null;
+            $pannel->user_link = $request->user_link ?? null;
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->save();
             return response()->json($pannel->id, 201);
@@ -246,6 +247,7 @@ class PannelController extends Controller
                 $pannel->location = $request->location ?? null;
                 $pannel->url_port = $request->url_port ?? null;
                 $pannel->admin_url = $request->admin_url ?? null;
+                $pannel->user_link = $request->user_link ?? null;
                 $pannel->capacity = $request->capacity ?? 1333333;
                 if ($pannel->update()) {
                     return true;

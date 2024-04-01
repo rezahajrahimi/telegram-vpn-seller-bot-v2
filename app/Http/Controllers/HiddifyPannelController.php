@@ -144,6 +144,8 @@ class HiddifyPannelController extends Controller
             $pannel->type = 'hiddify';
             $pannel->location = $request->location ?? null;
             $pannel->admin_url = $request->admin_url;
+            $pannel->user_link = $request->user_link ?? null;
+
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->secret_code = $request->secretValue;
             $pannel->url_port = parse_url($request->admin_url, PHP_URL_HOST);
@@ -166,6 +168,8 @@ class HiddifyPannelController extends Controller
             $pannel->admin_url = $request->admin_url;
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->secret_code = $request->secretValue;
+            $pannel->user_link = $request->user_link ?? null;
+
             $pannel->url_port = parse_url($request->admin_url, PHP_URL_HOST);
             // check cookie
             if ($pannel->update()) {
