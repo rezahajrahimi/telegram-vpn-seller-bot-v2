@@ -56,7 +56,7 @@ class TelegramController extends Controller
                     $this->from_id = $request->message['from']['id'];
                     $this->first_name = $request->message['from']['first_name'] ?? '';
                     $this->last_name = $request->message['from']['last_name'] ?? '';
-                    $this->text = $request->message["caption"] ?? "";
+                    $this->text = $request->message['caption'] ?? '';
 
                     $text = 'رسید شما دریافت شد، منتظر تایید توسط مدیر باشید.';
                     $this->fileId = app('telegram_bot')->getImageId($request->message['photo']);
@@ -73,7 +73,7 @@ class TelegramController extends Controller
                     $request->transaction_id = $transactionID;
                     $request->img_src = $this->fileId;
                     $request->account_id = $this->chat_id;
-                    $request->user_text = $this->text ?? "بدون متن";
+                    $request->user_text = $this->text ?? 'بدون متن';
 
                     $imageTrCntrl->addNewTransactionImage($request);
                     return response()->json($result, 200);
@@ -84,14 +84,13 @@ class TelegramController extends Controller
                     $this->first_name = $request->message['from']['first_name'];
                     $this->caption = $request->message['caption'] ?? '';
                     $this->chat_id = $request->message['chat']['id'] ?? 0;
-                    $this->last_name = $request->message['from']['last_name'] ?? "";
+                    $this->last_name = $request->message['from']['last_name'] ?? '';
                     $this->username = $request->message['from']['username'] ?? ' ندارد ';
                     $this->message_id = $request->message['message_id'];
                     $this->forward_from_name = $request->message['reply_to_message']['forward_sender_name'] ?? 0;
                     $this->forward_from_id = $request->message['reply_to_message']['forward_from']['id'] ?? 0;
                     $this->reply_text = $request->message['reply_to_message']['text'] ?? '0';
                     $this->chat_type = 'text';
-
                 } elseif (isset($request->callback_query)) {
                     $this->callbackId = $request->callback_query['id'];
                     $this->data = $request->callback_query['data'];
@@ -341,7 +340,6 @@ class TelegramController extends Controller
         $opr = [];
         $accBlCtrl = new AccountBallanceController();
         $prCntrl = new ProductController();
-        $prcCntrl = new ProductController();
 
         if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice)) {
             $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
@@ -355,14 +353,15 @@ class TelegramController extends Controller
             $productID = $prCntrl->getLastInsertedProductId();
             $productID += 1;
             if ($pannel->type == 'hiddify') {
-                 $req = new Request();
-                 $req->accountId = "$this->chat_id-$productID";
-                 $req->pannelID = $selectedPrCat->pannel_id;
-                 $req->vol = $volume;
-                 $req->day = $day;
-                 $hiddifcCntrl = new HiddifyPannelController();
+                $req = new Request();
+                $req->accountId = "$this->chat_id-$productID";
+                $req->pannelID = $selectedPrCat->pannel_id;
+                $req->vol = $volume;
+                $req->day = $day;
+                $hiddifcCntrl = new HiddifyPannelController();
 
                 $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req);
+
                 $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
                 // $userPannelLink = $pnlCntrl->getHiddifyPannelLinkByPannelID($selectedPrCat->pannel_id);
@@ -373,7 +372,9 @@ class TelegramController extends Controller
                 $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
                 $text = '';
                 $text .= "خرید شما با موفقیت انجام شد\r\n";
-                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
+                if ($selectedPrCat->show_pannel_link == 1) {
+                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
+                }
                 $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
                 $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
 
@@ -381,13 +382,13 @@ class TelegramController extends Controller
                 // save as dectivate product, So we can use it in future when user want to recharge it;
                 $request = new Request();
                 $request->account_id = $this->chat_id;
-                $request->subscription_link = $userSubscriptionLInk;
+                $request->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
                 $request->product_categories_id = $selectedPrCat->id;
-                $request->panel_link = "$userPannelLink/$newUUID/";
+                $request->panel_link = "/{$newUUID}/#{$req->accountId}";
                 $request->configs = '';
                 $request->remark = "$this->chat_id-$productID";
 
-                $prcCntrl->addAutomatedProductDetails($request);
+                $prCntrl->addAutomatedProductDetails($request);
             } elseif ($pannel->type == 'marzban') {
                 $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id$productID", $day, $volume, $selectedPrCat->pannel_id);
                 $userSub = $userData['subscription_link'];
@@ -422,9 +423,9 @@ class TelegramController extends Controller
                 $request->configs = $links;
                 $request->remark = "BotUser$this->chat_id$productID";
 
-                $prcCntrl->addAutomatedProductDetails($request);
+                $prCntrl->addAutomatedProductDetails($request);
             } else {
-                $userData = $prcCntrl->getProductConfigAndChangeStatus($selectedPrCat->id, $this->chat_id);
+                $userData = $prCntrl->getProductConfigAndChangeStatus($selectedPrCat->id, $this->chat_id);
                 // $pannelLink = $userData["panel_link"];
 
                 $text = '';
@@ -649,7 +650,7 @@ class TelegramController extends Controller
         foreach ($channels as $channel) {
             $channel_name = $channel->channel_id;
             // check $chanel start with @ char
-            if (!preg_match("/^@/", $channel_name)) {
+            if (!preg_match('/^@/', $channel_name)) {
                 $channel_name = "@$channel_name";
             }
 
@@ -658,7 +659,6 @@ class TelegramController extends Controller
                 $response = false;
             } else {
                 $response = true;
-
             }
             \Log::info("checkIsChannelsMember: $response");
         }
@@ -739,11 +739,20 @@ class TelegramController extends Controller
 
             // check pannel type
             if ($pannel->type == 'hiddify') {
-                $userSubscriptionLInk = $selectedProduct->subscription_link;
+                $hiddifcCntrl = new HiddifyPannelController();
+                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "{$selectedProduct->panel_link}");
+                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "{$selectedProduct->subscription_link}");
+
+                // $userSubscriptionLInk = $selectedProduct->subscription_link;
                 $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
                 $text = '';
-                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$selectedProduct->panel_link \r\n";
-                $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+                if ($selectedProductCategory->show_pannel_link == 1) {
+                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
+                }
+                if ($selectedProductCategory->show_subscription_link == 1) {
+                    $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+                }
+                // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
                 $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
                 $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
             } else {
