@@ -374,11 +374,13 @@ class PannelController extends Controller
 
     public function generateQrMOC($str)
     {
-        $str = 'reza';
-        $hiddifcCntrl = new HiddifyPannelController();
 
-        $uuid = $hiddifcCntrl->generateUUID();
-        $image = QrCode::format('png')->generate($str);
+        $image = QrCode::format('png')
+        ->size(250)
+        ->backgroundColor(255, 255, 255)
+        ->color(0, 0, 255)
+        ->margin(1)
+        ->generate($str);
 
         $path = public_path() . '/images/' . 'aa.png';
         if (file_exists($path)) {

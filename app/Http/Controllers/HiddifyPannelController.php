@@ -28,17 +28,18 @@ class HiddifyPannelController extends Controller
         // Output the 36 character UUID.
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
-    public function getClearHiddifyRequestUrl($mainUrl,$requestAPi)
+    public function getClearHiddifyRequestUrl($mainUrl, $requestAPi)
     {
         // get substring from end of str until /
         $mainUrl = str_replace('/admin/', '', $mainUrl);
         $mainUrl = str_replace('/admin', '', $mainUrl);
-        if (str_ends_with($mainUrl, '/')) {
-            $mainUrl = "{$mainUrl}{$requestAPi}";
-        } else {
-            $mainUrl = "{$mainUrl}/{$requestAPi}";
+        if (str_starts_with($requestAPi,'/')) {
+            $requestAPi = ltrim($requestAPi, '/');
         }
-        return $mainUrl;
+        if (str_ends_with($mainUrl, '/')) {
+            $mainUrl = rtrim($mainUrl, '/');
+        }
+        return "{$mainUrl}/{$requestAPi}";
     }
     public function checkHiddifyPanelUrl(Request $request)
     {
@@ -249,7 +250,7 @@ class HiddifyPannelController extends Controller
             'comment' => "$comment",
         ];
         $data = $this->sendPutRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/', $params);
-        if($data != false) {
+        if ($data != false) {
             return $uuid;
         }
         return $data;
@@ -287,12 +288,13 @@ class HiddifyPannelController extends Controller
     {
         $pannel = Pannel::find($pannelID);
         $this->checkCookieSeason($pannel->id);
-        $url = '';
-        if (str_ends_with($pannel->admin_url, '/')) {
-            $url = "{$pannel->admin_url}{$requestAPi}";
-        } else {
-            $url = "{$pannel->admin_url}/{$requestAPi}";
-        }
+        // $url = '';
+        // if (str_ends_with($pannel->admin_url, '/')) {
+        //     $url = "{$pannel->admin_url}{$requestAPi}";
+        // } else {
+        //     $url = "{$pannel->admin_url}/{$requestAPi}";
+        // }
+        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
         \Log::info("url => $url");
         $cookies = [
             'session' => $pannel->cookie_session,
@@ -318,12 +320,14 @@ class HiddifyPannelController extends Controller
     {
         $pannel = Pannel::find($pannelID);
         $this->checkCookieSeason($pannel->id);
-        $url = '';
-        if (str_ends_with($pannel->admin_url, '/')) {
-            $url = "{$pannel->admin_url}{$requestAPi}";
-        } else {
-            $url = "{$pannel->admin_url}/{$requestAPi}";
-        }
+        // $url = '';
+        // if (str_ends_with($pannel->admin_url, '/')) {
+        //     $url = "{$pannel->admin_url}{$requestAPi}";
+        // } else {
+        //     $url = "{$pannel->admin_url}/{$requestAPi}";
+        // }
+        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
+
         \Log::info("url => $url");
         $cookies = [
             'session' => $pannel->cookie_session,
@@ -345,12 +349,14 @@ class HiddifyPannelController extends Controller
     {
         $pannel = Pannel::find($pannelID);
         $this->checkCookieSeason($pannel->id);
-        $url = '';
-        if (str_ends_with($pannel->admin_url, '/')) {
-            $url = "{$pannel->admin_url}{$requestAPi}";
-        } else {
-            $url = "{$pannel->admin_url}/{$requestAPi}";
-        }
+        // $url = '';
+        // if (str_ends_with($pannel->admin_url, '/')) {
+        //     $url = "{$pannel->admin_url}{$requestAPi}";
+        // } else {
+        //     $url = "{$pannel->admin_url}/{$requestAPi}";
+        // }
+        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
+
         \Log::info("url => $url");
         $cookies = [
             'session' => $pannel->cookie_session,
@@ -371,12 +377,14 @@ class HiddifyPannelController extends Controller
     {
         $pannel = Pannel::find($pannelID);
         $this->checkCookieSeason($pannel->id);
-        $url = '';
-        if (str_ends_with($pannel->admin_url, '/')) {
-            $url = "{$pannel->admin_url}{$requestAPi}";
-        } else {
-            $url = "{$pannel->admin_url}/{$requestAPi}";
-        }
+        // $url = '';
+        // if (str_ends_with($pannel->admin_url, '/')) {
+        //     $url = "{$pannel->admin_url}{$requestAPi}";
+        // } else {
+        //     $url = "{$pannel->admin_url}/{$requestAPi}";
+        // }
+        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
+
         \Log::info("url => $url");
         $cookies = [
             'session' => $pannel->cookie_session,

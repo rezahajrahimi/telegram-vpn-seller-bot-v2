@@ -363,15 +363,17 @@ class TelegramController extends Controller
                  $hiddifcCntrl = new HiddifyPannelController();
 
                 $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req);
-                // $newUUID = $pnlCntrl->createHiddifyUser("$this->chat_id-$productID", $day, $volume, $selectedPrCat->pannel_id);
-                $userPannelLink = $pnlCntrl->getHiddifyPannelLinkByPannelID($selectedPrCat->pannel_id);
+                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
-                $userSubscriptionLInk = "$userPannelLink/$newUUID/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+                // $userPannelLink = $pnlCntrl->getHiddifyPannelLinkByPannelID($selectedPrCat->pannel_id);
+                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+
+                // $userSubscriptionLInk = "$userPannelLink/$newUUID/all.txt?name=sublink-unknown&asn=unknown&mode=new";
 
                 $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
                 $text = '';
                 $text .= "خرید شما با موفقیت انجام شد\r\n";
-                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$userPannelLink/$newUUID/ \r\n";
+                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
                 $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
                 $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
 
