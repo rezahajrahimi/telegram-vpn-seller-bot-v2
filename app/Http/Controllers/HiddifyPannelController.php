@@ -28,6 +28,18 @@ class HiddifyPannelController extends Controller
         // Output the 36 character UUID.
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
+    public function getClearHiddifyRequestUrl($mainUrl,$requestAPi)
+    {
+        // get substring from end of str until /
+        $mainUrl = str_replace('/admin/', '', $mainUrl);
+        $mainUrl = str_replace('/admin', '', $mainUrl);
+        if (str_ends_with($mainUrl, '/')) {
+            $mainUrl = "{$mainUrl}{$requestAPi}";
+        } else {
+            $mainUrl = "{$mainUrl}/{$requestAPi}";
+        }
+        return $mainUrl;
+    }
     public function checkHiddifyPanelUrl(Request $request)
     {
         $pannelUrl = $request->pannelUrl;
