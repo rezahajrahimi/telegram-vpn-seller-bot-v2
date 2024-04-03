@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://83f3-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://0374-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -91,6 +91,7 @@ class TelegramController extends Controller
                     $this->forward_from_id = $request->message['reply_to_message']['forward_from']['id'] ?? 0;
                     $this->reply_text = $request->message['reply_to_message']['text'] ?? '0';
                     $this->chat_type = 'text';
+                    $this->recogniseTextMessage();
                 } elseif (isset($request->callback_query)) {
                     $this->callbackId = $request->callback_query['id'];
                     $this->data = $request->callback_query['data'];
@@ -162,8 +163,8 @@ class TelegramController extends Controller
         }
         // $opr = [[['text' => 'خرید اشتراک', 'callback_data' => 'buySubscription'], ['text' => 'سابقه خرید', 'callback_data' => 'subscriptionHistory']], [['text' => 'اطلاعات حساب', 'callback_data' => 'accountDetails'], ['text' => 'دریافت آموزش', 'callback_data' => 'learning'], ['text' => 'پشتیبانی', 'callback_data' => 'support']]];
 
-        $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
         // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        $result = app('telegram_bot')->buttonMessage("یک گزینه را انتخاب کنید.",$opr, $this->chat_id, $this->message_id);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
     }
@@ -191,9 +192,30 @@ class TelegramController extends Controller
 
                 return response()->json($result, 200);
             }
+            \Log::info("aaaaaaaaaaaaaaaa {$this->data}");
             $this->userCommandArr = explode('-', $this->data);
             $command = $this->userCommandArr[0];
             \Log::info("command recognise: $command");
+
+            return $this->userCommandArr;
+        } catch (\Throwable $th) {
+            $this->userCommandArr = ['start'];
+            \Log::info("Throwable $th");
+
+            return $this->userCommandArr;
+        }
+    }
+    public function recogniseTextMessage()
+    {
+        try {
+            if ($this->chat_type == 'image') {
+                $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
+
+                return response()->json($result, 200);
+            }
+
+            $command = $this->text;
+            \Log::info("text recognise: $command");
 
             return $this->userCommandArr;
         } catch (\Throwable $th) {
@@ -743,7 +765,6 @@ class TelegramController extends Controller
                 $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "{$selectedProduct->panel_link}");
                 $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "{$selectedProduct->subscription_link}");
 
-                // $userSubscriptionLInk = $selectedProduct->subscription_link;
                 $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
                 $text = '';
                 if ($selectedProductCategory->show_pannel_link == 1) {
@@ -752,7 +773,6 @@ class TelegramController extends Controller
                 if ($selectedProductCategory->show_subscription_link == 1) {
                     $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
                 }
-                // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
                 $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
                 $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
             } else {

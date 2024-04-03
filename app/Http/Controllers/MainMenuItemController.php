@@ -15,6 +15,14 @@ class MainMenuItemController extends Controller
     {
         return MainMenuItem::where('id',$id)->first();
     }
+    public function getMenuNameByAliasName($aliasName)
+    {
+        $data = MainMenuItem::where('alias_name',$aliasName)->first();
+        if($data != null) {
+            return data;
+        }
+        return false;
+    }
     public function getMenuIdByName($name)
     {
         return MainMenuItem::where('name',$name)->first();
