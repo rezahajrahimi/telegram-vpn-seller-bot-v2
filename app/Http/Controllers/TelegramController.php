@@ -137,7 +137,7 @@ class TelegramController extends Controller
                 $this->text = $settingCtrl->getWelcomeMessage();
                 cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
                 app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
-                $this->defaultMenu();
+                $this->stickyMenu();
             } else {
                 $channelLock = $this->checkIsChannelsMember($this->from_id);
                 if ($channelLock == true || $channelLock == 1) {
@@ -150,7 +150,7 @@ class TelegramController extends Controller
             \Log::info("Throwable:  $th");
         }
     }
-    public function defaultMenu()
+    public function stickyMenu()
     {
         $text = 'یک گزینه را انتخاب کنید.';
 
@@ -164,11 +164,8 @@ class TelegramController extends Controller
         // remove first item from menuItem list because we allreade added it to $opr
             $menuItem = $menuItem->slice(1);
         }
-        for ($i = 0; $i < count($menuItem); $i += 2) {
-            // try {
-                $co =  count($menuItem);
-        \Log::info("cooooo $co");
-
+        $countOfMenuItem =  count($menuItem);
+        for ($i = 0; $i < $countOfMenuItem; $i += 2) {
             $pair = $menuItem->slice($i, 2);
             $index = 1;
 
@@ -183,12 +180,11 @@ class TelegramController extends Controller
                 }
             }
         }
-        $co =  count($menuItem);
-        if($co % 2 == 1) {
-            $lastRowIndicator = ['text' => $menuItem[$co-1]->alias_name, 'callback_data' => "main-{$menuItem[$co-1]->id}"];
+        // because of if count of menuItem is odd we need to add last row indicator
+        if($countOfMenuItem % 2 == 1) {
+            $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem-1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem-1]->id}"];
             array_push($opr, [$firstRowIndicator]);
         }
-        \Log::info("cooooo $co");
         $result = app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
@@ -241,7 +237,7 @@ class TelegramController extends Controller
             $mainMenuCntrl = new MainMenuItemController();
             $checkIsMainMeniItem = $mainMenuCntrl->getMenuNameByAliasName($this->text);
             if ($checkIsMainMeniItem == false) {
-                $this->defaultMenu();
+                $this->stickyMenu();
                 return;
             }
             switch ($checkIsMainMeniItem->name) {
@@ -271,7 +267,7 @@ class TelegramController extends Controller
                 //     break;
 
                 default:
-                    $this->defaultMenu();
+                    $this->stickyMenu();
                     break;
             }
             // $command = $this->text;
@@ -324,12 +320,12 @@ class TelegramController extends Controller
             //     break;
 
             default:
-                $this->defaultMenu();
+                $this->stickyMenu();
                 break;
         }
         // switch ($this->currentMenuLevel) {
         //     case 0:
-        //         $this->defaultMenu();
+        //         $this->stickyMenu();
 
         //         break;
         //     case $this->buySubscriptionLevel:
@@ -338,7 +334,7 @@ class TelegramController extends Controller
         //         break;
 
         //     default:
-        //         $this->defaultMenu();
+        //         $this->stickyMenu();
         //         break;
         // }
         return;
@@ -373,7 +369,7 @@ class TelegramController extends Controller
             //     break;
 
             default:
-                $this->defaultMenu();
+                $this->stickyMenu();
                 break;
         }
         return;
