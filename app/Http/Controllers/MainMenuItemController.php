@@ -19,7 +19,7 @@ class MainMenuItemController extends Controller
     {
         $data = MainMenuItem::where('alias_name',$aliasName)->first();
         if($data != null) {
-            return data;
+            return $data;
         }
         return false;
     }

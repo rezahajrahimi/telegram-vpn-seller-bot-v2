@@ -1,11 +1,12 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://0374-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://b89b-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 class TelegramController extends Controller
 {
@@ -151,20 +152,44 @@ class TelegramController extends Controller
     }
     public function defaultMenu()
     {
-        // array_push($opr, [['text' => 'بازگشت', 'callback_data' => 'بازگشت'], ['text' => 'پشتیبانی', 'callback_data' => 'پشتیبانی']]);
         $text = 'یک گزینه را انتخاب کنید.';
 
         $menu = new MainMenuItemController();
         $menuItem = $menu->getAllActivatedMainMenuItems();
         $opr = [];
-        $index = 0;
-        foreach ($menuItem as $key => $value) {
-            array_push($opr, [['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"]]);
+        // check if there is bought subscription or not
+        // if exist set with big style on $opr
+        if ($menuItem[0]->name == "خرید اشتراک") {
+            array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
+        // remove first item from menuItem list because we allreade added it to $opr
+            $menuItem = $menuItem->slice(1);
         }
-        // $opr = [[['text' => 'خرید اشتراک', 'callback_data' => 'buySubscription'], ['text' => 'سابقه خرید', 'callback_data' => 'subscriptionHistory']], [['text' => 'اطلاعات حساب', 'callback_data' => 'accountDetails'], ['text' => 'دریافت آموزش', 'callback_data' => 'learning'], ['text' => 'پشتیبانی', 'callback_data' => 'support']]];
+        for ($i = 0; $i < count($menuItem); $i += 2) {
+            // try {
+                $co =  count($menuItem);
+        \Log::info("cooooo $co");
 
-        // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
-        $result = app('telegram_bot')->buttonMessage("یک گزینه را انتخاب کنید.",$opr, $this->chat_id, $this->message_id);
+            $pair = $menuItem->slice($i, 2);
+            $index = 1;
+
+            foreach ($pair as $key => $value) {
+                if ($index % 2 == 1) {
+                    $firstRowIndicator = ['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"];
+                    $index += 1;
+                } else if ($index % 2 == 0){
+                    array_push($opr, [$firstRowIndicator, ['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"]]);
+                    $index += 1;
+                    break;
+                }
+            }
+        }
+        $co =  count($menuItem);
+        if($co % 2 == 1) {
+            $lastRowIndicator = ['text' => $menuItem[$co-1]->alias_name, 'callback_data' => "main-{$menuItem[$co-1]->id}"];
+            array_push($opr, [$firstRowIndicator]);
+        }
+        \Log::info("cooooo $co");
+        $result = app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
     }
@@ -213,11 +238,46 @@ class TelegramController extends Controller
 
                 return response()->json($result, 200);
             }
+            $mainMenuCntrl = new MainMenuItemController();
+            $checkIsMainMeniItem = $mainMenuCntrl->getMenuNameByAliasName($this->text);
+            if ($checkIsMainMeniItem == false) {
+                $this->defaultMenu();
+                return;
+            }
+            switch ($checkIsMainMeniItem->name) {
+                case 'منوی اصلی':
+                    $this->subMainMenu();
+                    break;
+                case 'خرید اشتراک':
+                    $this->buySubscription();
+                    break;
+                // case 'addAccountBalance':
+                //     $this->addAccountBalance();
+                //     break;
+                case 'اطلاعات حساب':
+                    $this->accountDetails();
+                    break;
+                case 'سابقه خرید':
+                    $this->buyHistory();
+                    break;
+                case 'پشتیبانی':
+                    $this->supports();
+                    break;
+                case 'آموزش استفاده و سوالات متداول':
+                    $this->faqs();
+                    break;
+                // case 'addAccountBalance':
+                //     $this->subFaq();
+                //     break;
 
-            $command = $this->text;
-            \Log::info("text recognise: $command");
+                default:
+                    $this->defaultMenu();
+                    break;
+            }
+            // $command = $this->text;
+            // \Log::info("text recognise: $command");
 
-            return $this->userCommandArr;
+            // return $this->userCommandArr;
         } catch (\Throwable $th) {
             $this->userCommandArr = ['start'];
             \Log::info("Throwable $th");
