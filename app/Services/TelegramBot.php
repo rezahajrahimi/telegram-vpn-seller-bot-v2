@@ -189,7 +189,7 @@ class TelegramBot
 
         $params = [
             'chat_id' => $chat_id,
-            'reply_to_message_id' => $reply_to_message_id,
+            // 'reply_to_message_id' => $reply_to_message_id,
             'allow_sending_without_reply' => true,
             'text' => $text,
             'reply_markup' => ['keyboard' => $opr, 'resize_keyboard' => true],

@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://b89b-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://393f-104-28-225-223.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -46,7 +46,7 @@ class TelegramController extends Controller
         $buySubscriptionLevel = 1;
         $servicetypeLevel = 2;
         $productCategoryLevel = 3;
-        \Log::info($request->all());
+        // \Log::info($request->all());
         try {
             try {
                 if (isset($request->message['photo'])) {
@@ -92,7 +92,9 @@ class TelegramController extends Controller
                     $this->forward_from_id = $request->message['reply_to_message']['forward_from']['id'] ?? 0;
                     $this->reply_text = $request->message['reply_to_message']['text'] ?? '0';
                     $this->chat_type = 'text';
-                    $this->recogniseTextMessage();
+                    \Log::info('recogniseTextMessage');
+
+                    return  $this->recogniseTextMessage();
                 } elseif (isset($request->callback_query)) {
                     $this->callbackId = $request->callback_query['id'];
                     $this->data = $request->callback_query['data'];
@@ -107,8 +109,8 @@ class TelegramController extends Controller
 
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
                     $this->chat_type = 'callbacj';
-
-                    $this->recogniseMessage();
+                    \Log::info('recogniseMessage');
+                      $this->recogniseMessage();
                 }
             } catch (\Throwable $th) {
                 \Log::info("Throwable:  $th");
@@ -126,7 +128,7 @@ class TelegramController extends Controller
                     $this->last_name = $request->callback_query['from']['last_name'] ?? '';
 
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
-                    $this->recogniseMessage();
+                     $this->recogniseMessage();
                 }
             }
 
@@ -152,19 +154,17 @@ class TelegramController extends Controller
     }
     public function stickyMenu()
     {
-        $text = 'یک گزینه را انتخاب کنید.';
-
         $menu = new MainMenuItemController();
         $menuItem = $menu->getAllActivatedMainMenuItems();
         $opr = [];
         // check if there is bought subscription or not
         // if exist set with big style on $opr
-        if ($menuItem[0]->name == "خرید اشتراک") {
+        if ($menuItem[0]->name == 'خرید اشتراک') {
             array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
-        // remove first item from menuItem list because we allreade added it to $opr
+            // remove first item from menuItem list because we allreade added it to $opr
             $menuItem = $menuItem->slice(1);
         }
-        $countOfMenuItem =  count($menuItem);
+        $countOfMenuItem = count($menuItem);
         for ($i = 0; $i < $countOfMenuItem; $i += 2) {
             $pair = $menuItem->slice($i, 2);
             $index = 1;
@@ -173,7 +173,7 @@ class TelegramController extends Controller
                 if ($index % 2 == 1) {
                     $firstRowIndicator = ['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"];
                     $index += 1;
-                } else if ($index % 2 == 0){
+                } elseif ($index % 2 == 0) {
                     array_push($opr, [$firstRowIndicator, ['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"]]);
                     $index += 1;
                     break;
@@ -181,11 +181,11 @@ class TelegramController extends Controller
             }
         }
         // because of if count of menuItem is odd we need to add last row indicator
-        if($countOfMenuItem % 2 == 1) {
-            $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem-1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem-1]->id}"];
+        if ($countOfMenuItem % 2 == 1) {
+            $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem - 1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem - 1]->id}"];
             array_push($opr, [$firstRowIndicator]);
         }
-        $result = app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
+        $result = app('telegram_bot')->buttonMessage('از منوی پایین یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
     }
@@ -237,43 +237,33 @@ class TelegramController extends Controller
             $mainMenuCntrl = new MainMenuItemController();
             $checkIsMainMeniItem = $mainMenuCntrl->getMenuNameByAliasName($this->text);
             if ($checkIsMainMeniItem == false) {
-                $this->stickyMenu();
-                return;
+                return  $this->stickyMenu();
             }
             switch ($checkIsMainMeniItem->name) {
                 case 'منوی اصلی':
-                    $this->subMainMenu();
+                    return $this->subMainMenu();
                     break;
                 case 'خرید اشتراک':
-                    $this->buySubscription();
+                    return $this->buySubscription();
                     break;
-                // case 'addAccountBalance':
-                //     $this->addAccountBalance();
-                //     break;
                 case 'اطلاعات حساب':
-                    $this->accountDetails();
+                    return $this->accountDetails();
                     break;
                 case 'سابقه خرید':
-                    $this->buyHistory();
+                    return $this->buyHistory();
                     break;
                 case 'پشتیبانی':
-                    $this->supports();
+                    return $this->supports();
                     break;
                 case 'آموزش استفاده و سوالات متداول':
-                    $this->faqs();
+                    return $this->faqs();
                     break;
-                // case 'addAccountBalance':
-                //     $this->subFaq();
-                //     break;
 
                 default:
-                    $this->stickyMenu();
+                    return $this->stickyMenu();
                     break;
             }
-            // $command = $this->text;
-            // \Log::info("text recognise: $command");
-
-            // return $this->userCommandArr;
+            return;
         } catch (\Throwable $th) {
             $this->userCommandArr = ['start'];
             \Log::info("Throwable $th");
@@ -315,28 +305,12 @@ class TelegramController extends Controller
             case 'subFaq':
                 $this->subFaq();
                 break;
-            // case 'addAccountBalance':
-            //     $this->subFaq();
-            //     break;
 
             default:
                 $this->stickyMenu();
                 break;
         }
-        // switch ($this->currentMenuLevel) {
-        //     case 0:
-        //         $this->stickyMenu();
 
-        //         break;
-        //     case $this->buySubscriptionLevel:
-        //         $this->buySubscription();
-
-        //         break;
-
-        //     default:
-        //         $this->stickyMenu();
-        //         break;
-        // }
         return;
     }
     public function subMainMenu()
@@ -563,12 +537,12 @@ class TelegramController extends Controller
                     'callback_data' => 'help-applications',
                 ],
             ]);
-            array_push($opr, [
-                [
-                    'text' => 'بازگشت به منوی اصلی',
-                    'callback_data' => 'main menu',
-                ],
-            ]);
+            // array_push($opr, [
+            //     [
+            //         'text' => 'بازگشت به منوی اصلی',
+            //         'callback_data' => 'main menu',
+            //     ],
+            // ]);
             $text = 'یک گزینه را انتخاب کنید.';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
 
@@ -786,12 +760,12 @@ class TelegramController extends Controller
                     ]);
                 }
             }
-            array_push($opr, [
-                [
-                    'text' => 'بازگشت به منوی اصلی',
-                    'callback_data' => '0',
-                ],
-            ]);
+            // array_push($opr, [
+            //     [
+            //         'text' => 'بازگشت به منوی اصلی',
+            //         'callback_data' => '0',
+            //     ],
+            // ]);
             $text = 'تاریخچه خرید شما:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             $this->addNewBotLog('history', 'نمایش گزینه های تاریخچه خرید کاربر.', 'show');
@@ -893,12 +867,12 @@ class TelegramController extends Controller
                 ],
             ]);
 
-            array_push($opr, [
-                [
-                    'text' => 'بازگشت به منوی اصلی',
-                    'callback_data' => 'main menu',
-                ],
-            ]);
+            // array_push($opr, [
+            //     [
+            //         'text' => 'بازگشت به منوی اصلی',
+            //         'callback_data' => 'main menu',
+            //     ],
+            // ]);
             $text = 'یک گزینه را انتخاب کنید.';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
 
@@ -929,13 +903,13 @@ class TelegramController extends Controller
                     ]);
                 }
             }
-            array_push($opr, [
-                [
-                    'text' => 'بازگشت به منوی اصلی',
-                    'callback_data' => '0',
-                ],
-            ]);
-            $text = 'یک گزینه را انتخاب کنید.:';
+            // array_push($opr, [
+            //     [
+            //         'text' => 'بازگشت به منوی اصلی',
+            //         'callback_data' => '0',
+            //     ],
+            // ]);
+            $text = 'یک گزینه را انتخاب کنید:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             return response()->json($result, 200);
         }
@@ -969,13 +943,13 @@ class TelegramController extends Controller
                     'callback_data' => "main-{$menuItem->id}",
                 ],
             ]);
-            array_push($opr, [
-                [
-                    'text' => 'بازگشت به منوی اصلی',
-                    'callback_data' => '0',
-                ],
-            ]);
-            $text = 'یک گزینه را انتخاب کنید.:';
+            // array_push($opr, [
+            //     [
+            //         'text' => 'بازگشت به منوی اصلی',
+            //         'callback_data' => '0',
+            //     ],
+            // ]);
+            $text = 'یک گزینه را انتخاب کنید:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             return response()->json($result, 200);
         }
@@ -1002,13 +976,13 @@ class TelegramController extends Controller
                     ]);
                 }
             }
-            array_push($opr, [
-                [
-                    'text' => 'بازگشت به منوی اصلی',
-                    'callback_data' => '0',
-                ],
-            ]);
-            $text = 'یک گزینه را انتخاب کنید.:';
+            // array_push($opr, [
+            //     [
+            //         'text' => 'بازگشت به منوی اصلی',
+            //         'callback_data' => '0',
+            //     ],
+            // ]);
+            $text = 'یک گزینه را انتخاب کنید:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             return response()->json($result, 200);
         }
@@ -1042,13 +1016,13 @@ class TelegramController extends Controller
                     'callback_data' => "main-{$menuItem->id}",
                 ],
             ]);
-            array_push($opr, [
-                [
-                    'text' => 'بازگشت به منوی اصلی',
-                    'callback_data' => '0',
-                ],
-            ]);
-            $text = 'یک گزینه را انتخاب کنید.:';
+            // array_push($opr, [
+            //     [
+            //         'text' => 'بازگشت به منوی اصلی',
+            //         'callback_data' => '0',
+            //     ],
+            // ]);
+            $text = 'یک گزینه را انتخاب کنید:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             return response()->json($result, 200);
         }
