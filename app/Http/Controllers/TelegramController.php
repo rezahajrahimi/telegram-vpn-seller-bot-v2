@@ -308,7 +308,12 @@ class TelegramController extends Controller
             case 'subFaq':
                 $this->subFaq();
                 break;
-
+            case 'subAppDownload':
+                $this->subAppDownload();
+                break;
+            case 'getAppDownload':
+                $this->getAppDownload();
+                break;
             default:
                 $this->stickyMenu();
                 break;
@@ -990,7 +995,7 @@ class TelegramController extends Controller
 
         $this->deleteMessage();
         $selectedFaqID = $this->userCommandArr[1];
-        \Log::info("selectedFaqID:$selectedFaqID");
+        // \Log::info("selectedFaqID:$selectedFaqID");
         $text = '';
 
         $supportCtrl = new FaqController();
@@ -1064,7 +1069,7 @@ class TelegramController extends Controller
     public function appDownload()
     {
         $appCtrl = new ApplicationController();
-        $oses = $appCtrl->getApplicationByOS();
+        $oses = $appCtrl->getApplicationOSes();
         $opr = [];
         if ($oses != null) {
             foreach ($oses as $key => $os) {
@@ -1075,7 +1080,7 @@ class TelegramController extends Controller
                     array_push($opr, [
                         [
                             'text' => "$catName",
-                            'callback_data' => 'subAppDownload-' . $os->id,
+                            'callback_data' => 'subAppDownload-' . $os->os,
                         ],
                     ]);
 
@@ -1086,6 +1091,82 @@ class TelegramController extends Controller
 
             return response()->json($result, 200);
         }
+    }
+    public function subAppDownload()
+    {
+        $this->addNewBotLog('app', 'نمایش لیست برنامه های مورد نیاز براساس سیتم عامل انتخابی به کاربر.', 'show');
+
+        $this->deleteMessage();
+
+        $selectedOsID = $this->userCommandArr[1];
+        \Log::info("selectedOsID:$selectedOsID");
+        $appCtrl = new ApplicationController();
+        $apps = $appCtrl->getAllActiveAplicationListByOS($selectedOsID);
+
+
+        $opr = [];
+        if ($apps != null) {
+            foreach ($apps as $key => $app) {
+                    $name = $app->name;
+                    // remove charecter '-' from $catName
+                    $name = str_replace('-', ' ', $name);
+
+                    array_push($opr, [
+                        [
+                            'text' => "$name",
+                            'callback_data' => 'getAppDownload-' . $app->id,
+                        ],
+                    ]);
+
+            }
+            $text = 'یک برنامه را انتخاب کنید:';
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            $this->addNewBotLog('app', 'نمایش گزینه های دانلود برنامه بر اساس سیستم عامل.', 'show');
+
+            return response()->json($result, 200);
+        }
+    }
+    public function getAppDownload()
+    {
+        $this->addNewBotLog('app', 'نمایش لیست برنامه های مورد نیاز براساس سیتم عامل انتخابی به کاربر.', 'show');
+
+        // $this->deleteMessage();
+
+        $selectedOsID = $this->userCommandArr[1];
+        \Log::info("selectedOsID:$selectedOsID");
+        $appCtrl = new ApplicationController();
+        $app = $appCtrl->getActiveAplicationByID($selectedOsID);
+        $text = '';
+
+        if(isset($app)) {
+            $text .= "نام برنامه: $app->name \n\r";
+            $text .= "$app->description \n\r";
+            if(isset($app['download_link'])) {
+                $text .= "لینک دانلود: $app->download_link \n\r";
+            }
+            if(isset($app['file_src'])) {
+                $text .= "لینک فایل: $app->file_src \n\r";
+            }
+            if(isset($app['how_to_use'])) {
+                $text .= "چطور استفاده کنی؟: $app->how_to_use \n\r";
+            }
+            if(isset($app['youtube_link'])) {
+                $text .= "لینک یوتیوب: $app->youtube_link \n\r";
+            }
+
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+            return response()->json($resualt, 200);
+
+        }
+        $text = 'برنامه مورد نظر یافت نشد.';
+        $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+        return response()->json($resualt, 200);
+
+return response()->json($result, 200);
+
+
+
     }
 
     public function addNewBotLog($type, $message, $event)

@@ -33,13 +33,13 @@ class ApplicationController extends Controller
             $application = Application::where('is_active', true)
                 ->where('os', $os)
                 ->get();
-            return response()->json($application, 200);
+            return $application;
         } catch (\Throwable $th) {
             \Log::info("Throwable $th");
             return response()->json('Server Error', 500);
         }
     }
-    public function getApplicationByOS() {
+    public function getApplicationOSes() {
         try {
             $application = Application::select('os')
             ->where('is_active', true)
@@ -69,7 +69,7 @@ class ApplicationController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
-            return response()->json($application, 200);
+            return $application;
         } catch (\Throwable $th) {
             \Log::info("Throwable $th");
             return response()->json('Server Error', 500);
