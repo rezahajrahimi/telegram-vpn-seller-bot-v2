@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://393f-104-28-225-223.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://085a-104-28-225-223.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -257,6 +257,9 @@ class TelegramController extends Controller
                     break;
                 case 'آموزش استفاده و سوالات متداول':
                     return $this->faqs();
+                    break;
+                case 'دانلود برنامه':
+                    return $this->appDownload();
                     break;
 
                 default:
@@ -760,12 +763,6 @@ class TelegramController extends Controller
                     ]);
                 }
             }
-            // array_push($opr, [
-            //     [
-            //         'text' => 'بازگشت به منوی اصلی',
-            //         'callback_data' => '0',
-            //     ],
-            // ]);
             $text = 'تاریخچه خرید شما:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             $this->addNewBotLog('history', 'نمایش گزینه های تاریخچه خرید کاربر.', 'show');
@@ -1064,6 +1061,33 @@ class TelegramController extends Controller
         $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
         return response()->json($result, 200);
     }
+    public function appDownload()
+    {
+        $appCtrl = new ApplicationController();
+        $oses = $appCtrl->getApplicationByOS();
+        $opr = [];
+        if ($oses != null) {
+            foreach ($oses as $key => $os) {
+                    $catName = $os->os;
+                    // remove charecter '-' from $catName
+                    $catName = str_replace('-', ' ', $catName);
+
+                    array_push($opr, [
+                        [
+                            'text' => "$catName",
+                            'callback_data' => 'subAppDownload-' . $os->id,
+                        ],
+                    ]);
+
+            }
+            $text = 'سیستم عامل را انتخاب کنید:';
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+            $this->addNewBotLog('history', 'نمایش گزینه های دانلود برنامه بر اساس سیستم عامل.', 'show');
+
+            return response()->json($result, 200);
+        }
+    }
+
     public function addNewBotLog($type, $message, $event)
     {
         $logCtrl = new LogController();

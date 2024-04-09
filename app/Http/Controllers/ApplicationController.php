@@ -39,6 +39,20 @@ class ApplicationController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+    public function getApplicationByOS() {
+        try {
+            $application = Application::select('os')
+            ->where('is_active', true)
+            ->orderby('os')
+            ->distinct()
+
+            ->get();
+            return $application;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
+    }
     public function getActiveAplicationListByName($name)
     {
         try {
