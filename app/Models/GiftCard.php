@@ -14,12 +14,12 @@ class GiftCard extends Model
     {
         return $this->hasMany(UsedGiftCard::class, 'gift_cards_id', 'id');
     }
-    public function getStartDateAttribute($value)
-    {
-        return verta($value)->format('Y-m-d h:i:s');
-    }
-    public function getEndDateAttribute($value)
-    {
-        return verta($value)->format('Y-m-d h:i:s');
-    }
+    // public function getStartDateAttribute($value)
+    // {
+    //     return verta($value)->format('Y-m-d h:i:s');
+    // }
+    // public function getEndDateAttribute($value)
+    // {
+    //     return verta($value)->format('Y-m-d h:i:s');
+    // }
 }

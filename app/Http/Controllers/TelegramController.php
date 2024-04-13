@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://085a-104-28-225-223.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://79c3-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -94,7 +94,7 @@ class TelegramController extends Controller
                     $this->chat_type = 'text';
                     \Log::info('recogniseTextMessage');
 
-                    return  $this->recogniseTextMessage();
+                    return $this->recogniseTextMessage();
                 } elseif (isset($request->callback_query)) {
                     $this->callbackId = $request->callback_query['id'];
                     $this->data = $request->callback_query['data'];
@@ -110,7 +110,7 @@ class TelegramController extends Controller
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
                     $this->chat_type = 'callbacj';
                     \Log::info('recogniseMessage');
-                      $this->recogniseMessage();
+                    $this->recogniseMessage();
                 }
             } catch (\Throwable $th) {
                 \Log::info("Throwable:  $th");
@@ -128,7 +128,7 @@ class TelegramController extends Controller
                     $this->last_name = $request->callback_query['from']['last_name'] ?? '';
 
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
-                     $this->recogniseMessage();
+                    $this->recogniseMessage();
                 }
             }
 
@@ -234,10 +234,22 @@ class TelegramController extends Controller
 
                 return response()->json($result, 200);
             }
+            // check is $this->text start with giftcard-
+            // if yes return $this->subGiftCard()
+            if (str_starts_with($this->text, 'giftcard-')) {
+                \Log::info('giftcard');
+                // $this->data = $this->text;
+                // $this->recogniseMessage();
+
+                \Log::info('recogniseMessage');
+
+                return $this->subGiftCard();
+            }
+
             $mainMenuCntrl = new MainMenuItemController();
             $checkIsMainMeniItem = $mainMenuCntrl->getMenuNameByAliasName($this->text);
             if ($checkIsMainMeniItem == false) {
-                return  $this->stickyMenu();
+                return $this->stickyMenu();
             }
             switch ($checkIsMainMeniItem->name) {
                 case 'منوی اصلی':
@@ -261,11 +273,15 @@ class TelegramController extends Controller
                 case 'دانلود برنامه':
                     return $this->appDownload();
                     break;
+                case 'گیف کارت':
+                    return $this->giftCard();
+                    break;
 
                 default:
                     return $this->stickyMenu();
                     break;
             }
+
             return;
         } catch (\Throwable $th) {
             $this->userCommandArr = ['start'];
@@ -313,6 +329,9 @@ class TelegramController extends Controller
                 break;
             case 'getAppDownload':
                 $this->getAppDownload();
+                break;
+            case 'giftcard':
+                $this->subGiftCard();
                 break;
             default:
                 $this->stickyMenu();
@@ -1073,17 +1092,16 @@ class TelegramController extends Controller
         $opr = [];
         if ($oses != null) {
             foreach ($oses as $key => $os) {
-                    $catName = $os->os;
-                    // remove charecter '-' from $catName
-                    $catName = str_replace('-', ' ', $catName);
+                $catName = $os->os;
+                // remove charecter '-' from $catName
+                $catName = str_replace('-', ' ', $catName);
 
-                    array_push($opr, [
-                        [
-                            'text' => "$catName",
-                            'callback_data' => 'subAppDownload-' . $os->os,
-                        ],
-                    ]);
-
+                array_push($opr, [
+                    [
+                        'text' => "$catName",
+                        'callback_data' => 'subAppDownload-' . $os->os,
+                    ],
+                ]);
             }
             $text = 'سیستم عامل را انتخاب کنید:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
@@ -1103,21 +1121,19 @@ class TelegramController extends Controller
         $appCtrl = new ApplicationController();
         $apps = $appCtrl->getAllActiveAplicationListByOS($selectedOsID);
 
-
         $opr = [];
         if ($apps != null) {
             foreach ($apps as $key => $app) {
-                    $name = $app->name;
-                    // remove charecter '-' from $catName
-                    $name = str_replace('-', ' ', $name);
+                $name = $app->name;
+                // remove charecter '-' from $catName
+                $name = str_replace('-', ' ', $name);
 
-                    array_push($opr, [
-                        [
-                            'text' => "$name",
-                            'callback_data' => 'getAppDownload-' . $app->id,
-                        ],
-                    ]);
-
+                array_push($opr, [
+                    [
+                        'text' => "$name",
+                        'callback_data' => 'getAppDownload-' . $app->id,
+                    ],
+                ]);
             }
             $text = 'یک برنامه را انتخاب کنید:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
@@ -1138,37 +1154,86 @@ class TelegramController extends Controller
         $app = $appCtrl->getActiveAplicationByID($selectedOsID);
         $text = '';
 
-        if(isset($app)) {
+        if (isset($app)) {
             $text .= "نام برنامه: $app->name \n\r";
             $text .= "$app->description \n\r";
-            if(isset($app['download_link'])) {
+            if (isset($app['download_link'])) {
                 $text .= "لینک دانلود: $app->download_link \n\r";
             }
-            if(isset($app['file_src'])) {
+            if (isset($app['file_src'])) {
                 $text .= "لینک فایل: $app->file_src \n\r";
             }
-            if(isset($app['how_to_use'])) {
+            if (isset($app['how_to_use'])) {
                 $text .= "چطور استفاده کنی؟: $app->how_to_use \n\r";
             }
-            if(isset($app['youtube_link'])) {
+            if (isset($app['youtube_link'])) {
                 $text .= "لینک یوتیوب: $app->youtube_link \n\r";
             }
 
             $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
             return response()->json($resualt, 200);
-
         }
         $text = 'برنامه مورد نظر یافت نشد.';
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
         return response()->json($resualt, 200);
 
-return response()->json($result, 200);
+        return response()->json($result, 200);
+    }
+    public function giftCard()
+    {
+        $giftMenuCntrl = new GiftCardMenuItemController();
+        $mainText = $giftMenuCntrl->getGiftCardMainMenuTitle();
+        $text = '';
+        $text .= "{$mainText->alias_name} \n\r";
+        $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+    }
+    public function subGiftCard()
+    {
+        $insertedGift = $this->text;
+        \Log::info("imported gift code :$insertedGift");
 
+        $giftMenuCntrl = new GiftCardMenuItemController();
 
+        // check validation of inserted gift code
+        $giftCntrl = new GiftCardController();
+        $gift = $giftCntrl->getGiftCardByCode($insertedGift);
+
+        if ($gift == null) {
+            $text = 'کد وارد شده معتبر نمی باشد.';
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+            return response()->json($resualt, 200);
+        }
+
+        // check how many time user used it and eligable to use it again
+
+        $usedGiftCntrl = new UsedGiftCardController();
+        $userUsedItemCount = $usedGiftCntrl->getCountOfUsePerUser($gift->id, $this->chat_id);
+
+        if ($userUsedItemCount >= $gift->count_of_use_per_user) {
+            $text = "${$giftMenuCntrl->getgetGiftCardExpiredMenuTitle()} \n\r";
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+            return response()->json($resualt, 200);
+        }
+
+        $reualt = $usedGiftCntrl->addGiftCardToUserAccount($gift->id, $this->chat_id, $insertedGift);
+
+        if ($reualt) {
+            $text = '';
+
+            $text .= "{$giftMenuCntrl->getGiftCardAcceptedMenuTitle()} \n\r";
+            $text .= "مبلغ $gift->discount تومان به حساب شما افزوده شد. \n\r";
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+            return response()->json($resualt, 200);
+
+        }
+        $text = '';
+        $text = "${$giftMenuCntrl->getgetGiftCardExpiredMenuTitle()} \n\r";
+
+        $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+        return response()->json($resualt, 200);
 
     }
-
     public function addNewBotLog($type, $message, $event)
     {
         $logCtrl = new LogController();

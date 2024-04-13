@@ -32,7 +32,6 @@ class GiftCardController extends Controller
     }
     public function updateGiftCard(Request $request)
     {
-
         $giftCard = GiftCard::where('code', $request->code)->first();
         if ($giftCard) {
             $giftCard->code = $request->code;
@@ -50,16 +49,28 @@ class GiftCardController extends Controller
     public function checkGiftCardActive($code, $usedCount)
     {
         $giftCard = GiftCard::where('code', $code)->first();
+
         if ($giftCard) {
-            $today = date('Y-m-d H:i:s');
-            if ($giftCard->start_date <= $today && $giftCard->end_date >= $today) {
+            $today = new \DateTime(); // Today's date
+            $giftCardDateBegin = new \DateTime($giftCard->start_date);
+            $giftCardDateEnd = new \DateTime($giftCard->end_date);
+
+            if ($today >= $giftCardDateBegin && $today <= $giftCardDateEnd) {
                 if ($giftCard->count_of_use >= $usedCount) {
                     return true;
                 }
-            } else {
+
                 return false;
             }
+
+            return false;
         }
+
+        return false;
+    }
+    public function getGiftCardByCode($code)
+    {
+        return GiftCard::where('code', $code)->first();
     }
     public function getGifcardDiscount($code)
     {
@@ -114,7 +125,6 @@ class GiftCardController extends Controller
                 $car->month = $newDat[1];
                 $car->day = $newDat[2];
                 return $car;
-
             } else {
                 return null;
             }

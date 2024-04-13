@@ -31,6 +31,18 @@ class GiftCardMenuItemController extends Controller
             return $payment;
         }
     }
+    public function getGiftCardAcceptedMenuTitle()
+    {
+        $data = GiftCardMenuItem::where('name', 'accepted')->first();
+            return $data->alias_name;
+
+    }
+    public function getGiftCardExpiredMenuTitle()
+    {
+        $data = GiftCardMenuItem::where('name', 'expired')->first();
+            return $data->alias_name;
+
+    }
     public function getAllGiftCardMenues()
     {
         $data = GiftCardMenuItem::first();
