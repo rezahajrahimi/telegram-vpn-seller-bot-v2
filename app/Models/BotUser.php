@@ -42,9 +42,7 @@ class BotUser extends Model
    public function logs()
    {
        return $this->hasMany(Log::class, 'account_id', 'account_id')
-       ->orderBy('id', 'desc')
-
-       ;
+       ->orderBy('id', 'desc');
    }
 
 }
