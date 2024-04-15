@@ -3,63 +3,29 @@
 namespace App\Http\Controllers;
 
 use App\Models\TestAccount;
+use App\Models\Pannel;
 use Illuminate\Http\Request;
 
 class TestAccountController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+    public function getTestAccountDetails(){
+        try {
+            // return first row of TestAccount or create new TestAccount
+            $data = TestAccount::first();
+            if($data != null){
+                return $data;
+            }
+            $pannelID = Pannel::first()->id;
+            $testAccount =new TestAccount();
+            $testAccount->pannel_id = $pannelID;
+            $testAccount->expire_day=30;
+            $testAccount->volume=0.5;
+            $testAccount->save();
+            return $testAccount;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(TestAccount $testAccount)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(TestAccount $testAccount)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, TestAccount $testAccount)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(TestAccount $testAccount)
-    {
-        //
+        } catch (\Throwable $th) {
+            \Log::error("Throwable $th");
+            return null;
+        }
     }
 }

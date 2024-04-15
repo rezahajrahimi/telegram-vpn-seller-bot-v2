@@ -24,6 +24,7 @@ use App\Http\Controllers\AccountBallanceController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\GeneralController;
 use App\Http\Controllers\HiddifyPannelController;
+use App\Http\Controllers\TestAccountController;
 
 
 use Illuminate\Http\Request;
@@ -224,3 +225,7 @@ Route::get('getActiveAplicationByID/{id}', [ApplicationController::class, 'getAc
 Route::post('createNewApplication', [ApplicationController::class, 'createNewApplication']);
 Route::post('updateApplication', [ApplicationController::class, 'updateApplication']);
 Route::delete('deleteApplication/{id}', [ApplicationController::class, 'deleteApplication']);
+
+//  TestAccountController
+Route::get('getTestAccountDetails', [TestAccountController::class, 'getTestAccountDetails']);
+
