@@ -9,21 +9,13 @@ class UsedGiftCardController extends Controller
 {
     public function addGiftCardToUserAccount($giftCardsId, $account_id, $code)
     {
-        // $check = UsedGiftCard::where('code', $code)
-        //     ->where('account_id', $account_id)
-        //     ->first();
 
-        // if ($check) {
-        //     return false;
-        // } else {
         $totalUsedCount = UsedGiftCard::where('gift_cards_id', $giftCardsId)
             ->count();
 
         $giftController = new GiftCardController();
         \Log::info("totalUsedCount :$totalUsedCount");
 
-        // $isValid = ;
-        // \Log::info("isValid :$isValid");
         if ($giftController->checkGiftCardActive($code, $totalUsedCount)) {
             $giftCard = new UsedGiftCard();
             $giftCard->gift_cards_id = $giftCardsId;
@@ -35,7 +27,6 @@ class UsedGiftCardController extends Controller
         }
         return false;
 
-        // }
     }
     public function getCountOfUsePerUser($giftCardsId, $account_id)
     {

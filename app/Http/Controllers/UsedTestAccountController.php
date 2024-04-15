@@ -7,59 +7,26 @@ use Illuminate\Http\Request;
 
 class UsedTestAccountController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function newTestAccount($account_id, $test_account_id)
     {
-        //
+        if (!$this->checkUserHasTestAccount($account_id, $test_account_id)) {
+            $testAccount = new UsedTestAccount();
+            $testAccount->account_id = $account_id;
+            $testAccount->test_account_id = $test_account_id;
+            $testAccount->save();
+            return true;
+        }
+        return false;
     }
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function checkUserHasTestAccount($account_id, $test_account_id)
     {
-        //
+        if ($this->getCountOfUsePerUser($test_account_id, $account_id) >= 1) {
+            return true;
+        }
+        return false;
     }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function getCountOfUsePerUser($test_account_id, $account_id)
     {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(UsedTestAccount $usedTestAccount)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(UsedTestAccount $usedTestAccount)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, UsedTestAccount $usedTestAccount)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(UsedTestAccount $usedTestAccount)
-    {
-        //
+        return UsedGiftCard::where('test_account_id', $test_account_id)->where('account_id', $account_id)->count();
     }
 }
