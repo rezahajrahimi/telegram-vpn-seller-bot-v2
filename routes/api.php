@@ -228,4 +228,5 @@ Route::delete('deleteApplication/{id}', [ApplicationController::class, 'deleteAp
 
 //  TestAccountController
 Route::get('getTestAccountDetails', [TestAccountController::class, 'getTestAccountDetails']);
+Route::post('updateTestAccountDetails', [TestAccountController::class, 'updateTestAccountDetails']);
 
