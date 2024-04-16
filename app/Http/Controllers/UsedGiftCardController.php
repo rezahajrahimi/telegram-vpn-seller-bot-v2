@@ -12,7 +12,6 @@ class UsedGiftCardController extends Controller
 
         $totalUsedCount = UsedGiftCard::where('gift_cards_id', $giftCardsId)
             ->count();
-
         $giftController = new GiftCardController();
         \Log::info("totalUsedCount :$totalUsedCount");
 

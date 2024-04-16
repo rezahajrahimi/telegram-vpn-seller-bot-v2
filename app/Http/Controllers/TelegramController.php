@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://f5c2-104-28-225-223.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://900a-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -776,6 +776,7 @@ class TelegramController extends Controller
             foreach ($histories as $key => $history) {
                 if ($history['product_category'] != null) {
                     $catName = $history->product_category->category_name;
+                    $catName .= ' | ' . $history->remark;
                     // remove charecter '-' from $catName
                     $catName = str_replace('-', ' ', $catName);
 
