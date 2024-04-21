@@ -268,7 +268,8 @@ class HiddifyPannelController extends Controller
         $comment = $request->comment ?? '';
         $params = [
             'uuid' => "$uuid",
-            'name' => "bot$accountId",
+            'name' => "asdasdsa",
+            // 'name' => "bot$accountId",
             'current_usage_GB' => 0,
             'usage_limit_GB' => $vol,
             'package_days' => $day,
@@ -349,12 +350,6 @@ class HiddifyPannelController extends Controller
     {
         $pannel = Pannel::find($pannelID);
         $this->checkCookieSeason($pannel->id);
-        // $url = '';
-        // if (str_ends_with($pannel->admin_url, '/')) {
-        //     $url = "{$pannel->admin_url}{$requestAPi}";
-        // } else {
-        //     $url = "{$pannel->admin_url}/{$requestAPi}";
-        // }
         $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
 
         \Log::info("url => $url");
@@ -363,12 +358,15 @@ class HiddifyPannelController extends Controller
         ];
 
         $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->put($url, $params);
+        \Log::info("message1 => {$subsequentResponse->getBody()}");
+
         if ($subsequentResponse->getStatusCode() == 200) {
             $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
             if ($checkIsHtmlPage !== false) {
                 return response()->json(false, 401);
             }
             // dd($subsequentResponse);
+            \Log::info("message => {$subsequentResponse->getBody()}");
             return json_decode($subsequentResponse->getBody(), true);
         }
         return response()->json(false, 401);

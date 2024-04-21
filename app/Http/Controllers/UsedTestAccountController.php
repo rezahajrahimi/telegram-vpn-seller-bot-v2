@@ -21,12 +21,14 @@ class UsedTestAccountController extends Controller
     public function checkUserHasTestAccount($account_id, $test_account_id)
     {
         if ($this->getCountOfUsePerUser($test_account_id, $account_id) >= 1) {
+            \Log::info("aaaaaaaaaa");
             return true;
         }
         return false;
     }
     public function getCountOfUsePerUser($test_account_id, $account_id)
     {
-        return UsedGiftCard::where('test_account_id', $test_account_id)->where('account_id', $account_id)->count();
+        $data = UsedTestAccount::where('test_account_id', $test_account_id)->where('account_id', $account_id)->count();
+        return $data;
     }
 }

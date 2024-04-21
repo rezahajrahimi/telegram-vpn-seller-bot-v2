@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://900a-104-28-193-223.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://c74d-104-28-225-223.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -275,6 +275,9 @@ class TelegramController extends Controller
                     break;
                 case 'گیف کارت':
                     return $this->giftCard();
+                    break;
+                case 'اکانت آزمایشی':
+                    return $this->testAccount();
                     break;
 
                 default:
@@ -1226,14 +1229,151 @@ class TelegramController extends Controller
             $text .= "مبلغ $gift->discount تومان به حساب شما افزوده شد. \n\r";
             $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
             return response()->json($resualt, 200);
-
         }
         $text = '';
         $text = "${$giftMenuCntrl->getgetGiftCardExpiredMenuTitle()} \n\r";
 
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
         return response()->json($resualt, 200);
+    }
+    public function testAccount()
+    {
+        $testAccountCntrl = new TestAccountController();
+        $testAccount = $testAccountCntrl->getTestAccountDetails();
+        $usedTestAccountCntrl = new UsedTestAccountController();
+        $pnlCntrl = new PannelController();
+        $pannel = $pnlCntrl->getPannelById($testAccount->pannel_id);
 
+        $text = '';
+        if ($usedTestAccountCntrl->checkUserHasTestAccount($this->chat_id, $testAccount->id)) {
+            $text .= "اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.  \n\r";
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+            return response()->json($resualt, 200);
+        }
+        // get test product id
+
+        $prCat = new ProductCategoryController();
+        $selectedPrCat = $prCat->getProdctCategoryByCategoryName("اکانت آزمایشی");
+
+
+
+        $text .= "اکانت آزمایشی شما با موفقیت فعال شد. \n\r";
+
+        $text .= "تاریخ انقضای اکانت آزمایشی : $testAccount->expire_day روز \n\r";
+        $text .= "میزان امتیاز اکانت آزمایشی : $testAccount->volume \n\r";
+
+        $text .= "شما می توانید از این اکانت آزمایشی استفاده کنید. \n\r";
+
+
+        $prCntrl = new ProductController();
+
+        $pnlCntrl = new PannelController();
+            $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
+            // get selected item specefic data
+            $day = $selectedPrCat->expire_day;
+            $volume = $selectedPrCat->volume;
+
+
+
+            if ($pannel->type == 'hiddify') {
+                $req = new Request();
+                $req->accountId = "$this->chat_id-اکانت_آزمایشی";
+                $req->pannelID = $selectedPrCat->pannel_id;
+                $req->vol = $volume;
+                $req->day = $day;
+                \Log::info("vol $volume day $day");
+                $hiddifcCntrl = new HiddifyPannelController();
+
+                $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req);
+
+                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
+
+                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+
+
+                $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+                if ($selectedPrCat->show_pannel_link == 1) {
+                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
+                }
+                $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+                $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
+
+                $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+                // save as dectivate product, So we can use it in future when user want to recharge it;
+                $request = new Request();
+                $request->account_id = $this->chat_id;
+                $request->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+                $request->product_categories_id = $selectedPrCat->id;
+                $request->panel_link = "/{$newUUID}/#{$req->accountId}";
+                $request->configs = '';
+                $request->remark =  "$this->chat_id-اکانت_آزمایشی";
+
+                $prCntrl->addAutomatedProductDetails($request);
+            } elseif ($pannel->type == 'marzban') {
+                $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id اکانت_آزمایشی", $day, $volume, $selectedPrCat->pannel_id);
+                $userSub = $userData['subscription_link'];
+                $links = $userData['links'];
+
+                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$userSub \r\n";
+                $text .= "کانفیگهای شما: \r\n";
+                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+                foreach ($links as $key => $link) {
+                    $image = $pnlCntrl->generateQrMOC($link);
+
+                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
+
+                    // $text .= "$link \r\n";
+                }
+                // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+                $text = "جهت نیاز به راهنمایی بر روی یکی از این گزینه ها کلیک کنید. \r\n";
+                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+                // save as dectivate product, So we can use it in future when user want to recharge it;
+                $request = new Request();
+                $request->account_id = $this->chat_id;
+                $request->subscription_link = '';
+                $request->product_categories_id = $selectedPrCat->id;
+                $request->panel_link = $userSub;
+                // convert links arrey to string
+                $links = json_encode($links);
+
+                $request->configs = $links;
+                $request->remark = "BotUser$this->chat_id اکانت_آزمایشی";
+
+                $prCntrl->addAutomatedProductDetails($request);
+            }
+
+
+
+
+
+
+
+
+        $this->addNewBotLog('account', 'اکانت تست فعال شد', 'test-account');
+
+        $opr = [];
+        array_push($opr, [
+            [
+                'text' => 'آموزش استفاده',
+                'callback_data' => 'help-subscription',
+            ],
+        ]);
+        array_push($opr, [
+            [
+                'text' => 'برنامه های مورد نیاز',
+                'callback_data' => 'help-applications',
+            ],
+        ]);
+        $text = 'یک گزینه را انتخاب کنید.';
+        $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+
+        return response()->json($result, 200);
+
+        $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+        return response()->json($resualt, 200);
     }
     public function addNewBotLog($type, $message, $event)
     {

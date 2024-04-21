@@ -17,6 +17,11 @@ class ProductCategoryController extends Controller
     {
         return ProductCategory::where('id', $id)->first();
     }
+    public function getProdctCategoryByCategoryName($categoryName)
+    {
+        return ProductCategory::where('category_name', $categoryName)->first();
+
+    }
     public function getAllProdctCategoryOrderByPrice()
     {
         return ProductCategory::orderBy('price')->get();
@@ -71,6 +76,27 @@ class ProductCategoryController extends Controller
             }
         } catch (\Throwable $th) {
             return response()->json(false, 500);
+        }
+    }
+    public function editProductCategoryByName(Request $request)
+    {
+        try {
+            $data = ProductCategory::where('category_name', $request->category_name)->first();
+            $data->price = $request->price;
+            $data->expire_day = $request->expire_day;
+            $data->volume = $request->volume;
+            $data->rechargable = $request->rechargable;
+            $data->show_subscription_link = $request->show_subscription_link;
+            $data->show_pannel_link = $request->show_pannel_link;
+            $data->is_active = $request->is_active;
+
+            if ($data->update()) {
+                return true;
+            } else {
+                return false;
+            }
+        } catch (\Throwable $th) {
+            return false;
         }
     }
 
