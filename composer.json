@@ -13,6 +13,7 @@
         "laravel/sanctum": "^3.2",
         "laravel/tinker": "^2.8",
         "pishran/zarinpal": "^4.3",
+        "prevailexcel/laravel-nowpayments": "^1.0",
         "shetabit/payment": "^5.4",
         "simplesoftwareio/simple-qrcode": "^4.2"
     },

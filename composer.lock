@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "28278b093bb070f8322f58465d41c4fb",
+    "content-hash": "e6a2dd3a403d335aa407c229acc3b5f1",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -2792,6 +2792,74 @@
                 "source": "https://github.com/pishran/Zarinpal/tree/v4.3.3"
             },
             "time": "2023-02-03T00:45:53+00:00"
+        },
+        {
+            "name": "prevailexcel/laravel-nowpayments",
+            "version": "1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/PrevailExcel/laravel-nowpayments.git",
+                "reference": "814630d97b0deef66c9f26e456e1d2d3b7ce788d"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/PrevailExcel/laravel-nowpayments/zipball/814630d97b0deef66c9f26e456e1d2d3b7ce788d",
+                "reference": "814630d97b0deef66c9f26e456e1d2d3b7ce788d",
+                "shasum": ""
+            },
+            "require": {
+                "guzzlehttp/guzzle": "^7.0.1"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "PrevailExcel\\Nowpayments\\NowpaymentsServiceProvider"
+                    ],
+                    "aliases": {
+                        "Nowpayments": "PrevailExcel\\Nowpayments\\Facades\\Nowpayments"
+                    }
+                }
+            },
+            "autoload": {
+                "files": [
+                    "utils/helpers/nowpayments.php"
+                ],
+                "psr-4": {
+                    "PrevailExcel\\Nowpayments\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "PrevailExcel",
+                    "email": "prevailexcellent@gmail.com"
+                }
+            ],
+            "description": "A Laravel Package for NOWPayments",
+            "keywords": [
+                "crypto",
+                "crypto payments",
+                "github",
+                "laravel",
+                "laravel 6",
+                "laravel 7",
+                "laravel 8",
+                "laravel 9",
+                "nowpayments",
+                "open source",
+                "payments",
+                "php",
+                "subscription"
+            ],
+            "support": {
+                "issues": "https://github.com/PrevailExcel/laravel-nowpayments/issues",
+                "source": "https://github.com/PrevailExcel/laravel-nowpayments/tree/1.0.2"
+            },
+            "time": "2024-01-08T12:59:14+00:00"
         },
         {
             "name": "psr/clock",
