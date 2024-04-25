@@ -22,10 +22,9 @@ Route::get('buy/{account_id}/{invoiceID}/{price}', function ($account_id, $invoi
     return view('shop', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
 });
 
-
-
 // Laravel 8 & 9
-Route::post('/pay', [App\Http\Controllers\PaymentController::class, 'createCryptoPayment'])->name('pay');
+Route::get('/pay', [App\Http\Controllers\NowPaymentsController::class, 'createCryptoInvoice'])->name('pay');
+// Route::post('/pay', [App\Http\Controllers\NowPaymentsController::class, 'createCryptoPayment'])->name('pay');
 
 Route::get('order', function (Request $request) {
     return redirect()->action([TransactionController::class, 'order'], ['transaction_id' => $request->Authority, 'status' => $request->Status]);
