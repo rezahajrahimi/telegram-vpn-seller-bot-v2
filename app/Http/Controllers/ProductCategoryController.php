@@ -9,9 +9,7 @@ class ProductCategoryController extends Controller
 {
     public function getAllProdctCategory()
     {
-        return ProductCategory::with('pannel')
-            ->orderBy('created_at')
-            ->get();
+        return ProductCategory::with('pannel')->orderBy('created_at')->get();
     }
     public function getProdctCategoryNameByID($id)
     {
@@ -20,7 +18,6 @@ class ProductCategoryController extends Controller
     public function getProdctCategoryByCategoryName($categoryName)
     {
         return ProductCategory::where('category_name', $categoryName)->first();
-
     }
     public function getAllProdctCategoryOrderByPrice()
     {
@@ -28,9 +25,7 @@ class ProductCategoryController extends Controller
     }
     public function getProdctPannelID($name, $pannel_id)
     {
-        $data = ProductCategory::where('pannel_id', $pannel_id)
-            ->where('category_name', $name)
-            ->first();
+        $data = ProductCategory::where('pannel_id', $pannel_id)->where('category_name', $name)->first();
         if ($data != null) {
             return $data->id;
         } else {
@@ -48,6 +43,11 @@ class ProductCategoryController extends Controller
         $data->rechargable = $request->rechargable;
         $data->show_subscription_link = $request->show_subscription_link;
         $data->show_pannel_link = $request->show_pannel_link;
+        if ($request->price_in_dollar != null && $request->price_in_dollar >= 1) {
+            $data->price_in_dollar = $request->price_in_dollar;
+        } else {
+            $data->price_in_dollar = 0.0;
+        }
         $data->is_active = true;
         if ($data->save()) {
             return $this->getAllProdctCategory();
@@ -68,6 +68,11 @@ class ProductCategoryController extends Controller
             $data->show_subscription_link = $request->show_subscription_link;
             $data->show_pannel_link = $request->show_pannel_link;
             $data->is_active = $request->is_active;
+            if ($request->price_in_dollar != null && $request->price_in_dollar >= 1) {
+                $data->price_in_dollar = $request->price_in_dollar;
+            } else {
+                $data->price_in_dollar = 0.0;
+            }
 
             if ($data->update()) {
                 return response()->json($this->getAllProdctCategory(), 200);
@@ -102,9 +107,7 @@ class ProductCategoryController extends Controller
 
     public function getProdctPrice($name, $servicetypeID)
     {
-        $data = ProductCategory::where('pannel_id', $pannel_id)
-            ->where('category_name', $name)
-            ->first();
+        $data = ProductCategory::where('pannel_id', $pannel_id)->where('category_name', $name)->first();
         if ($data != null) {
             return $data->price;
         } else {
@@ -142,13 +145,7 @@ class ProductCategoryController extends Controller
     public function mostSelledProductCategory($count)
     {
         try {
-            $data = ProductCategory::where('is_active', true)
-                ->leftJoin('products', 'products.product_categories_id', '=', 'product_categories.id')
-                ->groupBy('product_categories.category_name')
-                ->select('product_categories.category_name', \DB::raw('count(*) as count'))
-                ->orderBy('count', 'desc')
-                ->take($count)
-                ->get();
+            $data = ProductCategory::where('is_active', true)->leftJoin('products', 'products.product_categories_id', '=', 'product_categories.id')->groupBy('product_categories.category_name')->select('product_categories.category_name', \DB::raw('count(*) as count'))->orderBy('count', 'desc')->take($count)->get();
             if ($data != null) {
                 return $data;
             } else {
