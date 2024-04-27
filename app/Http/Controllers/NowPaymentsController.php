@@ -14,9 +14,9 @@ class NowPaymentsController extends Controller
     {
         try {
             $data = [
-                'price_amount' => 1000,
+                'price_amount' => 10,
                 'price_currency' => 'usd',
-                'order_id' => 'RGDBP-21314',
+                'order_id' => uniqid(),
                 'order_description' => 'Apple Macbook Pro 2019 x 1',
                 'ipn_callback_url' => 'https://nowpayments.io',
                 'success_url' => 'https://nowpayments.io',
@@ -32,7 +32,7 @@ class NowPaymentsController extends Controller
             // Now you have the payment details,
             // you can then redirect or do whatever you want
 
-            return Redirect::back()->with(['msg' => 'Payment created successfully', 'type' => 'success'], $paymentDetails);
+            return Redirect::back()->with(['msg' => 'Payment created successfully', 'type' => 'success'], $paymentDetails['invoice_url']);
         } catch (\Exception $e) {
             \Log::info("Exception $e");
             return Redirect::back()->withMessage(['msg' => "There's an error in the data", 'type' => 'error']);
