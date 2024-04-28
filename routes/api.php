@@ -113,6 +113,7 @@ Route::post('updatePaymentMenuAlisNameByLevel', [PaymentMenuItemController::clas
 
 // TransactionController && online payment
 
+Route::get('/changeNovaPaymentData', [TransactionController::class, 'changeNovaPaymentData']);
 Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/getConfirmedTransactions/{count?}', [TransactionController::class, 'getConfirmedTransactions']);
 Route::get('/getUnConfirmedTransactions/{count?}', [TransactionController::class, 'getUnConfirmedTransactions']);

@@ -15,7 +15,12 @@ class TransactionController extends Controller
 {
     public $account_id;
     public $amount;
+    public function changeNovaPaymentData(){
+        config::set('nowpayments.apiKey',"KING REZA");
+        $value = config('nowpayments.liveUrl');
+        return $value;
 
+    }
     public function add_order(Request $request)
     {
         $pymntCntrrl = new PaymentTypeController();
