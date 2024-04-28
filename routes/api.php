@@ -1,4 +1,5 @@
 <?php
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ServiceTypeController;
@@ -26,7 +27,6 @@ use App\Http\Controllers\GeneralController;
 use App\Http\Controllers\HiddifyPannelController;
 use App\Http\Controllers\TestAccountController;
 
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +40,23 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login']);
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
+Route::post('/logout', [AuthController::class, 'logout']);
+
+// //public route
+// Route::post('/auth/login', [AuthController::class, 'login']);
+// //protected route
+// Route::group(['middleware' => ['auth:sanctum']], function () {
+//     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('restrictRole:admin');
+//     Route::get('/users', [PostController::class, 'show'])->middleware('restrictRole:admin');
+//     Route::put('/users/{id}', [PostController::class, 'update'])->middleware('restrictRole:agent');
+// });
+
+
 Route::prefix('telegram/webhooks')->group(function () {
     // Route::post('inbound',function(Request $request){
     //     \Log::info($request->all());
@@ -53,7 +70,6 @@ Route::prefix('telegram/webhooks')->group(function () {
 Route::get('getUserOrder/{userID}', [OrderController::class, 'getUserOrder']);
 Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
 
-
 // GeneralController
 Route::get('getDashboardAnalytics', [GeneralController::class, 'getDashboardAnalytics']);
 
@@ -66,8 +82,6 @@ Route::post('editProductCategory', [ProductCategoryController::class, 'editProdu
 Route::get('reActiveProductCategory/{id}', [ProductCategoryController::class, 'reActiveProductCategory']);
 Route::get('deActiveProductCategory/{id}', [ProductCategoryController::class, 'deActiveProductCategory']);
 
-
-
 //ProductController
 Route::get('getActiveProductsByProductCatID/{selectedProductCatID}', [ProductController::class, 'getActiveProductsByProductCatID']);
 Route::post('addNewProductDetails', [ProductController::class, 'addNewProductDetails']);
@@ -75,7 +89,6 @@ Route::get('deleteProduct/{id}', [ProductController::class, 'deleteProduct']);
 Route::get('getLastBuyersByCatIdAndCount/{id}/{count}', [ProductController::class, 'getLastBuyersByCatIdAndCount']);
 Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
 Route::get('deleteProductByProductID/{id}', [ProductController::class, 'deleteProductByProductID']);
-
 
 //Settings
 Route::get('getBotSetting', [SettingController::class, 'getBotSetting']);
@@ -110,7 +123,6 @@ Route::get('getPaymentTypeMainMenuTitle', [PaymentMenuItemController::class, 'ge
 Route::get('getAllPaymentTypeMenues', [PaymentMenuItemController::class, 'getAllPaymentTypeMenues']);
 Route::post('updatePaymentMenuAlisNameByLevel', [PaymentMenuItemController::class, 'updatePaymentMenuAlisNameByLevel']);
 
-
 // TransactionController && online payment
 
 Route::get('/changeNovaPaymentData', [TransactionController::class, 'changeNovaPaymentData']);
@@ -119,8 +131,6 @@ Route::get('/getConfirmedTransactions/{count?}', [TransactionController::class, 
 Route::get('/getUnConfirmedTransactions/{count?}', [TransactionController::class, 'getUnConfirmedTransactions']);
 Route::get('/removeUnconfirmedTransaction/{id}', [TransactionController::class, 'removeUnconfirmedTransaction']);
 Route::post('/editUserTranaction', [TransactionController::class, 'editUserTranaction']);
-
-
 
 // GiftCard menu
 Route::get('getGiftCardMainMenuTitle', [GiftCardMenuItemController::class, 'getGiftCardMainMenuTitle']);
@@ -132,8 +142,6 @@ Route::post('createNewGiftCard', [GiftCardController::class, 'createNewGiftCard'
 Route::post('updateGiftCard', [GiftCardController::class, 'updateGiftCard']);
 Route::get('deleteGiftCardByCode/{code}', [GiftCardController::class, 'deleteGiftCardByCode']);
 Route::get('getGiftCardList', [GiftCardController::class, 'getGiftCardList']);
-
-
 
 // support
 Route::get('getSupporstList', [SupportController::class, 'getSupporstList']);
@@ -148,7 +156,6 @@ Route::post('updateFac', [FaqController::class, 'updateFac']);
 Route::get('deleteFacById/{id}', [FaqController::class, 'deleteFacById']);
 Route::get('getFacById/{id}', [FaqController::class, 'getFacById']);
 Route::get('getFaqList', [FaqController::class, 'getFaqList']);
-
 
 // channel lock menu
 Route::get('getChannelLockMainMenuTitle', [ChannelLockMenuItemController::class, 'getChannelLockMainMenuTitle']);
@@ -174,7 +181,6 @@ Route::get('getPannelById/{id}', [PannelController::class, 'getPannelById']);
 Route::get('getPannelByIdWithProxiesInbounds/{id}', [PannelController::class, 'getPannelByIdWithProxiesInbounds']);
 Route::get('createMarzbanUser/{accountId}/{day}/{vol}/{pannelID}', [PannelController::class, 'createMarzbanUser']);
 
-
 // Hiddify Panel
 
 Route::post('checkHiddifyPanelUrl', [HiddifyPannelController::class, 'checkHiddifyPanelUrl']);
@@ -185,7 +191,6 @@ Route::post('updateUserOfHiddifyPanel', [HiddifyPannelController::class, 'update
 Route::get('deleteUserOfHiddifyPanel/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'deleteUserOfHiddifyPanel']);
 Route::get('getHiddifyPanelUsersByPannelID/{pannelID}', [HiddifyPannelController::class, 'getHiddifyPanelUsersByPannelID']);
 Route::get('getHiddifyPanelUserByPannelID/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'getHiddifyPanelUserByPannelID']);
-
 
 //  Proxy
 Route::post('addNewProxy', [ProxyController::class, 'addNewProxy']);
@@ -208,14 +213,11 @@ Route::get('getBotUserList', [BotUserController::class, 'getBotUserList']);
 Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
 Route::get('getLast10Users', [BotUserController::class, 'getLast10Users']);
 
-
 // Log
 Route::get('getAllLogs/{count}', [LogController::class, 'getAllLogs']);
 
-
 //  Account
 Route::post('setNewAccountBallance', [AccountBallanceController::class, 'setNewAccountBallance']);
-
 
 // Application
 Route::get('getAllAplicationList', [ApplicationController::class, 'getAllAplicationList']);
@@ -230,4 +232,3 @@ Route::delete('deleteApplication/{id}', [ApplicationController::class, 'deleteAp
 //  TestAccountController
 Route::get('getTestAccountDetails', [TestAccountController::class, 'getTestAccountDetails']);
 Route::post('updateTestAccountDetails', [TestAccountController::class, 'updateTestAccountDetails']);
-
