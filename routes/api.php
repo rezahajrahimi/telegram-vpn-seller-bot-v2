@@ -40,6 +40,12 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+
+Route::prefix('telegram/webhooks')->group(function () {
+
+    Route::post('inbound', [TelegramController::class, 'inbound'])->name('telegram.inbound');
+});
+
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout']);
@@ -48,6 +54,8 @@ Route::post('/forgetPassword', [AuthController::class, 'forgetPassword']);
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+Route::group(['middleware' => ['auth:sanctum','restrictRole:admin']], function () {
+
 
 // //public route
 // Route::post('/auth/login', [AuthController::class, 'login']);
@@ -59,13 +67,6 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // });
 
 
-Route::prefix('telegram/webhooks')->group(function () {
-    // Route::post('inbound',function(Request $request){
-    //     \Log::info($request->all());
-    // });
-
-    Route::post('inbound', [TelegramController::class, 'inbound'])->name('telegram.inbound');
-});
 // Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 //     return $request->user();
 // });
@@ -234,3 +235,4 @@ Route::delete('deleteApplication/{id}', [ApplicationController::class, 'deleteAp
 //  TestAccountController
 Route::get('getTestAccountDetails', [TestAccountController::class, 'getTestAccountDetails']);
 Route::post('updateTestAccountDetails', [TestAccountController::class, 'updateTestAccountDetails']);
+});
