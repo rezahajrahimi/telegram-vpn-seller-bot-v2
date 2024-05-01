@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ServiceTypeController;
@@ -42,7 +43,6 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('telegram/webhooks')->group(function () {
-
     Route::post('inbound', [TelegramController::class, 'inbound'])->name('telegram.inbound');
 });
 
@@ -54,185 +54,180 @@ Route::post('/forgetPassword', [AuthController::class, 'forgetPassword']);
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-Route::group(['middleware' => ['auth:sanctum','restrictRole:admin']], function () {
+
+// Admin Routes
+Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function () {
+    Route::get('getUserOrder/{userID}', [OrderController::class, 'getUserOrder']);
+    Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
 
 
-// //public route
-// Route::post('/auth/login', [AuthController::class, 'login']);
-// //protected route
-// Route::group(['middleware' => ['auth:sanctum']], function () {
-//     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('restrictRole:admin');
-//     Route::get('/users', [PostController::class, 'show'])->middleware('restrictRole:admin');
-//     Route::put('/users/{id}', [PostController::class, 'update'])->middleware('restrictRole:agent');
-// });
+    // UserController
+    Route::get('getUsers', [UserController::class, 'getUsers']);
+    Route::get('getUserById/{id}', [UserController::class, 'getUserById']);
+    Route::post('createUser', [UserController::class, 'createUser']);
+    Route::patch('updateUser', [UserController::class, 'updateUser']);
+    Route::delete('deleteUser', [UserController::class, 'deleteUser']);
 
+    // GeneralController
+    Route::get('getDashboardAnalytics', [GeneralController::class, 'getDashboardAnalytics']);
 
-// Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-//     return $request->user();
-// });
-Route::get('getUserOrder/{userID}', [OrderController::class, 'getUserOrder']);
-Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
+    //  ProductCategory
+    Route::get('getAllProdctCategory', [ProductCategoryController::class, 'getAllProdctCategory']);
+    Route::get('getProdctPrice', [ProductCategoryController::class, 'getProdctPrice']);
+    Route::get('getProdctPannelID/{name}/pannelID', [ProductCategoryController::class, 'getProdctPannelID']);
+    Route::post('addNewProductCategory', [ProductCategoryController::class, 'addNewProductCategory']);
+    Route::post('editProductCategory', [ProductCategoryController::class, 'editProductCategory']);
+    Route::get('reActiveProductCategory/{id}', [ProductCategoryController::class, 'reActiveProductCategory']);
+    Route::get('deActiveProductCategory/{id}', [ProductCategoryController::class, 'deActiveProductCategory']);
 
-// GeneralController
-Route::get('getDashboardAnalytics', [GeneralController::class, 'getDashboardAnalytics']);
+    //ProductController
+    Route::get('getActiveProductsByProductCatID/{selectedProductCatID}', [ProductController::class, 'getActiveProductsByProductCatID']);
+    Route::post('addNewProductDetails', [ProductController::class, 'addNewProductDetails']);
+    Route::get('deleteProduct/{id}', [ProductController::class, 'deleteProduct']);
+    Route::get('getLastBuyersByCatIdAndCount/{id}/{count}', [ProductController::class, 'getLastBuyersByCatIdAndCount']);
+    Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
+    Route::get('deleteProductByProductID/{id}', [ProductController::class, 'deleteProductByProductID']);
 
-//  ProductCategory
-Route::get('getAllProdctCategory', [ProductCategoryController::class, 'getAllProdctCategory']);
-Route::get('getProdctPrice', [ProductCategoryController::class, 'getProdctPrice']);
-Route::get('getProdctPannelID/{name}/pannelID', [ProductCategoryController::class, 'getProdctPannelID']);
-Route::post('addNewProductCategory', [ProductCategoryController::class, 'addNewProductCategory']);
-Route::post('editProductCategory', [ProductCategoryController::class, 'editProductCategory']);
-Route::get('reActiveProductCategory/{id}', [ProductCategoryController::class, 'reActiveProductCategory']);
-Route::get('deActiveProductCategory/{id}', [ProductCategoryController::class, 'deActiveProductCategory']);
+    //Settings
+    Route::get('getBotSetting', [SettingController::class, 'getBotSetting']);
+    Route::get('getBotToken', [SettingController::class, 'getBotToken']);
+    Route::post('updateBotSetting', [SettingController::class, 'updateBotSetting']);
 
-//ProductController
-Route::get('getActiveProductsByProductCatID/{selectedProductCatID}', [ProductController::class, 'getActiveProductsByProductCatID']);
-Route::post('addNewProductDetails', [ProductController::class, 'addNewProductDetails']);
-Route::get('deleteProduct/{id}', [ProductController::class, 'deleteProduct']);
-Route::get('getLastBuyersByCatIdAndCount/{id}/{count}', [ProductController::class, 'getLastBuyersByCatIdAndCount']);
-Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
-Route::get('deleteProductByProductID/{id}', [ProductController::class, 'deleteProductByProductID']);
+    // menu items
+    Route::get('getAllMainMenuItems', [MainMenuItemController::class, 'getAllMainMenuItems']);
+    Route::get('getAllActivatedMainMenuItems', [MainMenuItemController::class, 'getAllActivatedMainMenuItems']);
+    Route::get('deActiveMainMenuItem/{name}', [MainMenuItemController::class, 'deActiveMainMenuItem']);
+    Route::get('reActiveMainMenuItem/{name}', [MainMenuItemController::class, 'reActiveMainMenuItem']);
+    Route::post('changeMainMenuAliasName', [MainMenuItemController::class, 'changeMainMenuAliasName']);
+    Route::post('changeMainMenuPosition', [MainMenuItemController::class, 'changeMainMenuPosition']);
 
-//Settings
-Route::get('getBotSetting', [SettingController::class, 'getBotSetting']);
-Route::get('getBotToken', [SettingController::class, 'getBotToken']);
-Route::post('updateBotSetting', [SettingController::class, 'updateBotSetting']);
+    // payment type
+    Route::get('getPaymentTypes', [PaymentTypeController::class, 'getPaymentTypes']);
+    Route::get('getAllActiveOfflinePaymentTypes', [PaymentTypeController::class, 'getAllActiveOfflinePaymentTypes']);
+    Route::get('getPaymentAddressByPaymentName/{name}', [PaymentTypeController::class, 'getPaymentAddressByPaymentName']);
+    Route::get('isPaymentType/{name}', [PaymentTypeController::class, 'isPaymentType']);
+    Route::get('getAllOnlinePayments', [PaymentTypeController::class, 'getAllOnlinePayments']);
+    Route::get('getAllOfflinePayments', [PaymentTypeController::class, 'getAllOfflinePayments']);
+    Route::get('getZarinpalPaymentDetails', [PaymentTypeController::class, 'getZarinpalPaymentDetails']);
+    Route::post('createNewPaymentType', [PaymentTypeController::class, 'createNewPaymentType']);
+    Route::get('getAllActivePaymentTypes', [PaymentTypeController::class, 'getAllActivePaymentTypes']);
+    Route::get('deActivePaymentType/{name}', [PaymentTypeController::class, 'deActivePaymentType']);
+    Route::get('reActivePaymentType/{name}', [PaymentTypeController::class, 'reActivePaymentType']);
+    Route::get('removePaymentType/{name}', [PaymentTypeController::class, 'removePaymentType']);
+    Route::post('chanegeMerChantIdByPaymentTypeName', [PaymentTypeController::class, 'chanegeMerChantIdByPaymentTypeName']);
 
-// menu items
-Route::get('getAllMainMenuItems', [MainMenuItemController::class, 'getAllMainMenuItems']);
-Route::get('getAllActivatedMainMenuItems', [MainMenuItemController::class, 'getAllActivatedMainMenuItems']);
-Route::get('deActiveMainMenuItem/{name}', [MainMenuItemController::class, 'deActiveMainMenuItem']);
-Route::get('reActiveMainMenuItem/{name}', [MainMenuItemController::class, 'reActiveMainMenuItem']);
-Route::post('changeMainMenuAliasName', [MainMenuItemController::class, 'changeMainMenuAliasName']);
-Route::post('changeMainMenuPosition', [MainMenuItemController::class, 'changeMainMenuPosition']);
+    // paymenyt type menu
+    Route::get('getPaymentTypeMainMenuTitle', [PaymentMenuItemController::class, 'getPaymentTypeMainMenuTitle']);
+    Route::get('getAllPaymentTypeMenues', [PaymentMenuItemController::class, 'getAllPaymentTypeMenues']);
+    Route::post('updatePaymentMenuAlisNameByLevel', [PaymentMenuItemController::class, 'updatePaymentMenuAlisNameByLevel']);
 
-// payment type
-Route::get('getPaymentTypes', [PaymentTypeController::class, 'getPaymentTypes']);
-Route::get('getAllActiveOfflinePaymentTypes', [PaymentTypeController::class, 'getAllActiveOfflinePaymentTypes']);
-Route::get('getPaymentAddressByPaymentName/{name}', [PaymentTypeController::class, 'getPaymentAddressByPaymentName']);
-Route::get('isPaymentType/{name}', [PaymentTypeController::class, 'isPaymentType']);
-Route::get('getAllOnlinePayments', [PaymentTypeController::class, 'getAllOnlinePayments']);
-Route::get('getAllOfflinePayments', [PaymentTypeController::class, 'getAllOfflinePayments']);
-Route::get('getZarinpalPaymentDetails', [PaymentTypeController::class, 'getZarinpalPaymentDetails']);
-Route::post('createNewPaymentType', [PaymentTypeController::class, 'createNewPaymentType']);
-Route::get('getAllActivePaymentTypes', [PaymentTypeController::class, 'getAllActivePaymentTypes']);
-Route::get('deActivePaymentType/{name}', [PaymentTypeController::class, 'deActivePaymentType']);
-Route::get('reActivePaymentType/{name}', [PaymentTypeController::class, 'reActivePaymentType']);
-Route::get('removePaymentType/{name}', [PaymentTypeController::class, 'removePaymentType']);
-Route::post('chanegeMerChantIdByPaymentTypeName', [PaymentTypeController::class, 'chanegeMerChantIdByPaymentTypeName']);
+    // TransactionController && online payment
 
-// paymenyt type menu
-Route::get('getPaymentTypeMainMenuTitle', [PaymentMenuItemController::class, 'getPaymentTypeMainMenuTitle']);
-Route::get('getAllPaymentTypeMenues', [PaymentMenuItemController::class, 'getAllPaymentTypeMenues']);
-Route::post('updatePaymentMenuAlisNameByLevel', [PaymentMenuItemController::class, 'updatePaymentMenuAlisNameByLevel']);
+    Route::get('/changeNovaPaymentData', [TransactionController::class, 'changeNovaPaymentData']);
+    Route::get('/order', [TransactionController::class, 'order']);
+    Route::get('/getConfirmedTransactions/{count?}', [TransactionController::class, 'getConfirmedTransactions']);
+    Route::get('/getUnConfirmedTransactions/{count?}', [TransactionController::class, 'getUnConfirmedTransactions']);
+    Route::get('/removeUnconfirmedTransaction/{id}', [TransactionController::class, 'removeUnconfirmedTransaction']);
+    Route::post('/editUserTranaction', [TransactionController::class, 'editUserTranaction']);
 
-// TransactionController && online payment
+    // GiftCard menu
+    Route::get('getGiftCardMainMenuTitle', [GiftCardMenuItemController::class, 'getGiftCardMainMenuTitle']);
+    Route::get('getAllGiftCardMenues', [GiftCardMenuItemController::class, 'getAllGiftCardMenues']);
+    Route::post('updateGiftCardMenuAlisNameByLevel', [GiftCardMenuItemController::class, 'updateGiftCardMenuAlisNameByLevel']);
 
-Route::get('/changeNovaPaymentData', [TransactionController::class, 'changeNovaPaymentData']);
-Route::get('/order', [TransactionController::class, 'order']);
-Route::get('/getConfirmedTransactions/{count?}', [TransactionController::class, 'getConfirmedTransactions']);
-Route::get('/getUnConfirmedTransactions/{count?}', [TransactionController::class, 'getUnConfirmedTransactions']);
-Route::get('/removeUnconfirmedTransaction/{id}', [TransactionController::class, 'removeUnconfirmedTransaction']);
-Route::post('/editUserTranaction', [TransactionController::class, 'editUserTranaction']);
+    // GiftCard
+    Route::post('createNewGiftCard', [GiftCardController::class, 'createNewGiftCard']);
+    Route::post('updateGiftCard', [GiftCardController::class, 'updateGiftCard']);
+    Route::get('deleteGiftCardByCode/{code}', [GiftCardController::class, 'deleteGiftCardByCode']);
+    Route::get('getGiftCardList', [GiftCardController::class, 'getGiftCardList']);
 
-// GiftCard menu
-Route::get('getGiftCardMainMenuTitle', [GiftCardMenuItemController::class, 'getGiftCardMainMenuTitle']);
-Route::get('getAllGiftCardMenues', [GiftCardMenuItemController::class, 'getAllGiftCardMenues']);
-Route::post('updateGiftCardMenuAlisNameByLevel', [GiftCardMenuItemController::class, 'updateGiftCardMenuAlisNameByLevel']);
+    // support
+    Route::get('getSupporstList', [SupportController::class, 'getSupporstList']);
+    Route::get('getSupportById/{id}', [SupportController::class, 'getSupportById']);
+    Route::get('deleteSupportById/{id}', [SupportController::class, 'deleteSupportById']);
+    Route::post('createNewSupport', [SupportController::class, 'createNewSupport']);
+    Route::post('updateSupportById', [SupportController::class, 'updateSupportById']);
 
-// GiftCard
-Route::post('createNewGiftCard', [GiftCardController::class, 'createNewGiftCard']);
-Route::post('updateGiftCard', [GiftCardController::class, 'updateGiftCard']);
-Route::get('deleteGiftCardByCode/{code}', [GiftCardController::class, 'deleteGiftCardByCode']);
-Route::get('getGiftCardList', [GiftCardController::class, 'getGiftCardList']);
+    //Faq
+    Route::post('createNewFac', [FaqController::class, 'createNewFac']);
+    Route::post('updateFac', [FaqController::class, 'updateFac']);
+    Route::get('deleteFacById/{id}', [FaqController::class, 'deleteFacById']);
+    Route::get('getFacById/{id}', [FaqController::class, 'getFacById']);
+    Route::get('getFaqList', [FaqController::class, 'getFaqList']);
 
-// support
-Route::get('getSupporstList', [SupportController::class, 'getSupporstList']);
-Route::get('getSupportById/{id}', [SupportController::class, 'getSupportById']);
-Route::get('deleteSupportById/{id}', [SupportController::class, 'deleteSupportById']);
-Route::post('createNewSupport', [SupportController::class, 'createNewSupport']);
-Route::post('updateSupportById', [SupportController::class, 'updateSupportById']);
+    // channel lock menu
+    Route::get('getChannelLockMainMenuTitle', [ChannelLockMenuItemController::class, 'getChannelLockMainMenuTitle']);
+    Route::post('updateChannelLockMenuAlisNameByLevel', [ChannelLockMenuItemController::class, 'updateChannelLockMenuAlisNameByLevel']);
 
-//Faq
-Route::post('createNewFac', [FaqController::class, 'createNewFac']);
-Route::post('updateFac', [FaqController::class, 'updateFac']);
-Route::get('deleteFacById/{id}', [FaqController::class, 'deleteFacById']);
-Route::get('getFacById/{id}', [FaqController::class, 'getFacById']);
-Route::get('getFaqList', [FaqController::class, 'getFaqList']);
+    // channel lock menu
+    Route::post('createNewChannelLock', [ChannelLockController::class, 'createNewChannelLock']);
+    Route::post('editChannelLock', [ChannelLockController::class, 'editChannelLock']);
+    Route::get('deActiveChannelLockByID/{id}', [ChannelLockController::class, 'deActiveChannelLockByID']);
+    Route::get('reActiveChannelLockByID/{id}', [ChannelLockController::class, 'reActiveChannelLockByID']);
+    Route::get('deleteChannelLockByID/{id}', [ChannelLockController::class, 'deleteChannelLockByID']);
+    Route::get('getAllChannelLock', [ChannelLockController::class, 'getAllChannelLock']);
+    Route::get('getAllActiveChannelLock', [ChannelLockController::class, 'getAllActiveChannelLock']);
 
-// channel lock menu
-Route::get('getChannelLockMainMenuTitle', [ChannelLockMenuItemController::class, 'getChannelLockMainMenuTitle']);
-Route::post('updateChannelLockMenuAlisNameByLevel', [ChannelLockMenuItemController::class, 'updateChannelLockMenuAlisNameByLevel']);
+    // Pannel
+    Route::post('addNewPannel', [PannelController::class, 'addNewPannel']);
+    Route::post('addNewPannelMarzban', [PannelController::class, 'addNewPannelMarzban']);
+    Route::post('editMarzbanPannel', [PannelController::class, 'editMarzbanPannel']);
+    Route::post('updatePannel', [PannelController::class, 'updatePannel']);
+    Route::get('deletePannel/{id}', [PannelController::class, 'deletePannel']);
+    Route::get('getPannels', [PannelController::class, 'getPannels']);
+    Route::get('getPannelById/{id}', [PannelController::class, 'getPannelById']);
+    Route::get('getPannelByIdWithProxiesInbounds/{id}', [PannelController::class, 'getPannelByIdWithProxiesInbounds']);
+    Route::get('createMarzbanUser/{accountId}/{day}/{vol}/{pannelID}', [PannelController::class, 'createMarzbanUser']);
 
-// channel lock menu
-Route::post('createNewChannelLock', [ChannelLockController::class, 'createNewChannelLock']);
-Route::post('editChannelLock', [ChannelLockController::class, 'editChannelLock']);
-Route::get('deActiveChannelLockByID/{id}', [ChannelLockController::class, 'deActiveChannelLockByID']);
-Route::get('reActiveChannelLockByID/{id}', [ChannelLockController::class, 'reActiveChannelLockByID']);
-Route::get('deleteChannelLockByID/{id}', [ChannelLockController::class, 'deleteChannelLockByID']);
-Route::get('getAllChannelLock', [ChannelLockController::class, 'getAllChannelLock']);
-Route::get('getAllActiveChannelLock', [ChannelLockController::class, 'getAllActiveChannelLock']);
+    // Hiddify Panel
 
-// Pannel
-Route::post('addNewPannel', [PannelController::class, 'addNewPannel']);
-Route::post('addNewPannelMarzban', [PannelController::class, 'addNewPannelMarzban']);
-Route::post('editMarzbanPannel', [PannelController::class, 'editMarzbanPannel']);
-Route::post('updatePannel', [PannelController::class, 'updatePannel']);
-Route::get('deletePannel/{id}', [PannelController::class, 'deletePannel']);
-Route::get('getPannels', [PannelController::class, 'getPannels']);
-Route::get('getPannelById/{id}', [PannelController::class, 'getPannelById']);
-Route::get('getPannelByIdWithProxiesInbounds/{id}', [PannelController::class, 'getPannelByIdWithProxiesInbounds']);
-Route::get('createMarzbanUser/{accountId}/{day}/{vol}/{pannelID}', [PannelController::class, 'createMarzbanUser']);
+    Route::post('checkHiddifyPanelUrl', [HiddifyPannelController::class, 'checkHiddifyPanelUrl']);
+    Route::post('addHiddifyPannel', [HiddifyPannelController::class, 'addHiddifyPannel']);
+    Route::post('updateHiddifyPannel', [HiddifyPannelController::class, 'updateHiddifyPannel']);
+    Route::post('addUserToHiddifyPanel', [HiddifyPannelController::class, 'addUserToHiddifyPanel']);
+    Route::post('updateUserOfHiddifyPanel', [HiddifyPannelController::class, 'updateUserOfHiddifyPanel']);
+    Route::get('deleteUserOfHiddifyPanel/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'deleteUserOfHiddifyPanel']);
+    Route::get('getHiddifyPanelUsersByPannelID/{pannelID}', [HiddifyPannelController::class, 'getHiddifyPanelUsersByPannelID']);
+    Route::get('getHiddifyPanelUserByPannelID/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'getHiddifyPanelUserByPannelID']);
 
-// Hiddify Panel
+    //  Proxy
+    Route::post('addNewProxy', [ProxyController::class, 'addNewProxy']);
+    Route::post('updateProxy', [ProxyController::class, 'updateProxy']);
+    Route::get('deleteProxy/{id}', [ProxyController::class, 'deleteProxy']);
+    Route::get('reActiveProxy/{id}', [ProxyController::class, 'reActiveProxy']);
+    Route::get('deActiveProxy/{id}', [ProxyController::class, 'deActiveProxy']);
+    Route::get('getActiveProxiesByPannelID/{pannelID}', [ProxyController::class, 'getActiveProxiesByPannelID']);
+    Route::get('getProxiesByPannelID/{pannelID}', [ProxyController::class, 'getProxiesByPannelID']);
 
-Route::post('checkHiddifyPanelUrl', [HiddifyPannelController::class, 'checkHiddifyPanelUrl']);
-Route::post('addHiddifyPannel', [HiddifyPannelController::class, 'addHiddifyPannel']);
-Route::post('updateHiddifyPannel', [HiddifyPannelController::class, 'updateHiddifyPannel']);
-Route::post('addUserToHiddifyPanel', [HiddifyPannelController::class, 'addUserToHiddifyPanel']);
-Route::post('updateUserOfHiddifyPanel', [HiddifyPannelController::class, 'updateUserOfHiddifyPanel']);
-Route::get('deleteUserOfHiddifyPanel/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'deleteUserOfHiddifyPanel']);
-Route::get('getHiddifyPanelUsersByPannelID/{pannelID}', [HiddifyPannelController::class, 'getHiddifyPanelUsersByPannelID']);
-Route::get('getHiddifyPanelUserByPannelID/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'getHiddifyPanelUserByPannelID']);
+    //  Inbound
+    Route::post('addInbound', [InboundController::class, 'addInbound']);
+    Route::post('updateInbound', [InboundController::class, 'updateInbound']);
+    Route::get('deleteInbound/{id}', [InboundController::class, 'deleteInbound']);
+    Route::get('reActiveInbound/{id}', [InboundController::class, 'reActiveInbound']);
+    Route::get('deActiveInbound/{id}', [InboundController::class, 'deActiveInbound']);
 
-//  Proxy
-Route::post('addNewProxy', [ProxyController::class, 'addNewProxy']);
-Route::post('updateProxy', [ProxyController::class, 'updateProxy']);
-Route::get('deleteProxy/{id}', [ProxyController::class, 'deleteProxy']);
-Route::get('reActiveProxy/{id}', [ProxyController::class, 'reActiveProxy']);
-Route::get('deActiveProxy/{id}', [ProxyController::class, 'deActiveProxy']);
-Route::get('getActiveProxiesByPannelID/{pannelID}', [ProxyController::class, 'getActiveProxiesByPannelID']);
-Route::get('getProxiesByPannelID/{pannelID}', [ProxyController::class, 'getProxiesByPannelID']);
+    //  BotUser
+    Route::get('getBotUserList', [BotUserController::class, 'getBotUserList']);
+    Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
+    Route::get('getLast10Users', [BotUserController::class, 'getLast10Users']);
 
-//  Inbound
-Route::post('addInbound', [InboundController::class, 'addInbound']);
-Route::post('updateInbound', [InboundController::class, 'updateInbound']);
-Route::get('deleteInbound/{id}', [InboundController::class, 'deleteInbound']);
-Route::get('reActiveInbound/{id}', [InboundController::class, 'reActiveInbound']);
-Route::get('deActiveInbound/{id}', [InboundController::class, 'deActiveInbound']);
+    // Log
+    Route::get('getAllLogs/{count}', [LogController::class, 'getAllLogs']);
 
-//  BotUser
-Route::get('getBotUserList', [BotUserController::class, 'getBotUserList']);
-Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
-Route::get('getLast10Users', [BotUserController::class, 'getLast10Users']);
+    //  Account
+    Route::post('setNewAccountBallance', [AccountBallanceController::class, 'setNewAccountBallance']);
 
-// Log
-Route::get('getAllLogs/{count}', [LogController::class, 'getAllLogs']);
+    // Application
+    Route::get('getAllAplicationList', [ApplicationController::class, 'getAllAplicationList']);
+    Route::get('getAllActiveAplicationList', [ApplicationController::class, 'getAllActiveAplicationList']);
+    Route::get('getAllActiveAplicationListByOS/{os}', [ApplicationController::class, 'getAllActiveAplicationListByOS']);
+    Route::get('getActiveAplicationByName/{name}', [ApplicationController::class, 'getActiveAplicationListByName']);
+    Route::get('getActiveAplicationByID/{id}', [ApplicationController::class, 'getActiveAplicationListByID']);
+    Route::post('createNewApplication', [ApplicationController::class, 'createNewApplication']);
+    Route::post('updateApplication', [ApplicationController::class, 'updateApplication']);
+    Route::delete('deleteApplication/{id}', [ApplicationController::class, 'deleteApplication']);
 
-//  Account
-Route::post('setNewAccountBallance', [AccountBallanceController::class, 'setNewAccountBallance']);
-
-// Application
-Route::get('getAllAplicationList', [ApplicationController::class, 'getAllAplicationList']);
-Route::get('getAllActiveAplicationList', [ApplicationController::class, 'getAllActiveAplicationList']);
-Route::get('getAllActiveAplicationListByOS/{os}', [ApplicationController::class, 'getAllActiveAplicationListByOS']);
-Route::get('getActiveAplicationByName/{name}', [ApplicationController::class, 'getActiveAplicationListByName']);
-Route::get('getActiveAplicationByID/{id}', [ApplicationController::class, 'getActiveAplicationListByID']);
-Route::post('createNewApplication', [ApplicationController::class, 'createNewApplication']);
-Route::post('updateApplication', [ApplicationController::class, 'updateApplication']);
-Route::delete('deleteApplication/{id}', [ApplicationController::class, 'deleteApplication']);
-
-//  TestAccountController
-Route::get('getTestAccountDetails', [TestAccountController::class, 'getTestAccountDetails']);
-Route::post('updateTestAccountDetails', [TestAccountController::class, 'updateTestAccountDetails']);
+    //  TestAccountController
+    Route::get('getTestAccountDetails', [TestAccountController::class, 'getTestAccountDetails']);
+    Route::post('updateTestAccountDetails', [TestAccountController::class, 'updateTestAccountDetails']);
 });
