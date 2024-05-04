@@ -55,7 +55,10 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::where('account_id', $request->account_id)->first();
+        $user = User::where('account_id', $request->account_id)
+                   ->orWhere('name', $request->account_id)
+
+        ->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([

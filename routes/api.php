@@ -65,7 +65,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getUsers', [UserController::class, 'getUsers']);
     Route::get('getUserById/{id}', [UserController::class, 'getUserById']);
     Route::post('createUser', [UserController::class, 'createUser']);
-    Route::patch('updateUser', [UserController::class, 'updateUser']);
+    Route::put('updateUser', [UserController::class, 'updateUser']);
     Route::delete('deleteUser', [UserController::class, 'deleteUser']);
 
     // GeneralController

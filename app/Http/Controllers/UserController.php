@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\ValidationException;
 class UserController extends Controller
 {
     public function getUsers()
@@ -47,6 +49,9 @@ class UserController extends Controller
     }
     public function updateUser(Request $request)
     {
+        try {
+            //code..
+
         $request->validate([
             'name' => 'required|string|max:255',
             'account_id' => 'required|max:8',
@@ -71,6 +76,8 @@ class UserController extends Controller
             'message' => 'User updated successfully',
             'user' => $user,
         ], 200);
+    } catch (\Throwable $th) {
+\Log::info("Throwable $th");        }
     }
 
     public function deleteUser(Request $request)
