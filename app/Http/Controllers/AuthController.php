@@ -24,7 +24,7 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:users',
             'account_id' => 'required|max:8|unique:users',
             'password' => 'required|string|min:8',
             'role' => 'required|string',
@@ -51,7 +51,7 @@ class AuthController extends Controller
         $this->createFirstAdminUser();
 
         $request->validate([
-            'account_id' => 'required|max:8',
+            'account_id' => 'required|max:255', // it's also can be name
             'password' => 'required|string',
         ]);
 
