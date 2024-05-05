@@ -10,7 +10,7 @@ class Bill extends Model
 {
     use HasFactory;
     protected $guarded = ['id'];
-    protected $fillable = ['account_id', 'bill_id','amount'];
+    protected $fillable = ['account_id', 'bill_id','amount','amount_dollar'];
     public function getCreatedAtAttribute($value)
     {
         return verta(verta($value))->formatDifference();
