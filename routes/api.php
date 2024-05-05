@@ -27,6 +27,7 @@ use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\GeneralController;
 use App\Http\Controllers\HiddifyPannelController;
 use App\Http\Controllers\TestAccountController;
+use App\Http\Controllers\BillController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -230,4 +231,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     //  TestAccountController
     Route::get('getTestAccountDetails', [TestAccountController::class, 'getTestAccountDetails']);
     Route::post('updateTestAccountDetails', [TestAccountController::class, 'updateTestAccountDetails']);
+
+
+
 });
+
+Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);

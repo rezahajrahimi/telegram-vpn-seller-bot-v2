@@ -16,24 +16,28 @@ class BillController extends Controller
             return true;
         }
     }
-    function generateBillId()
-    {
-        // get last record
 
-        $data = Bill::get()->last();
-        if($data == null) {
-            return 1000000000;
-        } else {
-            return $data->bill_id + 1;
-        }
-    }
 
     public function createNewBill(Request $request)
     {
         $bill = new Bill();
         $bill->account_id = $request->account_id;
-        $bill->bill_id = $this->generateBillId();
+        $bill->bill_id = abs(crc32(uniqid()));
         $bill->amount = $request->amount;
+        $bill->amount_dollar = 0.0;
+        if ($bill->save()) {
+            return $bill;
+        } else {
+            return null;
+        }
+    }
+    public function createNewBillInDollar(Request $request)
+    {
+        $bill = new Bill();
+        $bill->account_id = $request->account_id;
+        $bill->bill_id = abs(crc32(uniqid()));
+        $bill->amount = 0;
+        $bill->amount_dollar = $request->amount;
         if ($bill->save()) {
             return $bill;
         } else {
@@ -48,7 +52,6 @@ class BillController extends Controller
         if ($data != null) {
             return $data->amount;
         } else {
-
             return null;
         }
     }
