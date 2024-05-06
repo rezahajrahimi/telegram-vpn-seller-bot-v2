@@ -28,11 +28,13 @@ class NowPaymentsController extends Controller
 
             $paymentDetails = Nowpayments::createInvoice($data);
 
-            dd($paymentDetails);
+            // dd($paymentDetails);
             // Now you have the payment details,
             // you can then redirect or do whatever you want
 
-            return Redirect::back()->with(['msg' => 'Payment created successfully', 'type' => 'success'], $paymentDetails['invoice_url']);
+            // return Redirect::back()->with(['msg' => 'Payment created successfully', 'type' => 'success'], $paymentDetails['invoice_url']);
+            return redirect()->to($paymentDetails['invoice_url']);
+            // return Redirect::back()->with($paymentDetails['invoice_url']);
         } catch (\Exception $e) {
             \Log::info("Exception $e");
             return Redirect::back()->withMessage(['msg' => "There's an error in the data", 'type' => 'error']);

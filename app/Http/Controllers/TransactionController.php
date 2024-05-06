@@ -15,6 +15,7 @@ class TransactionController extends Controller
 {
     public $account_id;
     public $amount;
+    public $amount_dollar;
     public function changeNovaPaymentData(){
         config::set('nowpayments.apiKey',"KING REZA");
         $value = config('nowpayments.liveUrl');
@@ -22,6 +23,36 @@ class TransactionController extends Controller
 
     }
     public function add_order(Request $request)
+    {
+        $pymntCntrrl = new PaymentTypeController();
+
+        \Log::info($request->all());
+        \Log::info($request->invoiceID);
+
+        config::set('payment.drivers.zarinpal.merchantId', $pymntCntrrl->getZarinpalMerchantID());
+
+        $value = config('payment.drivers.zarinpal.merchantId');
+        //get amount from bill
+        $bill = new BillController();
+        $this->amount = $bill->getBillAmountByBillId($request->invoiceID);
+        \Log::info("aaaaaa  $this->amount");
+        $this->account_id = $request->account_id;
+        if ($this->amount != null) {
+            // Create new invoice.
+            $invoice = (new Invoice())->amount($this->amount);
+            return Payment::purchase($invoice, function ($driver, $transactionId) {
+                $pymntCntrrl = new PaymentTypeController();
+
+                $zarinPalId = $pymntCntrrl->getZarinpalTableID();
+                $this->addUserTranaction($this->account_id, $this->amount, $transactionId, $zarinPalId);
+            })
+                ->pay()
+                ->render();
+        } else {
+            return 'این صورتحساب موجود نمی باشد.';
+        }
+    }
+    public function add_order_crypto(Request $request)
     {
         $pymntCntrrl = new PaymentTypeController();
 
