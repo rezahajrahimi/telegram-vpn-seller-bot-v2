@@ -22,8 +22,8 @@ class NowPaymentsController extends Controller
                 'success_url' => $request->success_url,
                 'cancel_url' => $request->cancel_url,
                 'partially_paid_url' => $request->partially_paid_url,
-                'is_fixed_rate' => $request->is_fixed_rate,
-                'is_fee_paid_by_user' => $request->is_fee_paid_by_user,
+                'is_fixed_rate' => $request->is_fixed_rate == 1 ? true : false,
+                'is_fee_paid_by_user' => $request->is_fee_paid_by_user == 1 ? true : false,
             ];
             // $data = [
             //     'price_amount' => 10,
@@ -40,7 +40,7 @@ class NowPaymentsController extends Controller
 
             $paymentDetails = Nowpayments::createInvoice($data);
 
-            dd($paymentDetails);
+            // dd($paymentDetails);
             // Now you have the payment details,
             // you can then redirect or do whatever you want
 

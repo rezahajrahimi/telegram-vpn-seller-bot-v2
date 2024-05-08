@@ -6,6 +6,7 @@ use App\Models\TransactionCrypto;
 use Illuminate\Http\Request;
 use App\Models\CryptoPayment;
 use Illuminate\Support\Facades\Config;
+use PrevailExcel\Nowpayments\Facades\Nowpayments;
 
 class TransactionCryptoController extends Controller
 {
@@ -59,4 +60,31 @@ class TransactionCryptoController extends Controller
             return 'این صورتحساب موجود نمی باشد.';
         }
     }
+    public function order(Request $request)
+    {
+        try {
+            $transaction_id = $request->transaction_id;
+            $status = $request->status;
+
+            $amount = $this->getAmountByRecipeNUmber($transaction_id);
+
+            $receipt = Payment::amount($amount)->transactionId($transaction_id)->verify();
+            // confirm transaction
+            $this->setConfirmedTransaction($transaction_id);
+            // add to user account balance.
+
+            $accBlCtrl = new AccountBallanceController();
+            $userID = $this->getUserAccountIDByTransactionId($transaction_id);
+            $accBlCtrl->incUserAccuntBalance($userID, $amount);
+            return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید و برای ادامه خرید به تلگرام برگردید.';
+        } catch (InvalidPaymentException $exception) {
+            return 'خطا در انجام عملیات';
+        }
+    }
+    public function getPaymentStatus($transactionID)
+    {
+        $data =  Nowpayments::getPaymentStatus($transactionID);
+        return $data["payment_status"];
+    }
+
 }

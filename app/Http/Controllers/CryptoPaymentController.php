@@ -57,4 +57,5 @@ class CryptoPaymentController extends Controller
             return null;
         }
     }
+
 }
