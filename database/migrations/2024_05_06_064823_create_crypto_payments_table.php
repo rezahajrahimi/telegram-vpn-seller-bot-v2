@@ -15,6 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('name', 100)->nullable()->default('nowpayments');
             $table->string('api_key', 255)->nullable();
+            $table->string('env', 255)->nullable()->default('live');
+            $table->string('callback_url', 255)->nullable();
+            $table->string('email', 255)->nullable();
+            $table->string('password', 255)->nullable();
             $table->string('ipn_callback_url', 255)->nullable();
             $table->string('success_url', 255)->nullable();
             $table->string('cancel_url', 255)->nullable();

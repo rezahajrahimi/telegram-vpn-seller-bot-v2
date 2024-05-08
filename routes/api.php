@@ -28,6 +28,7 @@ use App\Http\Controllers\GeneralController;
 use App\Http\Controllers\HiddifyPannelController;
 use App\Http\Controllers\TestAccountController;
 use App\Http\Controllers\BillController;
+use App\Http\Controllers\CryptoPaymentController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -237,3 +238,4 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 });
 
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);
+Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);

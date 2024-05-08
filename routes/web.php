@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\TransactionCryptoController;
 use Illuminate\Http\Request;
 
 /*
@@ -21,7 +22,7 @@ Route::get('/', function () {
 Route::get('buy/{account_id}/{invoiceID}/{price}', function ($account_id, $invoiceID, $price) {
     return view('shop', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
 });
-Route::post('shop', [TransactionController::class, 'add_order']);
+Route::post('shop', [TransactionController::class, 'add_order']); // for zarinpal
 
 
 Route::get('order', function (Request $request) {
@@ -36,3 +37,4 @@ Route::get('/pay', [App\Http\Controllers\NowPaymentsController::class, 'createCr
 Route::get('cryptopayment/{account_id}/{invoiceID}/{price}', function ($account_id, $invoiceID, $price) {
     return view('crypto', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
 });
+Route::post('cryptogateway', [TransactionCryptoController::class, 'add_order_crypto_by_nowpayment']); // fornowpayments

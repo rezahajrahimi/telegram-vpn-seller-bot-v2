@@ -1,5 +1,5 @@
 <div class="wrapper ">
-    <form method="post" action="{{ url('shop') }}" >
+    <form method="post" action="{{ url('cryptogateway') }}" >
         {{ csrf_field() }}
         <input type="text"  value="{{ $account_id }}" name="account_id" class="hidden">
         <input type="text"  value="{{ $invoiceID }}" name="invoiceID" class="hidden">

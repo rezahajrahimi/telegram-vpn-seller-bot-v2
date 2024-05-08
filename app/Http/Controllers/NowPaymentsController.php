@@ -10,25 +10,37 @@ use Illuminate\Support\Facades\Redirect;
 use PrevailExcel\Nowpayments\Facades\Nowpayments;
 class NowPaymentsController extends Controller
 {
-    public function createCryptoInvoice()
+    public function createCryptoInvoice(Request $request)
     {
         try {
             $data = [
-                'price_amount' => 10,
+                'price_amount' => $request->amount,
                 'price_currency' => 'usd',
-                'order_id' => uniqid(),
-                'order_description' => 'Apple Macbook Pro 2019 x 1',
-                'ipn_callback_url' => 'https://nowpayments.io',
-                'success_url' => 'https://nowpayments.io',
-                'cancel_url' => 'https://nowpayments.io',
-                'partially_paid_url' => 'https://nowpayments.io',
-                'is_fixed_rate' => true,
-                'is_fee_paid_by_user' => false,
+                'order_id' => $request->order_id,
+                'order_description' => $request->order_description,
+                'ipn_callback_url' => $request->ipn_callback_url,
+                'success_url' => $request->success_url,
+                'cancel_url' => $request->cancel_url,
+                'partially_paid_url' => $request->partially_paid_url,
+                'is_fixed_rate' => $request->is_fixed_rate,
+                'is_fee_paid_by_user' => $request->is_fee_paid_by_user,
             ];
+            // $data = [
+            //     'price_amount' => 10,
+            //     'price_currency' => 'usd',
+            //     'order_id' => uniqid(),
+            //     'order_description' => 'Apple Macbook Pro 2019 x 1',
+            //     'ipn_callback_url' => 'https://nowpayments.io',
+            //     'success_url' => 'https://nowpayments.io',
+            //     'cancel_url' => 'https://nowpayments.io',
+            //     'partially_paid_url' => 'https://nowpayments.io',
+            //     'is_fixed_rate' => true,
+            //     'is_fee_paid_by_user' => false,
+            // ];
 
             $paymentDetails = Nowpayments::createInvoice($data);
 
-            // dd($paymentDetails);
+            dd($paymentDetails);
             // Now you have the payment details,
             // you can then redirect or do whatever you want
 

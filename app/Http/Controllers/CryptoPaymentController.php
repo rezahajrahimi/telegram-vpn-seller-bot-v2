@@ -7,59 +7,54 @@ use Illuminate\Http\Request;
 
 class CryptoPaymentController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function createNowPaymentData()
     {
-        //
-    }
+        try {
+            $data = new CryptoPayment();
+            $data->name = 'nowpayments';
+            $data->api_key = 'xxxxxxx-xxxxxxx-xxxxxxx-xxxxxxx';
+            $data->env = 'live';
+            $data->callback_url = 'http://127.0.0.1:8000/laravel-nowpayments';
+            $data->email = 'john@gmail.com';
+            $data->password = '123456789';
+            $data->ipn_callback_url = 'https://nowpayments.io';
+            $data->success_url = 'https://nowpayments.io';
+            $data->cancel_url = 'https://nowpayments.io';
+            $data->partially_paid_url = 'https://nowpayments.io';
+            $data->is_fixed_rate = true;
+            $data->is_fee_paid_by_user = true;
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
+            $data->save();
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info('message : ' . $th->getMessage());
+            return null;
+        }
     }
-
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function getNowPaymentID()
     {
-        //
+        try {
+            $data = CryptoPayment::where('name', 'nowpayments')->first();
+            if ($data != null) {
+                return $data->id;
+            }
+            return null;
+        } catch (\Throwable $th) {
+            \Log::info('message : ' . $th->getMessage());
+            return null;
+        }
     }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(CryptoPayment $cryptoPayment)
+    public function getNovPaymentData()
     {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(CryptoPayment $cryptoPayment)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, CryptoPayment $cryptoPayment)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(CryptoPayment $cryptoPayment)
-    {
-        //
+        try {
+            $data = CryptoPayment::where('name', 'nowpayments')->first();
+            if ($data != null) {
+                return $data;
+            }
+            return $this->createNowPaymentData();
+        } catch (\Throwable $th) {
+            \Log::info('message : ' . $th->getMessage());
+            return null;
+        }
     }
 }
