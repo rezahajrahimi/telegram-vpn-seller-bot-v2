@@ -41,6 +41,7 @@ class AccountBallanceController extends Controller
             $newAcc = new AccountBallance();
             $newAcc->account_id = $userID;
             $newAcc->ballance = $ballance;
+            $newAcc->account_ballance_in_dollar = 0;
             $newAcc->save();
 
             return true;

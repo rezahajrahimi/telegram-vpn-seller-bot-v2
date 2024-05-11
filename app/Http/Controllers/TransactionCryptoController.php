@@ -56,7 +56,7 @@ class TransactionCryptoController extends Controller
             $transactionCrypto->crypto_payment_id = $cryptoPaymentCntrl->getNowPaymentID();
             $transactionCrypto->amount_dollar = $this->amount_dollar;
             $transactionCrypto->confirmed = false;
-            $transactionCrypto->recipe_number = $request->invoiceID;
+            $transactionCrypto->order_id = $request->invoiceID;
             $transactionCrypto->save();
             return $npwPaymentCntrl->createCryptoInvoice($req);
         } else {
@@ -69,25 +69,24 @@ class TransactionCryptoController extends Controller
             $transaction_id = $request->transaction_id;
             $status = $request->status;
 
-
-            if(!$this->isvalidPayment($transaction_id)){
-                return "تراکنش معتبر نمی باشد.";
+            if (!$this->isvalidPayment($transaction_id)) {
+                return 'تراکنش معتبر نمی باشد.';
             }
-            // confirm transaction
-            $this->setConfirmedTransaction($transaction_id);
             // add to user account balance.
 
             $accBlCtrl = new AccountBallanceController();
-            $userID = $this->getUserAccountIDByTransactionId($transaction_id);
-            $accBlCtrl->incUserAccuntBalance($userID, $amount);
-            return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید و برای ادامه خرید به تلگرام برگردید.';
+            $userID = $this->getUserAccountIDByRecipeId($transaction_id);
+            $amount = $this->getOrderIdByRecipeNumber($transaction_id);
+            \Log::info("$userID \  $amount");
+            $accBlCtrl->incUserAccuntBalanceInDollar($userID, $amount);
+            return $this->orderSuccessMessage();
         } catch (InvalidPaymentException $exception) {
             return 'خطا در انجام عملیات';
         }
     }
-    public function getAmountByRecipeNUmber($recipeNUmber)
+    public function getAmountByOrderID($order_id)
     {
-        $data = TransactionCrypto::where('recipe_number', $recipeNUmber)->first();
+        $data = TransactionCrypto::where('order_id', $order_id)->first();
         \Log::info($data);
 
         if ($data != null) {
@@ -96,10 +95,11 @@ class TransactionCryptoController extends Controller
             return 0;
         }
     }
-    public function setConfirmedTransaction($recipeNUmber)
+    public function setConfirmedTransaction($recipe_number,$order_id)
     {
-        $data = TransactionCrypto::where('recipe_number', $recipeNUmber)->first();
+        $data = TransactionCrypto::where('order_id', $order_id)->first();
         if ($data != null) {
+            $data->recipe_number = $recipe_number;
             $data->confirmed = true;
             $data->update();
             return true;
@@ -107,9 +107,9 @@ class TransactionCryptoController extends Controller
             return false;
         }
     }
-    public function getUserAccountIDByTransactionId($recipeNUmber)
+    public function getUserAccountIDByRecipeId($recipe_number)
     {
-        $data = TransactionCrypto::where('recipe_number', $recipeNUmber)->first();
+        $data = TransactionCrypto::where('recipe_number', $recipe_number)->first();
         if ($data != null) {
             return $data->account_id;
         } else {
@@ -124,19 +124,32 @@ class TransactionCryptoController extends Controller
         \Log::info($data);
         $status = $data['payment_status'];
         $recived_amount = $data['price_amount'];
-        $order_id =  $data['order_id'];
-        $amount = $this->getAmountByRecipeNUmber($order_id);
+        $order_id = $data['order_id'];
+        \Log::info("order_id $order_id");
+
+        $amount = $this->getAmountByOrderID($order_id);
 
         \Log::info("$recived_amount // $amount");
 
-        if($status == "finished" && $recived_amount == $amount){
+        if ($status == 'finished' && $recived_amount == $amount) {
+                        // confirm transaction
+            $this->setConfirmedTransaction($transactionID,$order_id);
+
             return true;
         }
         return false;
     }
+    public function getOrderIdByRecipeNumber($recipe_number){
+        try {
+            $data = TransactionCrypto::where('recipe_number', $recipe_number)->first();
+        return $data->order_id;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return null;
+        }
+    }
     public function orderSuccessMessage()
     {
-
         // retunr a html page with success purchess message
         return '<html>
   <head>

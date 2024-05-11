@@ -8,15 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class TransactionCrypto extends Model
 {
     use HasFactory;
-    protected $guarded = ['id','account_id','payment_type_id'];
-    protected $fillable = [
-        'account_id',
-        'username',
-        'crypto_payment_id',
-        'amount_dollar',
-        'confirmed',
-        'recipe_number',
-    ];
+    protected $guarded = ['id', 'account_id', 'payment_type_id'];
+    protected $fillable = ['account_id', 'username', 'crypto_payment_id', 'amount_dollar', 'confirmed', 'recipe_number', 'order_id'];
     public function getCreatedAtAttribute($value)
     {
         return verta(verta($value))->formatDifference();
@@ -27,8 +20,8 @@ class TransactionCrypto extends Model
         return $this->belongsTo(CryptoPayment::class, 'crypto_payment_id');
     }
 
-    public function user(){
+    public function user()
+    {
         return $this->belongsTo(BotUser::class, 'account_id', 'account_id');
     }
-
 }
