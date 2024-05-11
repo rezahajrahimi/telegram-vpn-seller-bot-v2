@@ -52,4 +52,5 @@ class NowPaymentsController extends Controller
             return Redirect::back()->withMessage(['msg' => "There's an error in the data", 'type' => 'error']);
         }
     }
+
 }

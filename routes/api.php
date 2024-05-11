@@ -29,6 +29,7 @@ use App\Http\Controllers\HiddifyPannelController;
 use App\Http\Controllers\TestAccountController;
 use App\Http\Controllers\BillController;
 use App\Http\Controllers\CryptoPaymentController;
+use App\Http\Controllers\TransactionCryptoController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -126,7 +127,6 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     // TransactionController && online payment
 
     Route::get('/changeNovaPaymentData', [TransactionController::class, 'changeNovaPaymentData']);
-    Route::get('/order', [TransactionController::class, 'order']);
     Route::get('/getConfirmedTransactions/{count?}', [TransactionController::class, 'getConfirmedTransactions']);
     Route::get('/getUnConfirmedTransactions/{count?}', [TransactionController::class, 'getUnConfirmedTransactions']);
     Route::get('/removeUnconfirmedTransaction/{id}', [TransactionController::class, 'removeUnconfirmedTransaction']);
@@ -239,3 +239,5 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);
 Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
+Route::get('/order', [TransactionController::class, 'order']);
+Route::get('/orderSuccess/{id}', [TransactionCryptoController::class, 'orderSuccess']);

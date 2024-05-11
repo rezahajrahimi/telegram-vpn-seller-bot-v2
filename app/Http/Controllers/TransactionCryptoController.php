@@ -24,6 +24,8 @@ class TransactionCryptoController extends Controller
     }
     public function add_order_crypto_by_nowpayment(Request $request)
     {
+        //  https://nowpayments.io/?NP_id=4771846894
+
         $cryptoPaymentCtrl = new CryptoPaymentController();
         $nowpayment = $cryptoPaymentCtrl->getNovPaymentData();
         $this->changeNovaPaymentData();
@@ -40,8 +42,10 @@ class TransactionCryptoController extends Controller
             $req->amount = $this->amount_dollar;
             $req->order_id = $request->invoiceID;
             $req->order_description = "invoice {$request->invoiceID}";
-            $req->ipn_callback_url = $nowpayment->ipn_callback_url;
-            $req->success_url = $nowpayment->success_url;
+            $req->ipn_callback_url = "https://localhost:8000/payback/";
+            // $req->ipn_callback_url = $nowpayment->ipn_callback_url;
+            $req->success_url =  "https://localhost:8000/payback/";
+            // $req->success_url = $nowpayment->success_url;
             $req->cancel_url = $nowpayment->cancel_url;
             $req->is_fixed_rate = $nowpayment->is_fixed_rate;
             $req->is_fee_paid_by_user = $nowpayment->is_fee_paid_by_user;
@@ -85,6 +89,10 @@ class TransactionCryptoController extends Controller
     {
         $data =  Nowpayments::getPaymentStatus($transactionID);
         return $data["payment_status"];
+    }
+    public function orderSuccess(Request $request) {
+        \Log::info("id $request->id");
+        return $request->id;
     }
 
 }

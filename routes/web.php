@@ -37,4 +37,21 @@ Route::get('/pay', [App\Http\Controllers\NowPaymentsController::class, 'createCr
 Route::get('cryptopayment/{account_id}/{invoiceID}/{price}', function ($account_id, $invoiceID, $price) {
     return view('crypto', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
 });
+
 Route::post('cryptogateway', [TransactionCryptoController::class, 'add_order_crypto_by_nowpayment']); // fornowpayments
+// back mowpayments
+// Route::post('/orderSuccess', [App\Http\Controllers\TransactionCryptoController::class, 'orderSuccess']);
+
+Route::get('/payback', function () {
+    $npId = request()->query('NP_id');
+    // Now you can use $npId in your logic
+    return redirect()->action(
+    [TransactionCryptoController::class, 'orderSuccess'], ['id' => $npId]
+);
+// return redirect("/api/orderSuccess/{$id}");
+
+    //return redirect()->action([TransactionCryptoController::class, 'orderSuccess'], ['transaction_id' => $npId, 'status' => "success"]);
+
+
+    // return "NP_id: $npId"; // Replace with your desired response
+});
