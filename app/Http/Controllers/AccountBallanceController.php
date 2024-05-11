@@ -46,6 +46,25 @@ class AccountBallanceController extends Controller
             return true;
         }
     }
+    public function incUserAccuntBalanceInDollar($userID, $ballance)
+    {
+        $data = AccountBallance::where('account_id', $userID)->first();
+        if ($data != null) {
+            $data->account_ballance_in_dollar += $ballance;
+            \Log::info('inc Baaaaaaaaaal ballance ' . $data->account_ballance_in_dollar);
+
+            $data->update();
+            return true;
+        } else {
+            $newAcc = new AccountBallance();
+            $newAcc->account_id = $userID;
+            $newAcc->account_ballance_in_dollar = $ballance;
+            $newAcc->ballance = 0;
+            $newAcc->save();
+
+            return true;
+        }
+    }
     public function decUserAccuntBalance($userID, $ballance)
     {
         $data = AccountBallance::where('account_id', $userID)->first();

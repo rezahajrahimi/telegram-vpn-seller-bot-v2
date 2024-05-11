@@ -24,11 +24,9 @@ Route::get('buy/{account_id}/{invoiceID}/{price}', function ($account_id, $invoi
 });
 Route::post('shop', [TransactionController::class, 'add_order']); // for zarinpal
 
-
 Route::get('order', function (Request $request) {
     return redirect()->action([TransactionController::class, 'order'], ['transaction_id' => $request->Authority, 'status' => $request->Status]);
 });
-
 
 // Laravel 8 & 9
 Route::get('/pay', [App\Http\Controllers\NowPaymentsController::class, 'createCryptoInvoice'])->name('pay');
@@ -43,15 +41,7 @@ Route::post('cryptogateway', [TransactionCryptoController::class, 'add_order_cry
 // Route::post('/orderSuccess', [App\Http\Controllers\TransactionCryptoController::class, 'orderSuccess']);
 
 Route::get('/payback', function () {
-    $npId = request()->query('NP_id');
+    $transaction_id = request()->query('NP_id');
     // Now you can use $npId in your logic
-    return redirect()->action(
-    [TransactionCryptoController::class, 'orderSuccess'], ['id' => $npId]
-);
-// return redirect("/api/orderSuccess/{$id}");
-
-    //return redirect()->action([TransactionCryptoController::class, 'orderSuccess'], ['transaction_id' => $npId, 'status' => "success"]);
-
-
-    // return "NP_id: $npId"; // Replace with your desired response
+    return redirect()->action([TransactionCryptoController::class, 'orderSuccess'], ['transaction_id' => $transaction_id]);
 });

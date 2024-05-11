@@ -32,7 +32,6 @@ class TransactionCryptoController extends Controller
         //get amount from bill
         $bill = new BillController();
         $this->amount_dollar = $bill->getBillAmountDollarByBillId($request->invoiceID);
-        \Log::info("aaaaaa  $this->amount_dollar");
         $this->account_id = $request->account_id;
         if ($this->amount_dollar != null) {
             // Create new invoice.
@@ -42,9 +41,9 @@ class TransactionCryptoController extends Controller
             $req->amount = $this->amount_dollar;
             $req->order_id = $request->invoiceID;
             $req->order_description = "invoice {$request->invoiceID}";
-            $req->ipn_callback_url = "https://localhost:8000/payback/";
+            $req->ipn_callback_url = 'https://localhost:8000/payback/';
             // $req->ipn_callback_url = $nowpayment->ipn_callback_url;
-            $req->success_url =  "https://localhost:8000/payback/";
+            $req->success_url = 'https://localhost:8000/payback/';
             // $req->success_url = $nowpayment->success_url;
             $req->cancel_url = $nowpayment->cancel_url;
             $req->is_fixed_rate = $nowpayment->is_fixed_rate;
@@ -64,15 +63,16 @@ class TransactionCryptoController extends Controller
             return 'این صورتحساب موجود نمی باشد.';
         }
     }
-    public function order(Request $request)
+    public function orderSuccess(Request $request)
     {
         try {
             $transaction_id = $request->transaction_id;
             $status = $request->status;
 
-            $amount = $this->getAmountByRecipeNUmber($transaction_id);
 
-            $receipt = Payment::amount($amount)->transactionId($transaction_id)->verify();
+            if(!$this->isvalidPayment($transaction_id)){
+                return "تراکنش معتبر نمی باشد.";
+            }
             // confirm transaction
             $this->setConfirmedTransaction($transaction_id);
             // add to user account balance.
@@ -85,14 +85,106 @@ class TransactionCryptoController extends Controller
             return 'خطا در انجام عملیات';
         }
     }
-    public function getPaymentStatus($transactionID)
+    public function getAmountByRecipeNUmber($recipeNUmber)
     {
-        $data =  Nowpayments::getPaymentStatus($transactionID);
-        return $data["payment_status"];
-    }
-    public function orderSuccess(Request $request) {
-        \Log::info("id $request->id");
-        return $request->id;
-    }
+        $data = TransactionCrypto::where('recipe_number', $recipeNUmber)->first();
+        \Log::info($data);
 
+        if ($data != null) {
+            return $data->amount_dollar;
+        } else {
+            return 0;
+        }
+    }
+    public function setConfirmedTransaction($recipeNUmber)
+    {
+        $data = TransactionCrypto::where('recipe_number', $recipeNUmber)->first();
+        if ($data != null) {
+            $data->confirmed = true;
+            $data->update();
+            return true;
+        } else {
+            return false;
+        }
+    }
+    public function getUserAccountIDByTransactionId($recipeNUmber)
+    {
+        $data = TransactionCrypto::where('recipe_number', $recipeNUmber)->first();
+        if ($data != null) {
+            return $data->account_id;
+        } else {
+            return null;
+        }
+    }
+    public function isvalidPayment($transactionID)
+    {
+        // http://localhost:8000/payback/?NP_id=4671586017
+
+        $data = Nowpayments::getPaymentStatus($transactionID);
+        \Log::info($data);
+        $status = $data['payment_status'];
+        $recived_amount = $data['price_amount'];
+        $order_id =  $data['order_id'];
+        $amount = $this->getAmountByRecipeNUmber($order_id);
+
+        \Log::info("$recived_amount // $amount");
+
+        if($status == "finished" && $recived_amount == $amount){
+            return true;
+        }
+        return false;
+    }
+    public function orderSuccessMessage()
+    {
+
+        // retunr a html page with success purchess message
+        return '<html>
+  <head>
+    <link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700,900&display=swap" rel="stylesheet">
+  </head>
+    <style>
+      body {
+        text-align: center;
+        padding: 40px 0;
+        background: #EBF0F5;
+      }
+        h1 {
+          color: #88B04B;
+          font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
+          font-weight: 900;
+          font-size: 40px;
+          margin-bottom: 10px;
+        }
+        p {
+          color: #404F5E;
+          font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
+          font-size:20px;
+          margin: 0;
+        }
+      i {
+        color: #9ABC66;
+        font-size: 100px;
+        line-height: 200px;
+        margin-left:-15px;
+      }
+      .card {
+        background: white;
+        padding: 60px;
+        border-radius: 4px;
+        box-shadow: 0 2px 3px #C8D0D8;
+        display: inline-block;
+        margin: 0 auto;
+      }
+    </style>
+    <body>
+      <div class="card">
+      <div style="border-radius:200px; height:200px; width:200px; background: #F8FAF5; margin:0 auto;">
+        <i class="checkmark">✓</i>
+      </div>
+        <h1>Success</h1>
+        <p>پرداخت شما با موفقیت انجام شد<br/> </p>
+      </div>
+    </body>
+</html>';
+    }
 }

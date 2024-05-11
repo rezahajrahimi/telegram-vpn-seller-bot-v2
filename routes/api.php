@@ -240,4 +240,5 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);
 Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
 Route::get('/order', [TransactionController::class, 'order']);
-Route::get('/orderSuccess/{id}', [TransactionCryptoController::class, 'orderSuccess']);
+Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']);
+Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPaymentStatus']);
