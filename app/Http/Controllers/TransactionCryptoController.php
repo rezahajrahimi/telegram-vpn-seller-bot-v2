@@ -41,11 +41,11 @@ class TransactionCryptoController extends Controller
             $req->amount = $this->amount_dollar;
             $req->order_id = $request->invoiceID;
             $req->order_description = "invoice {$request->invoiceID}";
-            $req->ipn_callback_url = 'https://localhost:8000/payback/';
+            $req->ipn_callback_url = "https://{$this->getCurrentUrl()}/payback/";
             // $req->ipn_callback_url = $nowpayment->ipn_callback_url;
-            $req->success_url = 'https://localhost:8000/payback/';
+            $req->success_url = "https://{$this->getCurrentUrl()}/payback/";
             // $req->success_url = $nowpayment->success_url;
-            $req->cancel_url = $nowpayment->cancel_url;
+            $req->cancel_url = "https://{$this->getCurrentUrl()}/cancelpay/";
             $req->is_fixed_rate = $nowpayment->is_fixed_rate;
             $req->is_fee_paid_by_user = $nowpayment->is_fee_paid_by_user;
             // save created transaction
@@ -95,7 +95,7 @@ class TransactionCryptoController extends Controller
             return 0;
         }
     }
-    public function setConfirmedTransaction($recipe_number,$order_id)
+    public function setConfirmedTransaction($recipe_number, $order_id)
     {
         $data = TransactionCrypto::where('order_id', $order_id)->first();
         if ($data != null) {
@@ -132,17 +132,18 @@ class TransactionCryptoController extends Controller
         \Log::info("$recived_amount // $amount");
 
         if ($status == 'finished' && $recived_amount == $amount) {
-                        // confirm transaction
-            $this->setConfirmedTransaction($transactionID,$order_id);
+            // confirm transaction
+            $this->setConfirmedTransaction($transactionID, $order_id);
 
             return true;
         }
         return false;
     }
-    public function getOrderIdByRecipeNumber($recipe_number){
+    public function getOrderIdByRecipeNumber($recipe_number)
+    {
         try {
             $data = TransactionCrypto::where('recipe_number', $recipe_number)->first();
-        return $data->order_id;
+            return $data->order_id;
         } catch (\Throwable $th) {
             \Log::info("Throwable $th");
             return null;
@@ -152,52 +153,66 @@ class TransactionCryptoController extends Controller
     {
         // retunr a html page with success purchess message
         return '<html>
-  <head>
-    <link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700,900&display=swap" rel="stylesheet">
-  </head>
-    <style>
-      body {
-        text-align: center;
-        padding: 40px 0;
-        background: #EBF0F5;
-      }
-        h1 {
-          color: #88B04B;
-          font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
-          font-weight: 900;
-          font-size: 40px;
-          margin-bottom: 10px;
-        }
-        p {
-          color: #404F5E;
-          font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
-          font-size:20px;
-          margin: 0;
-        }
-      i {
-        color: #9ABC66;
-        font-size: 100px;
-        line-height: 200px;
-        margin-left:-15px;
-      }
-      .card {
-        background: white;
-        padding: 60px;
-        border-radius: 4px;
-        box-shadow: 0 2px 3px #C8D0D8;
-        display: inline-block;
-        margin: 0 auto;
-      }
-    </style>
-    <body>
-      <div class="card">
-      <div style="border-radius:200px; height:200px; width:200px; background: #F8FAF5; margin:0 auto;">
-        <i class="checkmark">✓</i>
-      </div>
-        <h1>Success</h1>
-        <p>پرداخت شما با موفقیت انجام شد<br/> </p>
-      </div>
-    </body>
-</html>';
+                <head>
+                    <link href="https://fonts.googleapis.com/css?family=Nunito+Sans:400,400i,700,900&display=swap" rel="stylesheet">
+                </head>
+                    <style>
+                    body {
+                        text-align: center;
+                        padding: 40px 0;
+                        background: #EBF0F5;
+                    }
+                        h1 {
+                        color: #88B04B;
+                        font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
+                        font-weight: 900;
+                        font-size: 40px;
+                        margin-bottom: 10px;
+                        }
+                        p {
+                        color: #404F5E;
+                        font-family: "Nunito Sans", "Helvetica Neue", sans-serif;
+                        font-size:20px;
+                        margin: 0;
+                        }
+                    i {
+                        color: #9ABC66;
+                        font-size: 100px;
+                        line-height: 200px;
+                        margin-left:-15px;
+                    }
+                    .card {
+                        background: white;
+                        padding: 60px;
+                        border-radius: 4px;
+                        box-shadow: 0 2px 3px #C8D0D8;
+                        display: inline-block;
+                        margin: 0 auto;
+                    }
+                    </style>
+                    <body>
+                    <div class="card">
+                    <div style="border-radius:200px; height:200px; width:200px; background: #F8FAF5; margin:0 auto;">
+                        <i class="checkmark">✓</i>
+                    </div>
+                        <h1>Success</h1>
+                        <p>پرداخت شما با موفقیت انجام شد<br/> </p>
+                    </div>
+                    </body>
+             </html>';
+    }
+    public function getCurrentUrl()
+    {
+        // $currentUrlWithoutQuery = request()->url();
+        // $host = parse_url($currentUrlWithoutQuery, PHP_URL_HOST);
+
+        // // Extract the subdomain
+        // $subdomain = explode('.', $host)[0];
+
+        // // Combine the subdomain with the desired domain
+        // $domain = 'google.com';
+        // $finalUrl = "https://$subdomain.$domain";
+
+        return request()->getHttpHost();
     }
 }

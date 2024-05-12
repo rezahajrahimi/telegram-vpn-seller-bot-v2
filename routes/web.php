@@ -45,3 +45,6 @@ Route::get('/payback', function () {
     // Now you can use $npId in your logic
     return redirect()->action([TransactionCryptoController::class, 'orderSuccess'], ['transaction_id' => $transaction_id]);
 });
+Route::get('/cancelpay', function () {
+    return "پرداخت شما لغو شد.";
+});

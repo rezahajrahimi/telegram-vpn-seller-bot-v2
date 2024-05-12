@@ -242,3 +242,4 @@ Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentD
 Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']);
 Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPaymentStatus']);
+Route::get('/getCurrentUrl', [TransactionCryptoController::class, 'getCurrentUrl']);
