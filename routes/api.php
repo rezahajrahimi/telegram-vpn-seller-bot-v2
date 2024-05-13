@@ -233,13 +233,15 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getTestAccountDetails', [TestAccountController::class, 'getTestAccountDetails']);
     Route::post('updateTestAccountDetails', [TestAccountController::class, 'updateTestAccountDetails']);
 
+    // CryptoPaymentController
+    Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
+    Route::patch('updateNowPayment', [CryptoPaymentController::class, 'updateNowPayment']);
+
 
 
 });
 
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);
-Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
 Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']);
 Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPaymentStatus']);
-Route::get('/getCurrentUrl', [TransactionCryptoController::class, 'getCurrentUrl']);
