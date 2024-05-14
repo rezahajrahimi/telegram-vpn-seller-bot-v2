@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://0e70-104-28-217-137.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://90ce-45-87-153-188.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -643,12 +643,23 @@ class TelegramController extends Controller
 
         $text = 'نوع پرداخت را انتخاب کنید.';
         $pymCntrl = new PaymentTypeController();
+
         $opr = [];
 
         $hasZarinPal = $pymCntrl->getZarinpalStatus();
+
         if ($hasZarinPal == true) {
             array_push($opr, [['text' => 'پرداخت آنلاین', 'callback_data' => 'subAccountBalance-zarinpal']]);
         }
+        // add nowpayment if was active
+
+        $cryptoCntrl = new CryptoPaymentController();
+        $nowpayment = $cryptoCntrl->getNowPaymentsStatus();
+        if ($hasZarinPal == true) {
+            array_push($opr, [['text' => 'پرداخت آنلاین با ارز دیجیتال', 'callback_data' => 'subAccountBalance-nowpayment']]);
+        }
+
+        // add offline payment
         $offlinePayment = $pymCntrl->getAllActiveOfflinePaymentTypes();
         $index = 0;
 
@@ -670,7 +681,7 @@ class TelegramController extends Controller
         if ($this->userCommandArr[1] == 'zarinpal') {
             // check if $this->userCommandArr[] lenght
 
-            if (count($this->userCommandArr) >= 3) {
+            if (count($this->userCommandArr) >= 3 && is_numeric($this->userCommandArr[2])) {
                 $amount = $this->userCommandArr[2];
 
                 $request = new Request();
@@ -705,6 +716,45 @@ class TelegramController extends Controller
                 $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
                 // $this->setNewLevel($this->addZarinPalBalanceLevel);
                 $this->addNewBotLog('ballance', 'مبالغ مورد نیاز برای پرداخت از طریق درگاه زرین پال برای کاربر ارسال شد.', 'show');
+
+                return response()->json($result, 200);
+            }
+        } elseif ($this->userCommandArr[1] == 'nowpayment') {
+            if (count($this->userCommandArr) >= 3 && is_numeric($this->userCommandArr[2])) {
+                $amount = $this->userCommandArr[2];
+
+                $request = new Request();
+
+                $request->account_id = $this->chat_id;
+                $request->amount = $amount;
+                $billCntrl = new BillController();
+
+                $bill = $billCntrl->createNewBillInDollar($request);
+
+                $openLink = $pymCntrl->getNowPaymentsLink();
+                $text = "پرداخت مبلغ $amount دلار از طریق درگاه آنلاین \r\n";
+                $opr = [];
+                array_push($opr, [
+                    [
+                        'text' => 'پرداخت آنلاین',
+                        'url' => "$openLink/$this->chat_id/$bill->bill_id/$amount",
+                    ],
+                ]);
+                $this->addNewBotLog('ballance', "صورتحساب به مبلغ $amount برای پرداهت از طریق درگاه زرین پال برای کاربر ارسال شد.", 'show');
+
+                $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
+            } else {
+                $text = 'میزان افزایش اعتبار را انتخاب کنید.';
+                $opr = [];
+                array_push($opr, [['text' => '5$', 'callback_data' => 'subAccountBalance-nowpayment-10000 '], ['text' => '7$', 'callback_data' => 'subAccountBalance-nowpayment-15000 ']]);
+                array_push($opr, [['text' => '10$', 'callback_data' => 'subAccountBalance-nowpayment-30000 '], ['text' => '12$', 'callback_data' => 'subAccountBalance-nowpayment-50000 ']]);
+                array_push($opr, [['text' => '15$', 'callback_data' => 'subAccountBalance-nowpayment-90000 '], ['text' => '20$', 'callback_data' => 'subAccountBalance-nowpayment-100000 ']]);
+                array_push($opr, [['text' => '50$', 'callback_data' => 'subAccountBalance-nowpayment-150000 '], ['text' => '150$', 'callback_data' => 'subAccountBalance-nowpayment-180000 ']]);
+                array_push($opr, [['text' => '200$', 'callback_data' => 'subAccountBalance-nowpayment-300000 '], ['text' => '300$', 'callback_data' => 'subAccountBalance-nowpayment-500000 ']]);
+
+                $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+                // $this->setNewLevel($this->addZarinPalBalanceLevel);
+                $this->addNewBotLog('ballance', 'مبالغ مورد نیاز برای پرداخت از طریق درگاه nowpayments برای کاربر ارسال شد.', 'show');
 
                 return response()->json($result, 200);
             }
@@ -1254,9 +1304,7 @@ class TelegramController extends Controller
         // get test product id
 
         $prCat = new ProductCategoryController();
-        $selectedPrCat = $prCat->getProdctCategoryByCategoryName("اکانت آزمایشی");
-
-
+        $selectedPrCat = $prCat->getProdctCategoryByCategoryName('اکانت آزمایشی');
 
         $text .= "اکانت آزمایشی شما با موفقیت فعال شد. \n\r";
 
@@ -1265,92 +1313,81 @@ class TelegramController extends Controller
 
         $text .= "شما می توانید از این اکانت آزمایشی استفاده کنید. \n\r";
 
-
         $prCntrl = new ProductController();
 
         $pnlCntrl = new PannelController();
-            $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
-            // get selected item specefic data
-            $day = $selectedPrCat->expire_day;
-            $volume = $selectedPrCat->volume;
+        $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
+        // get selected item specefic data
+        $day = $selectedPrCat->expire_day;
+        $volume = $selectedPrCat->volume;
 
+        if ($pannel->type == 'hiddify') {
+            $req = new Request();
+            $req->accountId = "$this->chat_id-اکانت_آزمایشی";
+            $req->pannelID = $selectedPrCat->pannel_id;
+            $req->vol = $volume;
+            $req->day = $day;
+            \Log::info("vol $volume day $day");
+            $hiddifcCntrl = new HiddifyPannelController();
 
+            $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req);
 
-            if ($pannel->type == 'hiddify') {
-                $req = new Request();
-                $req->accountId = "$this->chat_id-اکانت_آزمایشی";
-                $req->pannelID = $selectedPrCat->pannel_id;
-                $req->vol = $volume;
-                $req->day = $day;
-                \Log::info("vol $volume day $day");
-                $hiddifcCntrl = new HiddifyPannelController();
+            $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
-                $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req);
+            $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
 
-                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
-
-                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
-
-
-                $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-                if ($selectedPrCat->show_pannel_link == 1) {
-                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
-                }
-                $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
-                $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
-
-                $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
-                // save as dectivate product, So we can use it in future when user want to recharge it;
-                $request = new Request();
-                $request->account_id = $this->chat_id;
-                $request->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                $request->product_categories_id = $selectedPrCat->id;
-                $request->panel_link = "/{$newUUID}/#{$req->accountId}";
-                $request->configs = '';
-                $request->remark =  "$this->chat_id-اکانت_آزمایشی";
-
-                $prCntrl->addAutomatedProductDetails($request);
-            } elseif ($pannel->type == 'marzban') {
-                $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id اکانت_آزمایشی", $day, $volume, $selectedPrCat->pannel_id);
-                $userSub = $userData['subscription_link'];
-                $links = $userData['links'];
-
-                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$userSub \r\n";
-                $text .= "کانفیگهای شما: \r\n";
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-
-                foreach ($links as $key => $link) {
-                    $image = $pnlCntrl->generateQrMOC($link);
-
-                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
-
-                    // $text .= "$link \r\n";
-                }
-                // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
-                $text = "جهت نیاز به راهنمایی بر روی یکی از این گزینه ها کلیک کنید. \r\n";
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-
-                // save as dectivate product, So we can use it in future when user want to recharge it;
-                $request = new Request();
-                $request->account_id = $this->chat_id;
-                $request->subscription_link = '';
-                $request->product_categories_id = $selectedPrCat->id;
-                $request->panel_link = $userSub;
-                // convert links arrey to string
-                $links = json_encode($links);
-
-                $request->configs = $links;
-                $request->remark = "BotUser$this->chat_id اکانت_آزمایشی";
-
-                $prCntrl->addAutomatedProductDetails($request);
+            $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+            if ($selectedPrCat->show_pannel_link == 1) {
+                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
             }
+            $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+            $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
 
+            $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+            // save as dectivate product, So we can use it in future when user want to recharge it;
+            $request = new Request();
+            $request->account_id = $this->chat_id;
+            $request->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            $request->product_categories_id = $selectedPrCat->id;
+            $request->panel_link = "/{$newUUID}/#{$req->accountId}";
+            $request->configs = '';
+            $request->remark = "$this->chat_id-اکانت_آزمایشی";
 
+            $prCntrl->addAutomatedProductDetails($request);
+        } elseif ($pannel->type == 'marzban') {
+            $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id اکانت_آزمایشی", $day, $volume, $selectedPrCat->pannel_id);
+            $userSub = $userData['subscription_link'];
+            $links = $userData['links'];
 
+            $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$userSub \r\n";
+            $text .= "کانفیگهای شما: \r\n";
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
+            foreach ($links as $key => $link) {
+                $image = $pnlCntrl->generateQrMOC($link);
 
+                $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
 
+                // $text .= "$link \r\n";
+            }
+            // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+            $text = "جهت نیاز به راهنمایی بر روی یکی از این گزینه ها کلیک کنید. \r\n";
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
+            // save as dectivate product, So we can use it in future when user want to recharge it;
+            $request = new Request();
+            $request->account_id = $this->chat_id;
+            $request->subscription_link = '';
+            $request->product_categories_id = $selectedPrCat->id;
+            $request->panel_link = $userSub;
+            // convert links arrey to string
+            $links = json_encode($links);
+
+            $request->configs = $links;
+            $request->remark = "BotUser$this->chat_id اکانت_آزمایشی";
+
+            $prCntrl->addAutomatedProductDetails($request);
+        }
 
         $this->addNewBotLog('account', 'اکانت تست فعال شد', 'test-account');
 

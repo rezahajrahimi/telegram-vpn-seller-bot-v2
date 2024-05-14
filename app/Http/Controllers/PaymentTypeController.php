@@ -19,9 +19,7 @@ class PaymentTypeController extends Controller
     }
     public function getAllActiveOfflinePaymentTypes()
     {
-        return PaymentType::where('is_active', true)
-            ->where('type', 'offline')
-            ->get();
+        return PaymentType::where('is_active', true)->where('type', 'offline')->get();
     }
     public function getPaymentAddressByPaymentName($name)
     {
@@ -116,9 +114,15 @@ class PaymentTypeController extends Controller
     }
     public function getZarinpalLink()
     {
-       $settingCntrl = new SettingController();
-       $mainUrl = $settingCntrl->getMainUrl();
-       return "$mainUrl/buy";
+        $settingCntrl = new SettingController();
+        $mainUrl = $settingCntrl->getMainUrl();
+        return "$mainUrl/buy";
+    }
+    public function getNowPaymentsLink()
+    {
+        $settingCntrl = new SettingController();
+        $mainUrl = $settingCntrl->getMainUrl();
+        return "$mainUrl/cryptopayment";
     }
     public function createNewPaymentType(Request $request)
     {
@@ -195,6 +199,18 @@ class PaymentTypeController extends Controller
             return true;
         } else {
             return false;
+        }
+    }
+    public function getAllTypesOfpaymentData()
+    {
+        try {
+            $zarinPal = $this->getZarinpalPaymentDetails();
+            $offline = $this->getAllOfflinePayments();
+            $cryptoPaymenyCntrl = new CryptoPaymentController();
+            $nowpayment = $cryptoPaymenyCntrl->getNovPaymentData();
+            return response()->json([$offline, $zarinPal, $cryptoPaymenyCntrl], 200);
+        } catch (\Throwable $th) {
+            return response()->json(null, 500);
         }
     }
 }

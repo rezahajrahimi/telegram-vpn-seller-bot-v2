@@ -77,4 +77,16 @@ class CryptoPaymentController extends Controller
             return response()->json(null, 500);
         }
     }
+    public function getNowPaymentsStatus()
+    {
+        try {
+            $data = CryptoPayment::where('name', 'nowpayments')->first();
+            $sataus = $data->is_active == true || $data->is_active == 1 ? true : false;
+            return $sataus;
+        } catch (\Throwable $th) {
+            //throw $th;
+            \Log::info('message : ' . $th->getMessage());
+            return false;
+        }
+    }
 }

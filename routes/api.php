@@ -112,6 +112,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getAllOnlinePayments', [PaymentTypeController::class, 'getAllOnlinePayments']);
     Route::get('getAllOfflinePayments', [PaymentTypeController::class, 'getAllOfflinePayments']);
     Route::get('getZarinpalPaymentDetails', [PaymentTypeController::class, 'getZarinpalPaymentDetails']);
+    Route::get('getAllTypesOfpaymentData', [PaymentTypeController::class, 'getAllTypesOfpaymentData']);
     Route::post('createNewPaymentType', [PaymentTypeController::class, 'createNewPaymentType']);
     Route::get('getAllActivePaymentTypes', [PaymentTypeController::class, 'getAllActivePaymentTypes']);
     Route::get('deActivePaymentType/{name}', [PaymentTypeController::class, 'deActivePaymentType']);
