@@ -8,6 +8,11 @@ class AccountBallanceController extends Controller
 {
     public function checkUserHasBalance($userID, $price, $parice_in_dollar)
     {
+        // for test account
+        if($price == 0 && $parice_in_dollar == 0){
+            return true;
+        }
+        // common product categorey check
         $data = AccountBallance::where('account_id', $userID)->first();
         if ($data != null) {
             if ($data->ballance >= $price) {
@@ -26,6 +31,15 @@ class AccountBallanceController extends Controller
         $data = AccountBallance::where('account_id', $userID)->first();
         if ($data != null) {
             return $data->ballance;
+        } else {
+            return 0;
+        }
+    }
+    public function getUserAccuntBalanceInDollar($userID)
+    {
+        $data = AccountBallance::where('account_id', $userID)->first();
+        if ($data != null) {
+            return $data->account_ballance_in_dollar;
         } else {
             return 0;
         }

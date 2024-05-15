@@ -435,6 +435,7 @@ class TelegramController extends Controller
             $volume = $selectedPrCat->volume;
             $productID = $prCntrl->getLastInsertedProductId();
             $productID += 1;
+
             if ($pannel->type == 'hiddify') {
                 $req = new Request();
                 $req->accountId = "$this->chat_id-$productID";
@@ -1103,6 +1104,7 @@ class TelegramController extends Controller
 
         $accCntrl = new AccountBallanceController();
         $ballance = $accCntrl->getUserAccuntBalance($this->chat_id);
+        $ballanceInDollar = $accCntrl->getUserAccuntBalanceInDollar($this->chat_id);
         $text = "♦️ اطلاعات حساب شما: \n\r";
 
         $text .= "نام کاربری: $this->username \n\r";
@@ -1113,6 +1115,10 @@ class TelegramController extends Controller
         // show $ballance with thousands seperator
         $text .= number_format($ballance, 0, '.', ',');
         $text .= " تومان \n\r";
+        $text .= 'موجودی دلاری کیف پول شما: ';
+        // show $ballance with thousands seperator
+        $text .= number_format($ballanceInDollar, 0, '.', ',');
+        $text .= "$ \n\r";
         $text .= ' ➖➖➖ ';
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
