@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://90ce-45-87-153-188.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://8fb0-45-87-153-188.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -394,9 +394,9 @@ class TelegramController extends Controller
         $prCat = $prCatCntrl->getAllProdctCategoryOrderByPrice();
         $opr = [];
         $index = 0;
-        array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
+        array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'],['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
         foreach ($prCat as $key => $value) {
-            array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+            array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"],['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
         }
 
         $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
@@ -418,12 +418,13 @@ class TelegramController extends Controller
 
         // check user account balance
         $productPrice = $selectedPrCat->price;
+        $productPriceInDollar = $selectedPrCat->price_in_dollar;
         \Log::info("selectedPrCat->price: $productPrice");
         $opr = [];
         $accBlCtrl = new AccountBallanceController();
         $prCntrl = new ProductController();
 
-        if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice)) {
+        if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice,$productPriceInDollar)) {
             $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
 
             // check pannel type
@@ -550,7 +551,7 @@ class TelegramController extends Controller
             }
 
             // minus balance
-            $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice);
+            $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice,$productPriceInDollar);
             $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
 
             // send how to use
@@ -567,12 +568,6 @@ class TelegramController extends Controller
                     'callback_data' => 'help-applications',
                 ],
             ]);
-            // array_push($opr, [
-            //     [
-            //         'text' => 'بازگشت به منوی اصلی',
-            //         'callback_data' => 'main menu',
-            //     ],
-            // ]);
             $text = 'یک گزینه را انتخاب کنید.';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
 

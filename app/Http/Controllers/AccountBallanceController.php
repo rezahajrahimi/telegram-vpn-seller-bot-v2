@@ -6,11 +6,13 @@ use Illuminate\Http\Request;
 
 class AccountBallanceController extends Controller
 {
-    public function checkUserHasBalance($userID, $price)
+    public function checkUserHasBalance($userID, $price, $parice_in_dollar)
     {
         $data = AccountBallance::where('account_id', $userID)->first();
         if ($data != null) {
             if ($data->ballance >= $price) {
+                return true;
+            } elseif ($data->account_ballance_in_dollar >= $parice_in_dollar) {
                 return true;
             } else {
                 return false;
@@ -66,14 +68,22 @@ class AccountBallanceController extends Controller
             return true;
         }
     }
-    public function decUserAccuntBalance($userID, $ballance)
+    public function decUserAccuntBalance($userID, $ballance, $parice_in_dollar)
     {
         $data = AccountBallance::where('account_id', $userID)->first();
         if ($data != null) {
-            $data->ballance -= $ballance;
+            if ($data->ballance >= $ballance) {
+                $data->ballance -= $ballance;
+                $data->update();
 
-            $data->update();
-            return true;
+                return true;
+            } elseif (condition) {
+                $data->account_ballance_in_dollar -= $parice_in_dollar;
+                $data->update();
+
+                return true;
+            }
+            return false;
         } else {
             return false;
         }
