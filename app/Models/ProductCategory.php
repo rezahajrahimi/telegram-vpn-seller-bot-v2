@@ -19,6 +19,10 @@ class ProductCategory extends Model
     {
         return $this->belongsTo(Pannel::class, 'pannel_id');
     }
+    public function comments()
+    {
+        return $this->hasMany(AgentProduct::class, 'product_categories_id', 'id');
+    }
 
 
 }

@@ -34,4 +34,14 @@ class User extends Authenticatable
     protected $casts = [
         'password' => 'hashed',
     ];
+
+    /**
+     * Get the user associated with the User
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function agent_products()
+    {
+        return $this->hasMany(AgentProduct::class, 'user_id', 'id');
+    }
 }

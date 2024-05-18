@@ -30,6 +30,7 @@ use App\Http\Controllers\TestAccountController;
 use App\Http\Controllers\BillController;
 use App\Http\Controllers\CryptoPaymentController;
 use App\Http\Controllers\TransactionCryptoController;
+use App\Http\Controllers\AgentProductController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -238,6 +239,12 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
     Route::patch('updateNowPayment', [CryptoPaymentController::class, 'updateNowPayment']);
 
+    // AgentProductController
+    Route::post('createANewAgentProduct', [AgentProductController::class, 'createANewAgentProduct']);
+    Route::patch('updateAgentProduct', [AgentProductController::class, 'updateAgentProduct']);
+    Route::delete('deleteAgentProduct/{id}', [AgentProductController::class, 'deleteAgentProduct']);
+    Route::get('getAgentProductsByUserID/{userID}', [AgentProductController::class, 'getAgentProductsByUserID']);
+    Route::get('getAgentProductsByID/{ID}', [AgentProductController::class, 'getAgentProductsByID']);
 
 
 });
