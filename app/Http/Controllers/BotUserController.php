@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\BotUser;
+use App\Models\User;
 
 use Illuminate\Http\Request;
 
@@ -11,12 +12,21 @@ class BotUserController extends Controller
     {
         $logCtrl = new LogController();
         $logCtrl->addNewLog('user', 'کاربر جدید وارد ربات شد.', $account_id, $userName, 'new user');
-        return BotUser::firstOrCreate([
+        $botUser = BotUser::firstOrCreate([
             'account_id' => $account_id,
             'username' => $userName,
             'first_name' => $firstName,
             'last_name' => $lastName,
         ]);
+        $userCntrl = new UserController();
+        $req = new Request();
+        $req->name = $userName;
+        $req->account_id = $account_id;
+        $req->password = "$account_id$userName";
+        $req->role = "user";
+        $userCntrl->createUser();
+        return $botUser;
+
     }
     public function hasRegistred($account_id, $userName, $firstName, $lastName)
     {

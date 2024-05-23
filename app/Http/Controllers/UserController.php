@@ -35,10 +35,7 @@ class UserController extends Controller
     }
     public function getNormalUsers()
     {
-
-
         try {
-
         $users = User::where('role', 'user')->get();
         return response()->json(
             [
