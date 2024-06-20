@@ -18,13 +18,12 @@ class BotUserController extends Controller
             'first_name' => $firstName,
             'last_name' => $lastName,
         ]);
-        $userCntrl = new UserController();
-        $req = new Request();
-        $req->name = $userName;
-        $req->account_id = $account_id;
-        $req->password = "$account_id$userName";
-        $req->role = "user";
-        $userCntrl->createUser();
+        $user = new User;
+        $user->name = $userName ;
+        $user->account_id = $account_id;
+        $user->password = "$account_id$userName";
+        $user->role = "user";
+        $user->save();
         return $botUser;
 
     }
@@ -32,8 +31,11 @@ class BotUserController extends Controller
     {
         $user = BotUser::where('account_id', $account_id)->first();
         if ($user != null) {
+            \Log::info("hasRegistred ");
             return true;
         } else {
+            \Log::info("has not Registred ");
+
             $this->createNewUserBot($account_id, $userName, $firstName, $lastName);
             return false;
         }

@@ -24,7 +24,7 @@ class UserController extends Controller
             $users = User::where('role', 'agent')->get();
             return response()->json(
                 [
-                    'users' => $users,
+                    'agents' => $users,
                 ],
                 200,
             );

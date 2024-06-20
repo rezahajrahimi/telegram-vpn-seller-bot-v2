@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://8fb0-45-87-153-188.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://342f-104-28-217-140.ngrok-free.app/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -108,7 +108,7 @@ class TelegramController extends Controller
                     $this->last_name = $request->callback_query['from']['last_name'] ?? '';
 
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
-                    $this->chat_type = 'callbacj';
+                    $this->chat_type = 'callback';
                     \Log::info('recogniseMessage');
                     $this->recogniseMessage();
                 }
@@ -135,12 +135,13 @@ class TelegramController extends Controller
             // if (!cache()->has("chat_id_{$this->from_id}") && $this->currentMenuLevel == 0) {
             // \Log::info("from_id:  $this->from_id");
 
-            if (!$botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name)) {
+            if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
                 $this->text = $settingCtrl->getWelcomeMessage();
                 cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
                 app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
                 $this->stickyMenu();
             } else {
+
                 $channelLock = $this->checkIsChannelsMember($this->from_id);
                 if ($channelLock == true || $channelLock == 1) {
                     $this->changeMenuLevel();
@@ -207,6 +208,7 @@ class TelegramController extends Controller
     }
     public function recogniseMessage()
     {
+
         try {
             if ($this->chat_type == 'image') {
                 $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
@@ -228,6 +230,22 @@ class TelegramController extends Controller
     }
     public function recogniseTextMessage()
     {
+        $botUserCtrl = new BotUserController();
+        $settingCtrl = new SettingController();
+        if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
+                $this->text = $settingCtrl->getWelcomeMessage();
+                cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
+                app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
+                $this->stickyMenu();
+            } else {
+
+                $channelLock = $this->checkIsChannelsMember($this->from_id);
+                if ($channelLock == true || $channelLock == 1) {
+                    $this->changeMenuLevel();
+                } else {
+                    $this->channelLockMenu();
+                }
+            }
         try {
             if ($this->chat_type == 'image') {
                 $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
