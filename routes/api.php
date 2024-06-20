@@ -31,6 +31,7 @@ use App\Http\Controllers\BillController;
 use App\Http\Controllers\CryptoPaymentController;
 use App\Http\Controllers\TransactionCryptoController;
 use App\Http\Controllers\AgentProductController;
+use App\Http\Controllers\AgentPermissonController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -247,6 +248,12 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::delete('deleteAgentProduct/{id}', [AgentProductController::class, 'deleteAgentProduct']);
     Route::get('getAgentProductsByUserID/{userID}', [AgentProductController::class, 'getAgentProductsByUserID']);
     Route::get('getAgentProductsByID/{ID}', [AgentProductController::class, 'getAgentProductsByID']);
+
+    // AgentPermissonController
+    Route::get('getUserPremissionByAgentID/{ID}', [AgentPermissonController::class, 'getUserPremissionByAgentID']);
+    Route::post('createANewAgentPremission', [AgentPermissonController::class, 'createANewAgentPremission']);
+    Route::patch('updateAgentPremission', [AgentPermissonController::class, 'updateAgentPremission']);
+    Route::delete('deleteAgentPremission/{id}', [AgentPermissonController::class, 'deleteAgentPremission']);
 
 
 });

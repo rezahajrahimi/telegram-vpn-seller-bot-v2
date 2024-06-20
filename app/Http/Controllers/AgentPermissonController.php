@@ -7,59 +7,54 @@ use Illuminate\Http\Request;
 
 class AgentPermissonController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
+    public function getUserPremission(){
+        $userId = auth()->user()->id;
+        return AgentPermisson::where('user_id',$userId)->first();
+
+    }
+    public function getUserPremissionByAgentID($userId){
+        return AgentPermisson::where('user_id',$userId)->first();
+
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function createANewAgentPermisson(Request $request)
     {
-        //
-    }
+        try {
+            $agentPermisson = new AgentPermisson();
+            $agentPermisson->user_id = $request->user_id;
+            $agentPermisson->minus_ballance = $request->minus_ballance;
+            $agentPermisson->create_products = $request->create_products;
+            $agentPermisson->delete_products = $request->delete_products;
+            $agentPermisson->save();
+            return response()->json($agentPermisson, 200);
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
+        } catch (\Throwable $th) {
+            \Log::info("throw $th");
+            return response()->json(false, 500);
+        }
     }
+    public function updateAgentPremisson(Request $request){
+        try {
+            $agentPermisson = AgentPermisson::where('user_id',$request->user_id)->first();
+            $agentPermisson->minus_ballance = $request->minus_ballance;
+            $agentPermisson->create_products = $request->create_products;
+            $agentPermisson->delete_products = $request->delete_products;
+            $agentPermisson->update();
+            return response()->json($agentPermisson, 200);
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(AgentPermisson $agentPermisson)
-    {
-        //
+        } catch (\Throwable $th) {
+            \Log::info("throw $th");
+            return response()->json(false, 500);
+        }
     }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(AgentPermisson $agentPermisson)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, AgentPermisson $agentPermisson)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(AgentPermisson $agentPermisson)
-    {
-        //
+    public function deleteAgentPremisson($userID){
+        try {
+            $agentPermisson = AgentPermisson::where('user_id',$userID)->first();
+            $agentPermisson->delete();
+            return response()->json(true, 200);
+        } catch (\Throwable $th) {
+            \Log::info("throw $th");
+            return response()->json(false, 500);
+        }
     }
 }
