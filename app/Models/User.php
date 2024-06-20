@@ -44,4 +44,8 @@ class User extends Authenticatable
     {
         return $this->hasMany(AgentProduct::class, 'user_id', 'id');
     }
+    public function agent_permisson()
+    {
+        return $this->hasMany(AgentPermisson::class, 'user_id', 'id');
+    }
 }

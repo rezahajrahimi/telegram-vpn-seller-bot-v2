@@ -13,7 +13,16 @@ return new class extends Migration
     {
         Schema::create('agent_permissons', function (Blueprint $table) {
             $table->id();
+            $table->bigInteger('user_id')->unsigned();
+            $table->boolean('minus_ballance')->nullable()->default(false);
+            $table->boolean('create_products')->nullable()->default(false);
+            $table->boolean('delete_products')->nullable()->default(false);
             $table->timestamps();
+            $table
+                ->foreign('user_id')
+                ->references('id')
+                ->on('users')->onDelete('cascade');
+
         });
     }
 
