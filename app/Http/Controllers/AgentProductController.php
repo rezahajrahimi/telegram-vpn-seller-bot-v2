@@ -44,7 +44,7 @@ class AgentProductController extends Controller
 
 
             $agentPremissionCntrl->updateAgentPremisson($reqPermission);
-
+            $userCntrl->changeUserRoleToAgent($userID);
             return response()->json(true, 200);
         } catch (\Throwable $th) {
             \Log::info("$th");

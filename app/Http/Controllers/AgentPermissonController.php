@@ -22,9 +22,9 @@ class AgentPermissonController extends Controller
         try {
             $agentPermisson = new AgentPermisson();
             $agentPermisson->user_id = $request->user_id;
-            $agentPermisson->minus_ballance = $request->minus_ballance;
-            $agentPermisson->create_products = $request->create_products;
-            $agentPermisson->delete_products = $request->delete_products;
+            $agentPermisson->minus_ballance = $request->minus_ballance == "false" || $request->minus_ballance == false ||$request->minus_ballance == 0 ? 0 : 1;
+            $agentPermisson->create_products = $request->create_products == "false" || $request->create_products == false ||$request->create_products == 0 ? 0 : 1;
+            $agentPermisson->delete_products = $request->delete_products == "false" || $request->delete_products == false ||$request->delete_products == 0 ? 0 : 1;
             $agentPermisson->save();
             return response()->json($agentPermisson, 200);
         } catch (\Throwable $th) {
@@ -39,17 +39,10 @@ class AgentPermissonController extends Controller
             if ($agentPermisson == null) {
                 return $this->createANewAgentPermisson($request);
             }
-            if($request->minus_ballance == "false"|| $request->create_products == 0){
-                $agentPermisson->minus_ballance = 0;
-                \Log::info("yoosspe {$agentPermisson->minus_ballance}");
+            $agentPermisson->minus_ballance = $request->minus_ballance == "false"|| $request->minus_ballance == 0 ? 0 : 1;
+            $agentPermisson->create_products = $request->create_products == "false" || $request->create_products == 0 ? 0 : 1;
+            $agentPermisson->delete_products = $request->delete_products == "false" || $request->delete_products == 0 ? 0 : 1;
 
-            }
-            if($request->create_products == "false" || $request->create_products == 0){
-                $agentPermisson->create_products = 0;
-            }
-            if($request->delete_products == "false" || $request->delete_products == 0){
-                $agentPermisson->delete_products = 0;
-            }
 
 
             $agentPermisson->update();

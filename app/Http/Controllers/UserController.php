@@ -68,6 +68,16 @@ class UserController extends Controller
             200,
         );
     }
+    public function changeUserRoleToAgent($id)
+    {
+        $user = User::find($id);
+        if (!$user) {
+            return null;
+        }
+        $user->role = 'agent';
+        $user->update();
+        return true;
+    }
     public function getUserIdByTelegramID($telID)
     {
         $user = User::where('account_id', $telID)->first();
