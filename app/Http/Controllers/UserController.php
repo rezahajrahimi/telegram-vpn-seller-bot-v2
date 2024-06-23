@@ -68,6 +68,14 @@ class UserController extends Controller
             200,
         );
     }
+    public function getUserIdByTelegramID($telID)
+    {
+        $user = User::where('account_id', $telID)->first();
+        if (!$user) {
+            return null;
+        }
+        return $user->id;
+    }
     public function createUser(Request $request)
     {
         $request->validate([

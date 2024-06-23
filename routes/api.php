@@ -243,6 +243,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::patch('updateNowPayment', [CryptoPaymentController::class, 'updateNowPayment']);
 
     // AgentProductController
+    Route::post('createBatchOfUserAgentProduct', [AgentProductController::class, 'createBatchOfUserAgentProduct']);
     Route::post('createANewAgentProduct', [AgentProductController::class, 'createANewAgentProduct']);
     Route::patch('updateAgentProduct', [AgentProductController::class, 'updateAgentProduct']);
     Route::delete('deleteAgentProduct/{id}', [AgentProductController::class, 'deleteAgentProduct']);
