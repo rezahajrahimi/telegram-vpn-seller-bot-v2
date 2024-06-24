@@ -46,6 +46,6 @@ class User extends Authenticatable
     }
     public function agent_permisson()
     {
-        return $this->hasMany(AgentPermisson::class, 'user_id', 'id');
+        return $this->hasOne(AgentPermisson::class, 'user_id', 'id');
     }
 }

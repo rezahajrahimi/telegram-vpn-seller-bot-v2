@@ -71,6 +71,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getAgents', [UserController::class, 'getAgents']);
     Route::get('getNormalUsers', [UserController::class, 'getNormalUsers']);
     Route::get('getUserById/{id}', [UserController::class, 'getUserById']);
+    Route::get('getAgentByIdWithProductsAndPremissons/{id}', [UserController::class, 'getAgentByIdWithProductsAndPremissons']);
     Route::post('createUser', [UserController::class, 'createUser']);
     Route::put('updateUser', [UserController::class, 'updateUser']);
     Route::delete('deleteUser', [UserController::class, 'deleteUser']);

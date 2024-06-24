@@ -33,21 +33,30 @@ class UserController extends Controller
             return response()->json(null, 500);
         }
     }
-    public function getNormalUsers()
+    public function getAgentByIdWithProductsAndPremissons($id)
     {
         try {
-        $users = User::where('role', 'user')->get();
-        return response()->json(
-            [
-                'users' => $users,
-            ],
-            200,
-        );
+            $users = User::where('role', 'agent')->where('id', $id)->with('agent_products', 'agent_permisson')->get();
 
+            return response()->json($users, 200);
         } catch (\Throwable $th) {
             \Log::info("throw $th");
             return response()->json(null, 500);
-
+        }
+    }
+    public function getNormalUsers()
+    {
+        try {
+            $users = User::where('role', 'user')->get();
+            return response()->json(
+                [
+                    'users' => $users,
+                ],
+                200,
+            );
+        } catch (\Throwable $th) {
+            \Log::info("throw $th");
+            return response()->json(null, 500);
         }
     }
     public function getUserById($id)
