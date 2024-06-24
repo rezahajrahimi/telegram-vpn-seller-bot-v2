@@ -110,6 +110,7 @@ class AgentProductController extends Controller
             return response()->json(null, 500);
         }
     }
+
     public function getAgentProductsByID($ID)
     {
         try {

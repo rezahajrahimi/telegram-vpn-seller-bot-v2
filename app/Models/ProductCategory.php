@@ -23,6 +23,10 @@ class ProductCategory extends Model
     {
         return $this->hasMany(AgentProduct::class, 'product_categories_id', 'id');
     }
+    public function agent_products()
+    {
+        return $this->hasMany(AgentProduct::class, 'product_categories_id');
+    }
 
 
 }

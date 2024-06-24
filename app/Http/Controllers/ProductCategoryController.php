@@ -155,4 +155,17 @@ class ProductCategoryController extends Controller
             return $th;
         }
     }
+    public function getAgentProductsWichNotSelectedByUserID($userID)
+    {
+        try {
+            return ProductCategory::whereDoesntHave('agent_products', function ($query) use($userID) {
+                $query->where('agent_products.user_id', '=', $userID);
+            })->get();
+            // return ProductCategory::whereDoesntHave('agent_products')
+            //     ->get();
+        } catch (\Throwable $th) {
+            \Log::info($th);
+            return response()->json(null, 500);
+        }
+    }
 }
