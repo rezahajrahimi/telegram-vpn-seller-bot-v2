@@ -25,7 +25,7 @@ class ProductCategory extends Model
     }
     public function agent_products()
     {
-        return $this->hasMany(AgentProduct::class, 'product_categories_id');
+        return $this->hasOne(AgentProduct::class, 'product_categories_id');
     }
 
 

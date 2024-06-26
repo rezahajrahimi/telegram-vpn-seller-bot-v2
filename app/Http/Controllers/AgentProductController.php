@@ -105,7 +105,9 @@ class AgentProductController extends Controller
     public function getAgentProductsByUserID($userID)
     {
         try {
-            return AgentProduct::where('user_id', $userID)->get();
+            return AgentProduct::where('user_id', $userID)
+            ->with('product_categories')
+            ->get();
         } catch (\Throwable $th) {
             return response()->json(null, 500);
         }

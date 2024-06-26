@@ -87,7 +87,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::post('editProductCategory', [ProductCategoryController::class, 'editProductCategory']);
     Route::get('reActiveProductCategory/{id}', [ProductCategoryController::class, 'reActiveProductCategory']);
     Route::get('deActiveProductCategory/{id}', [ProductCategoryController::class, 'deActiveProductCategory']);
-    Route::get('getAgentProductsWithNotSelectedByUserID/{userID}', [ProductCategoryController::class, 'getAgentProductsWithNotSelectedByUserID']);
+    Route::get('getAgentProductsNotSelectedByUserID/{userID}', [ProductCategoryController::class, 'getAgentProductsNotSelectedByUserID']);
 
     //ProductController
     Route::get('getActiveProductsByProductCatID/{selectedProductCatID}', [ProductController::class, 'getActiveProductsByProductCatID']);
