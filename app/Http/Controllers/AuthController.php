@@ -9,9 +9,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    public function createFirstAdminUser(){
+    public function createFirstAdminUser()
+    {
         $admin = User::where('role', 'admin')->first();
-        if(!$admin){
+        if (!$admin) {
             $admin = User::create([
                 'name' => 'admin',
                 'account_id' => env('TELEGRAM_ADMIN_ID'),
@@ -56,9 +57,9 @@ class AuthController extends Controller
         ]);
 
         $user = User::where('account_id', $request->account_id)
-                   ->orWhere('name', $request->account_id)
+            ->orWhere('name', $request->account_id)
 
-        ->first();
+            ->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
             throw ValidationException::withMessages([
@@ -80,13 +81,14 @@ class AuthController extends Controller
     public function forgetPassword(Request $request)
     {
         $request->validate([
-            'account_id' => 'required|max:8',
+            'account_id' => 'required|min:8',
         ]);
-
         $user = User::where('account_id', $request->account_id)->first();
-
+        if (!$user) {
+            return response()->json(false);
+        }
         $user_password = substr(str_shuffle('abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRTUVWXYZ2346789'), 0, 8);
-        $user->password =  Hash::make($user_password);
+        $user->password = Hash::make($user_password);
         $user->update();
         $user_id = $user->account_id;
         $text = "کاربر گرامی \n\r";
