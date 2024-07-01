@@ -261,7 +261,12 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
 
 });
+Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
 
+    // AccountBallanceController
+    Route::get('getLoggedUserBallancce', [AccountBallanceController::class, 'getLoggedUserBallancce']);
+
+});
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);
 Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']);

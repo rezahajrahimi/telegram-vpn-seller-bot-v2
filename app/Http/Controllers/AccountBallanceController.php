@@ -9,7 +9,7 @@ class AccountBallanceController extends Controller
     public function checkUserHasBalance($userID, $price, $parice_in_dollar)
     {
         // for test account
-        if($price == 0 && $parice_in_dollar == 0){
+        if ($price == 0 && $parice_in_dollar == 0) {
             return true;
         }
         // common product categorey check
@@ -127,6 +127,26 @@ class AccountBallanceController extends Controller
         } catch (\Throwable $th) {
             \Log::info("Throwable $th");
             return response()->json('Server Error', 500);
+        }
+    }
+    /// Agent Functions
+    public function getLoggedUserBallancce()
+    {
+        try {
+            $userId = auth('sanctum')->user()->account_id;
+            $data = AccountBallance::where('account_id', $userId)->first();
+            if (!$data) {
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = auth('sanctum')->user()->account_id;
+                $newAcc->account_ballance_in_dollar = 0;
+                $newAcc->ballance = 0;
+                $newAcc->save();
+                return $newAcc;
+            }
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info("$th");
+            return response()->json(false, 500);
         }
     }
 }
