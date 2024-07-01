@@ -28,4 +28,17 @@ class GeneralController extends Controller
             200
         );
     }
+    public function getAgentDashboardAnalytics(){
+        $accCntrl = new AccountBallanceController();
+        $accBallance = $accCntrl->getLoggedUserBallancce();
+        $agentPrCntrl = new AgentProductController();
+        $products =  $agentPrCntrl->getProductsOfLoggedAgent();
+        return response()->json(
+            [
+                'accBallance' => $accBallance,
+                'products' => $products,
+            ],
+            200
+        );
+    }
 }

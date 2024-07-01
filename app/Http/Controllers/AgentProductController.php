@@ -161,4 +161,9 @@ class AgentProductController extends Controller
             return response()->json(null, 500);
         }
     }
+    /// Agent function
+    public function getProductsOfLoggedAgent(){
+        $userId = auth('sanctum')->user()->id;
+        return $this->getAgentProductsByUserID( $userId);
+    }
 }
