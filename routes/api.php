@@ -274,6 +274,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function 
 
     // BillController
     Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
+    Route::get('createNewAgentDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
 
 
 });
@@ -282,6 +283,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:user']], function (
     // AccountBallanceController
     Route::get('getLoggedUserBallancce', [AccountBallanceController::class, 'getLoggedUserBallancce']);
 
+    // BillController
+    Route::get('createNewUserTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
+    Route::get('createNewUserDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
 
 
 });
