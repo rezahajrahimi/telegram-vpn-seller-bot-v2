@@ -17,6 +17,21 @@ class PaymentTypeController extends Controller
     {
         return PaymentType::where('is_active', true)->get();
     }
+    public function getAllActivePaymentTypesWithZarinpalMerchentIDFilter()
+    {
+        $data = PaymentType::where('is_active', true)->get();
+        if ($data != null) {
+            foreach ($data as $key => $value) {
+                if($value->name == 'زرین پال') {
+                    $value->merchant_id = "xxxx-xxxxxxxx-xxxxxxxx-xxxxxx";
+                }
+            }
+            return $data;
+        } else {
+            return null;
+        }
+    }
+
     public function getAllActiveOfflinePaymentTypes()
     {
         return PaymentType::where('is_active', true)->where('type', 'offline')->get();

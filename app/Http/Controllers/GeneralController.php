@@ -8,7 +8,8 @@ class GeneralController extends Controller
 {
     public function getDashboardAnalytics()
     {
-        $botUsetCntrl = new BotUserController();
+        try {
+            $botUsetCntrl = new BotUserController();
         $getLast10Users = $botUsetCntrl->getLast10Users();
         $logCntrl = new LogController();
         $getTop20Log = $logCntrl->getAllLogs(20);
@@ -27,9 +28,16 @@ class GeneralController extends Controller
             ],
             200
         );
+        } catch (\Throwable $th) {
+            \Log::info("error on getDashboardAnalytics-> $th");
+            return response()->json(null, 500);
+
+        }
+
     }
     public function getAgentDashboardAnalytics(){
-        $accCntrl = new AccountBallanceController();
+        try {
+            $accCntrl = new AccountBallanceController();
         $accBallance = $accCntrl->getLoggedUserBallancce();
         $agentPrCntrl = new AgentProductController();
         $products =  $agentPrCntrl->getProductsOfLoggedAgent();
@@ -40,5 +48,26 @@ class GeneralController extends Controller
             ],
             200
         );
+        } catch (\Throwable $th) {
+            \Log::info("error on getAgentDashboardAnalytics-> $th");
+            return response()->json(null, 500);
+
+        }
+
+
+    }
+    public function getAgentPaymentWays(){
+        try {
+            $pymntCntrl = new PaymentTypeController();
+        $pymentType = $pymntCntrl->getAllActivePaymentTypesWithZarinpalMerchentIDFilter();
+        $cryptoPymentCntrl = new CryptoPaymentController();
+         $cryptiPymentIsActive = $cryptoPymentCntrl->getNowPaymentsStatus();
+         return response()->json(["active_payment"=>$pymentType,"crypto_payment_status"=> $cryptiPymentIsActive], 200);
+
+        } catch (\Throwable $th) {
+            \Log::info("error on getAgentPaymentWays-> $th");
+            return response()->json(null, 500);
+        }
+
     }
 }
