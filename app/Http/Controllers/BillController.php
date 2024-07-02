@@ -66,4 +66,27 @@ class BillController extends Controller
             return null;
         }
     }
+
+    /// Agent Functions
+
+    public function createNewAgentTomanBillUrl($amount)
+    {
+        $account_id = auth('sanctum')->user()->account_id;
+
+        $bill = new Bill();
+        $bill->account_id = $account_id;
+        $bill->bill_id = abs(crc32(uniqid()));
+        $bill->amount = $amount;
+        $bill->amount_dollar = 0.0;
+        if ($bill->save()) {
+            $pymCntrl = new PaymentTypeController();
+
+            $openLink = $pymCntrl->getZarinpalLink();
+
+            return "$openLink/$account_id/$bill->bill_id/$bill->amount";
+
+        } else {
+            return null;
+        }
+    }
 }

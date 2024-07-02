@@ -272,6 +272,10 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function 
     // AgentProductController
     Route::get('getProductsOfLoggedAgent', [AgentProductController::class, 'getProductsOfLoggedAgent']);
 
+    // BillController
+    Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
+
+
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:user']], function () {
 
