@@ -462,7 +462,8 @@ class TelegramController extends Controller
                 $req->day = $day;
                 $hiddifcCntrl = new HiddifyPannelController();
 
-                $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req);
+                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); api v2
+                $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
 
                 $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 

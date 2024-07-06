@@ -271,6 +271,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function 
     Route::get('getLoggedAgentUserBallancce', [AccountBallanceController::class, 'getLoggedUserBallancce']);
     // AgentProductController
     Route::get('getProductsOfLoggedAgent', [AgentProductController::class, 'getProductsOfLoggedAgent']);
+    Route::put('buyProductByAgentWithPrID', [AgentProductController::class, 'buyProductByAgentWithPrID']);
 
     // BillController
     Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);

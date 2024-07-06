@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AgentProduct;
+use App\Models\ProductCategory;
 use Illuminate\Http\Request;
 
 class AgentProductController extends Controller
@@ -20,7 +21,6 @@ class AgentProductController extends Controller
                 return response()->json(false, 201);
             }
 
-
             $selectedProductList = json_decode($request['selectedProductList'], true);
             foreach ($selectedProductList as $value) {
                 $aa = json_decode($value, true);
@@ -37,11 +37,10 @@ class AgentProductController extends Controller
             $agentPremissionCntrl = new AgentPermissonController();
             $reqPermission = new Request();
             $reqPermission->user_id = $userID;
-            $reqPermission->minus_ballance = $request['minusBallance'] ;
-            $reqPermission->create_products = $request['createProducts'] ;
-            $reqPermission->delete_products = $request['deleteProducts'] ;
-            $adasd = $request["minusBallance"];
-
+            $reqPermission->minus_ballance = $request['minusBallance'];
+            $reqPermission->create_products = $request['createProducts'];
+            $reqPermission->delete_products = $request['deleteProducts'];
+            $adasd = $request['minusBallance'];
 
             $agentPremissionCntrl->updateAgentPremisson($reqPermission);
             $userCntrl->changeUserRoleToAgent($userID);
@@ -68,7 +67,9 @@ class AgentProductController extends Controller
             foreach ($selectedProductList as $value) {
                 $aa = json_decode($value, true);
                 $value = (array) $aa;
-                if($value['productCategoriesId'] != null) $this->deleteAgentProductByPrCatIDAndUserID($userID, $value['productCategoriesId']);
+                if ($value['productCategoriesId'] != null) {
+                    $this->deleteAgentProductByPrCatIDAndUserID($userID, $value['productCategoriesId']);
+                }
             }
             return response()->json(true, 200);
         } catch (\Throwable $th) {
@@ -127,13 +128,13 @@ class AgentProductController extends Controller
             return response()->json(false, 500);
         }
     }
-    public function deleteAgentProductByPrCatIDAndUserID($userID,$productCatId)
+    public function deleteAgentProductByPrCatIDAndUserID($userID, $productCatId)
     {
         \Log::info("message $userID $productCatId");
         try {
             $agentProduct = AgentProduct::where('user_id', $userID)->where('product_categories_id', $productCatId)->first();
-            if(!$agentProduct){
-                return ;
+            if (!$agentProduct) {
+                return;
             }
             $agentProduct->delete();
             return response()->json(true, 200);
@@ -145,9 +146,7 @@ class AgentProductController extends Controller
     public function getAgentProductsByUserID($userID)
     {
         try {
-            return AgentProduct::where('user_id', $userID)
-            ->with('product_categories')
-            ->get();
+            return AgentProduct::where('user_id', $userID)->with('product_categories')->get();
         } catch (\Throwable $th) {
             return response()->json(null, 500);
         }
@@ -162,8 +161,74 @@ class AgentProductController extends Controller
         }
     }
     /// Agent function
-    public function getProductsOfLoggedAgent(){
+    public function getProductsOfLoggedAgent()
+    {
         $userId = auth('sanctum')->user()->id;
-        return $this->getAgentProductsByUserID( $userId);
+        return $this->getAgentProductsByUserID($userId);
+    }
+    public function buyProductByAgentWithPrID(Request $request)
+    {
+        $selectedPrCat = ProductCategory::find($request->id);
+        $userId = auth('sanctum')->user()->account_id;
+
+        if ($selectedPrCat == null) {
+            return response()->json(false, 500);
+        }
+        $productPrice = $selectedPrCat->price;
+        $productPriceInDollar = $selectedPrCat->price_in_dollar;
+
+        $accBlCtrl = new AccountBallanceController();
+        if ($accBlCtrl->checkUserHasBalance($userId, $productPrice, $productPriceInDollar)) {
+            $pnlCntrl = new PannelController();
+            $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
+            // get selected item specefic data
+            $day = $selectedPrCat->expire_day;
+            $volume = $selectedPrCat->volume;
+            $prCntrl = new ProductController();
+            if ($pannel->type == 'hiddify') {
+                $req = new Request();
+                $req->accountId = "$userId-$request->remark";
+                $req->pannelID = $selectedPrCat->pannel_id;
+                $req->vol = $volume;
+                $req->day = $day;
+                $hiddifcCntrl = new HiddifyPannelController();
+
+                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); api v2
+                $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
+
+                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
+
+                // $userPannelLink = $pnlCntrl->getHiddifyPannelLinkByPannelID($selectedPrCat->pannel_id);
+                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+
+                // $userSubscriptionLInk = "$userPannelLink/$newUUID/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+
+                $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+                $text = '';
+                $text .= "خرید شما با موفقیت انجام شد\r\n";
+                if ($selectedPrCat->show_pannel_link == 1) {
+                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
+                }
+                $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+                $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
+
+                $resualt = app('telegram_bot')->imageMessageByLink($image, $userId, $text);
+                // save as dectivate product, So we can use it in future when user want to recharge it;
+                $reqProductDetails = new Request();
+                $reqProductDetails->account_id = $userId;
+                $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+                $reqProductDetails->product_categories_id = $selectedPrCat->id;
+                $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
+                $reqProductDetails->configs = '';
+                $reqProductDetails->remark = "$userId-$request->remark";
+
+                $prCntrl->addAutomatedProductDetails($reqProductDetails);
+                $accBlCtrl->decUserAccuntBalance($userId, $productPrice, $productPriceInDollar);
+                // $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+
+                return "$pannel->user_link/{$newUUID}/#{$req->accountId}";
+            }
+        }
+        return response()->json('low ballance', 401);
     }
 }
