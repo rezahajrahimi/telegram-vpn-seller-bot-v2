@@ -41,10 +41,12 @@ class GeneralController extends Controller
         $accBallance = $accCntrl->getLoggedUserBallancce();
         $agentPrCntrl = new AgentProductController();
         $products =  $agentPrCntrl->getProductsOfLoggedAgent();
+        $boughtProducts =  $agentPrCntrl->getAgentSelledProducts();
         return response()->json(
             [
                 'accBallance' => $accBallance,
                 'products' => $products,
+                'boughtProducts' => $boughtProducts,
             ],
             200
         );
