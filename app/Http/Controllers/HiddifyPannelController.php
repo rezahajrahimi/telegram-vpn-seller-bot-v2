@@ -41,6 +41,16 @@ class HiddifyPannelController extends Controller
         }
         return "{$mainUrl}/{$requestAPi}";
     }
+    public function extractUUID($string)
+    {
+        // get substring between '/' and '/'
+        $parts = explode('/', $string);
+
+        return $parts[1];
+
+
+
+    }
     public function checkHiddifyPanelUrl(Request $request)
     {
         $pannelUrl = $request->pannelUrl;

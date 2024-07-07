@@ -5,7 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\AgentProduct;
 use App\Models\ProductCategory;
 use App\Models\Product;
+use App\Models\Pannel;
 use Illuminate\Http\Request;
+use GuzzleHttp\Client;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Carbon;
 
 class AgentProductController extends Controller
 {
@@ -172,7 +176,7 @@ class AgentProductController extends Controller
         $selectedPrCat = ProductCategory::find($request->id);
         $userId = auth('sanctum')->user()->account_id;
         $agentname = auth('sanctum')->user()->name;
-        $remark = " - $agentname -  $request->remark ";
+        $remark = "$agentname -  $request->remark ";
         if ($selectedPrCat == null) {
             return response()->json(false, 500);
         }
@@ -226,5 +230,39 @@ class AgentProductController extends Controller
             ->get();
 
             return $product;
+    }
+    public function getBoughtProductsStatusFromServerById($id)
+    {
+        $data = Product::where('id', $id)
+        ->with('product_category_and_panel')
+            ->first();
+            if ($data != null) {
+
+        // get pannel url
+        $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+
+        $hiddifcCntrl = new HiddifyPannelController();
+
+        $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+        $url = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->admin_url,$pannel->secret_code);
+        $url = "{$url}/api/v1/user/?uuid={$uuid}";
+
+
+        $subsequentResponse = Http::get($url);
+
+        if ($subsequentResponse->getStatusCode() == 200) {
+            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
+            if ($checkIsHtmlPage !== false) {
+
+                return response()->json(false, 401);
+            }
+            // dd($subsequentResponse);
+            return json_decode($subsequentResponse->getBody(), true);
+        }
+
+        return response()->json(false, 401);
+        } else {
+            return null;
+        }
     }
 }
