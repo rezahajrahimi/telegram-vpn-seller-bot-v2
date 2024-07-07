@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AgentProduct;
 use App\Models\ProductCategory;
+use App\Models\Product;
 use Illuminate\Http\Request;
 
 class AgentProductController extends Controller
@@ -170,7 +171,8 @@ class AgentProductController extends Controller
     {
         $selectedPrCat = ProductCategory::find($request->id);
         $userId = auth('sanctum')->user()->account_id;
-
+        $agentname = auth('sanctum')->user()->name;
+        $remark = " - $agentname -  $request->remark ";
         if ($selectedPrCat == null) {
             return response()->json(false, 500);
         }
@@ -187,7 +189,7 @@ class AgentProductController extends Controller
             $prCntrl = new ProductController();
             if ($pannel->type == 'hiddify') {
                 $req = new Request();
-                $req->accountId = "$userId-$request->remark";
+                $req->accountId = $remark;
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
@@ -198,37 +200,31 @@ class AgentProductController extends Controller
 
                 $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
-                // $userPannelLink = $pnlCntrl->getHiddifyPannelLinkByPannelID($selectedPrCat->pannel_id);
                 $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
 
-                // $userSubscriptionLInk = "$userPannelLink/$newUUID/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-
-                $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-                $text = '';
-                $text .= "خرید شما با موفقیت انجام شد\r\n";
-                if ($selectedPrCat->show_pannel_link == 1) {
-                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
-                }
-                $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
-                $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
-
-                $resualt = app('telegram_bot')->imageMessageByLink($image, $userId, $text);
-                // save as dectivate product, So we can use it in future when user want to recharge it;
                 $reqProductDetails = new Request();
                 $reqProductDetails->account_id = $userId;
                 $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
                 $reqProductDetails->product_categories_id = $selectedPrCat->id;
                 $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
                 $reqProductDetails->configs = '';
-                $reqProductDetails->remark = "$userId-$request->remark";
+                $reqProductDetails->remark = $remark;
 
                 $prCntrl->addAutomatedProductDetails($reqProductDetails);
                 $accBlCtrl->decUserAccuntBalance($userId, $productPrice, $productPriceInDollar);
                 // $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
 
-                return "$pannel->user_link/{$newUUID}/#{$req->accountId}";
+                return $userPannelLink;
             }
         }
         return response()->json('low ballance', 401);
+    }
+    public function getAgentSelledProducts(){
+        $userId = auth('sanctum')->user()->account_id;
+        $product = Product::where('account_id', $userId)
+            ->with('product_category_and_panel')
+            ->get();
+
+            return $product;
     }
 }

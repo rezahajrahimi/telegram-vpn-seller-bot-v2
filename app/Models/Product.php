@@ -9,8 +9,8 @@ use Verta;
 class Product extends Model
 {
     use HasFactory;
-    protected $guarded = ['id','product_categories_id','account_id'];
-    protected $fillable = ['product_categories_id','configs','subscription_link','panel_link','isActive','account_id','remark'];
+    protected $guarded = ['id', 'product_categories_id', 'account_id'];
+    protected $fillable = ['product_categories_id', 'configs', 'subscription_link', 'panel_link', 'isActive', 'account_id', 'remark'];
 
     /**
      * Get the user that owns the Product
@@ -21,7 +21,18 @@ class Product extends Model
     {
         return $this->belongsTo(ProductCategory::class, 'product_categories_id');
     }
-    public function user(){
+    public function product_category_and_panel()
+    {
+        return $this->belongsTo(ProductCategory::class, 'product_categories_id')
+            ->with([
+                'pannel' => function ($query) {
+                    $query->select('id', 'type','location', 'user_link');
+                },
+            ])
+            ->orderBy('id', 'desc');
+    }
+    public function user()
+    {
         return $this->belongsTo(BotUser::class, 'account_id', 'account_id');
     }
     /**
@@ -41,5 +52,4 @@ class Product extends Model
     {
         return verta(verta($value))->formatDifference();
     }
-
 }

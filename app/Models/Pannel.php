@@ -10,6 +10,7 @@ class Pannel extends Model
     use HasFactory;
     protected $guarded = ['id'];
     protected $fillable = ['type', 'username', 'password', 'token', 'location', 'url_port', 'admin_url', 'capacity','secret_code','cookie_session','user_link'];
+
     /**
      * Get all of the comments for the Pannel
      *
