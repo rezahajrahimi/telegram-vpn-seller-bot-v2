@@ -223,44 +223,53 @@ class AgentProductController extends Controller
         }
         return response()->json('low ballance', 401);
     }
-    public function getAgentSelledProducts(){
+    public function getAgentSelledProducts()
+    {
         $userId = auth('sanctum')->user()->account_id;
-        $product = Product::where('account_id', $userId)
-            ->with('product_category_and_panel')
-            ->get();
+        $product = Product::where('account_id', $userId)->with('product_category_and_panel')->get();
 
-            return $product;
+        return $product;
     }
     public function getBoughtProductsStatusFromServerById($id)
     {
-        $data = Product::where('id', $id)
-        ->with('product_category_and_panel')
-            ->first();
-            if ($data != null) {
+        $data = Product::where('id', $id)->with('product_category_and_panel')->first();
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
 
-        // get pannel url
-        $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $hiddifcCntrl = new HiddifyPannelController();
 
-        $hiddifcCntrl = new HiddifyPannelController();
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+            $url = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
+            $url = "{$url}/api/v1/user/?uuid={$uuid}";
 
-        $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
-        $url = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->admin_url,$pannel->secret_code);
-        $url = "{$url}/api/v1/user/?uuid={$uuid}";
+            $subsequentResponse = Http::get($url);
 
-
-        $subsequentResponse = Http::get($url);
-
-        if ($subsequentResponse->getStatusCode() == 200) {
-            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
-            if ($checkIsHtmlPage !== false) {
-
-                return response()->json(false, 401);
+            if ($subsequentResponse->getStatusCode() == 200) {
+                $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
+                if ($checkIsHtmlPage !== false) {
+                    return response()->json(false, 401);
+                }
+                // dd($subsequentResponse);
+                return json_decode($subsequentResponse->getBody(), true);
             }
-            // dd($subsequentResponse);
-            return json_decode($subsequentResponse->getBody(), true);
-        }
 
-        return response()->json(false, 401);
+            return response()->json(false, 401);
+        } else {
+            return null;
+        }
+    }
+    public function getBoughtProductsPannelLinkFromServerById($id)
+    {
+        $data = Product::where('id', $id)->with('product_category_and_panel')->first();
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            $panel_link = $data->panel_link;
+            return $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, $panel_link);
         } else {
             return null;
         }
