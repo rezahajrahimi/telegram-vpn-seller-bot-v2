@@ -318,6 +318,24 @@ class HiddifyPannelController extends Controller
         $data = $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
         return $data;
     }
+    public function updateUserNameOfHiddifyPanelOldApi(Request $request)
+    {
+        $pannelID = $request->pannelID;
+        $pannel = Pannel::find($pannelID);
+        $adminUUID = $pannel->secret_code;
+
+        $uuid = $request->uuid;
+        $name = $request->name ?? '';
+        $params = [
+            'uuid' => "$uuid",
+            'name' => "$name",
+        ];
+        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
+            $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
+
+        $data = $this->sendPostRequestToHiddifyPannel($pannelID,  $url, $params);
+        return  $data;
+    }
     public function deleteUserOfHiddifyPanel($pannelID, $userUUID)
     {
         $data = $this->sendDeleteRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$userUUID/");

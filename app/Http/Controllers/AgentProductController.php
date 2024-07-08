@@ -262,6 +262,10 @@ class AgentProductController extends Controller
     public function getBoughtProductsPannelLinkFromServerById($id)
     {
         $data = Product::where('id', $id)->with('product_category_and_panel')->first();
+        $userId = auth('sanctum')->user()->account_id;
+        if ($userId != $data->account_id) {
+            return response()->json(false, 401);
+        }
         if ($data != null) {
             // get pannel url
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
@@ -272,6 +276,46 @@ class AgentProductController extends Controller
             return $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, $panel_link);
         } else {
             return null;
+        }
+    }
+    public function renameHiddifyRemark(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+            $userId = auth('sanctum')->user()->account_id;
+
+        if ($userId != $data->account_id) {
+            return response()->json(false, 401);
+        }
+
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+            $req = new Request();
+            $req->pannelID = $pannel->id;
+            $req->name = $request->name;
+            $req->uuid = $uuid;
+
+            $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelOldApi($req);
+            // $updateRemark = json_encode($updateRemark);
+            if ($updateRemark['status'] == 200) {
+                if ($updateRemark['msg'] !== 'ok') {
+                    return response()->json(false, 401);
+                }
+                $data->remark = $request->name;
+                $data->update();
+                return response()->json(true, 200);
+                // dd($subsequentResponse);
+            }
+
+            return response()->json(false, 401);
+        } else {
+            return response()->json(false, 500);
         }
     }
 }
