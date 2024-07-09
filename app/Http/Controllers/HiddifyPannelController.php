@@ -336,6 +336,35 @@ class HiddifyPannelController extends Controller
         $data = $this->sendPostRequestToHiddifyPannel($pannelID,  $url, $params);
         return  $data;
     }
+    public function rechargeUserOfHiddifyPanelOldApi(Request $request)
+    {
+        $pannelID = $request->pannelID;
+        $pannel = Pannel::find($pannelID);
+        $vol = $request->vol;
+        $day = $request->day;
+
+        $adminUUID = $pannel->secret_code;
+
+        $uuid = $request->uuid;
+        $name = $request->name ?? '';
+        $comment = $request->comment ?? '';
+
+        $params = [
+            'uuid' => "$uuid",
+            'name' => "$name",
+            'current_usage_GB' => 0,
+            'usage_limit_GB' => $vol,
+            'package_days' => $day,
+            'mode' => 'no_reset',
+            'added_by_uuid' => "$adminUUID",
+            'comment' => "$comment",
+        ];
+        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
+            $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
+
+        $data = $this->sendPostRequestToHiddifyPannel($pannelID,  $url, $params);
+        return  $data;
+    }
     public function deleteUserOfHiddifyPanel($pannelID, $userUUID)
     {
         $data = $this->sendDeleteRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$userUUID/");

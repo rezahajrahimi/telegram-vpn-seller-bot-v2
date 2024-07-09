@@ -276,6 +276,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function 
     Route::get('getBoughtProductsPannelLinkFromServerById/{id}', [AgentProductController::class, 'getBoughtProductsPannelLinkFromServerById']);
     Route::put('buyProductByAgentWithPrID', [AgentProductController::class, 'buyProductByAgentWithPrID']);
     Route::patch('renameHiddifyRemark', [AgentProductController::class, 'renameHiddifyRemark']);
+    Route::patch('reChargeProductByAgentWithPrID', [AgentProductController::class, 'reChargeProductByAgentWithPrID']);
 
     // BillController
     Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);

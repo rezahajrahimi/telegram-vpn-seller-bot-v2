@@ -10,6 +10,8 @@ use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Carbon;
+use Hekmatinasser\Verta\Verta;
+
 
 class AgentProductController extends Controller
 {
@@ -185,7 +187,9 @@ class AgentProductController extends Controller
         if ($selectedPrCat->is_active == false) {
             return response()->json(false, 500);
         }
-        $agentProduct = AgentProduct::where("product_categories_id", $selectedPrCat->id)->where("user_id", $userId)->first();
+        $agentProduct = AgentProduct::where('product_categories_id', $selectedPrCat->id)
+            ->where('user_id', $userId)
+            ->first();
         $productPrice = $agentProduct->price;
         $productPriceInDollar = $agentProduct->price_in_dollar;
 
@@ -289,7 +293,7 @@ class AgentProductController extends Controller
         $data = Product::where('id', $request->id)
             ->with('product_category_and_panel')
             ->first();
-            $userId = auth('sanctum')->user()->account_id;
+        $userId = auth('sanctum')->user()->account_id;
 
         if ($userId != $data->account_id) {
             return response()->json(false, 401);
@@ -324,41 +328,60 @@ class AgentProductController extends Controller
             return response()->json(false, 500);
         }
     }
-    public function rechargeAgentProductHiddify(Request $request)
+    public function reChargeProductByAgentWithPrID(Request $request)
     {
         $data = Product::where('id', $request->id)
             ->with('product_category_and_panel')
             ->first();
-            $userId = auth('sanctum')->user()->account_id;
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+        $selectedPrCat = ProductCategory::find($data->product_categories_id);
 
-        if ($userId != $data->account_id) {
+        if ($accountID != $data->account_id) {
             return response()->json(false, 401);
+        }
+        if ($selectedPrCat->is_active == false) {
+            return response()->json(false, 500);
         }
 
         if ($data != null) {
             // get pannel url
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $agentProduct = AgentProduct::where('product_categories_id', $data->product_category_and_panel->id)
+                ->where('user_id', $userID)
+                ->first();
+                // return $agentProduct;
+            $productPrice = $agentProduct->price;
+            $productPriceInDollar = $agentProduct->price_in_dollar;
+            $accBlCtrl = new AccountBallanceController();
+            if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+                $hiddifcCntrl = new HiddifyPannelController();
 
-            $hiddifcCntrl = new HiddifyPannelController();
+                $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+                $day = $selectedPrCat->expire_day;
+                $volume = $selectedPrCat->volume;
 
-            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
-            $req = new Request();
-            $req->pannelID = $pannel->id;
-            $req->name = $request->name;
-            $req->uuid = $uuid;
+                $req = new Request();
+                $req->pannelID = $pannel->id;
+                $req->name = $data->remark;
+                $req->uuid = $uuid;
+                $req->vol = $volume;
+                $req->day = $day;
+                // get today date with new variable
+                $today = Verta::now();
+                $req->comment = "شارژ مجدد در {$today}";
 
-            $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelOldApi($req);
-            // $updateRemark = json_encode($updateRemark);
-            if ($updateRemark['status'] == 200) {
-                if ($updateRemark['msg'] !== 'ok') {
-                    return response()->json(false, 401);
+                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
+                // $updateRemark = json_encode($updateRemark);
+                if ($updateRemark['status'] == 200) {
+                    if ($updateRemark['msg'] !== 'ok') {
+                        return response()->json(false, 401);
+                    }
+                    $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                    return response()->json(true, 200);
+                    // dd($subsequentResponse);
                 }
-                $data->remark = $request->name;
-                $data->update();
-                return response()->json(true, 200);
-                // dd($subsequentResponse);
             }
-
             return response()->json(false, 401);
         } else {
             return response()->json(false, 500);
