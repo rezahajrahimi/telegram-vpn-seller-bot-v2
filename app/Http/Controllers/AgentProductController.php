@@ -174,14 +174,20 @@ class AgentProductController extends Controller
     public function buyProductByAgentWithPrID(Request $request)
     {
         $selectedPrCat = ProductCategory::find($request->id);
+
         $userId = auth('sanctum')->user()->account_id;
         $agentname = auth('sanctum')->user()->name;
         $remark = "$agentname -  $request->remark ";
         if ($selectedPrCat == null) {
             return response()->json(false, 500);
         }
-        $productPrice = $selectedPrCat->price;
-        $productPriceInDollar = $selectedPrCat->price_in_dollar;
+
+        if ($selectedPrCat->is_active == false) {
+            return response()->json(false, 500);
+        }
+        $agentProduct = AgentProduct::where("product_categories_id", $selectedPrCat->id)->where("user_id", $userId)->first();
+        $productPrice = $agentProduct->price;
+        $productPriceInDollar = $agentProduct->price_in_dollar;
 
         $accBlCtrl = new AccountBallanceController();
         if ($accBlCtrl->checkUserHasBalance($userId, $productPrice, $productPriceInDollar)) {
@@ -279,6 +285,46 @@ class AgentProductController extends Controller
         }
     }
     public function renameHiddifyRemark(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+            $userId = auth('sanctum')->user()->account_id;
+
+        if ($userId != $data->account_id) {
+            return response()->json(false, 401);
+        }
+
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+            $req = new Request();
+            $req->pannelID = $pannel->id;
+            $req->name = $request->name;
+            $req->uuid = $uuid;
+
+            $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelOldApi($req);
+            // $updateRemark = json_encode($updateRemark);
+            if ($updateRemark['status'] == 200) {
+                if ($updateRemark['msg'] !== 'ok') {
+                    return response()->json(false, 401);
+                }
+                $data->remark = $request->name;
+                $data->update();
+                return response()->json(true, 200);
+                // dd($subsequentResponse);
+            }
+
+            return response()->json(false, 401);
+        } else {
+            return response()->json(false, 500);
+        }
+    }
+    public function rechargeAgentProductHiddify(Request $request)
     {
         $data = Product::where('id', $request->id)
             ->with('product_category_and_panel')
