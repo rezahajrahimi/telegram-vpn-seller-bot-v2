@@ -12,7 +12,6 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Carbon;
 use Hekmatinasser\Verta\Verta;
 
-
 class AgentProductController extends Controller
 {
     public function createBatchOfUserAgentProduct(Request $request)
@@ -350,7 +349,7 @@ class AgentProductController extends Controller
             $agentProduct = AgentProduct::where('product_categories_id', $data->product_category_and_panel->id)
                 ->where('user_id', $userID)
                 ->first();
-                // return $agentProduct;
+            // return $agentProduct;
             $productPrice = $agentProduct->price;
             $productPriceInDollar = $agentProduct->price_in_dollar;
             $accBlCtrl = new AccountBallanceController();
@@ -386,5 +385,48 @@ class AgentProductController extends Controller
         } else {
             return response()->json(false, 500);
         }
+    }
+    public function softDeleteProductByAgentWithPrID($id)
+    {
+        $data = Product::where('id', $id)
+            ->with('product_category_and_panel')
+            ->first();
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+
+        if ($accountID != $data->account_id) {
+            return response()->json(false, 401);
+        }
+
+
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+
+            $req = new Request();
+            $req->pannelID = $pannel->id;
+            $req->name = $data->remark;
+            $req->uuid = $uuid;
+            $req->vol = 0;
+            $req->day = 0;
+            // get today date with new variable
+            $today = Verta::now();
+            $req->comment = "حذف شده در {$today}";
+
+            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanelOldApi($req);
+            // $updateRemark = json_encode($updateRemark);
+            if ($updateRemark['status'] == 200) {
+                if ($updateRemark['msg'] !== 'ok') {
+                    return response()->json(false, 401);
+                }
+                $data->delete();
+                return response()->json(true, 200);
+                // dd($subsequentResponse);
+            }
+        }
+        return response()->json(false, 401);
     }
 }
