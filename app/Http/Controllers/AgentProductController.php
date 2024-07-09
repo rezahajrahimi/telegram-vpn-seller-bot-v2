@@ -176,7 +176,8 @@ class AgentProductController extends Controller
     {
         $selectedPrCat = ProductCategory::find($request->id);
 
-        $userId = auth('sanctum')->user()->account_id;
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
         $agentname = auth('sanctum')->user()->name;
         $remark = "$agentname -  $request->remark ";
         if ($selectedPrCat == null) {
@@ -187,13 +188,13 @@ class AgentProductController extends Controller
             return response()->json(false, 500);
         }
         $agentProduct = AgentProduct::where('product_categories_id', $selectedPrCat->id)
-            ->where('user_id', $userId)
+            ->where('user_id', $userID)
             ->first();
         $productPrice = $agentProduct->price;
         $productPriceInDollar = $agentProduct->price_in_dollar;
 
         $accBlCtrl = new AccountBallanceController();
-        if ($accBlCtrl->checkUserHasBalance($userId, $productPrice, $productPriceInDollar)) {
+        if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
             $pnlCntrl = new PannelController();
             $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
             // get selected item specefic data
@@ -216,7 +217,7 @@ class AgentProductController extends Controller
                 $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
 
                 $reqProductDetails = new Request();
-                $reqProductDetails->account_id = $userId;
+                $reqProductDetails->account_id = $accountID;
                 $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
                 $reqProductDetails->product_categories_id = $selectedPrCat->id;
                 $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
@@ -224,7 +225,7 @@ class AgentProductController extends Controller
                 $reqProductDetails->remark = $remark;
 
                 $prCntrl->addAutomatedProductDetails($reqProductDetails);
-                $accBlCtrl->decUserAccuntBalance($userId, $productPrice, $productPriceInDollar);
+                $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                 // $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
 
                 return $userPannelLink;
