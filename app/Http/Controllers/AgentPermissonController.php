@@ -14,7 +14,11 @@ class AgentPermissonController extends Controller
     }
     public function getUserPremissionByAgentID($userId)
     {
-        return AgentPermisson::where('user_id', $userId)->first();
+        $data = AgentPermisson::where('user_id', $userId)->first();
+        if($data != null) {
+            return $data;
+        }
+        return null;
     }
 
     public function createANewAgentPermisson(Request $request)

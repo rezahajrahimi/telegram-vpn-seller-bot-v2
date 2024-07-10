@@ -14,12 +14,27 @@ class AccountBallanceController extends Controller
         }
         // common product categorey check
         $data = AccountBallance::where('account_id', $userID)->first();
+        \Log::info("messageaaaaaa");
+
         if ($data != null) {
             if ($data->ballance >= $price) {
                 return true;
             } elseif ($data->account_ballance_in_dollar >= $parice_in_dollar) {
                 return true;
             } else {
+
+                // $accountRole = auth('sanctum')->user()->role;
+                // if ($accountRole != 'admin' || $accountRole != 'agent') {
+                //     \Log::info("messagssss999e $accountRole");
+                //     return false;
+                // }
+                // \Log::info("messageaaaaaa");
+
+                $agentPremissionCntrl = new AgentPermissonController();
+                $agentPr = $agentPremissionCntrl->getUserPremission();
+                if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
+                    return true;
+                }
                 return false;
             }
         } else {
@@ -48,49 +63,47 @@ class AccountBallanceController extends Controller
     {
         try {
             $data = AccountBallance::where('account_id', $userID)->first();
-        if ($data != null) {
-            $data->ballance += $ballance;
+            if ($data != null) {
+                $data->ballance += $ballance;
 
-            $data->update();
-            return true;
-        } else {
-            $newAcc = new AccountBallance();
-            $newAcc->account_id = $userID;
-            $newAcc->ballance = $ballance;
-            $newAcc->account_ballance_in_dollar = 0;
-            $newAcc->save();
+                $data->update();
+                return true;
+            } else {
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = $userID;
+                $newAcc->ballance = $ballance;
+                $newAcc->account_ballance_in_dollar = 0;
+                $newAcc->save();
 
-            return true;
-        }
+                return true;
+            }
         } catch (\Throwable $th) {
             \Log::info("message $th");
             return false;
         }
-
     }
     public function incUserAccuntBalanceInDollar($userID, $ballance)
     {
         try {
             $data = AccountBallance::where('account_id', $userID)->first();
-        if ($data != null) {
-            $data->account_ballance_in_dollar += $ballance;
+            if ($data != null) {
+                $data->account_ballance_in_dollar += $ballance;
 
-            $data->update();
-            return true;
-        } else {
-            $newAcc = new AccountBallance();
-            $newAcc->account_id = $userID;
-            $newAcc->account_ballance_in_dollar = $ballance;
-            $newAcc->ballance = 0;
-            $newAcc->save();
+                $data->update();
+                return true;
+            } else {
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = $userID;
+                $newAcc->account_ballance_in_dollar = $ballance;
+                $newAcc->ballance = 0;
+                $newAcc->save();
 
-            return true;
-        }
+                return true;
+            }
         } catch (\Throwable $th) {
             \Log::info("message $th");
             return false;
         }
-
     }
     public function decUserAccuntBalance($userID, $ballance, $parice_in_dollar)
     {
@@ -101,13 +114,22 @@ class AccountBallanceController extends Controller
                 $data->update();
 
                 return true;
-            } else {
-                $data->account_ballance_in_dollar -=doubleval($parice_in_dollar);
+            } elseif ($data->account_ballance_in_dollar >= $parice_in_dollar) {
+                $data->account_ballance_in_dollar -= doubleval($parice_in_dollar);
                 $data->update();
 
                 return true;
+            } else {
+                $agentPremissionCntrl = new AgentPermissonController();
+                $agentPr = $agentPremissionCntrl->getUserPremission();
+                if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
+                    $data->ballance -= $ballance;
+                    $data->update();
+                    \Log::info("  $data->ballance");
+                    return true;
+                }
+                return false;
             }
-            return false;
         } else {
             return false;
         }
