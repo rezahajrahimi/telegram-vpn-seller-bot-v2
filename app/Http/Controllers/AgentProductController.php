@@ -6,6 +6,7 @@ use App\Models\AgentProduct;
 use App\Models\ProductCategory;
 use App\Models\Product;
 use App\Models\Pannel;
+use App\Models\AgentPermisson;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
@@ -264,7 +265,7 @@ class AgentProductController extends Controller
                 return json_decode($subsequentResponse->getBody(), true);
             }
 
-            return response()->json(false, 401);
+            return response()->json(null, 401);
         } else {
             return null;
         }
@@ -389,9 +390,7 @@ class AgentProductController extends Controller
     }
     public function softDeleteProductByAgentWithPrID($id)
     {
-        $data = Product::where('id', $id)
-            ->with('product_category_and_panel')
-            ->first();
+        $data = Product::where('id', $id)->with('product_category_and_panel')->first();
         $accountID = auth('sanctum')->user()->account_id;
         $userID = auth('sanctum')->user()->id;
 
@@ -399,8 +398,15 @@ class AgentProductController extends Controller
             return response()->json(false, 401);
         }
 
-
         if ($data != null) {
+            // save current usage
+            $currentStatus = $this->getBoughtProductsStatusFromServerById($id);
+            if ($currentStatus == null) {
+                return response()->json(null, 500);
+            }
+            $currentUsage = $currentStatus['current_usage_GB'];
+            //
+
             // get pannel url
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
             $hiddifcCntrl = new HiddifyPannelController();
@@ -411,21 +417,39 @@ class AgentProductController extends Controller
             $req->pannelID = $pannel->id;
             $req->name = $data->remark;
             $req->uuid = $uuid;
-            $req->vol = 0;
+            $req->vol = 0.0;
             $req->day = 0;
             // get today date with new variable
             $today = Verta::now();
             $req->comment = "حذف شده در {$today}";
 
             $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanelOldApi($req);
-            // $updateRemark = json_encode($updateRemark);
             if ($updateRemark['status'] == 200) {
                 if ($updateRemark['msg'] !== 'ok') {
                     return response()->json(false, 401);
                 }
                 $data->delete();
+
+                $agentPremissionCntrl = new AgentPermissonController();
+                $agentPr = $agentPremissionCntrl->getUserPremission();
+                if ($agentPr->delete_products == 1 || $agentPr->delete_products == true) {
+                    if ($currentUsage < 0.5) {
+                        $agentProduct = AgentProduct::where('product_categories_id', $data->product_category_and_panel->id)
+                            ->where('user_id', $userID)
+                            ->first();
+                        $productPrice = $agentProduct->price;
+                        $accBlCtrl = new AccountBallanceController();
+
+                        $inc = $accBlCtrl->incUserAccuntBalance($accountID, $productPrice, 0);
+                        if ($inc == false) {
+                            return response()->json(null, 500);
+                        }
+                    }
+                }
+
                 return response()->json(true, 200);
-                // dd($subsequentResponse);
+            } else {
+                return response()->json(null, 500);
             }
         }
         return response()->json(false, 401);

@@ -46,10 +46,10 @@ class AccountBallanceController extends Controller
     }
     public function incUserAccuntBalance($userID, $ballance)
     {
-        $data = AccountBallance::where('account_id', $userID)->first();
+        try {
+            $data = AccountBallance::where('account_id', $userID)->first();
         if ($data != null) {
             $data->ballance += $ballance;
-            \Log::info('inc Baaaaaaaaaal ballance ' . $data->ballance);
 
             $data->update();
             return true;
@@ -62,13 +62,18 @@ class AccountBallanceController extends Controller
 
             return true;
         }
+        } catch (\Throwable $th) {
+            \Log::info("message $th");
+            return false;
+        }
+
     }
     public function incUserAccuntBalanceInDollar($userID, $ballance)
     {
-        $data = AccountBallance::where('account_id', $userID)->first();
+        try {
+            $data = AccountBallance::where('account_id', $userID)->first();
         if ($data != null) {
             $data->account_ballance_in_dollar += $ballance;
-            \Log::info('inc Baaaaaaaaaal ballance ' . $data->account_ballance_in_dollar);
 
             $data->update();
             return true;
@@ -81,6 +86,11 @@ class AccountBallanceController extends Controller
 
             return true;
         }
+        } catch (\Throwable $th) {
+            \Log::info("message $th");
+            return false;
+        }
+
     }
     public function decUserAccuntBalance($userID, $ballance, $parice_in_dollar)
     {
@@ -91,8 +101,8 @@ class AccountBallanceController extends Controller
                 $data->update();
 
                 return true;
-            } elseif (condition) {
-                $data->account_ballance_in_dollar -= $parice_in_dollar;
+            } else {
+                $data->account_ballance_in_dollar -=doubleval($parice_in_dollar);
                 $data->update();
 
                 return true;

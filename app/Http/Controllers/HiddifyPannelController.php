@@ -384,6 +384,7 @@ class HiddifyPannelController extends Controller
             'added_by_uuid' => "$adminUUID",
             'comment' => "$comment",
             'enable' => false,
+            "start_date"=> "2024-01-01",
         ];
         $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
         $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
