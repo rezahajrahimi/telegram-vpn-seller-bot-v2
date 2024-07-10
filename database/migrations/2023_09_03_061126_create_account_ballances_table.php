@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('account_ballances', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('account_id')->unsigned();
-            $table->bigInteger('ballance')->unsigned();
+            $table->bigInteger('ballance');
             $table->timestamps();
         });
     }
