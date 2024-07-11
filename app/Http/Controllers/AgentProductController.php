@@ -227,7 +227,7 @@ class AgentProductController extends Controller
 
                 $prCntrl->addAutomatedProductDetails($reqProductDetails);
                 $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
-                // $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
 
                 return $userPannelLink;
             }
@@ -379,6 +379,10 @@ class AgentProductController extends Controller
                         return response()->json(false, 401);
                     }
                     $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                    $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+                    $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
+
+
                     return response()->json(true, 200);
                     // dd($subsequentResponse);
                 }
@@ -429,6 +433,7 @@ class AgentProductController extends Controller
                     return response()->json(false, 401);
                 }
                 $data->delete();
+                $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
 
                 $agentPremissionCntrl = new AgentPermissonController();
                 $agentPr = $agentPremissionCntrl->getUserPremission();
@@ -441,6 +446,8 @@ class AgentProductController extends Controller
                         $accBlCtrl = new AccountBallanceController();
 
                         $inc = $accBlCtrl->incUserAccuntBalance($accountID, $productPrice, 0);
+                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت حذف بسته کم حجم اضافه شد.", 'add ballance');
+
                         if ($inc == false) {
                             return response()->json(null, 500);
                         }
@@ -453,5 +460,14 @@ class AgentProductController extends Controller
             }
         }
         return response()->json(false, 401);
+    }
+    public function addNewBotLog($type, $message, $event)
+    {
+        $accountID = auth('sanctum')->user()->account_id;
+        $name = auth('sanctum')->user()->name;
+
+        $logCtrl = new LogController();
+        $logCtrl->addNewLog($type, $message, $accountID, $name, $event);
+        return true;
     }
 }

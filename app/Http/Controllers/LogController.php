@@ -18,13 +18,23 @@ class LogController extends Controller
         ]);
         return true;
     }
-    public function getAllLogs($count = 400) {
+    public function getAllLogs($count = 400)
+    {
         try {
-            return Log::take($count)
-            ->orderBy('id', 'desc')
-            ->get();
+            return Log::take($count)->orderBy('id', 'desc')->get();
         } catch (\Throwable $th) {
-            return response()->json("server error",500);
+            return response()->json('server error', 500);
+        }
+    }
+
+    public function getAllLogsOfLoggedAgent($count = 100)
+    {
+        try {
+            $account_id = auth('sanctum')->user()->account_id;
+
+            return Log::take($count)->where('account_id', $account_id)->orderBy('id', 'desc')->get();
+        } catch (\Throwable $th) {
+            return response()->json('server error', 500);
         }
     }
 }
