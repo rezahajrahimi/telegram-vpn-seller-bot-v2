@@ -225,6 +225,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
     //  Account
     Route::post('setNewAccountBallance', [AccountBallanceController::class, 'setNewAccountBallance']);
+    Route::post('setNewDollarAccountBallance', [AccountBallanceController::class, 'setNewDollarAccountBallance']);
 
     // Application
     Route::get('getAllAplicationList', [ApplicationController::class, 'getAllAplicationList']);
@@ -261,6 +262,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
 
 });
+// Agent Routes
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // GeneralController
     Route::get('getAgentDashboardAnalytics', [GeneralController::class, 'getAgentDashboardAnalytics']);

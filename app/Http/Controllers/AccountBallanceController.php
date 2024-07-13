@@ -161,6 +161,33 @@ class AccountBallanceController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+    public function setNewDollarAccountBallance(Request $request)
+    {
+        try {
+            $data = AccountBallance::where('account_id', $request->userID)->first();
+            if ($data != null) {
+                $data->account_ballance_in_dollar = $request->ballance;
+
+                $data->update();
+
+                $logCtrl = new LogController();
+                $logCtrl->addNewLog('ballance', 'میزان موجودی دلاری کاربر بصورت دستی به ' . $request->ballance . ' دلار تغییر کرد', $request->userID, '', 'edit');
+
+                return true;
+            } else {
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = $request->userID;
+                $newAcc->account_ballance_in_dollar = $request->ballance;
+                $newAcc->save();
+                $logCtrl->addNewLog('ballance', 'میزان موجودی دلاری کاربر بصورت دستی به ' . $request->ballance . ' دلار تغییر کرد', $request->userID, '', 'edit');
+
+                return true;
+            }
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
+    }
     /// Agent Functions
     public function getLoggedUserBallancce()
     {
