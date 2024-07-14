@@ -218,14 +218,19 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     //  BotUser
     Route::get('getBotUserList', [BotUserController::class, 'getBotUserList']);
     Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
+
+
     Route::get('getLast10Users', [BotUserController::class, 'getLast10Users']);
+    Route::get('getProductBoughtedByProductId/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
+    Route::patch('reChargeProductByAdminWithPrID', [AgentProductController::class, 'reChargeProductByAdminWithPrID']);
+    Route::get('getBoughtProductsPannelLinkFromServerByIdAdminMode/{id}', [AgentProductController::class, 'getBoughtProductsPannelLinkFromServerByIdAdminMode']);
+    Route::delete('softDeleteProductByAgentWithPrIDAdminMOde/{id}', [AgentProductController::class, 'softDeleteProductByAgentWithPrIDAdminMOde']);
 
     // Log
     Route::get('getAllLogs/{count}', [LogController::class, 'getAllLogs']);
 
     //  Account
     Route::post('setNewAccountBallance', [AccountBallanceController::class, 'setNewAccountBallance']);
-    Route::post('setNewDollarAccountBallance', [AccountBallanceController::class, 'setNewDollarAccountBallance']);
 
     // Application
     Route::get('getAllAplicationList', [ApplicationController::class, 'getAllAplicationList']);
@@ -262,7 +267,6 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
 
 });
-// Agent Routes
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // GeneralController
     Route::get('getAgentDashboardAnalytics', [GeneralController::class, 'getAgentDashboardAnalytics']);

@@ -167,6 +167,111 @@ class AgentProductController extends Controller
             return response()->json(null, 500);
         }
     }
+    public function reChargeProductByAdminWithPrID(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+        $selectedPrCat = ProductCategory::find($data->product_categories_id);
+
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+            $day = $selectedPrCat->expire_day;
+            $volume = $selectedPrCat->volume;
+
+            $req = new Request();
+            $req->pannelID = $pannel->id;
+            $req->name = $data->remark;
+            $req->uuid = $uuid;
+            $req->vol = $volume;
+            $req->day = $day;
+            // get today date with new variable
+            $today = Verta::now();
+            $req->comment = "شارژ مجدد در {$today}";
+
+            $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
+            // $updateRemark = json_encode($updateRemark);
+            if ($updateRemark['status'] == 200) {
+                if ($updateRemark['msg'] !== 'ok') {
+                    return response()->json(false, 401);
+                }
+                $this->addNewBotLog('product', "$data->remark توسط مدیر شارژ شد", 'charge product');
+
+                return response()->json(true, 200);
+                // dd($subsequentResponse);
+            }
+
+            return response()->json(false, 500);
+        } else {
+            return response()->json(false, 500);
+        }
+    }
+    public function getBoughtProductsPannelLinkFromServerByIdAdminMode($id)
+    {
+        $data = Product::where('id', $id)->with('product_category_and_panel')->first();
+        $userId = auth('sanctum')->user()->account_id;
+
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            $panel_link = $data->panel_link;
+            return $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, $panel_link);
+        } else {
+            return null;
+        }
+    }
+    public function softDeleteProductByAgentWithPrIDAdminMOde($id)
+    {
+        $data = Product::where('id', $id)->with('product_category_and_panel')->first();
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+
+        if ($data != null) {
+            // save current usage
+            $currentStatus = $this->getBoughtProductsStatusFromServerById($id);
+            if ($currentStatus == null) {
+                return response()->json(null, 500);
+            }
+            $currentUsage = $currentStatus['current_usage_GB'];
+            //
+
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+
+            $req = new Request();
+            $req->pannelID = $pannel->id;
+            $req->name = $data->remark;
+            $req->uuid = $uuid;
+            $req->vol = 0.0;
+            $req->day = 0;
+            // get today date with new variable
+            $today = Verta::now();
+            $req->comment = "حذف شده در {$today}";
+
+            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanelOldApi($req);
+            if ($updateRemark['status'] == 200) {
+                if ($updateRemark['msg'] !== 'ok') {
+                    return response()->json(false, 401);
+                }
+                $data->delete();
+                $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
+                return response()->json(true, 200);
+            } else {
+                return response()->json(null, 500);
+            }
+        }
+        return response()->json(false, 401);
+    }
     /// Agent function
     public function getProductsOfLoggedAgent()
     {
@@ -274,7 +379,8 @@ class AgentProductController extends Controller
     {
         $data = Product::where('id', $id)->with('product_category_and_panel')->first();
         $userId = auth('sanctum')->user()->account_id;
-        if ($userId != $data->account_id) {
+
+        if ($userId != $data->account_id || $data == null) {
             return response()->json(false, 401);
         }
         if ($data != null) {
@@ -381,7 +487,6 @@ class AgentProductController extends Controller
                     $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                     $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
                     $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
-
 
                     return response()->json(true, 200);
                     // dd($subsequentResponse);
