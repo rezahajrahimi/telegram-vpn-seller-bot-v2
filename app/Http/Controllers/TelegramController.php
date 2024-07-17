@@ -1310,17 +1310,21 @@ class TelegramController extends Controller
     {
         $testAccountCntrl = new TestAccountController();
         $testAccount = $testAccountCntrl->getTestAccountDetails();
+
         $usedTestAccountCntrl = new UsedTestAccountController();
         $pnlCntrl = new PannelController();
         $pannel = $pnlCntrl->getPannelById($testAccount->pannel_id);
 
         $text = '';
-        if ($usedTestAccountCntrl->checkUserHasTestAccount($this->chat_id, $testAccount->id)) {
+        $hasAccount = $usedTestAccountCntrl->newTestAccount($this->chat_id, $testAccount->id);
+        \Log::info("message: $hasAccount");
+        if ($hasAccount == true || $hasAccount == 1) {
             $text .= "اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.  \n\r";
             $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
             return response()->json($resualt, 200);
         }
+
         // get test product id
 
         $prCat = new ProductCategoryController();
@@ -1350,7 +1354,7 @@ class TelegramController extends Controller
             \Log::info("vol $volume day $day");
             $hiddifcCntrl = new HiddifyPannelController();
 
-            $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req);
+            $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req);
 
             $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 

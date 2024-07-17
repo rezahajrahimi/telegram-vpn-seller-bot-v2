@@ -14,14 +14,13 @@ class UsedTestAccountController extends Controller
             $testAccount->account_id = $account_id;
             $testAccount->test_account_id = $test_account_id;
             $testAccount->save();
-            return true;
+            return false;
         }
-        return false;
+        return true;
     }
     public function checkUserHasTestAccount($account_id, $test_account_id)
     {
-        if ($this->getCountOfUsePerUser($test_account_id, $account_id) >= 1) {
-            \Log::info("aaaaaaaaaa");
+        if ($this->getCountOfUsePerUser($test_account_id, $account_id) >= 1 && $this->getCountOfUsePerUser($test_account_id, $account_id) <= 3) {
             return true;
         }
         return false;

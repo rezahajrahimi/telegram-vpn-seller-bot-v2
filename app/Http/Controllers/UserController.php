@@ -184,4 +184,33 @@ class UserController extends Controller
             200,
         );
     }
+
+    /// Agent
+    public function updateAgentPassword(Request $request)
+    {
+        try {
+            //code..
+
+            $request->validate([
+                'password' => 'required|string|min:8',
+            ]);
+            $accountID = auth('sanctum')->user()->account_id;
+            $user = User::where('account_id', $accountID)->first();
+            if (!$user) {
+                return response()->json(
+                    [
+                        'message' => 'User not found',
+                    ],
+                    404,
+                );
+            }
+
+            $user->password = Hash::make($request->password);
+            $user->save();
+
+            return response()->json(true, 200);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+        }
+    }
 }

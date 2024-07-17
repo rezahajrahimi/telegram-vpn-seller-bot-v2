@@ -268,6 +268,11 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
+
+    // User
+    Route::put('updateAgentPassword', [UserController::class, 'updateAgentPassword']);
+
+
     // GeneralController
     Route::get('getAgentDashboardAnalytics', [GeneralController::class, 'getAgentDashboardAnalytics']);
     Route::get('getAgentPaymentWays', [GeneralController::class, 'getAgentPaymentWays']);
