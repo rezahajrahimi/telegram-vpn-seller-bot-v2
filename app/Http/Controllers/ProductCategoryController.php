@@ -23,6 +23,12 @@ class ProductCategoryController extends Controller
     {
         return ProductCategory::orderBy('price')->get();
     }
+    public function getAllActiveProdctCategoryOrderByPrice()
+    {
+        return ProductCategory::orderBy('price')
+        ->where('is_active', true)
+        ->get();
+    }
     public function getProdctPannelID($name, $pannel_id)
     {
         $data = ProductCategory::where('pannel_id', $pannel_id)->where('category_name', $name)->first();

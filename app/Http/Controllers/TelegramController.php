@@ -409,7 +409,7 @@ class TelegramController extends Controller
         $text = 'بسته خود را انتخاب کنید.';
         $prCatCntrl = new ProductCategoryController();
 
-        $prCat = $prCatCntrl->getAllProdctCategoryOrderByPrice();
+        $prCat = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
         $opr = [];
         $index = 0;
         array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'],['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
