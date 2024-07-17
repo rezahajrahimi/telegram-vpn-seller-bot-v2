@@ -27,6 +27,7 @@ class ProductCategoryController extends Controller
     {
         return ProductCategory::orderBy('price')
         ->where('is_active', true)
+        ->where('category_name','!=','اکانت آزمایشی')
         ->get();
     }
     public function getProdctPannelID($name, $pannel_id)
