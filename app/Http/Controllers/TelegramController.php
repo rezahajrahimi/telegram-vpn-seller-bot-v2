@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://3rv5hv02-8000.euw.devtunnels.ms/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -761,11 +761,11 @@ class TelegramController extends Controller
             } else {
                 $text = 'میزان افزایش اعتبار را انتخاب کنید.';
                 $opr = [];
-                array_push($opr, [['text' => '5$', 'callback_data' => 'subAccountBalance-nowpayment-10000 '], ['text' => '7$', 'callback_data' => 'subAccountBalance-nowpayment-15000 ']]);
-                array_push($opr, [['text' => '10$', 'callback_data' => 'subAccountBalance-nowpayment-30000 '], ['text' => '12$', 'callback_data' => 'subAccountBalance-nowpayment-50000 ']]);
-                array_push($opr, [['text' => '15$', 'callback_data' => 'subAccountBalance-nowpayment-90000 '], ['text' => '20$', 'callback_data' => 'subAccountBalance-nowpayment-100000 ']]);
-                array_push($opr, [['text' => '50$', 'callback_data' => 'subAccountBalance-nowpayment-150000 '], ['text' => '150$', 'callback_data' => 'subAccountBalance-nowpayment-180000 ']]);
-                array_push($opr, [['text' => '200$', 'callback_data' => 'subAccountBalance-nowpayment-300000 '], ['text' => '300$', 'callback_data' => 'subAccountBalance-nowpayment-500000 ']]);
+                array_push($opr, [['text' => '5$', 'callback_data' => 'subAccountBalance-nowpayment-5 '], ['text' => '7$', 'callback_data' => 'subAccountBalance-nowpayment-7 ']]);
+                array_push($opr, [['text' => '10$', 'callback_data' => 'subAccountBalance-nowpayment-10 '], ['text' => '12$', 'callback_data' => 'subAccountBalance-nowpayment-12 ']]);
+                array_push($opr, [['text' => '15$', 'callback_data' => 'subAccountBalance-nowpayment-15 '], ['text' => '20$', 'callback_data' => 'subAccountBalance-nowpayment-20 ']]);
+                array_push($opr, [['text' => '50$', 'callback_data' => 'subAccountBalance-nowpayment-50 '], ['text' => '150$', 'callback_data' => 'subAccountBalance-nowpayment-150 ']]);
+                array_push($opr, [['text' => '200$', 'callback_data' => 'subAccountBalance-nowpayment-200 '], ['text' => '300$', 'callback_data' => 'subAccountBalance-nowpayment-300 ']]);
 
                 $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
                 // $this->setNewLevel($this->addZarinPalBalanceLevel);
