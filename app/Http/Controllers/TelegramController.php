@@ -1285,7 +1285,8 @@ class TelegramController extends Controller
         $userUsedItemCount = $usedGiftCntrl->getCountOfUsePerUser($gift->id, $this->chat_id);
 
         if ($userUsedItemCount >= $gift->count_of_use_per_user) {
-            $text = "${$giftMenuCntrl->getgetGiftCardExpiredMenuTitle()} \n\r";
+            $expire_text = $giftMenuCntrl->getGiftCardExpiredMenuTitle();
+            $text = "{$expire_text}\n\r";
             $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
             return response()->json($resualt, 200);
         }
@@ -1301,7 +1302,8 @@ class TelegramController extends Controller
             return response()->json($resualt, 200);
         }
         $text = '';
-        $text = "${$giftMenuCntrl->getgetGiftCardExpiredMenuTitle()} \n\r";
+        $expire_text = $giftMenuCntrl->getGiftCardExpiredMenuTitle();
+            $text = "{$expire_text}\n\r";
 
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
         return response()->json($resualt, 200);

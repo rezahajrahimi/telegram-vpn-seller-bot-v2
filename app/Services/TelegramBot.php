@@ -46,7 +46,7 @@ class TelegramBot
      * @param  mixed $reply_to_message_id
      * @return void
      */
-    public function sendMessage($text = '', $chat_id, $reply_to_message_id, $parse, $key = null)
+    public function sendMessage($text , $chat_id, $reply_to_message_id, $parse, $key = null)
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
@@ -180,7 +180,7 @@ class TelegramBot
 
         return false;
     }
-    public function buttonMessage($text = '', $opr, $chat_id, $reply_to_message_id)
+    public function buttonMessage($text , $opr, $chat_id, $reply_to_message_id)
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
@@ -210,7 +210,7 @@ class TelegramBot
 
         return $result;
     }
-    public function inlineKeyboardButton($text = '', $opr, $chat_id, $reply_to_message_id)
+    public function inlineKeyboardButton($text, $opr, $chat_id, $reply_to_message_id)
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
