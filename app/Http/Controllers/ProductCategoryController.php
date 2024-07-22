@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\ProductCategory;
+use App\Models\Product;
 
 use Illuminate\Http\Request;
 
@@ -152,7 +153,19 @@ class ProductCategoryController extends Controller
     public function mostSelledProductCategory($count)
     {
         try {
-            $data = ProductCategory::where('is_active', true)->leftJoin('products', 'products.product_categories_id', '=', 'product_categories.id')->groupBy('product_categories.category_name')->select('product_categories.category_name', \DB::raw('count(*) as count'))->orderBy('count', 'desc')->take($count)->get();
+            $data= Product::leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
+            ->where('product_categories.is_active', true)
+            ->groupBy('product_categories.category_name')
+            ->select('product_categories.category_name', \DB::raw('count(*) as count'))
+            ->orderBy('count', 'desc')
+            ->take($count)->get();
+
+            // $data = ProductCategory::where('is_active', true)
+            // ->leftJoin('products', 'products.product_categories_id', '=', 'product_categories.id')
+            // ->groupBy('product_categories.category_name')
+            // ->select('product_categories.category_name', \DB::raw('count(*) as count'))
+            // ->orderBy('count', 'desc')
+            // ->take($count)->get();
             if ($data != null) {
                 return $data;
             } else {
