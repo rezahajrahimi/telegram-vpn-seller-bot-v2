@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://0d08-185-197-74-113.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://50a9-5-219-55-33.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
@@ -147,8 +147,10 @@ class TelegramController extends Controller
                 if ($channelLock == true || $channelLock == 1) {
                     $this->changeMenuLevel();
                 } else {
-                    $this->channelLockMenu();
+                    return  $this->channelLockMenu();
+
                 }
+
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
@@ -244,7 +246,7 @@ class TelegramController extends Controller
                 if ($channelLock == true || $channelLock == 1) {
                     $this->changeMenuLevel();
                 } else {
-                    $this->channelLockMenu();
+                    return   $this->channelLockMenu();
                 }
             }
         try {
@@ -804,9 +806,9 @@ class TelegramController extends Controller
 
             $res = app('telegram_bot')->checkMember($channel_name, $chat_id);
             if ($res == false || $res == null) {
-                $response = false;
+                return  $response = false;
             } else {
-                $response = true;
+                return  $response = true;
             }
             \Log::info("checkIsChannelsMember: $response");
         }
@@ -814,6 +816,7 @@ class TelegramController extends Controller
     }
     public function channelLockMenu()
     {
+
         $this->addNewBotLog('lock', 'درخواست از کاربر برای عضویت در کانالهای قفل ربات.', 'show');
 
         $channelLockCtrl = new ChannelLockController();
@@ -835,6 +838,8 @@ class TelegramController extends Controller
 
         $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
         return response()->json($result, 200);
+
+
     }
     public function buyHistory()
     {

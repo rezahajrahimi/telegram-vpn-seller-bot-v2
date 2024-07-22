@@ -172,7 +172,8 @@ class ProductCategoryController extends Controller
                 return null;
             }
         } catch (\Throwable $th) {
-            return $th;
+            \Log::info("error: " . $th);
+            return null;
         }
     }
     public function getAgentProductsNotSelectedByUserID($userID)
