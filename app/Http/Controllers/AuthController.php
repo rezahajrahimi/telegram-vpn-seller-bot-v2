@@ -93,7 +93,7 @@ class AuthController extends Controller
         $user_id = $user->account_id;
         $text = "کاربر گرامی \n\r";
         $text .= "رمز عبور شما به پنل تغییر یافت \n\r";
-        $text .= 'نام کاربری ورد به پنل:';
+        $text .= 'نام کاربری ورود به پنل:';
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
         $text = "{$user_id}";
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');

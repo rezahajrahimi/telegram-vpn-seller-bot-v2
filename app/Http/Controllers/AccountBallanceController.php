@@ -14,7 +14,7 @@ class AccountBallanceController extends Controller
         }
         // common product categorey check
         $data = AccountBallance::where('account_id', $userID)->first();
-        \Log::info("messageaaaaaa");
+        \Log::info('messageaaaaaa');
 
         if ($data != null) {
             if ($data->ballance >= $price) {
@@ -23,17 +23,14 @@ class AccountBallanceController extends Controller
                 return true;
             } else {
 
-                // $accountRole = auth('sanctum')->user()->role;
-                // if ($accountRole != 'admin' || $accountRole != 'agent') {
-                //     \Log::info("messagssss999e $accountRole");
-                //     return false;
-                // }
-                // \Log::info("messageaaaaaa");
-
                 $agentPremissionCntrl = new AgentPermissonController();
                 $agentPr = $agentPremissionCntrl->getUserPremission();
-                if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
-                    return true;
+                if ($agentPr != null) {
+                    if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
+                        return true;
+                    }
+                    return false;
+
                 }
                 return false;
             }
