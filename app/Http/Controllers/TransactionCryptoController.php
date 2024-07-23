@@ -41,11 +41,18 @@ class TransactionCryptoController extends Controller
             $req->amount = $this->amount_dollar;
             $req->order_id = $request->invoiceID;
             $req->order_description = "invoice {$request->invoiceID}";
-            $req->ipn_callback_url = "https://{$this->getCurrentUrl()}/payback/";
+
+            // get payment back url
+
+            $settingCntrl = new SettingController();
+            $mainUrl = $settingCntrl->getMainUrl();
+
+            //
+            $req->ipn_callback_url = "$mainUrl/payback/";
             // $req->ipn_callback_url = $nowpayment->ipn_callback_url;
-            $req->success_url = "https://{$this->getCurrentUrl()}/payback/";
+            $req->success_url = "$mainUrl/payback/";
             // $req->success_url = $nowpayment->success_url;
-            $req->cancel_url = "https://{$this->getCurrentUrl()}/cancelpay/";
+            $req->cancel_url = "$mainUrl/cancelpay/";
             $req->is_fixed_rate = $nowpayment->is_fixed_rate;
             $req->is_fee_paid_by_user = $nowpayment->is_fee_paid_by_user;
             // save created transaction

@@ -40,7 +40,7 @@ return [
      * NOWPayments Sandbox URL
      *
      */
-    'sandboxUrl' => env('NOWPAYMENTS_SANDBOX_URL', "https://api-sandbox.nowpayments.io/v1"),
+    'sandboxUrl' => env('NOWPAYMENTS_SANDBOX_URL', "https://api.nowpayments.io/v1"),
 
     /**
      * Your callback URL
@@ -65,7 +65,7 @@ return [
      *
      */
     'email' => env('NOWPAYMENTS_EMAIL'),
-    
+
     /**
      * Your Nowpayment password here
      *
