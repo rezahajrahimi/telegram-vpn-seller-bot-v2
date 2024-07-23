@@ -21,16 +21,17 @@ class TransactionController extends Controller
     {
         $pymntCntrrl = new PaymentTypeController();
 
-        \Log::info($request->all());
-        \Log::info($request->invoiceID);
-
         config::set('payment.drivers.zarinpal.merchantId', $pymntCntrrl->getZarinpalMerchantID());
+
+        $settingCntrl = new SettingController();
+        $mainUrl = $settingCntrl->getMainUrl();
+
+        config::set('payment.drivers.zarinpal.callbackUrl', "{$mainUrl}/order");
 
         $value = config('payment.drivers.zarinpal.merchantId');
         //get amount from bill
         $bill = new BillController();
         $this->amount = $bill->getBillAmountByBillId($request->invoiceID);
-        \Log::info("aaaaaa  $this->amount");
         $this->account_id = $request->account_id;
         if ($this->amount != null) {
             // Create new invoice.
