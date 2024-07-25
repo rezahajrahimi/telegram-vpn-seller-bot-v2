@@ -15,6 +15,32 @@ use Hekmatinasser\Verta\Verta;
 
 class AgentProductController extends Controller
 {
+    public obtainBatchOfExistProductsToUser(Request $request){
+        $data = json_decode($request, true);
+
+            $userID = $request['UserID'];
+            $pannelID = $request['pannelID'];
+            if ($userID == null) {
+                return response()->json(false, 201);
+            }
+            $selectedExistConfig = json_decode($request['selectedExistConfig'], true);
+            $prCatCntrl = new ProductCategoryController();
+
+            foreach ($selectedExistConfig as $value) {
+                $aa = json_decode($value, true);
+
+                $value = (array) $aa;
+                $uuid = $value['uuid'];
+                $req = new Request();
+                $req->product_categories_id = $prCatCntrl->getProductCatIdBYExpireDayPannelIDVolume($value['expire_day'], $pannelID, $value['volume']);
+                $req->pannelID = $pannelID;
+                $reqProductDetails->remark = $value['remark'];
+                $reqProductDetails->configs = '';
+
+                $this->createANewAgentProduct($req);
+            }
+
+    }
     public function createBatchOfUserAgentProduct(Request $request)
     {
         try {

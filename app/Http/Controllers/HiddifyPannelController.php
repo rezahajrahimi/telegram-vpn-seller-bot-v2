@@ -221,7 +221,11 @@ class HiddifyPannelController extends Controller
     }
     public function getHiddifyPanelUsersByPannelID($pannelID)
     {
-        $data = $this->sendGetRequestToHiddifyPannel($pannelID, 'api/v2/admin/user/');
+        $pannel = Pannel::find($pannelID);
+
+$adminUUID = $pannel->secret_code;
+
+        $data = $this->sendGetRequestToHiddifyPannel($pannelID, "$adminUUID/api/v1/user/");
         return $data;
     }
     public function getHiddifyPanelUserByPannelID($pannelID, $userUUID)

@@ -40,6 +40,28 @@ class ProductCategoryController extends Controller
             return -1;
         }
     }
+    public function getProductCatIdBYExpireDayPannelIDVolume($expire_day, $pannel_id, $volume){
+        $id =  ProductCategory::where('expire_day', $expire_day)->where('pannel_id', $pannel_id)->where('volume', $volume)->first()->id;
+        if($id == null){
+            // create a new category with this expire_day and pannel_id and volume
+            $data = new ProductCategory();
+            $data->pannel_id = $pannel_id;
+            $data->expire_day = $expire_day;
+            $data->volume = $volume;
+            $data->category_name = 'یک دسته بندی جدید ';
+            $data->price = 0;
+            $data->price_in_dollar = 0;
+            $data->is_active = true;
+            $data->rechargable = true;
+            $data->show_subscription_link = true;
+            $data->show_pannel_link = true;
+
+            $data->save();
+            $id = $data->id;
+        }
+
+        return $id;
+    }
     public function addNewProductCategory(Request $request)
     {
         $data = new ProductCategory();
