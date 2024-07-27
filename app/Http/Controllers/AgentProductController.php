@@ -6,6 +6,7 @@ use App\Models\AgentProduct;
 use App\Models\ProductCategory;
 use App\Models\Product;
 use App\Models\Pannel;
+use App\Models\User;
 use App\Models\AgentPermisson;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
@@ -15,31 +16,38 @@ use Hekmatinasser\Verta\Verta;
 
 class AgentProductController extends Controller
 {
-    public obtainBatchOfExistProductsToUser(Request $request){
+    public function obtainBatchOfExistProductsToUser(Request $request)
+    {
         $data = json_decode($request, true);
 
-            $userID = $request['UserID'];
-            $pannelID = $request['pannelID'];
-            if ($userID == null) {
-                return response()->json(false, 201);
-            }
-            $selectedExistConfig = json_decode($request['selectedExistConfig'], true);
-            $prCatCntrl = new ProductCategoryController();
 
-            foreach ($selectedExistConfig as $value) {
-                $aa = json_decode($value, true);
+        $pannelID = $request['pannelID'];
+        $accountID = $request['accountID'];
+        $userID = User::where('account_id', $accountID)->first()->id;
+        if ($userID == null) {
+            return response()->json(false, 201);
+        }
+        $selectedExistConfig = json_decode($request['selectedExistConfig'], true);
+        $prCatCntrl = new ProductCategoryController();
+        $prCntrl = new ProductController();
+        foreach ($selectedExistConfig as $value) {
+            $aa = json_decode($value, true);
 
-                $value = (array) $aa;
-                $uuid = $value['uuid'];
-                $req = new Request();
-                $req->product_categories_id = $prCatCntrl->getProductCatIdBYExpireDayPannelIDVolume($value['expire_day'], $pannelID, $value['volume']);
-                $req->pannelID = $pannelID;
-                $reqProductDetails->remark = $value['remark'];
-                $reqProductDetails->configs = '';
+            $value = (array) $aa;
+            $uuid = $value['uuid'];
+            $req = new Request();
+            $req->product_categories_id = $prCatCntrl->getProductCatIdBYExpireDayPannelIDVolume($value['packageDays'], $pannelID, $value['usageLimitGB']);
+            $req->pannelID = $pannelID;
+            $req->remark = $value['name'];
+            $req->configs = '';
+            $req->account_id = $accountID;
+            $req->subscription_link = "/{$uuid}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            $req->panel_link = "/{$uuid}/#{$req->remark}";
 
-                $this->createANewAgentProduct($req);
-            }
+            $prCntrl->addOrUpdateProductDetailsBySubscriptionLink($req);
+        }
 
+        return response()->json(true, 200);
     }
     public function createBatchOfUserAgentProduct(Request $request)
     {

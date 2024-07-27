@@ -16,6 +16,20 @@ class ProductCategoryController extends Controller
     {
         return ProductCategory::where('id', $id)->first();
     }
+    public function deleteProductCategoryByID($id)
+    {
+       // delete productCategory by id with cascade if have not any product relation
+
+        $data = ProductCategory::where('id', $id)->first();
+        if ($data != null) {
+            if( $data->delete() != null){
+                return $this->getAllProdctCategory();
+            }else{
+                return response()->json(false, 404);
+            }
+        }
+        return response()->json(false, 404);
+    }
     public function getProdctCategoryByCategoryName($categoryName)
     {
         return ProductCategory::where('category_name', $categoryName)->first();
@@ -26,10 +40,7 @@ class ProductCategoryController extends Controller
     }
     public function getAllActiveProdctCategoryOrderByPrice()
     {
-        return ProductCategory::orderBy('price')
-        ->where('is_active', true)
-        ->where('category_name','!=','اکانت آزمایشی')
-        ->get();
+        return ProductCategory::orderBy('price')->where('is_active', true)->where('category_name', '!=', 'اکانت آزمایشی')->get();
     }
     public function getProdctPannelID($name, $pannel_id)
     {
@@ -40,9 +51,10 @@ class ProductCategoryController extends Controller
             return -1;
         }
     }
-    public function getProductCatIdBYExpireDayPannelIDVolume($expire_day, $pannel_id, $volume){
-        $id =  ProductCategory::where('expire_day', $expire_day)->where('pannel_id', $pannel_id)->where('volume', $volume)->first()->id;
-        if($id == null){
+    public function getProductCatIdBYExpireDayPannelIDVolume($expire_day, $pannel_id, $volume)
+    {
+        $data = ProductCategory::where('expire_day', $expire_day)->where('pannel_id', $pannel_id)->where('volume', $volume)->first();
+        if ($data == null) {
             // create a new category with this expire_day and pannel_id and volume
             $data = new ProductCategory();
             $data->pannel_id = $pannel_id;
@@ -60,7 +72,7 @@ class ProductCategoryController extends Controller
             $id = $data->id;
         }
 
-        return $id;
+        return $data->id;
     }
     public function addNewProductCategory(Request $request)
     {
@@ -175,12 +187,7 @@ class ProductCategoryController extends Controller
     public function mostSelledProductCategory($count)
     {
         try {
-            $data= Product::leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
-            ->where('product_categories.is_active', true)
-            ->groupBy('product_categories.category_name')
-            ->select('product_categories.category_name', \DB::raw('count(*) as count'))
-            ->orderBy('count', 'desc')
-            ->take($count)->get();
+            $data = Product::leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->where('product_categories.is_active', true)->groupBy('product_categories.category_name')->select('product_categories.category_name', \DB::raw('count(*) as count'))->orderBy('count', 'desc')->take($count)->get();
 
             // $data = ProductCategory::where('is_active', true)
             // ->leftJoin('products', 'products.product_categories_id', '=', 'product_categories.id')
@@ -194,14 +201,14 @@ class ProductCategoryController extends Controller
                 return null;
             }
         } catch (\Throwable $th) {
-            \Log::info("error: " . $th);
+            \Log::info('error: ' . $th);
             return null;
         }
     }
     public function getAgentProductsNotSelectedByUserID($userID)
     {
         try {
-            return  ProductCategory::whereDoesntHave('agent_products', function ($query) use($userID) {
+            return ProductCategory::whereDoesntHave('agent_products', function ($query) use ($userID) {
                 $query->where('agent_products.user_id', '=', $userID);
             })->get();
             // $selected =  ProductCategory::with('agent_products')

@@ -10,9 +10,7 @@ class ProductController extends Controller
 {
     public function getProductConfigAndChangeStatus($selectedProductCatID, $userID)
     {
-        $data = Product::where('product_categories_id', $selectedProductCatID)
-            ->where('isActive', true)
-            ->first();
+        $data = Product::where('product_categories_id', $selectedProductCatID)->where('isActive', true)->first();
         if ($data != null) {
             $data->isActive = false;
             $data->account_id = $userID;
@@ -25,10 +23,7 @@ class ProductController extends Controller
 
     public function getProductConfigById($id, $userID)
     {
-        $data = Product::where('id', $id)
-            ->where('account_id', $userID)
-            ->with('product_category')
-            ->first();
+        $data = Product::where('id', $id)->where('account_id', $userID)->with('product_category')->first();
         if ($data != null) {
             return $data;
         } else {
@@ -37,9 +32,7 @@ class ProductController extends Controller
     }
     public function getUserProductsHistoryByAccountID($userID)
     {
-        $data = Product::where('account_id', $userID)
-            ->with('product_category')
-            ->get();
+        $data = Product::where('account_id', $userID)->with('product_category')->get();
         if ($data != null) {
             return $data;
         } else {
@@ -48,9 +41,7 @@ class ProductController extends Controller
     }
     public function getActiveProductsByProductCatID($selectedProductCatID)
     {
-        $data = Product::where('product_categories_id', $selectedProductCatID)
-            ->where('isActive', true)
-            ->get();
+        $data = Product::where('product_categories_id', $selectedProductCatID)->where('isActive', true)->get();
         if ($data != null) {
             return $data;
         } else {
@@ -68,6 +59,31 @@ class ProductController extends Controller
 
         if ($data->save()) {
             return $this->getActiveProductsByProductCatID($request->product_categories_id);
+        } else {
+            return false;
+        }
+    }
+    public function addOrUpdateProductDetailsBySubscriptionLink(Request $request)
+    {
+        $data = Product::where('subscription_link', $request->subscription_link)->first();
+        if ($data != null) {
+            $data->account_id = $request->account_id;
+            $data->update();
+
+            return true;
+        }
+
+        $data = new Product();
+        $data->product_categories_id = $request->product_categories_id;
+        $data->configs = $request->configs;
+        $data->subscription_link = $request->subscription_link;
+        $data->panel_link = $request->panel_link;
+        $data->isActive = false;
+        $data->account_id = $request->account_id;
+        $data->remark = $request->remark;
+
+        if ($data->save()) {
+            return true;
         } else {
             return false;
         }
@@ -116,7 +132,6 @@ class ProductController extends Controller
     public function deleteProductByProductID($id)
     {
         try {
-
             $data = Product::where('id', $id)->first();
             if ($data != null) {
                 $data->delete();
@@ -131,12 +146,7 @@ class ProductController extends Controller
     public function getLastBuyersByCatIdAndCount($product_categories_id, $count)
     {
         try {
-            $data = Product::where('product_categories_id', $product_categories_id)
-                ->where('isActive', false)
-                ->with('user')
-                ->orderBy('id', 'desc')
-                ->take($count)
-                ->get();
+            $data = Product::where('product_categories_id', $product_categories_id)->where('isActive', false)->with('user')->orderBy('id', 'desc')->take($count)->get();
             if ($data != null) {
                 return response()->json($data, 200);
             } else {
@@ -162,14 +172,8 @@ class ProductController extends Controller
     public function getCountOfSellProductBYCatIdAndMonth($product_categories_id, $month)
     {
         // get count of Product in last month  by id
-        $fromDate = Carbon::now()
-            ->subMonth()
-            ->startOfMonth()
-            ->toDateString();
-        $tillDate = Carbon::now()
-            ->subMonth()
-            ->endOfMonth($month)
-            ->toDateString();
+        $fromDate = Carbon::now()->subMonth()->startOfMonth()->toDateString();
+        $tillDate = Carbon::now()->subMonth()->endOfMonth($month)->toDateString();
 
         $data = Product::where('product_categories_id', $product_categories_id)
             ->whereBetween('updated_at', [$fromDate, $tillDate])

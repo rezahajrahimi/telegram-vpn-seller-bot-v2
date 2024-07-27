@@ -87,6 +87,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::post('editProductCategory', [ProductCategoryController::class, 'editProductCategory']);
     Route::get('reActiveProductCategory/{id}', [ProductCategoryController::class, 'reActiveProductCategory']);
     Route::get('deActiveProductCategory/{id}', [ProductCategoryController::class, 'deActiveProductCategory']);
+    Route::get('deleteProductCategoryByID/{id}', [ProductCategoryController::class, 'deleteProductCategoryByID']);
     Route::get('getAgentProductsNotSelectedByUserID/{userID}', [ProductCategoryController::class, 'getAgentProductsNotSelectedByUserID']);
 
     //ProductController
@@ -252,6 +253,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
     // AgentProductController
     Route::post('createBatchOfUserAgentProduct', [AgentProductController::class, 'createBatchOfUserAgentProduct']);
+    Route::post('obtainBatchOfExistProductsToUser', [AgentProductController::class, 'obtainBatchOfExistProductsToUser']);
     Route::post('deleteBatchOfUserAgentProduct', [AgentProductController::class, 'deleteBatchOfUserAgentProduct']);
     Route::post('createANewAgentProduct', [AgentProductController::class, 'createANewAgentProduct']);
     Route::patch('updateAgentProduct', [AgentProductController::class, 'updateAgentProduct']);
