@@ -20,7 +20,6 @@ class AgentProductController extends Controller
     {
         $data = json_decode($request, true);
 
-
         $pannelID = $request['pannelID'];
         $accountID = $request['accountID'];
         $userID = User::where('account_id', $accountID)->first()->id;
@@ -92,42 +91,31 @@ class AgentProductController extends Controller
             return response()->json($th, 201);
         }
     }
-    public function removeAgentProduct(Request $request)
+    public function removeAgent(Request $request)
     {
         try {
             $data = json_decode($request, true);
 
             $reqUserID = $request['UserID'];
+            // change agent role to user
             $userCntrl = new UserController();
-            $userCntrl->changeAgentRoleToUser($userID);
-
             $userID = $userCntrl->getUserIdByTelegramID($reqUserID);
+            \Log::info("userID: $userID");
             if ($userID == null) {
                 return response()->json(false, 201);
             }
+            $userCntrl->changeAgentRoleToUser($userID);
 
-            $selectedProductList = json_decode($request['selectedProductList'], true);
-            foreach ($selectedProductList as $value) {
-                $aa = json_decode($value, true);
+            // remove agent permission
 
-                $value = (array) $aa;
-                $req = new Request();
-                $req->product_categories_id = $value['id'];
-                $req->price = $value['newPrice'];
-                $req->price_in_dollar = $value['newPriceInDollar'];
-                $req->user_id = $userID;
-                $req->is_active = true;
-                $this->createANewAgentProduct($req);
-            }
             $agentPremissionCntrl = new AgentPermissonController();
-            $reqPermission = new Request();
-            $reqPermission->user_id = $userID;
-            $reqPermission->minus_ballance = $request['minusBallance'];
-            $reqPermission->create_products = $request['createProducts'];
-            $reqPermission->delete_products = $request['deleteProducts'];
-            $adasd = $request['minusBallance'];
+            $agentPremissionCntrl->deleteAgentPremisson($userID);
 
-            $agentPremissionCntrl->updateAgentPremisson($reqPermission);
+            // remove agent product
+            $res = $this->deleteAllAgentProductsByUserIDAndAssignToBotAdmin($userID);
+
+            //
+
             return response()->json(true, 200);
         } catch (\Throwable $th) {
             \Log::info("$th");
@@ -222,6 +210,40 @@ class AgentProductController extends Controller
             }
             $agentProduct->delete();
             return response()->json(true, 200);
+        } catch (\Throwable $th) {
+            \Log::info("throw $th");
+            return response()->json(false, 500);
+        }
+    }
+    public function deleteAllAgentProductsByUserID($userID)
+    {
+        try {
+            $agentProduct = AgentProduct::where('user_id', $userID)->get();
+            if (!$agentProduct) {
+                return;
+            }
+            $agentProduct->delete();
+            return response()->json(true, 200);
+        } catch (\Throwable $th) {
+            \Log::info("throw $th");
+            return response()->json(false, 500);
+        }
+    }
+    public function deleteAllAgentProductsByUserIDAndAssignToBotAdmin($userID)
+    {
+        try {
+            $agentProduct = AgentProduct::where('user_id', $userID)->get();
+            if (!$agentProduct) {
+                return;
+            }
+            $adminId = auth('sanctum')->user()->id;
+
+            foreach ($agentProduct as $value) {
+                $value->user_id = $adminId;
+                $value->update();
+            }
+
+            return true;
         } catch (\Throwable $th) {
             \Log::info("throw $th");
             return response()->json(false, 500);
