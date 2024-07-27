@@ -87,6 +87,16 @@ class UserController extends Controller
         $user->update();
         return true;
     }
+    public function changeAgentRoleToUser($id)
+    {
+        $user = User::find($id);
+        if (!$user) {
+            return null;
+        }
+        $user->role = 'user';
+        $user->update();
+        return true;
+    }
     public function getUserIdByTelegramID($telID)
     {
         $user = User::where('account_id', $telID)->first();

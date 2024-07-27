@@ -92,6 +92,49 @@ class AgentProductController extends Controller
             return response()->json($th, 201);
         }
     }
+    public function removeAgentProduct(Request $request)
+    {
+        try {
+            $data = json_decode($request, true);
+
+            $reqUserID = $request['UserID'];
+            $userCntrl = new UserController();
+            $userCntrl->changeAgentRoleToUser($userID);
+
+            $userID = $userCntrl->getUserIdByTelegramID($reqUserID);
+            if ($userID == null) {
+                return response()->json(false, 201);
+            }
+
+            $selectedProductList = json_decode($request['selectedProductList'], true);
+            foreach ($selectedProductList as $value) {
+                $aa = json_decode($value, true);
+
+                $value = (array) $aa;
+                $req = new Request();
+                $req->product_categories_id = $value['id'];
+                $req->price = $value['newPrice'];
+                $req->price_in_dollar = $value['newPriceInDollar'];
+                $req->user_id = $userID;
+                $req->is_active = true;
+                $this->createANewAgentProduct($req);
+            }
+            $agentPremissionCntrl = new AgentPermissonController();
+            $reqPermission = new Request();
+            $reqPermission->user_id = $userID;
+            $reqPermission->minus_ballance = $request['minusBallance'];
+            $reqPermission->create_products = $request['createProducts'];
+            $reqPermission->delete_products = $request['deleteProducts'];
+            $adasd = $request['minusBallance'];
+
+            $agentPremissionCntrl->updateAgentPremisson($reqPermission);
+            return response()->json(true, 200);
+        } catch (\Throwable $th) {
+            \Log::info("$th");
+
+            return response()->json($th, 201);
+        }
+    }
     public function deleteBatchOfUserAgentProduct(Request $request)
     {
         try {
