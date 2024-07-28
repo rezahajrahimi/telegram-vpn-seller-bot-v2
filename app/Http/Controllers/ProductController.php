@@ -180,4 +180,10 @@ class ProductController extends Controller
             ->count();
         return $data;
     }
+    public function getLastProductSelled($count)
+    {
+
+        $data = Product::with(['user', 'product_category'])->orderBy('id', 'desc')->take($count)->get();
+        return $data;
+    }
 }

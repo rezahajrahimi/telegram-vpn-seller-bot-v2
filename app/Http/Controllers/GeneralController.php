@@ -18,6 +18,8 @@ class GeneralController extends Controller
         $unConfirmedTransaction = $transactionCntrl->getUnConfirmedTransactions(1000);
         $productCatCntrl = new ProductCategoryController();
         $mostSelledProductCategory = $productCatCntrl->mostSelledProductCategory(10);
+        $prCntrl = new ProductController();
+        $last10ProductSelled = $prCntrl->getLastProductSelled(10);
         return response()->json(
             [
                 'Last10User' => $getLast10Users,
@@ -25,6 +27,7 @@ class GeneralController extends Controller
                 'Last10ConfirmedTransaction' => $last10ConfirmedTransaction,
                 'UnConfirmedTransaction' => $unConfirmedTransaction,
                 'MostSelledProductCategory' => $mostSelledProductCategory,
+                'last10ProductSelled' => $last10ProductSelled,
             ],
             200
         );
