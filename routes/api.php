@@ -64,7 +64,8 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function () {
     Route::get('getUserOrder/{userID}', [OrderController::class, 'getUserOrder']);
     Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
-
+    // Admin
+    Route::put('buyProductByAdmin', [AgentProductController::class, 'buyProductByAdmin']);
 
     // UserController
     Route::get('getUsers', [UserController::class, 'getUsers']);

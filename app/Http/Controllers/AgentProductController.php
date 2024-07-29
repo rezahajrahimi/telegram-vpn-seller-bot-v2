@@ -438,6 +438,73 @@ class AgentProductController extends Controller
         }
         return response()->json('low ballance', 401);
     }
+    public function buyProductByAdmin(Request $request)
+    {
+        $selectedPrCat = ProductCategory::find($request->id);
+
+        $accountID = $request->account_id;
+        $userID = $request->user_id;
+        $agentname = $request->username;
+        $remark = "$agentname -  $request->remark ";
+
+        if ($selectedPrCat == null) {
+            return response()->json(false, 500);
+        }
+
+        if ($selectedPrCat->is_active == false) {
+            return response()->json(false, 500);
+        }
+        $productPrice = $selectedPrCat->price;
+        $productPriceInDollar = $selectedPrCat->price_in_dollar;
+
+        $accBlCtrl = new AccountBallanceController();
+
+        $agentProduct = AgentProduct::where('product_categories_id', $selectedPrCat->id)
+            ->where('user_id', $userID)
+            ->first();
+
+        if ($agentProduct != null) {
+            $productPrice = $agentProduct->price;
+            $productPriceInDollar = $agentProduct->price_in_dollar;
+        }
+
+        $accBlCtrl = new AccountBallanceController();
+        $pnlCntrl = new PannelController();
+        $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
+        // get selected item specefic data
+        $day = $selectedPrCat->expire_day;
+        $volume = $selectedPrCat->volume;
+        $prCntrl = new ProductController();
+        if ($pannel->type == 'hiddify') {
+            $req = new Request();
+            $req->accountId = $remark;
+            $req->pannelID = $selectedPrCat->pannel_id;
+            $req->vol = $volume;
+            $req->day = $day;
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            // $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); api v2
+            $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
+
+            $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
+
+            $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+
+            $reqProductDetails = new Request();
+            $reqProductDetails->account_id = $accountID;
+            $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            $reqProductDetails->product_categories_id = $selectedPrCat->id;
+            $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
+            $reqProductDetails->configs = '';
+            $reqProductDetails->remark = $remark;
+
+            $prCntrl->addAutomatedProductDetails($reqProductDetails);
+            $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+            $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته بصورت دستی کم شد.", 'minus ballance');
+
+            return $userPannelLink;
+        }
+    }
     public function getAgentSelledProducts()
     {
         $userId = auth('sanctum')->user()->account_id;
