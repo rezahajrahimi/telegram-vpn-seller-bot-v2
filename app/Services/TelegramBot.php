@@ -362,7 +362,7 @@ class TelegramBot
         $image_url = '';
 
         $file_id = $photo[count($photo) - 1]['file_id'];
-
+        // \Log::info('TelegramBot->getImageUrl->result', ['imaaaaaaaaaaaaage' => $photo]);
         return $file_id;
     }
 }
