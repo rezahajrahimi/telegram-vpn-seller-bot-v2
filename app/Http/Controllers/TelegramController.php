@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://d35e-104-28-197-13.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://293c-104-28-197-13.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
@@ -8,6 +8,8 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
+use Hekmatinasser\Verta\Verta;
 
 class TelegramController extends Controller
 {
@@ -142,15 +144,12 @@ class TelegramController extends Controller
                 app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
                 $this->stickyMenu();
             } else {
-
                 $channelLock = $this->checkIsChannelsMember($this->from_id);
                 if ($channelLock == true || $channelLock == 1) {
                     $this->changeMenuLevel();
                 } else {
-                    return  $this->channelLockMenu();
-
+                    return $this->channelLockMenu();
                 }
-
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
@@ -211,7 +210,6 @@ class TelegramController extends Controller
     }
     public function recogniseMessage()
     {
-
         try {
             if ($this->chat_type == 'image') {
                 $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
@@ -236,19 +234,18 @@ class TelegramController extends Controller
         $botUserCtrl = new BotUserController();
         $settingCtrl = new SettingController();
         if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
-                $this->text = $settingCtrl->getWelcomeMessage();
-                cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
-                app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
-                $this->stickyMenu();
+            $this->text = $settingCtrl->getWelcomeMessage();
+            cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
+            app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
+            $this->stickyMenu();
+        } else {
+            $channelLock = $this->checkIsChannelsMember($this->from_id);
+            if ($channelLock == true || $channelLock == 1) {
+                $this->changeMenuLevel();
             } else {
-
-                $channelLock = $this->checkIsChannelsMember($this->from_id);
-                if ($channelLock == true || $channelLock == 1) {
-                    $this->changeMenuLevel();
-                } else {
-                    return   $this->channelLockMenu();
-                }
+                return $this->channelLockMenu();
             }
+        }
         try {
             if ($this->chat_type == 'image') {
                 $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
@@ -415,9 +412,9 @@ class TelegramController extends Controller
         $prCat = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
         $opr = [];
         $index = 0;
-        array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'],['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
+        array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
         foreach ($prCat as $key => $value) {
-            array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"],['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+            array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
         }
 
         $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
@@ -445,7 +442,7 @@ class TelegramController extends Controller
         $accBlCtrl = new AccountBallanceController();
         $prCntrl = new ProductController();
 
-        if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice,$productPriceInDollar)) {
+        if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice, $productPriceInDollar)) {
             $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
 
             // check pannel type
@@ -574,7 +571,7 @@ class TelegramController extends Controller
             }
 
             // minus balance
-            $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice,$productPriceInDollar);
+            $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice, $productPriceInDollar);
             $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
 
             // send how to use
@@ -806,9 +803,9 @@ class TelegramController extends Controller
 
             $res = app('telegram_bot')->checkMember($channel_name, $chat_id);
             if ($res == false || $res == null) {
-                return  $response = false;
+                return $response = false;
             } else {
-                return  $response = true;
+                return $response = true;
             }
             \Log::info("checkIsChannelsMember: $response");
         }
@@ -816,7 +813,6 @@ class TelegramController extends Controller
     }
     public function channelLockMenu()
     {
-
         $this->addNewBotLog('lock', 'درخواست از کاربر برای عضویت در کانالهای قفل ربات.', 'show');
 
         $channelLockCtrl = new ChannelLockController();
@@ -838,8 +834,6 @@ class TelegramController extends Controller
 
         $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
         return response()->json($result, 200);
-
-
     }
     public function buyHistory()
     {
@@ -893,13 +887,41 @@ class TelegramController extends Controller
 
                 $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
                 $text = '';
+                $agentCntrl = new AgentProductController();
+                $configStatus = $agentCntrl->getBoughtProductsStatusFromServerById($selectedProduct->id);
+                if ($configStatus != null) {
+                    // \Log::info('configStatus', ['configStatus' => $configStatus]);
+                    $enableText = $configStatus['enable'] == true ? 'فعال' : 'غیر فعال';
+                    // $text = "وضعیت بسته: {$enableText} \r\n";
+                    $text = "📦 وضعیت بسته: {$enableText} \r\n";
+                    $usageGB = $configStatus['current_usage_GB'];
+                    // show usageGb only with two decimal
+                    $usageGB = round($usageGB, 2);
+                    $limitGB = $configStatus['usage_limit_GB'];
+                    $text .= "📊 میزان حجم مصرف شده:  {$usageGB}GB از {$limitGB}GB \r\n";
+                    //
+                    $startDate = $configStatus['start_date'];
+                    // convert $startDate to valid carbon date
+                    $startDate = Carbon::parse($startDate);
+                    //convert $startDate to persian date by verta
+                    // expire date
+                    $expireDate = $configStatus['package_days'];
+                    // add expireDate to $startDate
+                    $expireDate = $startDate->addDays($expireDate);
+                    $expireDate = $startDate->toJalali()->format('Y.m.d');
+                    $startDate = $startDate->toJalali()->format('Y.m.d');
+
+                    $text .= "🗓️ تاریخ شروع: {$startDate} \r\n";
+
+                    $text .= "⏳ تاریخ انقضا: {$expireDate} \r\n";
+                }
                 if ($selectedProductCategory->show_pannel_link == 1) {
-                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
+                    $text .= "🔗 لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
                 }
                 if ($selectedProductCategory->show_subscription_link == 1) {
-                    $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+                    $text .= "🔗 لینک سابسکریپشن: $userSubscriptionLInk \r\n";
                 }
-                $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
+                $text .= "ℹ️ همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
                 $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
             } else {
                 if ($selectedProduct->panel_link != null) {
@@ -1309,7 +1331,7 @@ class TelegramController extends Controller
         }
         $text = '';
         $expire_text = $giftMenuCntrl->getGiftCardExpiredMenuTitle();
-            $text = "{$expire_text}\n\r";
+        $text = "{$expire_text}\n\r";
 
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
         return response()->json($resualt, 200);
