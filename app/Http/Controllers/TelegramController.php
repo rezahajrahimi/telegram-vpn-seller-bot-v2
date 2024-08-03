@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://8529-185-197-74-113.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://0eda-185-197-74-113.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
@@ -643,7 +643,10 @@ class TelegramController extends Controller
                 if ($hasZarinPal == true) {
                     $text = 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.';
                 } else {
-                    $text = $pymMenCntrl->getPaymentTypeMainMenuTitle();
+                    // $text = $pymMenCntrl->getPaymentTypeMainMenuTitle();
+                    $mainMenu = $pymMenCntrl->getPaymentTypeMainMenuTitle();
+                    $text = $mainMenu->alias_name;
+
                 }
 
                 $opr = [];
@@ -1160,7 +1163,10 @@ class TelegramController extends Controller
                     if ($hasZarinPal == true) {
                         $text = 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.';
                     } else {
-                        $text = $pymMenCntrl->getPaymentTypeMainMenuTitle();
+                        // $text = $pymMenCntrl->getPaymentTypeMainMenuTitle();
+                        $mainMenu = $pymMenCntrl->getPaymentTypeMainMenuTitle();
+                    $text = $mainMenu->alias_name;
+
                     }
 
                     $opr = [];
