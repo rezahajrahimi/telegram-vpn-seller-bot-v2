@@ -1,10 +1,16 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://293c-104-28-197-13.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://8529-185-197-74-113.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use App\Models\AgentProduct;
+use App\Models\ProductCategory;
+use App\Models\Product;
+use App\Models\Pannel;
+use App\Models\User;
+use App\Models\AgentPermisson;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -353,6 +359,9 @@ class TelegramController extends Controller
                 break;
             case 'giftcard':
                 $this->subGiftCard();
+                break;
+            case 'recharge':
+                $this->subRecharge();
                 break;
             default:
                 $this->stickyMenu();
@@ -961,6 +970,15 @@ class TelegramController extends Controller
             // check is enough volume or  time or not
             // send how to use
             $opr = [];
+            // $selectedHistoryID = $this->userCommandArr[1];
+
+            array_push($opr, [
+                [
+                    'text' => 'تمدید بسته',
+                    'callback_data' => "recharge-{$selectedHistoryID}",
+                ],
+            ]);
+
             array_push($opr, [
                 [
                     'text' => 'آموزش استفاده',
@@ -995,6 +1013,168 @@ class TelegramController extends Controller
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
 
             return response()->json($resualt, 200);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+        }
+    }
+    public function subRecharge()
+    {
+        // check is userCommandArr[1] an integer or not
+        try {
+            // $this->deleteMessage();
+            $selectedHistoryID = $this->userCommandArr[1];
+            $text = '';
+            $data = Product::where('id', $selectedHistoryID)->with('product_category_and_panel')->first();
+            $accountID = $this->chat_id;
+
+            $selectedPrCat = ProductCategory::find($data->product_categories_id);
+            // check selectedPrCat is اکانت آزمایشی or not
+            if ($selectedPrCat->category_name == 'اکانت آزمایشی' || $selectedPrCat->is_active == false) {
+                $text .= "این بسته قابلیت شارژ ندارد \r\n";
+                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+                return $resualt;
+            }
+
+            // check account ballance
+            $productPrice = $selectedPrCat->price;
+            $productPriceInDollar = $selectedPrCat->price_in_dollar;
+            \Log::info("message $productPrice $productPriceInDollar");
+            $accBlCtrl = new AccountBallanceController();
+            if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice, $productPriceInDollar)) {
+                $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+
+                // check pannel type
+                $hiddifcCntrl = new HiddifyPannelController();
+
+                $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+                $day = $selectedPrCat->expire_day;
+                $volume = $selectedPrCat->volume;
+
+                $req = new Request();
+                $req->pannelID = $pannel->id;
+                $req->name = $data->remark;
+                $req->uuid = $uuid;
+                $req->vol = $volume;
+                $req->day = $day;
+                // get today date with new variable
+                $today = Verta::now();
+                $req->comment = "شارژ مجدد در {$today}";
+
+                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
+                // $updateRemark = json_encode($updateRemark);
+                if ($updateRemark['status'] == 200) {
+                    if ($updateRemark['msg'] !== 'ok') {
+                        return response()->json(false, 401);
+                    }
+                    $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                    $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+                    $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
+
+                    $text .= "✅شارژ با موفقیت انجام شد✅ \r\n";
+                    $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+                    return $resualt;
+                    // dd($subsequentResponse);
+                } else {
+                    $text .= "خطایی رخ داد، دوباره امتحان کنید یا با پشتیبانی تماس بگیرید\r\n";
+                    $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+                    return $resualt;
+                }
+
+                $opr = [];
+
+                array_push($opr, [
+                    [
+                        'text' => 'آموزش استفاده',
+                        'callback_data' => 'help-subscription',
+                    ],
+                ]);
+                array_push($opr, [
+                    [
+                        'text' => 'برنامه های مورد نیاز',
+                        'callback_data' => 'help-applications',
+                    ],
+                ]);
+
+                // set back buttun
+                $mainCntrl = new MainMenuItemController();
+                $menuItem = $mainCntrl->getMenuIdByName('سابقه خرید');
+
+                array_push($opr, [
+                    [
+                        'text' => 'بازگشت به سابقه خرید',
+                        'callback_data' => "main-{$menuItem->id}",
+                    ],
+                ]);
+
+                // array_push($opr, [
+                //     [
+                //         'text' => 'بازگشت به منوی اصلی',
+                //         'callback_data' => 'main menu',
+                //     ],
+                // ]);
+                $text = 'یک گزینه را انتخاب کنید.';
+                $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+
+                return response()->json($resualt, 200);
+            } else {
+                $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
+                // get item price
+                $estimatedPrice = $productPrice - $userAccouintBallance;
+
+                // create new invoice
+                $billCntrl = new BillController();
+                $request = new Request();
+                $request->account_id = $this->chat_id;
+                $request->amount = $estimatedPrice;
+                $bill = $billCntrl->createNewBill($request);
+                // create link
+                $text = "موجودی شما کم تر از قیمت بسته انتخابی می باشد. لطفا حساب خود را شارژ بفرمایید. \r\n";
+                $text .= "موجودی حساب شما: $userAccouintBallance تومان  \r\n";
+                $text .= "موجودی مورد نیاز: $productPrice تومان  \r\n";
+                $text .= "میزان مبلغ مورد نیاز برای شارژ حساب: $estimatedPrice تومان  \r\n";
+
+                $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+                $pymCntrl = new PaymentTypeController();
+                $hasZarinPal = $pymCntrl->getZarinpalStatus();
+                if ($hasZarinPal == true) {
+                    // send link
+
+                    $openLink = $pymCntrl->getZarinpalLink();
+                    $text = "پرداخت مبلغ $estimatedPrice تومان از طریق درگاه آنلاین \r\n";
+
+                    array_push($opr, [
+                        [
+                            'text' => 'پرداخت آنلاین',
+                            'url' => "$openLink/$this->chat_id/$bill->bill_id/$bill->amount",
+                        ],
+                    ]);
+                    $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
+                }
+
+                // send offline item
+                $offlinePayment = $pymCntrl->getAllActiveOfflinePaymentTypes();
+                if ($offlinePayment != null) {
+                    $pymMenCntrl = new PaymentMenuItemController();
+                    if ($hasZarinPal == true) {
+                        $text = 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.';
+                    } else {
+                        $text = $pymMenCntrl->getPaymentTypeMainMenuTitle();
+                    }
+
+                    $opr = [];
+                    foreach ($offlinePayment as $key => $value) {
+                        \Log::info("offlinePayment:$value->name");
+                        array_push($opr, [['text' => "$value->name", 'callback_data' => "subAccountBalance-$value->id "]]);
+                    }
+
+                    $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+                }
+                $this->addNewBotLog('subscription', 'موجودی کیف پول کاربر برای حرید بسته کافی نبود.', 'low account ballance');
+
+                return response()->json($result, 200);
+            }
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
         }
