@@ -349,7 +349,8 @@ $adminUUID = $pannel->secret_code;
         $uuid = $request->uuid;
         $name = $request->name ?? '';
         $comment = $request->comment ?? '';
-
+        // get today date as format like 2024-01-01
+        $today = date('Y-m-d');
         $params = [
             'uuid' => "$uuid",
             'name' => "$name",
@@ -357,6 +358,7 @@ $adminUUID = $pannel->secret_code;
             'usage_limit_GB' => $vol,
             'package_days' => $day,
             'mode' => 'no_reset',
+            'start_date' => "$today",
             'added_by_uuid' => "$adminUUID",
             'comment' => "$comment",
         ];
