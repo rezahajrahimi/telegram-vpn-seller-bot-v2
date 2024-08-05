@@ -22,6 +22,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton('image_detect_text',function(){
             return new ImageDetectText();
         });
+
     }
 
     /**

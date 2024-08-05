@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\TransactionCryptoController;
+use Illuminate\Http\Request;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,4 +18,33 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
+});
+Route::get('buy/{account_id}/{invoiceID}/{price}', function ($account_id, $invoiceID, $price) {
+    return view('shop', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
+});
+Route::post('shop', [TransactionController::class, 'add_order']); // for zarinpal
+
+Route::get('order', function (Request $request) {
+    return redirect()->action([TransactionController::class, 'order'], ['transaction_id' => $request->Authority, 'status' => $request->Status]);
+});
+
+// Laravel 8 & 9
+Route::get('/pay', [App\Http\Controllers\NowPaymentsController::class, 'createCryptoInvoice'])->name('pay');
+// Route::post('/pay', [App\Http\Controllers\NowPaymentsController::class, 'createCryptoPayment'])->name('pay');
+
+Route::get('cryptopayment/{account_id}/{invoiceID}/{price}', function ($account_id, $invoiceID, $price) {
+    return view('crypto', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
+});
+
+Route::post('cryptogateway', [TransactionCryptoController::class, 'add_order_crypto_by_nowpayment']); // fornowpayments
+// back mowpayments
+// Route::post('/orderSuccess', [App\Http\Controllers\TransactionCryptoController::class, 'orderSuccess']);
+
+Route::get('/payback', function () {
+    $transaction_id = request()->query('NP_id');
+    // Now you can use $npId in your logic
+    return redirect()->action([TransactionCryptoController::class, 'orderSuccess'], ['transaction_id' => $transaction_id]);
+});
+Route::get('/cancelpay', function () {
+    return "پرداخت شما لغو شد.";
 });

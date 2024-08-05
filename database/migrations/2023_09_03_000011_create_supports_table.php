@@ -13,13 +13,9 @@ return new class extends Migration
     {
         Schema::create('supports', function (Blueprint $table) {
             $table->id();
-            $table->bigInteger('support_categories_id')->unsigned();
-            $table->text('content');
-
-            $table
-                ->foreign('support_categories_id')
-                ->references('id')
-                ->on('support_categories');
+            $table->string('question', 250);
+            $table->text('answer');
+            $table->string('response_type', 100)->nullable()->default('text');
             $table->timestamps();
         });
     }

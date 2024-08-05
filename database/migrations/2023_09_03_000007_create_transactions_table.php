@@ -30,7 +30,7 @@ return new class extends Migration {
             $table
                 ->foreign('payment_type_id')
                 ->references('id')
-                ->on('payment_types');
+                ->on('payment_types')->onDelete('cascade');
 
         });
     }

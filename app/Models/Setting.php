@@ -9,5 +9,5 @@ class Setting extends Model
 {
     use HasFactory;
     protected $guarded = ['id'];
-    protected $fillable = ['bot_token', 'bot_name', 'channel_id', 'admin_name', 'panel_secret', 'panel_type', 'accunt_number', 'tether_number'];
+    protected $fillable = ['bot_name', 'admin_id', 'bot_token', 'panel_address', 'welcome_message'];
 }

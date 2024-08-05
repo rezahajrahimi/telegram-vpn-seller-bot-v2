@@ -9,24 +9,16 @@ class PaymentType extends Model
 {
     use HasFactory;
     protected $guarded = ['id'];
-    protected $fillable = ['name', 'payment_address'];
+    protected $fillable = ['name', 'merchant_id','type','is_active'];
 
     /**
      * Get all of the comments for the PaymentType
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function transactions(): HasMany
+    public function transactions()
     {
         return $this->hasMany(Transaction::class, 'payment_type_id');
     }
-    /**
-     * Get all of the comments for the PaymentType
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function transaction_image(): HasMany
-    {
-        return $this->hasMany(TransactionImage::class, 'payment_type_id');
-    }
+
 }
