@@ -11,7 +11,7 @@ class AuthController extends Controller
 {
     public function getPowerPsLicenseType(){
 
-        return "silver";
+        return "gold";
     }
 
     public function createFirstAdminUser()

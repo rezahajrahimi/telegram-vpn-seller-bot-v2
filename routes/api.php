@@ -219,6 +219,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
     //  BotUser
     Route::get('getBotUserList', [BotUserController::class, 'getBotUserList']);
+    Route::get('getBotUserListByPagination', [BotUserController::class, 'getBotUserListByPagination']);
     Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
 
 

@@ -55,6 +55,18 @@ class BotUserController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+    public function getBotUserListByPagination()
+    {
+        try {
+            $data = BotUser::paginate(16, ['*'], 'page');
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return response()->json('Server Error', 500);
+        }
+    }
+
     public function getBotUserByID($id)
     {
         try {
