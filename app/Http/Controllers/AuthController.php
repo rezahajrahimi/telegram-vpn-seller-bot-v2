@@ -9,6 +9,11 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function getPowerPsLicenseType(){
+
+        return "silver";
+    }
+
     public function createFirstAdminUser()
     {
         $admin = User::where('role', 'admin')->first();
