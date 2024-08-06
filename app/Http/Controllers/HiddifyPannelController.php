@@ -160,6 +160,15 @@ class HiddifyPannelController extends Controller
     public function addHiddifyPannel(Request $request)
     {
         try {
+            $authCntrl = new AuthController();
+            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+            // check license
+            $panelCount = pannel::where('type', 'hiddify')->count();
+
+            if ($panelCount >= 2 && $getPowerPsLicenseType == 'silver') {
+                    return response()->json('به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.', 201);
+            }
+            // add pannel
             $pannel = new Pannel();
             $pannel->type = 'hiddify';
             $pannel->location = $request->location ?? null;
@@ -173,7 +182,7 @@ class HiddifyPannelController extends Controller
             $pannel->save();
             $this->checkCookieSeason($pannel->id);
 
-            return response()->json($pannel->id, 201);
+            return response()->json($pannel->id, 200);
         } catch (\Throwable $th) {
             \Log::info("Throwable $th");
 

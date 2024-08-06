@@ -56,14 +56,14 @@ class AgentProductController extends Controller
             $authCntrl = new AuthController();
             // check powerps license
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-            if ($agentsCount > 1 && $getPowerPsLicenseType == 'silver') {
+            if ($agentsCount > 4 && $getPowerPsLicenseType == 'silver') {
                 // check this operation is update or create, so if user alreade have a agent role it's a update and we have to continue else it's a create
 
                 $checkIsExist = User::where('role', 'agent')
                     ->where('account_id', $request['UserID'])
                     ->first();
                 if (null == $checkIsExist) {
-                    return response()->json('به محدودیت افزودن دستیار فروش رسیده اید، برای افزودن دستیار جدید به با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.', 201);
+                    return response()->json('به محدودیت افزودن دستیار فروش رسیده اید، برای افزودن دستیار جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.', 201);
                 }
             }
             $data = json_decode($request, true);
