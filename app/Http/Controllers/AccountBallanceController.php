@@ -20,9 +20,11 @@ class AccountBallanceController extends Controller
             if ($data->ballance >= $price) {
                 return true;
             } elseif ($data->account_ballance_in_dollar >= $parice_in_dollar) {
-                return true;
+                if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
+                    return true;
+                }
+                return false;
             } else {
-
                 $agentPremissionCntrl = new AgentPermissonController();
                 $agentPr = $agentPremissionCntrl->getUserPremission();
                 if ($agentPr != null) {
@@ -30,7 +32,6 @@ class AccountBallanceController extends Controller
                         return true;
                     }
                     return false;
-
                 }
                 return false;
             }
@@ -204,5 +205,12 @@ class AccountBallanceController extends Controller
             \Log::info("$th");
             return response()->json(false, 500);
         }
+    }
+    /// check  dollarPay is valid or not
+    public function checkDollarPay()
+    {
+        $trSettingCntrl = new TransactionSettingController();
+
+        return $trSettingCntrl->getDollorTransactionSetting();
     }
 }

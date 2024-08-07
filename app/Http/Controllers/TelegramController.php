@@ -419,9 +419,18 @@ class TelegramController extends Controller
         $prCat = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
         $opr = [];
         $index = 0;
-        array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
+        if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
+            array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
         foreach ($prCat as $key => $value) {
             array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+        }
+
+        } else {
+            array_push($opr, [ ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
+        foreach ($prCat as $key => $value) {
+            array_push($opr, [ ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+        }
+
         }
 
         $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
@@ -1669,4 +1678,12 @@ class TelegramController extends Controller
             $result = app('telegram_bot')->sendMessage($text, $admin_id, '');
         }
     }
+        /// check  dollarPay is valid or not
+        public function checkDollarPay()
+    {
+        $trSettingCntrl = new TransactionSettingController();
+
+        return $trSettingCntrl->getDollorTransactionSetting();
+    }
+
 }

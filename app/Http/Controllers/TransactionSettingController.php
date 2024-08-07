@@ -7,59 +7,32 @@ use Illuminate\Http\Request;
 
 class TransactionSettingController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
-    {
-        //
-    }
+   public function getDollorTransactionSetting()
+   {
+       $data = TransactionSetting::first();
+       if($data != null){
+           return $data->dollar_transaction;
+       }else{
+          $data = new TransactionSetting();
+          $data->dollar_transaction = false;
+          $data->save();
+          return $data->dollar_transaction;
+       }
+   }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
-    {
-        //
-    }
+   public function setDollorTransactionSetting(Request $request)
+   {
+       $data = TransactionSetting::first();
+       if($data != null){
+           $data->dollar_transaction = $request->dollar_transaction;
+           $data->update();
+           return $data->dollar_transaction;
+       }else{
+          $data = new TransactionSetting();
+          $data->dollar_transaction = $request->dollar_transaction;
+          $data->save();
+          return $data->dollar_transaction;
+       }
+   }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(TransactionSetting $transactionSetting)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(TransactionSetting $transactionSetting)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, TransactionSetting $transactionSetting)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(TransactionSetting $transactionSetting)
-    {
-        //
-    }
 }
