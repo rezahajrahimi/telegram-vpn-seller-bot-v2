@@ -103,7 +103,7 @@ class TelegramController extends Controller
                     $this->chat_type = 'text';
                     \Log::info('recogniseTextMessage');
 
-                  return   $this->recogniseTextMessage();
+                    return $this->recogniseTextMessage();
                 } elseif (isset($request->callback_query)) {
                     $this->callbackId = $request->callback_query['id'];
                     $this->data = $request->callback_query['data'];
@@ -421,16 +421,14 @@ class TelegramController extends Controller
         $index = 0;
         if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
             array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-        foreach ($prCat as $key => $value) {
-            array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
-        }
-
+            foreach ($prCat as $key => $value) {
+                array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+            }
         } else {
-            array_push($opr, [ ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-        foreach ($prCat as $key => $value) {
-            array_push($opr, [ ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
-        }
-
+            array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
+            foreach ($prCat as $key => $value) {
+                array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+            }
         }
 
         $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
@@ -653,7 +651,6 @@ class TelegramController extends Controller
                     // $text = $pymMenCntrl->getPaymentTypeMainMenuTitle();
                     $mainMenu = $pymMenCntrl->getPaymentTypeMainMenuTitle();
                     $text = $mainMenu->alias_name;
-
                 }
 
                 $opr = [];
@@ -686,11 +683,12 @@ class TelegramController extends Controller
             array_push($opr, [['text' => 'پرداخت آنلاین', 'callback_data' => 'subAccountBalance-zarinpal']]);
         }
         // add nowpayment if was active
-
-        $cryptoCntrl = new CryptoPaymentController();
-        $nowpayment = $cryptoCntrl->getNowPaymentsStatus();
-        if ($hasZarinPal == true) {
-            array_push($opr, [['text' => 'پرداخت آنلاین با ارز دیجیتال', 'callback_data' => 'subAccountBalance-nowpayment']]);
+        if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
+            $cryptoCntrl = new CryptoPaymentController();
+            $nowpayment = $cryptoCntrl->getNowPaymentsStatus();
+            if ($nowpayment == true) {
+                array_push($opr, [['text' => 'پرداخت آنلاین با ارز دیجیتال', 'callback_data' => 'subAccountBalance-nowpayment']]);
+            }
         }
 
         // add offline payment
@@ -1172,8 +1170,7 @@ class TelegramController extends Controller
                     } else {
                         // $text = $pymMenCntrl->getPaymentTypeMainMenuTitle();
                         $mainMenu = $pymMenCntrl->getPaymentTypeMainMenuTitle();
-                    $text = $mainMenu->alias_name;
-
+                        $text = $mainMenu->alias_name;
                     }
 
                     $opr = [];
@@ -1678,12 +1675,11 @@ class TelegramController extends Controller
             $result = app('telegram_bot')->sendMessage($text, $admin_id, '');
         }
     }
-        /// check  dollarPay is valid or not
-        public function checkDollarPay()
+    /// check  dollarPay is valid or not
+    public function checkDollarPay()
     {
         $trSettingCntrl = new TransactionSettingController();
 
         return $trSettingCntrl->getDollorTransactionSetting();
     }
-
 }
