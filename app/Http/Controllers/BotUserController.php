@@ -31,11 +31,8 @@ class BotUserController extends Controller
     {
         $user = BotUser::where('account_id', $account_id)->first();
         if ($user != null) {
-            \Log::info("hasRegistred ");
             return true;
         } else {
-            \Log::info("has not Registred ");
-
             $this->createNewUserBot($account_id, $userName, $firstName, $lastName);
             return false;
         }
