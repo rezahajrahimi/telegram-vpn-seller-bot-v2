@@ -412,15 +412,13 @@ class AgentProductController extends Controller
                 $usedProductTerrafic = $usedProductTerrafic / 1000;
             }
 
-            \Log::info("usedProductTerrafic: $usedProductTerrafic");
             if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
-                return response()->json(false, 401);
+                return response()->json("Reached to Max Terrafic Limitation", 401);
             }
             $usedProductCount = Product::where('account_id', $accountID)->count();
-            \Log::info("usedProductCount: $usedProductCount");
             if ($usedProductCount != null) {
                 if ($usedProductCount >= $agentPermisson->product_limitation) {
-                    return response()->json(false, 401);
+                    return response()->json("Reached to Max Product Limitation", 401);
                 }
             }
         }
@@ -439,43 +437,43 @@ class AgentProductController extends Controller
         $productPriceInDollar = $agentProduct->price_in_dollar;
 
         $accBlCtrl = new AccountBallanceController();
-        // if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
-        //     $pnlCntrl = new PannelController();
-        //     $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
-        //     // get selected item specefic data
-        //     $day = $selectedPrCat->expire_day;
-        //     $volume = $selectedPrCat->volume;
-        //     $prCntrl = new ProductController();
-        //     if ($pannel->type == 'hiddify') {
-        //         $req = new Request();
-        //         $req->accountId = $remark;
-        //         $req->pannelID = $selectedPrCat->pannel_id;
-        //         $req->vol = $volume;
-        //         $req->day = $day;
-        //         $hiddifcCntrl = new HiddifyPannelController();
+        if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+            $pnlCntrl = new PannelController();
+            $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
+            // get selected item specefic data
+            $day = $selectedPrCat->expire_day;
+            $volume = $selectedPrCat->volume;
+            $prCntrl = new ProductController();
+            if ($pannel->type == 'hiddify') {
+                $req = new Request();
+                $req->accountId = $remark;
+                $req->pannelID = $selectedPrCat->pannel_id;
+                $req->vol = $volume;
+                $req->day = $day;
+                $hiddifcCntrl = new HiddifyPannelController();
 
-        //         // $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); api v2
-        //         $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
+                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); api v2
+                $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
 
-        //         $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
+                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
-        //         $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
 
-        //         $reqProductDetails = new Request();
-        //         $reqProductDetails->account_id = $accountID;
-        //         $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-        //         $reqProductDetails->product_categories_id = $selectedPrCat->id;
-        //         $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
-        //         $reqProductDetails->configs = '';
-        //         $reqProductDetails->remark = $remark;
+                $reqProductDetails = new Request();
+                $reqProductDetails->account_id = $accountID;
+                $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+                $reqProductDetails->product_categories_id = $selectedPrCat->id;
+                $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
+                $reqProductDetails->configs = '';
+                $reqProductDetails->remark = $remark;
 
-        //         $prCntrl->addAutomatedProductDetails($reqProductDetails);
-        //         $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
-        //         $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+                $prCntrl->addAutomatedProductDetails($reqProductDetails);
+                $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
 
-        //         return $userPannelLink;
-        //     }
-        // }
+                return $userPannelLink;
+            }
+        }
         return response()->json('low ballance', 401);
     }
     public function buyProductByAdmin(Request $request)
@@ -649,7 +647,20 @@ class AgentProductController extends Controller
         $accountID = auth('sanctum')->user()->account_id;
         $userID = auth('sanctum')->user()->id;
         $selectedPrCat = ProductCategory::find($data->product_categories_id);
+        if ($agentPermisson != null) {
+            $usedProductTerrafic = Product::where('account_id', $accountID)
+            ->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
+            ->sum('product_categories.volume');
+            //convert $usedProductTerrafic from Gb to TB
+            if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {
+                $usedProductTerrafic = $usedProductTerrafic / 1000;
+            }
 
+            if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
+                return response()->json("Reached to Max Terrafic Limitation", 401);
+            }
+
+        }
         if ($accountID != $data->account_id) {
             return response()->json(false, 401);
         }
