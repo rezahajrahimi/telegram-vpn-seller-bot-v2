@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('agent_permissons', function (Blueprint $table) {
-           $table->integer('traffic_limitation_tb')->unsigned()->nullable()->default(10);
+           $table->double('traffic_limitation_tb', 15, 2)->nullable()->default(10.00);
            $table->integer('product_limitation')->unsigned()->nullable()->default(1000);
         });
     }

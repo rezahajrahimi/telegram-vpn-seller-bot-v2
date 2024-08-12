@@ -404,21 +404,22 @@ class AgentProductController extends Controller
         $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
 
         if ($agentPermisson != null) {
-            $usedProductTerrafic = Product::where('account_id', $accountID)
-            ->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
-            ->sum('product_categories.volume');
+            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
             //convert $usedProductTerrafic from Gb to TB
+
             if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {
                 $usedProductTerrafic = $usedProductTerrafic / 1000;
             }
-
             if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
-                return response()->json("Reached to Max Terrafic Limitation", 401);
+                \Log::info("usedProductTerrafic: {$usedProductTerrafic} > {$agentPermisson->traffic_limitation_tb}");
+
+                return response()->json('Reached to Max Terrafic Limitation', 401);
             }
             $usedProductCount = Product::where('account_id', $accountID)->count();
             if ($usedProductCount != null) {
                 if ($usedProductCount >= $agentPermisson->product_limitation) {
-                    return response()->json("Reached to Max Product Limitation", 401);
+                    \Log::info("usedProductCount: {$usedProductCount} > {$agentPermisson->product_limitation}");
+                    return response()->json('Reached to Max Product Limitation', 401);
                 }
             }
         }
@@ -573,7 +574,6 @@ class AgentProductController extends Controller
                 // dd($subsequentResponse);
                 return json_decode($subsequentResponse->getBody(), true);
             }
-
             return response()->json(null, 401);
         } else {
             return null;
@@ -647,19 +647,22 @@ class AgentProductController extends Controller
         $accountID = auth('sanctum')->user()->account_id;
         $userID = auth('sanctum')->user()->id;
         $selectedPrCat = ProductCategory::find($data->product_categories_id);
+        // check agent has terrafic limition or not
+
+        $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
+
         if ($agentPermisson != null) {
-            $usedProductTerrafic = Product::where('account_id', $accountID)
-            ->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
-            ->sum('product_categories.volume');
+            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
             //convert $usedProductTerrafic from Gb to TB
             if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {
                 $usedProductTerrafic = $usedProductTerrafic / 1000;
             }
 
             if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
-                return response()->json("Reached to Max Terrafic Limitation", 401);
-            }
+                \Log::info("usedProductTerrafic: {$usedProductTerrafic} > {$agentPermisson->traffic_limitation_tb}");
 
+                return response()->json('Reached to Max Terrafic Limitation', 401);
+            }
         }
         if ($accountID != $data->account_id) {
             return response()->json(false, 401);
@@ -710,9 +713,8 @@ class AgentProductController extends Controller
                 }
             }
             return response()->json(false, 401);
-        } else {
-            return response()->json(false, 500);
         }
+        return response()->json(false, 500);
     }
     public function softDeleteProductByAgentWithPrID($id)
     {
