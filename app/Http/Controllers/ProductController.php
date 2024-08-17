@@ -47,7 +47,7 @@ class ProductController extends Controller
             $accountID = $botUser->account_id;
             $data = Product::where('account_id', $accountID)
                 ->with('product_category')
-                ->paginate(1, ['*'], 'page');
+                ->paginate(10, ['*'], 'page');
             return $data;
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");

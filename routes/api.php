@@ -234,9 +234,11 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     // Log
     Route::get('getAllLogs/{count}', [LogController::class, 'getAllLogs']);
 
-    //  Account
+    //  AccountBallanceController
     Route::post('setNewAccountBallance', [AccountBallanceController::class, 'setNewAccountBallance']);
     Route::post('setNewDollarAccountBallance', [AccountBallanceController::class, 'setNewDollarAccountBallance']);
+    Route::put('increaseUserAccuntBalanceByUserID', [AccountBallanceController::class, 'increaseUserAccuntBalanceByUserID']);
+    Route::put('decreaseUserAccuntBalanceByUserID', [AccountBallanceController::class, 'decreaseUserAccuntBalanceByUserID']);
 
     // Application
     Route::get('getAllAplicationList', [ApplicationController::class, 'getAllAplicationList']);
