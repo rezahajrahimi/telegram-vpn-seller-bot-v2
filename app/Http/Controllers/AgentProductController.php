@@ -404,7 +404,11 @@ class AgentProductController extends Controller
         $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
 
         if ($agentPermisson != null) {
-            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
+            $usedProductTerrafic = Product::where('account_id', $accountID)
+            ->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
+            ->sum('product_categories.volume');
+
+
             //convert $usedProductTerrafic from Gb to TB
 
             if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {

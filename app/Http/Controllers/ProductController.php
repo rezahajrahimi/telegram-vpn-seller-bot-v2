@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\Product;
+use App\Models\BotUser;
 use Illuminate\Http\Request;
 // use carbon
 use Carbon\Carbon;
@@ -37,6 +38,21 @@ class ProductController extends Controller
             return $data;
         } else {
             return null;
+        }
+    }
+    public function getUserProductsHistoryByUserIDWithPagination($userId)
+    {
+        try {
+            $botUser = BotUser::where('id', $userId)->first();
+            $accountID = $botUser->account_id;
+            $data = Product::where('account_id', $accountID)
+                ->with('product_category')
+                ->paginate(1, ['*'], 'page');
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return response()->json('Server Error', 500);
         }
     }
     public function getActiveProductsByProductCatID($selectedProductCatID)
@@ -182,8 +198,10 @@ class ProductController extends Controller
     }
     public function getLastProductSelled($count)
     {
-
-        $data = Product::with(['user', 'product_category'])->orderBy('id', 'desc')->take($count)->get();
+        $data = Product::with(['user', 'product_category'])
+            ->orderBy('id', 'desc')
+            ->take($count)
+            ->get();
         return $data;
     }
 }

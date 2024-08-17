@@ -99,6 +99,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getLastBuyersByCatIdAndCount/{id}/{count}', [ProductController::class, 'getLastBuyersByCatIdAndCount']);
     Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
     Route::get('deleteProductByProductID/{id}', [ProductController::class, 'deleteProductByProductID']);
+    Route::get('getUserProductsHistoryByUserIDWithPagination/{userId}', [ProductController::class, 'getUserProductsHistoryByUserIDWithPagination']);
 
     //Settings
     Route::get('getBotSetting', [SettingController::class, 'getBotSetting']);

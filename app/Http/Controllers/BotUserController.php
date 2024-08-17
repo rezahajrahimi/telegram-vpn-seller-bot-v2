@@ -96,5 +96,12 @@ class BotUserController extends Controller
             \Log::info("Throwable:  $th");
         }
     }
-
+    public function getUserIDByAccountID($accountID){
+        $data = BotUser::where('account_id', $accountID)->first();
+        if ($data != null) {
+            return $data->id;
+        } else {
+            return null;
+        }
+    }
 }
