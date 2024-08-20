@@ -357,7 +357,7 @@ class AgentProductController extends Controller
                     $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'charge product');
                 }
                 if ($request->changeBallance == 1 || $request->changeBallance == true) {
-                    $accBalCntrl = new AccountBalanceController();
+                    $accBalCntrl = new AccountBallanceController();
                     // get difference between old and new price
                     $diffInToman = $newPrCat->price - $oldPrCat->price;
                     $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
@@ -379,12 +379,12 @@ class AgentProductController extends Controller
                     $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'charge product');
                 }
                 if ($request->changeBallance == 1 || $request->changeBallance == true) {
-                    $accBalCntrl = new AccountBalanceController();
+                    $accBalCntrl = new AccountBallanceController();
 
                     // get difference between old and new price
                     $diffInToman = $newPrCat->price - $oldPrCat->price;
                     $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
-                    if ($diffInToman < 0) {
+                    if ($diffInToman > 0) {
                         $accBalCntrl->decUserAccuntBalance($data->account_id, $diffInToman, $dissInDollar);
                     }
                     return response()->json(true, 200);
@@ -393,6 +393,7 @@ class AgentProductController extends Controller
 
             return response()->json(false, 500);
         }
+        return response()->json(false, 500);
     }
     public function getBoughtProductsPannelLinkFromServerByIdAdminMode($id)
     {
@@ -548,6 +549,7 @@ class AgentProductController extends Controller
         }
         return response()->json('low ballance', 401);
     }
+
     public function buyProductByAdmin(Request $request)
     {
         $selectedPrCat = ProductCategory::find($request->id);
@@ -785,6 +787,120 @@ class AgentProductController extends Controller
             }
             return response()->json(false, 401);
         }
+        return response()->json(false, 500);
+    }
+    public function changeProductByAgentWithPrID(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+        $oldPrCat = ProductCategory::find($data->product_categories_id);
+        $newPrCat = ProductCategory::find($request->newPrCatID);
+
+
+        // check agent has terrafic limition or not
+
+        $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
+
+        if ($agentPermisson != null) {
+            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
+            //convert $usedProductTerrafic from Gb to TB
+            if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {
+                $usedProductTerrafic = $usedProductTerrafic / 1000;
+            }
+
+            if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
+                \Log::info("usedProductTerrafic: {$usedProductTerrafic} > {$agentPermisson->traffic_limitation_tb}");
+
+                return response()->json('Reached to Max Terrafic Limitation', 401);
+            }
+        }
+        if ($accountID != $data->account_id) {
+            return response()->json(false, 401);
+        }
+        if ($oldPrCat->is_active == false) {
+            return response()->json(false, 500);
+        }
+
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $agentProduct = AgentProduct::where('product_categories_id', $data->product_category_and_panel->id)
+                ->where('user_id', $userID)
+                ->first();
+
+            // $newAgentProduct = AgentProduct::find($request->newPrCatID);
+            $newAgentProduct = AgentProduct::where('product_categories_id', $request->newPrCatID)
+                ->where('user_id', $userID)
+                ->first();
+
+            // return $agentProduct;
+            $oldProductPrice = $agentProduct->price;
+            $oldProductPriceInDollar = $agentProduct->price_in_dollar;
+            $productPrice = $newAgentProduct->price;
+            $productPriceInDollar = $newAgentProduct->price_in_dollar;
+            $accBlCtrl = new AccountBallanceController();
+            if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+
+                $hiddifcCntrl = new HiddifyPannelController();
+                $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+                $day = $newPrCat->expire_day;
+                $volume = $newPrCat->volume;
+
+                $req = new Request();
+                $req->pannelID = $newPrCat->pannel_id;
+                $req->name = $data->remark;
+                $req->uuid = $uuid;
+                $req->vol = $volume;
+                $req->day = $day;
+                // get today date with new variable
+                $today = Verta::now();
+                if ($request->recharge == true || $request->recharge == 1) {
+
+                    $req->comment = "تغییر دسته بندی همراه با ریست زمان و حجم {$today}";
+
+                    $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
+                    if ($updateRemark['status'] == 200) {
+                        if ($updateRemark['msg'] !== 'ok') {
+                            return response()->json(false, 401);
+                        }
+                        $this->addNewBotLog('product', "$data->remark توسط کاربر تغییر یافت.", 'charge product');
+                    }
+                    // get difference between old and new price
+                    $diffInToman = $newPrCat->price - $oldPrCat->price;
+                    $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
+                    if ($diffInToman > 0) {
+                        $accBlCtrl->decUserAccuntBalance($accountID, $diffInToman, $dissInDollar);
+                    }
+                    return response()->json(true, 200);
+                }
+
+                $req->comment = "تغییر دسته بندی  {$today}";
+
+                $updateRemark = $hiddifcCntrl->upgradeUserOfHiddifyPanelOldApi($req);
+                if ($updateRemark['status'] == 200) {
+                    if ($updateRemark['msg'] !== 'ok') {
+                        return response()->json(false, 401);
+                    }
+                    $this->addNewBotLog('product', "$data->remark توسط کاربر تغییر یافت.", 'charge product');
+                }
+
+                // get difference between old and new price
+                $diffInToman = $newPrCat->price - $oldPrCat->price;
+                $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
+                if ($diffInToman < 0) {
+                    $accBlCtrl->decUserAccuntBalance($accountID, $diffInToman, $dissInDollar);
+                }
+                return response()->json(true, 200);
+            }
+
+            return response()->json("Low Ballance", 401);
+
+        }
+
         return response()->json(false, 500);
     }
     public function softDeleteProductByAgentWithPrID($id)

@@ -13,9 +13,20 @@ class AccountBallanceController extends Controller
         if ($price == 0 && $parice_in_dollar == 0) {
             return true;
         }
+
+        // check agent
+
+        $agentPremissionCntrl = new AgentPermissonController();
+        $agentPr = $agentPremissionCntrl->getUserPremission();
+        if ($agentPr != null) {
+            if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
+
+                return true;
+            }
+        }
+
         // common product categorey check
         $data = AccountBallance::where('account_id', $userID)->first();
-        \Log::info('messageaaaaaa');
 
         if ($data != null) {
             if ($data->ballance >= $price) {
@@ -25,17 +36,8 @@ class AccountBallanceController extends Controller
                     return true;
                 }
                 return false;
-            } else {
-                $agentPremissionCntrl = new AgentPermissonController();
-                $agentPr = $agentPremissionCntrl->getUserPremission();
-                if ($agentPr != null) {
-                    if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
-                        return true;
-                    }
-                    return false;
-                }
-                return false;
             }
+            return false;
         } else {
             return false;
         }

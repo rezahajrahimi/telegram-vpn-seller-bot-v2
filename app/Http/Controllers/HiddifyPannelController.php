@@ -375,6 +375,7 @@ $adminUUID = $pannel->secret_code;
         $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
 
         $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
+        \Log::info("resssssssssssss", $data);
         return $data;
     }
     public function upgradeUserOfHiddifyPanelOldApi(Request $request)
