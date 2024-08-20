@@ -324,6 +324,76 @@ class AgentProductController extends Controller
             return response()->json(false, 500);
         }
     }
+    public function changeProductByAdminWithPrID(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+        $oldPrCat = ProductCategory::find($data->product_categories_id);
+        $newPrCat = ProductCategory::find($request->newPrCatID);
+
+        if ($data != null) {
+            $hiddifcCntrl = new HiddifyPannelController();
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+            $day = $newPrCat->expire_day;
+            $volume = $newPrCat->volume;
+
+            $req = new Request();
+            $req->pannelID = $newPrCat->pannel_id;
+            $req->name = $data->remark;
+            $req->uuid = $uuid;
+            $req->vol = $volume;
+            $req->day = $day;
+            // get today date with new variable
+            $today = Verta::now();
+            if ($request->recharge == true || $request->recharge == 1) {
+                $req->comment = "تغییر دسته بندی همراه با ریست زمان و حجم {$today}";
+
+                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
+                if ($updateRemark['status'] == 200) {
+                    if ($updateRemark['msg'] !== 'ok') {
+                        return response()->json(false, 401);
+                    }
+                    $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'charge product');
+                }
+                if ($request->changeBallance == 1 || $request->changeBallance == true) {
+                    $accBalCntrl = new AccountBalanceController();
+                    // get difference between old and new price
+                    $diffInToman = $newPrCat->price - $oldPrCat->price;
+                    $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
+                    if ($diffInToman < 0) {
+                        $accBalCntrl->decUserAccuntBalance($data->account_id, $diffInToman, $dissInDollar);
+                    }
+                    return response()->json(true, 200);
+                }
+
+                return response()->json(true, 200);
+            } else {
+                $req->comment = "تغییر دسته بندی  {$today}";
+
+                $updateRemark = $hiddifcCntrl->upgradeUserOfHiddifyPanelOldApi($req);
+                if ($updateRemark['status'] == 200) {
+                    if ($updateRemark['msg'] !== 'ok') {
+                        return response()->json(false, 401);
+                    }
+                    $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'charge product');
+                }
+                if ($request->changeBallance == 1 || $request->changeBallance == true) {
+                    $accBalCntrl = new AccountBalanceController();
+
+                    // get difference between old and new price
+                    $diffInToman = $newPrCat->price - $oldPrCat->price;
+                    $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
+                    if ($diffInToman < 0) {
+                        $accBalCntrl->decUserAccuntBalance($data->account_id, $diffInToman, $dissInDollar);
+                    }
+                    return response()->json(true, 200);
+                }
+            }
+
+            return response()->json(false, 500);
+        }
+    }
     public function getBoughtProductsPannelLinkFromServerByIdAdminMode($id)
     {
         $data = Product::where('id', $id)->with('product_category_and_panel')->first();
@@ -404,10 +474,7 @@ class AgentProductController extends Controller
         $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
 
         if ($agentPermisson != null) {
-            $usedProductTerrafic = Product::where('account_id', $accountID)
-            ->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
-            ->sum('product_categories.volume');
-
+            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
 
             //convert $usedProductTerrafic from Gb to TB
 

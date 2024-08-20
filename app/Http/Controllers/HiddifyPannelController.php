@@ -377,6 +377,35 @@ $adminUUID = $pannel->secret_code;
         $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
         return $data;
     }
+    public function upgradeUserOfHiddifyPanelOldApi(Request $request)
+    {
+        $pannelID = $request->pannelID;
+        $pannel = Pannel::find($pannelID);
+        $vol = $request->vol;
+        $day = $request->day;
+
+        $adminUUID = $pannel->secret_code;
+
+        $uuid = $request->uuid;
+        $name = $request->name ?? '';
+        $comment = $request->comment ?? '';
+        // get today date as format like 2024-01-01
+        $today = date('Y-m-d');
+        $params = [
+            'uuid' => "$uuid",
+            'name' => "$name",
+            'usage_limit_GB' => $vol,
+            'package_days' => $day,
+            'mode' => 'no_reset',
+            'added_by_uuid' => "$adminUUID",
+            'comment' => "$comment",
+        ];
+        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
+        $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
+
+        $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
+        return $data;
+    }
     public function deleteUserOfHiddifyPanelOldApi(Request $request)
     {
         $pannelID = $request->pannelID;

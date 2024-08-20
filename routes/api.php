@@ -67,6 +67,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
     // Admin
     Route::put('buyProductByAdmin', [AgentProductController::class, 'buyProductByAdmin']);
+    Route::put('changeProductByAdminWithPrID', [AgentProductController::class, 'changeProductByAdminWithPrID']);
 
     // UserController
     Route::get('getUsers', [UserController::class, 'getUsers']);
