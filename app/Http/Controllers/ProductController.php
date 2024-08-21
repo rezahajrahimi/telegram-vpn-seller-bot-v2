@@ -72,7 +72,7 @@ class ProductController extends Controller
         $data->subscription_link = $request->subscription_link;
         $data->panel_link = $request->panel_link;
         $data->remark = $request->remark;
-
+        $data->deactive_by_admin = false;
         if ($data->save()) {
             return $this->getActiveProductsByProductCatID($request->product_categories_id);
         } else {
@@ -97,7 +97,7 @@ class ProductController extends Controller
         $data->isActive = false;
         $data->account_id = $request->account_id;
         $data->remark = $request->remark;
-
+        $data->deactive_by_admin = false;
         if ($data->save()) {
             return true;
         } else {
@@ -114,6 +114,7 @@ class ProductController extends Controller
         $data->isActive = false;
         $data->account_id = $request->account_id;
         $data->remark = $request->remark;
+        $data->deactive_by_admin = false;
         if ($data->save()) {
             return $this->getActiveProductsByProductCatID($request->product_categories_id);
         } else {

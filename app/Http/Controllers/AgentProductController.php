@@ -435,6 +435,8 @@ class AgentProductController extends Controller
                     return response()->json(false, 401);
                 }
                 $this->addNewBotLog('product', "$data->remark توسط مدیر غیر فعال شد.", 'charge product');
+                $data->deactive_by_admin = $request->enable;
+                $data->update();
                 return response()->json(true, 200);
             }
 
