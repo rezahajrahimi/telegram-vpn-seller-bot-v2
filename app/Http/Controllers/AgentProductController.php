@@ -364,8 +364,13 @@ class AgentProductController extends Controller
                     if ($diffInToman < 0) {
                         $accBalCntrl->decUserAccuntBalance($data->account_id, $diffInToman, $dissInDollar);
                     }
+                    $data->product_categories_id = $newPrCat->id;
+                    $data->update();
+
                     return response()->json(true, 200);
                 }
+                $data->product_categories_id = $newPrCat->id;
+                    $data->update();
 
                 return response()->json(true, 200);
             } else {
@@ -387,9 +392,14 @@ class AgentProductController extends Controller
                     if ($diffInToman > 0) {
                         $accBalCntrl->decUserAccuntBalance($data->account_id, $diffInToman, $dissInDollar);
                     }
+                    $data->product_categories_id = $newPrCat->id;
+                    $data->update();
+
                     return response()->json(true, 200);
                 }
             }
+            $data->product_categories_id = $newPrCat->id;
+                    $data->update();
 
             return response()->json(false, 500);
         }
@@ -875,6 +885,8 @@ class AgentProductController extends Controller
                     if ($diffInToman > 0) {
                         $accBlCtrl->decUserAccuntBalance($accountID, $diffInToman, $dissInDollar);
                     }
+                    $data->product_categories_id = $newPrCat->id;
+                    $data->update();
                     return response()->json(true, 200);
                 }
 
@@ -894,6 +906,9 @@ class AgentProductController extends Controller
                 if ($diffInToman < 0) {
                     $accBlCtrl->decUserAccuntBalance($accountID, $diffInToman, $dissInDollar);
                 }
+                $data->product_categories_id = $newPrCat->id;
+                    $data->update();
+
                 return response()->json(true, 200);
             }
 
