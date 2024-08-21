@@ -370,7 +370,7 @@ class AgentProductController extends Controller
                     return response()->json(true, 200);
                 }
                 $data->product_categories_id = $newPrCat->id;
-                    $data->update();
+                $data->update();
 
                 return response()->json(true, 200);
             } else {
@@ -399,11 +399,48 @@ class AgentProductController extends Controller
                 }
             }
             $data->product_categories_id = $newPrCat->id;
-                    $data->update();
+            $data->update();
 
             return response()->json(false, 500);
         }
         return response()->json(false, 500);
+    }
+    public function changeActivationOfHiddifyUserByAdmin(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+
+        if ($data != null) {
+            $hiddifcCntrl = new HiddifyPannelController();
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+
+            $req = new Request();
+            $req->pannelID = $data->product_category_and_panel->pannel_id;
+            $req->uuid = $uuid;
+            $today = Verta::now();
+
+            if ($request->enable == true || $request->enable == 1 || $request->enable == 'true') {
+                $req->comment = "فعال شدن بسته توسط مدیر در {$today}";
+                $req->enable = true;
+            } else {
+                $req->comment = "غیر فعال شدن بسته توسط مدیر در {$today}";
+                $req->enable = false;
+            }
+            // get today date with new variable
+
+            $updateRemark = $hiddifcCntrl->changeUserActivationOfHiddifyPanelOldApi($req);
+            if ($updateRemark['status'] == 200) {
+                if ($updateRemark['msg'] !== 'ok') {
+                    return response()->json(false, 401);
+                }
+                $this->addNewBotLog('product', "$data->remark توسط مدیر غیر فعال شد.", 'charge product');
+                return response()->json(true, 200);
+            }
+
+            return response()->json(false, 500);
+        }
+        return response()->json($request->id, 404);
     }
     public function getBoughtProductsPannelLinkFromServerByIdAdminMode($id)
     {
@@ -810,7 +847,6 @@ class AgentProductController extends Controller
         $oldPrCat = ProductCategory::find($data->product_categories_id);
         $newPrCat = ProductCategory::find($request->newPrCatID);
 
-
         // check agent has terrafic limition or not
 
         $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
@@ -854,7 +890,6 @@ class AgentProductController extends Controller
             $productPriceInDollar = $newAgentProduct->price_in_dollar;
             $accBlCtrl = new AccountBallanceController();
             if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
-
                 $hiddifcCntrl = new HiddifyPannelController();
                 $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
                 $day = $newPrCat->expire_day;
@@ -869,7 +904,6 @@ class AgentProductController extends Controller
                 // get today date with new variable
                 $today = Verta::now();
                 if ($request->recharge == true || $request->recharge == 1) {
-
                     $req->comment = "تغییر دسته بندی همراه با ریست زمان و حجم {$today}";
 
                     $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
@@ -907,13 +941,12 @@ class AgentProductController extends Controller
                     $accBlCtrl->decUserAccuntBalance($accountID, $diffInToman, $dissInDollar);
                 }
                 $data->product_categories_id = $newPrCat->id;
-                    $data->update();
+                $data->update();
 
                 return response()->json(true, 200);
             }
 
-            return response()->json("Low Ballance", 401);
-
+            return response()->json('Low Ballance', 401);
         }
 
         return response()->json(false, 500);

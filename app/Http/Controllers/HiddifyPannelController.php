@@ -166,7 +166,7 @@ class HiddifyPannelController extends Controller
             $panelCount = pannel::where('type', 'hiddify')->count();
 
             if ($panelCount >= 2 && $getPowerPsLicenseType == 'silver') {
-                    return response()->json('به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.', 201);
+                return response()->json('به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.', 201);
             }
             // add pannel
             $pannel = new Pannel();
@@ -232,7 +232,7 @@ class HiddifyPannelController extends Controller
     {
         $pannel = Pannel::find($pannelID);
 
-$adminUUID = $pannel->secret_code;
+        $adminUUID = $pannel->secret_code;
 
         $data = $this->sendGetRequestToHiddifyPannel($pannelID, "$adminUUID/api/v1/user/");
         return $data;
@@ -406,6 +406,31 @@ $adminUUID = $pannel->secret_code;
         $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
         return $data;
     }
+    public function changeUserActivationOfHiddifyPanelOldApi(Request $request)
+    {
+        $pannelID = $request->pannelID;
+        $pannel = Pannel::find($pannelID);
+
+        $adminUUID = $pannel->secret_code;
+
+        $uuid = $request->uuid;
+        $comment = $request->comment ?? '';
+
+        $enable = $request->enable == true || $request->enable == 1 ? true : false;
+        // get today date as format like 2024-01-01
+        $today = date('Y-m-d');
+        $params = [
+            'uuid' => "$uuid",
+            'comment' => "$comment",
+            'enable' => $enable,
+            'added_by_uuid' => "$adminUUID",
+        ];
+        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
+        $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
+
+        $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
+        return $data;
+    }
     public function deleteUserOfHiddifyPanelOldApi(Request $request)
     {
         $pannelID = $request->pannelID;
@@ -428,7 +453,7 @@ $adminUUID = $pannel->secret_code;
             'added_by_uuid' => "$adminUUID",
             'comment' => "$comment",
             'enable' => false,
-            "start_date"=> "2024-01-01",
+            'start_date' => '2024-01-01',
         ];
         $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
         $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
