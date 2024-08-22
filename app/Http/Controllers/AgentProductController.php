@@ -423,9 +423,11 @@ class AgentProductController extends Controller
             if ($request->enable == true || $request->enable == 1 || $request->enable == 'true') {
                 $req->comment = "فعال شدن بسته توسط مدیر در {$today}";
                 $req->enable = true;
+                $data->deactive_by_admin = false;
             } else {
                 $req->comment = "غیر فعال شدن بسته توسط مدیر در {$today}";
                 $req->enable = false;
+                $data->deactive_by_admin = true;
             }
             // get today date with new variable
 
@@ -435,7 +437,6 @@ class AgentProductController extends Controller
                     return response()->json(false, 401);
                 }
                 $this->addNewBotLog('product', "$data->remark توسط مدیر غیر فعال شد.", 'charge product');
-                $data->deactive_by_admin = $request->enable;
                 $data->update();
                 return response()->json(true, 200);
             }
@@ -952,6 +953,50 @@ class AgentProductController extends Controller
         }
 
         return response()->json(false, 500);
+    }
+    public function changeActivationOfHiddifyUserByAgent(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+        if ($accountID != $data->account_id) {
+            return response()->json("This product is not yours", 401);
+        }
+        if ($data->deactive_by_admin == true) {
+            return response()->json('This product is deactivated by admin', 401);
+        }
+        if ($data != null) {
+            $hiddifcCntrl = new HiddifyPannelController();
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+
+            $req = new Request();
+            $req->pannelID = $data->product_category_and_panel->pannel_id;
+            $req->uuid = $uuid;
+            $today = Verta::now();
+
+            if ($request->enable == true || $request->enable == 1 || $request->enable == 'true') {
+                $req->comment = "فعال شدن بسته توسط کاربر در {$today}";
+                $req->enable = true;
+            } else {
+                $req->comment = "غیر فعال شدن بسته توسط کاربر در {$today}";
+                $req->enable = false;
+            }
+            // get today date with new variable
+
+            $updateRemark = $hiddifcCntrl->changeUserActivationOfHiddifyPanelOldApi($req);
+            if ($updateRemark['status'] == 200) {
+                if ($updateRemark['msg'] !== 'ok') {
+                    return response()->json(false, 401);
+                }
+                $this->addNewBotLog('product', "$data->remark توسط کاربر غیر فعال شد.", 'charge product');
+                return response()->json(true, 200);
+            }
+
+            return response()->json(false, 500);
+        }
+        return response()->json($request->id, 404);
     }
     public function softDeleteProductByAgentWithPrID($id)
     {
