@@ -667,10 +667,10 @@ class AgentProductController extends Controller
             return $userPannelLink;
         }
     }
-    public function getAgentSelledProducts()
+    public function getAgentSelledProducts($count=10)
     {
         $userId = auth('sanctum')->user()->account_id;
-        $product = Product::where('account_id', $userId)->with('product_category_and_panel')->get();
+        $product = Product::where('account_id', $userId)->with('product_category_and_panel')->take($count)->orderBy('id', 'desc')->get();
 
         return $product;
     }
