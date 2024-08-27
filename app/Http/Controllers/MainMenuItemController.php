@@ -29,7 +29,9 @@ class MainMenuItemController extends Controller
     }
     public function getAllActivatedMainMenuItems()
     {
-        return MainMenuItem::where('is_active', true)->get();
+        return MainMenuItem::where('is_active', true)
+        ->orderby('position',"asc")
+        ->get();
     }
     public function deActiveMainMenuItem($name)
     {

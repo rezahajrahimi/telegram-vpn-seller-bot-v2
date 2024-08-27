@@ -133,4 +133,41 @@ class AuthController extends Controller
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
         return response()->json(true);
     }
+    public function generate_auto_login_link(Request $request)
+    {
+        // $request->validate([
+        //     'account_id' => 'required|min:8',
+        // ]);
+        $user = User::where('account_id', $request->account_id)->first();
+        if (!$user) {
+            return response()->json(false);
+        }
+
+        $frontUrl = env('FRONT_URL');
+        // check if $frontUrl ended with "/" remove it
+
+        if (str_ends_with($frontUrl, '/')) {
+            $frontUrl = substr($frontUrl, 0, -1);
+        }
+
+        $user_password = substr(str_shuffle('abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRTUVWXYZ2346789'), 0, 8);
+        $user->password = Hash::make($user_password);
+        $user->update();
+        $user_id = $user->account_id;
+        $text = "ورود به وب اپلیکیشن \n\r";
+        // $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+
+        // $text = "$frontUrl/#/login/$user_id/{$user_password}";
+        $opr = [];
+        array_push($opr, [
+            [
+                'text' => 'ورود به وب اپلیکیشن',
+                'url' => "$frontUrl/#/login/$user_id/{$user_password}",
+            ],
+        ]);
+        $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $user_id, '');
+
+        // $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        return response()->json(true);
+    }
 }

@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://4a20-104-28-229-13.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://9ff9-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
@@ -169,7 +169,11 @@ class TelegramController extends Controller
         $menuItem = $menu->getAllActivatedMainMenuItems();
         $opr = [];
         // check if there is bought subscription or not
-        // if exist set with big style on $opr
+        // if ($menuItem[0]->name == 'webapp') {
+        //     array_push($opr, [['text' => $menuItem[10]->alias_name, 'callback_data' => "main-{$menuItem[10]->id}"]]);
+        //     // remove first item from menuItem list because we allreade added it to $opr
+        //     $menuItem = $menuItem->slice(1);
+        // }
         if ($menuItem[0]->name == 'خرید اشتراک') {
             array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
             // remove first item from menuItem list because we allreade added it to $opr
@@ -224,8 +228,10 @@ class TelegramController extends Controller
 
                 return response()->json($result, 200);
             }
-            \Log::info("aaaaaaaaaaaaaaaa {$this->data}");
+
             $this->userCommandArr = explode('-', $this->data);
+
+
             $command = $this->userCommandArr[0];
             \Log::info("command recognise: $command");
 
@@ -267,6 +273,11 @@ class TelegramController extends Controller
 
                 return $this->subGiftCard();
             }
+            // check is $this->text start with webapp
+            // if yes return $this->webapp()
+
+
+
 
             $mainMenuCntrl = new MainMenuItemController();
             $checkIsMainMeniItem = $mainMenuCntrl->getMenuNameByAliasName($this->text);
@@ -301,6 +312,9 @@ class TelegramController extends Controller
                 case 'اکانت آزمایشی':
                     return $this->testAccount();
                     break;
+                case 'webapp':
+                    return $this->subWebapp();
+                    break;
 
                 default:
                     return $this->stickyMenu();
@@ -320,6 +334,8 @@ class TelegramController extends Controller
         if ($this->currentMenuLevel != 0) {
             $this->currentMenuLevel -= 1;
         }
+
+
         $this->userText = '';
         $menuCntrl = new MenuLevelController();
 
@@ -327,6 +343,7 @@ class TelegramController extends Controller
         if ($this->userCommandArr == null) {
             $this->userCommandArr = ['start'];
         }
+
         switch ($this->userCommandArr[0]) {
             case 'main':
                 $this->subMainMenu();
@@ -361,6 +378,7 @@ class TelegramController extends Controller
             case 'recharge':
                 $this->subRecharge();
                 break;
+
             default:
                 $this->stickyMenu();
                 break;
@@ -1189,6 +1207,15 @@ class TelegramController extends Controller
             \Log::info("Throwable:  $th");
         }
     }
+    public function subWebapp()
+    {
+        $this->addNewBotLog('webapp', 'ارسال لینک ورود سریع به پنل به کاربر', 'show');
+        $authCntrl = new AuthController();
+        $req = new Request();
+        $req->account_id = $this->chat_id;
+        $result = $authCntrl->generate_auto_login_link($req);
+        return response()->json($result, 200);
+    }
     public function supports()
     {
         $this->addNewBotLog('support', 'نمایش گزینه های پشتیبانی به کاربر.', 'show');
@@ -1222,6 +1249,7 @@ class TelegramController extends Controller
             return response()->json($result, 200);
         }
     }
+
     public function subSupport()
     {
         $this->addNewBotLog('support', 'نمایش جزییات گزینه انتخابی پشتیبانی به کاربر.', 'show');
