@@ -56,7 +56,14 @@ class AgentProductController extends Controller
             $authCntrl = new AuthController();
             // check powerps license
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-            if ($agentsCount > 4 && $getPowerPsLicenseType == 'silver') {
+            $hasAccountLimitation = false;
+            if ($agentsCount > 10 && $getPowerPsLicenseType == 'silver') {
+                $hasAccountLimitation = true;
+            }
+            if ($agentsCount > 4 && $getPowerPsLicenseType == 'free') {
+                $hasAccountLimitation = true;
+            }
+            if ($hasAccountLimitation == true) {
                 // check this operation is update or create, so if user alreade have a agent role it's a update and we have to continue else it's a create
 
                 $checkIsExist = User::where('role', 'agent')
@@ -667,7 +674,7 @@ class AgentProductController extends Controller
             return $userPannelLink;
         }
     }
-    public function getAgentSelledProducts($count=10)
+    public function getAgentSelledProducts($count = 10)
     {
         $userId = auth('sanctum')->user()->account_id;
         $product = Product::where('account_id', $userId)->with('product_category_and_panel')->take($count)->orderBy('id', 'desc')->get();
@@ -962,7 +969,7 @@ class AgentProductController extends Controller
         $accountID = auth('sanctum')->user()->account_id;
         $userID = auth('sanctum')->user()->id;
         if ($accountID != $data->account_id) {
-            return response()->json("This product is not yours", 401);
+            return response()->json('This product is not yours', 401);
         }
         if ($data->deactive_by_admin == true) {
             return response()->json('This product is deactivated by admin', 401);

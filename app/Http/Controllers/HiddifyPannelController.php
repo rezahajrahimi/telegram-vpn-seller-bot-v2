@@ -164,8 +164,17 @@ class HiddifyPannelController extends Controller
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
             // check license
             $panelCount = pannel::where('type', 'hiddify')->count();
+            $hasAccountLimitation = false;
 
             if ($panelCount >= 2 && $getPowerPsLicenseType == 'silver') {
+                $hasAccountLimitation = true;
+            }
+
+            if ($panelCount >= 1 && $getPowerPsLicenseType == 'free') {
+                $hasAccountLimitation = true;
+            }
+
+            if ($hasAccountLimitation == true) {
                 return response()->json('به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.', 201);
             }
             // add pannel
