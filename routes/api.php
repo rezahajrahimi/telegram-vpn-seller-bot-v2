@@ -33,6 +33,7 @@ use App\Http\Controllers\TransactionCryptoController;
 use App\Http\Controllers\TransactionSettingController;
 use App\Http\Controllers\AgentProductController;
 use App\Http\Controllers\AgentPermissonController;
+use App\Http\Controllers\ExecuteArtisanCommandController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -51,6 +52,9 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('telegram/webhooks')->group(function () {
     Route::post('inbound', [TelegramController::class, 'inbound'])->name('telegram.inbound');
 });
+// run a command by api
+Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);
+
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
