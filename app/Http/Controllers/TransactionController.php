@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Config;
 use App\Models\Transaction;
 use App\Models\PaymentType;
 use App\Models\CryptoPayment;
+use App\Models\TransactionImage;
 
 use Illuminate\Http\Request;
 class TransactionController extends Controller
@@ -99,13 +100,23 @@ class TransactionController extends Controller
         try {
             $transaction = Transaction::find($id);
             if ($transaction->confirmed == false || $transaction->confirmed == 0) {
+
+                // remove transaction image on disk
+                $transactionImage = TransactionImage::where('transaction_id', $id)->first();
+                if ($transactionImage != null) {
+                    $path = public_path() . ''.$transactionImage->img_src;
+                    if (file_exists($path)) {
+                        unlink($path);
+                    }
+                }
+
                 $transaction->delete();
                 return response()->json(true, 200);
             } else {
                 return response()->json(false, 401);
             }
         } catch (\Throwable $th) {
-            \Log::info('NO Data Founded');
+            \Log::info("$th");
 
             return response()->json('NO Data Founded', 404);
         }
