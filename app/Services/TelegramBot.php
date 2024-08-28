@@ -379,8 +379,8 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->getImageUrl->result', ['result' => $result]);
-        \Log::info("image_url:  $image_url");
+        // \Log::info('TelegramBot->getImageUrl->result', ['result' => $result]);
+        // \Log::info("image_url:  $image_url");
 
         return $image_url;
     }

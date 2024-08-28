@@ -48,19 +48,11 @@ class TransactionImageController extends Controller
         $contents = file_get_contents($image_url);
         $name = substr($image_url, strrpos($image_url, '/') + 1);
 
-        // $path = public_path() . '/transaction_images/';
-        // if (!File::isDirectory($path)) {
-        //     File::makeDirectory($path, 0755, true, true);
-        // }
-
         Storage::disk('public')->put("/transaction_images/$name", $contents);
-
 
         $data = new TransactionImage();
         $data->transaction_id = $request->transaction_id;
         $data->img_src = "/transaction_images/$name";
-
-        // download $data->img_src from telegram
 
         $data->account_id = $request->account_id;
         $data->user_text = $request->user_text;
@@ -71,4 +63,3 @@ class TransactionImageController extends Controller
         return $data->id;
     }
 }
-// https://127.0.0.1:33384/#/login/91965429/PZGMpnFg
