@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 use App\Models\TransactionImage;
+use Storage;
+use File;
 
 use Illuminate\Http\Request;
 
@@ -38,4 +40,35 @@ class TransactionImageController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+    public function saveNewTransactionImage(Request $request)
+    {
+        $image_url = $request->image_url;
+
+        // download $image_url from telegram and save on disk in transaction_images folder
+        $contents = file_get_contents($image_url);
+        $name = substr($image_url, strrpos($image_url, '/') + 1);
+
+        // $path = public_path() . '/transaction_images/';
+        // if (!File::isDirectory($path)) {
+        //     File::makeDirectory($path, 0755, true, true);
+        // }
+
+        Storage::disk('public')->put("/transaction_images/$name", $contents);
+
+
+        $data = new TransactionImage();
+        $data->transaction_id = $request->transaction_id;
+        $data->img_src = "/transaction_images/$name";
+
+        // download $data->img_src from telegram
+
+        $data->account_id = $request->account_id;
+        $data->user_text = $request->user_text;
+        $data->save();
+
+        // $uuppp = Storage::url($file);
+
+        return $data->id;
+    }
 }
+// https://127.0.0.1:33384/#/login/91965429/PZGMpnFg

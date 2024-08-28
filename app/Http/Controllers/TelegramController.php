@@ -59,7 +59,6 @@ class TelegramController extends Controller
         try {
             try {
                 if (isset($request->message['photo'])) {
-                    \Log::info('Messsss Photo Started');
                     $this->message_id = $request->message['message_id'];
                     $this->chat_id = $request->message['chat']['id'];
                     $this->username = $request->message['from']['username'] ?? ' ندارد ';
@@ -73,7 +72,6 @@ class TelegramController extends Controller
                     $this->chat_type = 'image';
                     $result = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
-                    //send image to admin
                     $chId = $this->chat_id;
                     $this->sendMessageToAdmin($this->chat_id, $this->fileId, "کاربر: $chId یک تصوبر ارسال کرد ", 'image');
                     $transactionCntrl = new TransactionController();
@@ -84,10 +82,11 @@ class TelegramController extends Controller
                     $request->img_src = $this->fileId;
                     $request->account_id = $this->chat_id;
                     $request->user_text = $this->text ?? 'بدون متن';
+                    $request->image_url = app('telegram_bot')->getImageUrlByFileID($this->fileId);
 
-                    $imageTrCntrl->addNewTransactionImage($request);
+                    // $imageTrCntrl->addNewTransactionImage($request);
+                    $imageTrCntrl->saveNewTransactionImage($request);
                     return response()->json($result, 200);
-                    \Log::info('Messsss Photo Ended');
                 } elseif (isset($request->message)) {
                     $this->from_id = $request->message['from']['id'];
                     $this->text = $request->message['text'];

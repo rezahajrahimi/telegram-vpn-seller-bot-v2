@@ -357,6 +357,33 @@ class TelegramBot
 
         return $image_url;
     }
+    public function getImageUrlByFileID($file_id)
+    {
+        $image_url = '';
+
+        // $file_id = $photo[count($photo) - 1]['file_id'];
+
+        // set url -> https://api.telegram.org/bot<Your-Bot-token>/getFile?file_id=<Your-file-id>
+        $url = "{$this->api_endpoint}/{$this->token}/getFile?file_id={$file_id}";
+
+        // Send the request
+        try {
+            $response = Http::withHeaders($this->headers)->get($url);
+            $result = ['success' => $response->ok(), 'body' => $response->json()];
+
+            $file_path = $result['body']['result']['file_path'];
+
+            // https://api.telegram.org/file/bot<Your-Bot-token>/<Your-file-path>
+            $image_url = "{$this->api_endpoint}/file/{$this->token}/{$file_path}";
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+        }
+
+        \Log::info('TelegramBot->getImageUrl->result', ['result' => $result]);
+        \Log::info("image_url:  $image_url");
+
+        return $image_url;
+    }
     public function getImageId(array $photo)
     {
         $image_url = '';
