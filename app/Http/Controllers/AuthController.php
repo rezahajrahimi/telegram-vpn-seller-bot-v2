@@ -154,14 +154,16 @@ class AuthController extends Controller
         $user->password = Hash::make($user_password);
         $user->update();
         $user_id = $user->account_id;
-        $text = "ورود به وب اپلیکیشن \n\r";
+        $text = "⬇️انتخاب کنید ⬇️\n\r";
+        $mainMenuCntrl = new MainMenuItemController();
+        $menuAliasName = $mainMenuCntrl->getMenuAliasNameByName("webapp");
         // $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
 
         // $text = "$frontUrl/#/login/$user_id/{$user_password}";
         $opr = [];
         array_push($opr, [
             [
-                'text' => 'ورود به وب اپلیکیشن',
+                'text' => "$menuAliasName",
                 'url' => "$frontUrl/#/login/$user_id/{$user_password}",
             ],
         ]);

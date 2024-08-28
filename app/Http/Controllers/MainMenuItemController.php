@@ -23,6 +23,14 @@ class MainMenuItemController extends Controller
         }
         return "خیر";
     }
+    public function getMenuAliasNameByName($name)
+    {
+        $data = MainMenuItem::where('name',$name)->first();
+        if($data != null) {
+            return $data->alias_name;
+        }
+        return "خیر";
+    }
     public function getMenuIdByName($name)
     {
         return MainMenuItem::where('name',$name)->first();
