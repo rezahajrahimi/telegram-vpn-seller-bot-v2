@@ -44,14 +44,14 @@ class GeneralController extends Controller
         $accBallance = $accCntrl->getLoggedUserBallancce();
         $agentPrCntrl = new AgentProductController();
         $products =  $agentPrCntrl->getProductsOfLoggedAgent();
-        $boughtProducts =  $agentPrCntrl->getAgentSelledProducts(10);
+        // $boughtProducts =  $agentPrCntrl->getAgentSelledProducts(10);
         $logCntrl = new LogController();
         $getTop20Log = $logCntrl->getAllLogsOfLoggedAgent(20);
         return response()->json(
             [
                 'accBallance' => $accBallance,
                 'products' => $products,
-                'boughtProducts' => $boughtProducts,
+                // 'boughtProducts' => $boughtProducts,
                 'Last20Logs' => $getTop20Log
             ],
             200

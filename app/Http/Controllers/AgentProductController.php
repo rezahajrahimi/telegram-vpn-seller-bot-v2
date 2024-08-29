@@ -681,6 +681,22 @@ class AgentProductController extends Controller
 
         return $product;
     }
+    public function getAgentSelledProductsByPagination()
+    {
+        try {
+            $userId = auth('sanctum')->user()->account_id;
+            $product = Product::where('account_id', $userId)
+                ->with('product_category_and_panel')
+                ->orderBy('id', 'desc')
+                ->paginate(10, ['*'], 'page');
+
+            return $product;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return response()->json('Server Error', 500);
+        }
+    }
     public function getBoughtProductsStatusFromServerById($id)
     {
         $data = Product::where('id', $id)->with('product_category_and_panel')->first();
