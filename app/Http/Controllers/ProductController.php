@@ -205,4 +205,5 @@ class ProductController extends Controller
             ->get();
         return $data;
     }
+
 }

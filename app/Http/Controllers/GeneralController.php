@@ -62,7 +62,6 @@ class GeneralController extends Controller
 
         }
 
-
     }
     public function getAgentPaymentWays(){
         try {
@@ -78,4 +77,33 @@ class GeneralController extends Controller
         }
 
     }
+
+
+    public function getUserDashboardAnalytics(){
+        try {
+            $accCntrl = new AccountBallanceController();
+        $accBallance = $accCntrl->getLoggedUserBallancce();
+        $prCatCntrl = new ProductCategoryController();
+
+        $products = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
+        // $boughtProducts =  $agentPrCntrl->getAgentSelledProducts(10);
+        $logCntrl = new LogController();
+        $getTop20Log = $logCntrl->getAllLogsOfLoggedAgent(20);
+        return response()->json(
+            [
+                'accBallance' => $accBallance,
+                'products' => $products,
+                // 'boughtProducts' => $boughtProducts,
+                'Last20Logs' => $getTop20Log
+            ],
+            200
+        );
+        } catch (\Throwable $th) {
+            \Log::info("error on getAgentDashboardAnalytics-> $th");
+            return response()->json(null, 500);
+
+        }
+
+    }
+
 }
