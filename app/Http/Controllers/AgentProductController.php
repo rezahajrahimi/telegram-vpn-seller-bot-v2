@@ -666,7 +666,69 @@ class AgentProductController extends Controller
         }
         return response()->json('low ballance', 401);
     }
+    public function reChargeProductByUserWithPrID(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+        $selectedPrCat = ProductCategory::find($data->product_categories_id);
+        // check agent has terrafic limition or not
 
+
+        if ($accountID != $data->account_id) {
+            return response()->json(false, 401);
+        }
+        if ($selectedPrCat->is_active == false) {
+            return response()->json(false, 500);
+        }
+
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $agentProduct = AgentProduct::where('product_categories_id', $data->product_category_and_panel->id)
+                ->where('user_id', $userID)
+                ->first();
+            // return $agentProduct;
+            $productPrice = $selectedPrCat->price;
+        $productPriceInDollar = $selectedPrCat->price_in_dollar;
+            $accBlCtrl = new AccountBallanceController();
+            if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+                $hiddifcCntrl = new HiddifyPannelController();
+
+                $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+                $day = $selectedPrCat->expire_day;
+                $volume = $selectedPrCat->volume;
+
+                $req = new Request();
+                $req->pannelID = $pannel->id;
+                $req->name = $data->remark;
+                $req->uuid = $uuid;
+                $req->vol = $volume;
+                $req->day = $day;
+                // get today date with new variable
+                $today = Verta::now();
+                $req->comment = "شارژ مجدد در {$today}";
+
+                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
+                // $updateRemark = json_encode($updateRemark);
+                if ($updateRemark['status'] == 200) {
+                    if ($updateRemark['msg'] !== 'ok') {
+                        return response()->json(false, 401);
+                    }
+                    $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                    $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+                    $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
+
+                    return response()->json(true, 200);
+                    // dd($subsequentResponse);
+                }
+            }
+            return response()->json(false, 401);
+        }
+        return response()->json(false, 500);
+    }
     public function buyProductByAdmin(Request $request)
     {
         $selectedPrCat = ProductCategory::find($request->id);

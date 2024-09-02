@@ -55,7 +55,6 @@ Route::prefix('telegram/webhooks')->group(function () {
 // run a command by api
 Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);
 
-
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout']);
@@ -230,7 +229,6 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getBotUserListByPagination', [BotUserController::class, 'getBotUserListByPagination']);
     Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
 
-
     Route::get('getLast10Users', [BotUserController::class, 'getLast10Users']);
     Route::get('getProductBoughtedByProductId/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
     Route::patch('reChargeProductByAdminWithPrID', [AgentProductController::class, 'reChargeProductByAdminWithPrID']);
@@ -267,7 +265,6 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getDollorTransactionSetting', [TransactionSettingController::class, 'getDollorTransactionSetting']);
     Route::patch('setDollorTransactionSetting', [TransactionSettingController::class, 'setDollorTransactionSetting']);
 
-
     // AgentProductController
     Route::post('createBatchOfUserAgentProduct', [AgentProductController::class, 'createBatchOfUserAgentProduct']);
     Route::post('removeAgent', [AgentProductController::class, 'removeAgent']);
@@ -284,19 +281,14 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::post('createANewAgentPremission', [AgentPermissonController::class, 'createANewAgentPremission']);
     Route::patch('updateAgentPremission', [AgentPermissonController::class, 'updateAgentPremission']);
     Route::delete('deleteAgentPremission/{id}', [AgentPermissonController::class, 'deleteAgentPremission']);
-
-
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
-
     // User
     Route::put('updateAgentPassword', [UserController::class, 'updateAgentPassword']);
-
 
     // GeneralController
     Route::get('getAgentDashboardAnalytics', [GeneralController::class, 'getAgentDashboardAnalytics']);
     Route::get('getAgentPaymentWays', [GeneralController::class, 'getAgentPaymentWays']);
-
 
     // AccountBallanceController
     Route::get('getLoggedAgentUserBallancce', [AccountBallanceController::class, 'getLoggedUserBallancce']);
@@ -305,7 +297,6 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function 
     Route::get('getAgentSelledProducts', [AgentProductController::class, 'getAgentSelledProducts']);
     Route::get('getAgentSelledProductsByPagination', [AgentProductController::class, 'getAgentSelledProductsByPagination']);
     Route::get('getBoughtProductsStatusFromServerById/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
-    Route::get('getBoughtProductsPannelLinkFromServerById/{id}', [AgentProductController::class, 'getBoughtProductsPannelLinkFromServerById']);
     Route::put('buyProductByAgentWithPrID', [AgentProductController::class, 'buyProductByAgentWithPrID']);
     Route::patch('renameHiddifyRemark', [AgentProductController::class, 'renameHiddifyRemark']);
     Route::patch('reChargeProductByAgentWithPrID', [AgentProductController::class, 'reChargeProductByAgentWithPrID']);
@@ -316,12 +307,8 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function 
     // BillController
     Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
     Route::get('createNewAgentDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
-
-
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:user']], function () {
-
-
     // GeneralController
     Route::get('getUserDashboardAnalytics', [GeneralController::class, 'getUserDashboardAnalytics']);
 
@@ -336,10 +323,13 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:user']], function (
     Route::put('buyProductByUserWithPrID', [AgentProductController::class, 'buyProductByUserWithPrID']);
     Route::get('getUserSelledProductsByPagination', [AgentProductController::class, 'getAgentSelledProductsByPagination']);
     Route::get('getProductBoughtedByProductIdUserMode/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
-
-
-
+    Route::patch('reChargeProductByUserWithPrID', [AgentProductController::class, 'reChargeProductByUserWithPrID']);
 });
+// shared route
+Route::group(['middleware' => ['auth:sanctum']], function () {
+    Route::get('getBoughtProductsPannelLinkFromServerById/{id}', [AgentProductController::class, 'getBoughtProductsPannelLinkFromServerById']);
+});
+
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);
 Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']);
