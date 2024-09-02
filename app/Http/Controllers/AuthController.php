@@ -13,7 +13,30 @@ class AuthController extends Controller
 {
     public function getPowerPsLicenseType()
     {
-        return 'gold';
+         // check app env
+         $appEnv = env('APP_ENV');
+        if ($appEnv != 'local' && $appEnv != 'testing') {
+            // chack license
+            $host = $_SERVER['HTTP_HOST'];
+            $licenseType = "gold";
+            // $licenseType = $this->getPowerPsLicenseType();
+            // if response was 200 go on ele return false
+            $hasLicense = Http::post('https://license-checker.chbk.run/api/checkLicense', [
+                'name' => 'Reza',
+                'type' => "{$licenseType}",
+                'host' => "{$host}",
+            ]);
+            // check if $hasLicense response was 401 or not
+            // if not go on
+            // if yes return false
+
+            if ($hasLicense->status() != 200) {
+                return 'free';
+            }
+
+            return $hasLicense->json()['data']['account_type'];
+        }
+
     }
 
     public function createFirstAdminUser()
@@ -55,27 +78,7 @@ class AuthController extends Controller
     }
     public function login(Request $request)
     {
-        // check app env
-        $appEnv = env('APP_ENV');
-        if ($appEnv != 'local' && $appEnv != 'testing') {
-            // chack license
-            $host = $_SERVER['HTTP_HOST'];
-            \Log::info("host: {$host}");
-            $licenseType = $this->getPowerPsLicenseType();
-            // if response was 200 go on ele return false
-            $hasLicense = Http::post('https://license-checker.chbk.run/api/checkLicense', [
-                'name' => 'Reza',
-                'type' => "{$licenseType}",
-                'host' => "{$host}",
-            ]);
-            // check if $hasLicense response was 401 or not
-            // if not go on
-            // if yes return false
 
-            if ($hasLicense->status() != 200) {
-                return response()->json('unvalid License', 401);
-            }
-        }
 
         // check first admin login
         $this->createFirstAdminUser();

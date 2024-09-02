@@ -335,6 +335,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:user']], function (
     // AgentProductController
     Route::put('buyProductByUserWithPrID', [AgentProductController::class, 'buyProductByUserWithPrID']);
     Route::get('getUserSelledProductsByPagination', [AgentProductController::class, 'getAgentSelledProductsByPagination']);
+    Route::get('getProductBoughtedByProductIdUserMode/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
 
 
 
