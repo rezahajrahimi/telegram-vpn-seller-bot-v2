@@ -323,6 +323,8 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:user']], function (
     Route::get('getUserSelledProductsByPagination', [AgentProductController::class, 'getAgentSelledProductsByPagination']);
     Route::get('getProductBoughtedByProductIdUserMode/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
     Route::patch('reChargeProductByUserWithPrID', [AgentProductController::class, 'reChargeProductByUserWithPrID']);
+    Route::delete('softDeleteProductByUserWithPrID/{id}', [AgentProductController::class, 'softDeleteProductByUserWithPrID']);
+
 });
 // shared route
 Route::group(['middleware' => ['auth:sanctum']], function () {

@@ -9,7 +9,61 @@ class MainMenuItemController extends Controller
 {
     public function getAllMainMenuItems()
     {
-        return MainMenuItem::all();
+        $data = MainMenuItem::all();
+        // check if data was empty create new menu
+        if (count($data) == 0) {
+            $menu = new MainMenuItem();
+            $menu->name = "خرید اشتراک";
+            $menu->alias_name = خرید اشتراک;
+            $menu->is_active = true;
+            $menu->position = 1;
+            $menu->save();
+            $menu->name = "webapp";
+            $menu->alias_name = "استفاده در وب اپلیکیشن";
+            $menu->is_active = true;
+            $menu->position = 2;
+            $menu->save();
+            $menu->name = "سابقه خرید";
+            $menu->alias_name = "سابقه خرید";
+            $menu->is_active = true;
+            $menu->position = 3;
+            $menu->save();
+            $menu->name = "پشتیبانی";
+            $menu->alias_name = "پشتیبانی";
+            $menu->is_active = true;
+            $menu->position = 4;
+            $menu->save();
+            $menu->name = "آموزش استفاده و سوالات متداول";
+            $menu->alias_name = "آموزش استفاده و سوالات متداول";
+            $menu->is_active = true;
+            $menu->position = 5;
+            $menu->save();
+            $menu->name = "اطلاعات حساب";
+            $menu->alias_name = "اطلاعات حساب";
+            $menu->is_active = true;
+            $menu->position = 6;
+            $menu->save();
+            $menu->name = "اکانت آزمایشی";
+            $menu->alias_name = "اکانت آزمایشی";
+            $menu->is_active = true;
+            $menu->position = 7;
+            $menu->save();
+            $menu->name = "دانلود برنامه";
+            $menu->alias_name = "دانلود برنامه";
+            $menu->is_active = true;
+            $menu->position = 8;
+            $menu->save();
+            $menu->name = "گیف کارد";
+            $menu->alias_name = "گیف کارد";
+            $menu->is_active = true;
+            $menu->position = 9;
+            $menu->save();
+
+            $data = MainMenuItem::all();
+        }
+
+        return $data;
+
     }
     public function getMenuNameByID($id)
     {

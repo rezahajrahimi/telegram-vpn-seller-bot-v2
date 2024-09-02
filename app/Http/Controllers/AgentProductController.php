@@ -1212,6 +1212,58 @@ class AgentProductController extends Controller
         }
         return response()->json(false, 401);
     }
+    public function softDeleteProductByUserWithPrID($id)
+    {
+        $data = Product::where('id', $id)->with('product_category_and_panel')->first();
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+
+        if ($accountID != $data->account_id) {
+            return response()->json(false, 401);
+        }
+
+        if ($data != null) {
+            // save current usage
+            $currentStatus = $this->getBoughtProductsStatusFromServerById($id);
+            if ($currentStatus == null) {
+                return response()->json(null, 500);
+            }
+            $currentUsage = $currentStatus['current_usage_GB'];
+            //
+
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+
+            $req = new Request();
+            $req->pannelID = $pannel->id;
+            $req->name = $data->remark;
+            $req->uuid = $uuid;
+            $req->vol = 0.0;
+            $req->day = 0;
+            // get today date with new variable
+            $today = Verta::now();
+            $req->comment = "حذف شده در {$today}";
+
+            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanelOldApi($req);
+            if ($updateRemark['status'] == 200) {
+                if ($updateRemark['msg'] !== 'ok') {
+                    return response()->json(false, 401);
+                }
+                $data->delete();
+                $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
+
+
+
+                return response()->json(true, 200);
+            } else {
+                return response()->json(null, 500);
+            }
+        }
+        return response()->json(false, 401);
+    }
     public function addNewBotLog($type, $message, $event)
     {
         $accountID = auth('sanctum')->user()->account_id;
