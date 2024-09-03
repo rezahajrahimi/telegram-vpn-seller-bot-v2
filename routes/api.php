@@ -52,8 +52,6 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('telegram/webhooks')->group(function () {
     Route::post('inbound', [TelegramController::class, 'inbound'])->name('telegram.inbound');
 });
-// run a command by api
-Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -66,6 +64,9 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Admin Routes
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function () {
+    // run a command by api
+    Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);
+    ///
     Route::get('getUserOrder/{userID}', [OrderController::class, 'getUserOrder']);
     Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
     // Admin
@@ -288,7 +289,6 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function 
 
     // GeneralController
     Route::get('getAgentDashboardAnalytics', [GeneralController::class, 'getAgentDashboardAnalytics']);
-    Route::get('getAgentPaymentWays', [GeneralController::class, 'getAgentPaymentWays']);
 
     // AccountBallanceController
     Route::get('getLoggedAgentUserBallancce', [AccountBallanceController::class, 'getLoggedUserBallancce']);
@@ -324,12 +324,12 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:user']], function (
     Route::get('getProductBoughtedByProductIdUserMode/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
     Route::patch('reChargeProductByUserWithPrID', [AgentProductController::class, 'reChargeProductByUserWithPrID']);
     Route::delete('softDeleteProductByUserWithPrID/{id}', [AgentProductController::class, 'softDeleteProductByUserWithPrID']);
-
 });
 // shared route
 Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('getBoughtProductsPannelLinkFromServerById/{id}', [AgentProductController::class, 'getBoughtProductsPannelLinkFromServerById']);
     Route::post('changeActivationOfHiddifyUserByAgent', [AgentProductController::class, 'changeActivationOfHiddifyUserByAgent']);
+    Route::get('getAgentPaymentWays', [GeneralController::class, 'getAgentPaymentWays']);
 
 });
 
