@@ -302,10 +302,6 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function 
     Route::patch('reChargeProductByAgentWithPrID', [AgentProductController::class, 'reChargeProductByAgentWithPrID']);
     Route::put('changeProductByAgentWithPrID', [AgentProductController::class, 'changeProductByAgentWithPrID']);
     Route::delete('softDeleteProductByAgentWithPrID/{id}', [AgentProductController::class, 'softDeleteProductByAgentWithPrID']);
-
-    // BillController
-    Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
-    Route::get('createNewAgentDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:user']], function () {
     // GeneralController
@@ -330,7 +326,9 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('getBoughtProductsPannelLinkFromServerById/{id}', [AgentProductController::class, 'getBoughtProductsPannelLinkFromServerById']);
     Route::post('changeActivationOfHiddifyUserByAgent', [AgentProductController::class, 'changeActivationOfHiddifyUserByAgent']);
     Route::get('getAgentPaymentWays', [GeneralController::class, 'getAgentPaymentWays']);
-
+    // BillController
+    Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
+    Route::get('createNewAgentDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
 });
 
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);
