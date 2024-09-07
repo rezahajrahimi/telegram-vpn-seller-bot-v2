@@ -13,12 +13,12 @@ class AuthController extends Controller
 {
     public function getPowerPsLicenseType()
     {
-         // check app env
-         $appEnv = env('APP_ENV');
+        // check app env
+        $appEnv = env('APP_ENV');
         if ($appEnv != 'local' && $appEnv != 'testing') {
             // chack license
             $host = $_SERVER['HTTP_HOST'];
-            $licenseType = "gold";
+            $licenseType = 'gold';
             // $licenseType = $this->getPowerPsLicenseType();
             // if response was 200 go on ele return false
             $hasLicense = Http::post('https://license-checker.chbk.run/api/checkLicense', [
@@ -36,7 +36,6 @@ class AuthController extends Controller
 
             return $hasLicense->json()['data']['account_type'];
         }
-
     }
 
     public function createFirstAdminUser()
@@ -78,8 +77,6 @@ class AuthController extends Controller
     }
     public function login(Request $request)
     {
-
-
         // check first admin login
         $this->createFirstAdminUser();
 
@@ -157,12 +154,24 @@ class AuthController extends Controller
         $user->password = Hash::make($user_password);
         $user->update();
         $user_id = $user->account_id;
-        $text = "⬇️انتخاب کنید ⬇️\n\r";
         $mainMenuCntrl = new MainMenuItemController();
-        $menuAliasName = $mainMenuCntrl->getMenuAliasNameByName("webapp");
+        $menuAliasName = $mainMenuCntrl->getMenuAliasNameByName('webapp');
         // $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        $result = app('telegram_bot')->sendMessage("لینک ورود به پنل:", $user_id, null, 'MarkDown');
 
-        // $text = "$frontUrl/#/login/$user_id/{$user_password}";
+        $text = "$frontUrl";
+        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        $text = "username:\n\r";
+        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        $text = "$user_id";
+        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        $text = "password:";
+        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        $text = "$user_password";
+        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+
+        $text = "ورود سریع به پنل ⬇️\n\r";
+
         $opr = [];
         array_push($opr, [
             [
@@ -172,7 +181,6 @@ class AuthController extends Controller
         ]);
         $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $user_id, '');
 
-        // $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
         return response()->json(true);
     }
 }
