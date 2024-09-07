@@ -329,6 +329,9 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     // BillController
     Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
     Route::get('createNewAgentDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
+
+    // UserController
+    Route::put('updateUserPassword', [UserController::class, 'update_logged_password']);
 });
 
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);

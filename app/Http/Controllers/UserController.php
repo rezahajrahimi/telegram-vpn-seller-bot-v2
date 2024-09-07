@@ -168,7 +168,33 @@ class UserController extends Controller
             \Log::info("Throwable $th");
         }
     }
+    public function update_logged_password(Request $request){
 
+        $request->validate([
+            'password' => 'required|string|min:8',
+        ]);
+        $accountID = auth('sanctum')->user()->account_id;
+        $user = User::where('account_id', $accountID)->first();
+        if (!$user) {
+            return response()->json(
+                [
+                    'message' => 'User not found',
+                ],
+                404,
+            );
+        }
+
+        $user->password = Hash::make($request->password);
+        $user->update();
+
+        return response()->json(
+            [
+                'message' => 'User updated successfully',
+                'user' => $user,
+            ],
+            200,
+        );
+    }
     public function deleteUser(Request $request)
     {
         $request->validate([
