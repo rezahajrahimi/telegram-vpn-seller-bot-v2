@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://1ed7-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://433a-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
@@ -937,12 +937,19 @@ class TelegramController extends Controller
                     $startDate = $configStatus['start_date'];
                     // convert $startDate to valid carbon date
                     $startDate = Carbon::parse($startDate);
+
                     //convert $startDate to persian date by verta
+
                     // expire date
-                    $expireDate = $configStatus['package_days'];
+                    $package_days = $configStatus['package_days'];
+                    // convert $package_days to integer
+                    $package_days = intval($package_days);
                     // add expireDate to $startDate
-                    $expireDate = $startDate->addDays($expireDate);
-                    $expireDate = $startDate->toJalali()->format('Y.m.d');
+                    $expireDate = Carbon::parse($startDate);
+                    // add $pacje_days to $expireDate
+                    $expireDate->addDays($package_days);
+
+                    $expireDate = $expireDate->toJalali()->format('Y.m.d');
                     $startDate = $startDate->toJalali()->format('Y.m.d');
 
                     $text .= "🗓️ تاریخ شروع: {$startDate} \r\n";
