@@ -938,7 +938,6 @@ class TelegramController extends Controller
                     // convert $startDate to valid carbon date
                     $startDate = Carbon::parse($startDate);
 
-                    //convert $startDate to persian date by verta
 
                     // expire date
                     $package_days = $configStatus['package_days'];
@@ -1070,7 +1069,6 @@ class TelegramController extends Controller
             // check account ballance
             $productPrice = $selectedPrCat->price;
             $productPriceInDollar = $selectedPrCat->price_in_dollar;
-            \Log::info("message $productPrice $productPriceInDollar");
             $accBlCtrl = new AccountBallanceController();
             if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice, $productPriceInDollar)) {
                 $pannel = Pannel::find($data->product_category_and_panel->pannel_id);

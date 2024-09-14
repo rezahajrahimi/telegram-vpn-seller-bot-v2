@@ -32,7 +32,7 @@ class AccountBallanceController extends Controller
             if ($data->ballance >= $price) {
                 return true;
             } elseif ($data->account_ballance_in_dollar >= $parice_in_dollar) {
-                if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
+                if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1 && $parice_in_dollar > 0) {
                     return true;
                 }
                 return false;
