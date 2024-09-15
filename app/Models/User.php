@@ -48,4 +48,8 @@ class User extends Authenticatable
     {
         return $this->hasOne(AgentPermisson::class, 'user_id', 'id');
     }
+    public function cron_log()
+    {
+        return $this->hasMany(CronLog::class, 'user_id', 'id');
+    }
 }

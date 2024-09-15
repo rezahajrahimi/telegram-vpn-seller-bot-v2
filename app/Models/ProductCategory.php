@@ -28,5 +28,8 @@ class ProductCategory extends Model
         return $this->hasOne(AgentProduct::class, 'product_categories_id');
     }
 
-
+    public function cron_log()
+    {
+        return $this->hasMany(CronLog::class, 'product_cat_id', 'id');
+    }
 }
