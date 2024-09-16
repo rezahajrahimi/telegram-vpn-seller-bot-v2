@@ -118,6 +118,7 @@ class CronJobController extends Controller
                 }
             }
         }
+        return true;
     }
     public function execute_send_lass_there_than_3_days()
     {
@@ -173,6 +174,7 @@ class CronJobController extends Controller
                 }
             }
         }
+        return true;
     }
     public function execute_send_expired_products()
     {
@@ -220,5 +222,6 @@ class CronJobController extends Controller
                 }
             }
         }
+        return true;
     }
 }
