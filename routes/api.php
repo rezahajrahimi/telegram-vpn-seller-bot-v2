@@ -34,6 +34,7 @@ use App\Http\Controllers\TransactionSettingController;
 use App\Http\Controllers\AgentProductController;
 use App\Http\Controllers\AgentPermissonController;
 use App\Http\Controllers\ExecuteArtisanCommandController;
+use App\Http\Controllers\CronJobController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -338,3 +339,4 @@ Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDol
 Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']);
 Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPaymentStatus']);
+Route::get('/8585', [CronJobController::class, 'execute_send_useage_more_than_85_percent']);
