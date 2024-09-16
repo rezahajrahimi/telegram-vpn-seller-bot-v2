@@ -14,12 +14,10 @@ return new class extends Migration
         Schema::create('cron_logs', function (Blueprint $table) {
             $table->id();
             $table->bigInteger('cron_id')->unsigned();
-            $table->bigInteger('user_id')->unsigned();
-            $table->bigInteger('product_cat_id')->unsigned();
+            $table->bigInteger('product_id')->unsigned();
             $table->timestamps();
             $table->foreign('cron_id')->references('id')->on('cron_jobs')->onDelete('cascade');
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
-            $table->foreign('product_cat_id')->references('id')->on('product_categories')->onDelete('cascade');
+            $table->foreign('product_id')->references('id')->on('products')->onDelete('cascade');
 
 
         });

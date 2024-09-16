@@ -340,3 +340,6 @@ Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']);
 Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPaymentStatus']);
 Route::get('/8585', [CronJobController::class, 'execute_send_useage_more_than_85_percent']);
+Route::get('/8589', [CronJobController::class, 'execute_lass_there_than_3_days']);
+Route::get('/8588', [CronJobController::class, 'execute_send_expired_products']);
+Route::get('/8590', [CronJobController::class, 'get_all_cron_jobs']);

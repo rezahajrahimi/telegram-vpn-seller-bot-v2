@@ -3,10 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\CronJob;
+use App\Models\CronLog;
 use App\Models\Pannel;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\BotUser;
+
+use Illuminate\Support\Carbon;
+use Hekmatinasser\Verta\Verta;
 
 use Illuminate\Http\Request;
 
@@ -16,13 +20,13 @@ class CronJobController extends Controller
     {
         try {
             $cronJobs = CronJob::all();
-            if ($cronJobs) {
+            if ($cronJobs->count() > 0) {
                 return response()->json($cronJobs);
             }
             // create neccessery cron jobs
             $expiredAccountsCronJob = new CronJob();
             $expiredAccountsCronJob->name = 'Expired';
-            $expiredAccountsCronJob->frequency = '5m';
+            $expiredAccountsCronJob->frequency = '10m';
             $expiredAccountsCronJob->is_active = true;
             $expiredAccountsCronJob->description = '.ارسال پیام به کاربرانی که دارای اکانت خریداری شده تمام شده دارند ';
             $expiredAccountsCronJob->save();
@@ -34,7 +38,7 @@ class CronJobController extends Controller
             $lessThan3DaysCronJob->save();
             $usageMoreThan85PercentCronJob = new CronJob();
             $usageMoreThan85PercentCronJob->name = 'Usage more than 85%';
-            $usageMoreThan85PercentCronJob->frequency = '1d';
+            $usageMoreThan85PercentCronJob->frequency = '5m';
             $usageMoreThan85PercentCronJob->is_active = true;
             $usageMoreThan85PercentCronJob->description = 'ارسال پیام به کاربرانی که میزان استفاده از اکانت بیشتر از 85 درصد دارند.';
             $usageMoreThan85PercentCronJob->save();
@@ -76,13 +80,69 @@ class CronJobController extends Controller
             foreach ($users as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
 
-                $usageGB = round($usageGB, 2);
+                // $usageGB = round($usageGB, 2);
                 $limitGB = $value['usage_limit_GB'];
                 // get usage percent
                 $usagePercent = ($usageGB / $limitGB) * 100;
-                $usagePercent = round($usageGB, 2);
 
-                if ($usagePercent > 84.99) {
+                if ($usagePercent > 84.99 && $usagePercent < 99.99) {
+                    // get releated products by uuid
+                    $uuid = $value['uuid'];
+                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+
+                    if ($product != null) {
+                        $usagePercent = round($usagePercent, 2);
+
+                        $name = $value['name'];
+                        // get product category
+                        $prcategory = ProductCategory::find($product->product_categories_id);
+                        // get product category name
+                        $productCategoryName = $prcategory->category_name;
+                        // send notification
+                        $user_id = $product->account_id;
+                        // check has exist in cron log or not, if not exist send notification
+                        $cronLog = CronLog::where('cron_id', 3)
+                            ->where('product_id', $product->id)
+                            ->first();
+                        if ($cronLog == null) {
+                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی شما بیشتر از $usagePercent درصد از بسته $productCategoryName را مصرف کرده اید.", $user_id, null, 'MarkDown');
+
+                            if ($sendNotificationToUser) {
+                                $cronLog = new CronLog();
+                                $cronLog->cron_id = 3;
+                                $cronLog->product_id = $product->id;
+                                $cronLog->save();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    public function execute_send_lass_there_than_3_days()
+    {
+        $pannel = Pannel::all();
+        $hiddifyPanelCtrl = new HiddifyPannelController();
+        foreach ($pannel as $key => $value) {
+            $users = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            foreach ($users as $key => $value) {
+                $startDate = $value['start_date'];
+                // convert $startDate to valid carbon date
+                $startDate = Carbon::parse($startDate);
+
+                $package_days = $value['package_days'];
+                // convert $package_days to integer
+                $package_days = intval($package_days);
+                // add expireDate to $startDate
+                $expireDate = Carbon::parse($startDate);
+                // add $pacje_days to $expireDate
+                $expireDate->addDays($package_days);
+                //
+
+                // get diffrence between current date and $expireDate
+                $dateDifference = $expireDate->diffInDays(Carbon::now());
+                // get usage percent
+                if ($dateDifference < 4 && $dateDifference > 0) {
                     // get releated products by uuid
                     $uuid = $value['uuid'];
                     $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
@@ -94,7 +154,68 @@ class CronJobController extends Controller
                         $productCategoryName = $prcategory->category_name;
                         // send notification
                         $user_id = $product->account_id;
-                        $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی شما بیشتر از $usagePercent درصد از بسته $productCategoryName را مصرف کرده اید.", $user_id, null, 'MarkDown');
+                        // check has exist in cron log or not, if not exist send notification
+                        $cronLog = CronLog::where('cron_id', 2)
+                            ->where('product_id', $product->id)
+                            ->get();
+                        // check has cronlog created in more than 23 hours ago or not
+                        if ($cronLog->count() < 4) {
+                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی تنها $dateDifference روز دیگر از بسته $productCategoryName باقی مانده است.", $user_id, null, 'MarkDown');
+
+                            if ($sendNotificationToUser) {
+                                $cronLog = new CronLog();
+                                $cronLog->cron_id = 2;
+                                $cronLog->product_id = $product->id;
+                                $cronLog->save();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    public function execute_send_expired_products()
+    {
+        $pannel = Pannel::all();
+        $hiddifyPanelCtrl = new HiddifyPannelController();
+
+        foreach ($pannel as $key => $value) {
+            $users = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            foreach ($users as $key => $value) {
+                $usageGB = $value['current_usage_GB'];
+
+                // $usageGB = round($usageGB, 2);
+                $limitGB = $value['usage_limit_GB'];
+                // get usage percent
+                $usagePercent = ($usageGB / $limitGB) * 100;
+
+                if ($usagePercent >= 99.9) {
+                    // get releated products by uuid
+                    $uuid = $value['uuid'];
+                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+
+                    if ($product != null) {
+                        $cronLog = CronLog::where('cron_id', 1)
+                            ->where('product_id', $product->id)
+                            ->get();
+                        if ($cronLog == null) {
+                            $usagePercent = round($usagePercent, 2);
+
+                            // get product category
+                            $prcategory = ProductCategory::find($product->product_categories_id);
+
+                            // get product category name
+                            $productCategoryName = $prcategory->category_name;
+                            // send notification
+                            $user_id = $product->account_id;
+                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی بسته $productCategoryName منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.", $user_id, null, 'MarkDown');
+                            if ($sendNotificationToUser) {
+                                $cronLog = new CronLog();
+                                $cronLog->cron_id = 1;
+                                $cronLog->product_id = $product->id;
+                                $cronLog->save();
+                            }
+                        }
                     }
                 }
             }

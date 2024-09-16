@@ -44,6 +44,10 @@ class Product extends Model
     {
         return $this->hasMany(Order::class, 'product_id');
     }
+    public function cron_log()
+    {
+        return $this->hasMany(CronLog::class, 'product_id', 'id');
+    }
     public function getCreatedAtAttribute($value)
     {
         return verta(verta($value))->formatDifference();
@@ -52,4 +56,5 @@ class Product extends Model
     {
         return verta(verta($value))->formatDifference();
     }
+
 }
