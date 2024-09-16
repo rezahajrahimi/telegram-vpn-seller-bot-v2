@@ -73,6 +73,12 @@ class CronJobController extends Controller
     }
     public function execute_send_useage_more_than_85_percent()
     {
+        $authCntrl = new AuthController();
+        $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+        if ($getPowerPsLicenseType == 'free') {
+            return false;
+        }
+
         $pannel = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
         foreach ($pannel as $key => $value) {
@@ -122,6 +128,11 @@ class CronJobController extends Controller
     }
     public function execute_send_lass_there_than_3_days()
     {
+        $authCntrl = new AuthController();
+        $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+        if ($getPowerPsLicenseType == 'free') {
+            return false;
+        }
         $pannel = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
         foreach ($pannel as $key => $value) {
@@ -178,6 +189,11 @@ class CronJobController extends Controller
     }
     public function execute_send_expired_products()
     {
+        $authCntrl = new AuthController();
+        $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+        if ($getPowerPsLicenseType == 'free') {
+            return false;
+        }
         $pannel = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
 
