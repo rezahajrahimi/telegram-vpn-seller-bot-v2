@@ -28,13 +28,13 @@ class CronJobController extends Controller
             $expiredAccountsCronJob->name = 'Expired';
             $expiredAccountsCronJob->frequency = '10m';
             $expiredAccountsCronJob->is_active = true;
-            $expiredAccountsCronJob->description = '.ارسال پیام به کاربرانی که دارای اکانت خریداری شده تمام شده دارند ';
+            $expiredAccountsCronJob->description = 'ارسال پیام به کاربرانی که اکانت خریداری شده منقضی شده دارند.';
             $expiredAccountsCronJob->save();
             $lessThan3DaysCronJob = new CronJob();
             $lessThan3DaysCronJob->name = 'Less than 3 days';
             $lessThan3DaysCronJob->frequency = '1d';
             $lessThan3DaysCronJob->is_active = true;
-            $lessThan3DaysCronJob->description = 'ارسال پیام به کاربرانی که سه روز دیگر اکانت آنها تمام می شود.';
+            $lessThan3DaysCronJob->description = 'ارسال پیام به کاربرانی که سه روز دیگر اکانت آنها منقضی می شود.';
             $lessThan3DaysCronJob->save();
             $usageMoreThan85PercentCronJob = new CronJob();
             $usageMoreThan85PercentCronJob->name = 'Usage more than 85%';
@@ -62,7 +62,7 @@ class CronJobController extends Controller
     public function change_cron_job_active_status($id)
     {
         try {
-            $cronJob = CronJob::find($request->id);
+            $cronJob = CronJob::find($id);
             $cronJob->is_active = !$cronJob->is_active;
             $cronJob->save();
             return response()->json($cronJob);
