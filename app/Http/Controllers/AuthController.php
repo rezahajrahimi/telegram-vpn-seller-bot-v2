@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Artisan;
 
 class AuthController extends Controller
 {
@@ -96,6 +97,14 @@ class AuthController extends Controller
             ]);
         }
 
+        // check if user is admin, run migration command
+        if ($user->role == 'admin') {
+            $command = 'migrate';
+            $params = [];
+            Artisan::call($command, $params);
+            $output = Artisan::output();
+        }
+
         return response()->json([
             'user' => $user,
             'token' => $user->createToken('token-name')->plainTextToken,
@@ -157,7 +166,7 @@ class AuthController extends Controller
         $mainMenuCntrl = new MainMenuItemController();
         $menuAliasName = $mainMenuCntrl->getMenuAliasNameByName('webapp');
         // $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $result = app('telegram_bot')->sendMessage("لینک ورود به پنل:", $user_id, null, 'MarkDown');
+        $result = app('telegram_bot')->sendMessage('لینک ورود به پنل:', $user_id, null, 'MarkDown');
 
         $text = "$frontUrl";
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
@@ -165,7 +174,7 @@ class AuthController extends Controller
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
         $text = "$user_id";
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text = "password:";
+        $text = 'password:';
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
         $text = "$user_password";
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');

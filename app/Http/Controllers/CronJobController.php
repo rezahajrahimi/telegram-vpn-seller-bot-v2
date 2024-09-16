@@ -73,6 +73,11 @@ class CronJobController extends Controller
     }
     public function execute_send_useage_more_than_85_percent()
     {
+        $cronJob = CronJob::where('name', 'Usage more than 85%')->first();
+        // check if is_active was false, return
+        if ($cronJob->is_active == false) {
+            return false;
+        }
         $authCntrl = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
         if ($getPowerPsLicenseType == 'free') {
@@ -107,7 +112,7 @@ class CronJobController extends Controller
                         // send notification
                         $user_id = $product->account_id;
                         // check has exist in cron log or not, if not exist send notification
-                        $cronLog = CronLog::where('cron_id', 3)
+                        $cronLog = CronLog::where('cron_id', $cronJob->id)
                             ->where('product_id', $product->id)
                             ->first();
                         if ($cronLog == null) {
@@ -115,7 +120,7 @@ class CronJobController extends Controller
 
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
-                                $cronLog->cron_id = 3;
+                                $cronLog->cron_id = $cronJob->id;
                                 $cronLog->product_id = $product->id;
                                 $cronLog->save();
                             }
@@ -128,6 +133,12 @@ class CronJobController extends Controller
     }
     public function execute_send_lass_there_than_3_days()
     {
+        $cronJob = CronJob::where('name', 'Less than 3 days')->first();
+        // check if is_active was false, return
+        if ($cronJob->is_active == false) {
+            return false;
+        }
+
         $authCntrl = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
         if ($getPowerPsLicenseType == 'free') {
@@ -167,7 +178,7 @@ class CronJobController extends Controller
                         // send notification
                         $user_id = $product->account_id;
                         // check has exist in cron log or not, if not exist send notification
-                        $cronLog = CronLog::where('cron_id', 2)
+                        $cronLog = CronLog::where('cron_id', $cronJob->id)
                             ->where('product_id', $product->id)
                             ->get();
                         // check has cronlog created in more than 23 hours ago or not
@@ -176,7 +187,7 @@ class CronJobController extends Controller
 
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
-                                $cronLog->cron_id = 2;
+                                $cronLog->cron_id = $cronJob->id;
                                 $cronLog->product_id = $product->id;
                                 $cronLog->save();
                             }
@@ -189,6 +200,11 @@ class CronJobController extends Controller
     }
     public function execute_send_expired_products()
     {
+        $cronJob = CronJob::where('name', 'Expired')->first();
+        // check if is_active was false, return
+        if ($cronJob->is_active == false) {
+            return false;
+        }
         $authCntrl = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
         if ($getPowerPsLicenseType == 'free') {
@@ -213,7 +229,7 @@ class CronJobController extends Controller
                     $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
 
                     if ($product != null) {
-                        $cronLog = CronLog::where('cron_id', 1)
+                        $cronLog = CronLog::where('cron_id', $cronJob->id)
                             ->where('product_id', $product->id)
                             ->get();
                         if ($cronLog == null) {
@@ -229,7 +245,7 @@ class CronJobController extends Controller
                             $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی بسته $productCategoryName منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.", $user_id, null, 'MarkDown');
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
-                                $cronLog->cron_id = 1;
+                                $cronLog->cron_id = $cronJob->id;
                                 $cronLog->product_id = $product->id;
                                 $cronLog->save();
                             }
