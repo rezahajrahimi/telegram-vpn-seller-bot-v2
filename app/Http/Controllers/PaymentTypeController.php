@@ -163,18 +163,20 @@ class PaymentTypeController extends Controller
     public function removePaymentType($name)
     {
         $data = PaymentType::where('name', $name)->first();
-        if ($data != null) {
-            $trImage = TransactionImage::where('payment_type_id', $data->id)->count();
-            $tr = Transaction::where('payment_type_id', $data->id)->count();
-            if ($trImage == 0 && $tr == 0) {
-                $data->delete();
-                return true;
-            } else {
-                return response()->json('این گزینه دارای تراکنش می باشد.', 202);
-            }
-        } else {
-            return false;
-        }
+        $data->delete();
+        return true;
+        // if ($data != null) {
+        //     $tr = Transaction::where('payment_type_id', $data->id)->count();
+
+        //     if ($tr == 0) {
+        //         $data->delete();
+        //         return true;
+        //     } else {
+        //         return response()->json('این گزینه دارای تراکنش می باشد.', 202);
+        //     }
+        // } else {
+        //     return false;
+        // }
     }
     public function deActivePaymentType($name)
     {
