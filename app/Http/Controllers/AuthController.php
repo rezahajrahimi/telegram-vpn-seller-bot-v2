@@ -31,7 +31,6 @@ class AuthController extends Controller
 
             $host = $this->getHostName();
 
-            \Log::info("host $host");
             $licenseType = 'gold';
 
             // $host = '';

@@ -109,6 +109,7 @@ class CronJobController extends Controller
                         $prcategory = ProductCategory::find($product->product_categories_id);
                         // get product category name
                         $productCategoryName = $prcategory->category_name;
+                        $productText = "{$productCategoryName} - {$product->remark}";
                         // send notification
                         $user_id = $product->account_id;
                         // check has exist in cron log or not, if not exist send notification
@@ -116,7 +117,7 @@ class CronJobController extends Controller
                             ->where('product_id', $product->id)
                             ->first();
                         if ($cronLog == null) {
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی شما بیشتر از $usagePercent درصد از بسته $productCategoryName را مصرف کرده اید.", $user_id, null, 'MarkDown');
+                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی شما بیشتر از $usagePercent درصد از بسته $productText را مصرف کرده اید.", $user_id, null, 'MarkDown');
 
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
@@ -175,6 +176,8 @@ class CronJobController extends Controller
                         $prcategory = ProductCategory::find($product->product_categories_id);
                         // get product category name
                         $productCategoryName = $prcategory->category_name;
+                        $productText = "{$productCategoryName} - {$product->remark}";
+
                         // send notification
                         $user_id = $product->account_id;
                         // check has exist in cron log or not, if not exist send notification
@@ -183,7 +186,7 @@ class CronJobController extends Controller
                             ->get();
                         // check has cronlog created in more than 23 hours ago or not
                         if ($cronLog->count() < 4) {
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی تنها $dateDifference روز دیگر از بسته $productCategoryName باقی مانده است.", $user_id, null, 'MarkDown');
+                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی تنها $dateDifference روز دیگر از بسته $productText باقی مانده است.", $user_id, null, 'MarkDown');
 
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
@@ -240,9 +243,11 @@ class CronJobController extends Controller
 
                             // get product category name
                             $productCategoryName = $prcategory->category_name;
+                            $productText = "{$productCategoryName} - {$product->remark}";
+
                             // send notification
                             $user_id = $product->account_id;
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی بسته $productCategoryName منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.", $user_id, null, 'MarkDown');
+                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی بسته $productText منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.", $user_id, null, 'MarkDown');
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
                                 $cronLog->cron_id = $cronJob->id;
