@@ -9,19 +9,36 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Config;
 
 class AuthController extends Controller
 {
+    public function getHostName()
+    {
+
+        $hostUrl = env('FRONT_URL');
+
+
+        // get host
+        return $hostUrl;
+    }
     public function getPowerPsLicenseType()
     {
         // check app env
         $appEnv = env('APP_ENV');
         if ($appEnv != 'local' && $appEnv != 'testing') {
-            // chack license
-            $host = $_SERVER['HTTP_HOST'];
+
+
+            $host = $this->getHostName();
+
+            \Log::info("host $host");
             $licenseType = 'gold';
-            // $licenseType = $this->getPowerPsLicenseType();
-            // if response was 200 go on ele return false
+
+            // $host = '';
+            // if (isset($_SERVER['HTTP_HOST'])) {
+            //     $host = $_SERVER['HTTP_HOST'];
+            // }
+
             $hasLicense = Http::post('https://license-checker.chbk.run/api/checkLicense', [
                 'name' => 'Reza',
                 'type' => "{$licenseType}",
@@ -95,14 +112,6 @@ class AuthController extends Controller
             throw ValidationException::withMessages([
                 'account_id' => ['The provided credentials are incorrect.'],
             ]);
-        }
-
-        // check if user is admin, run migration command
-        if ($user->role == 'admin') {
-            $command = 'migrate';
-            $params = [];
-            Artisan::call($command, $params);
-            $output = Artisan::output();
         }
 
         return response()->json([
