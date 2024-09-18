@@ -676,7 +676,6 @@ class AgentProductController extends Controller
         $selectedPrCat = ProductCategory::find($data->product_categories_id);
         // check agent has terrafic limition or not
 
-
         if ($accountID != $data->account_id) {
             return response()->json(false, 401);
         }
@@ -692,7 +691,7 @@ class AgentProductController extends Controller
                 ->first();
             // return $agentProduct;
             $productPrice = $selectedPrCat->price;
-        $productPriceInDollar = $selectedPrCat->price_in_dollar;
+            $productPriceInDollar = $selectedPrCat->price_in_dollar;
             $accBlCtrl = new AccountBallanceController();
             if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
                 $hiddifcCntrl = new HiddifyPannelController();
@@ -1254,8 +1253,6 @@ class AgentProductController extends Controller
                 }
                 $data->delete();
                 $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
-
-
 
                 return response()->json(true, 200);
             } else {

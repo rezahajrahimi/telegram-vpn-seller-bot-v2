@@ -48,5 +48,8 @@ class User extends Authenticatable
     {
         return $this->hasOne(AgentPermisson::class, 'user_id', 'id');
     }
-
+    public function reserved_products()
+    {
+        return $this->hasMany(ReserverdConfig::class, 'user_id', 'id');
+    }
 }

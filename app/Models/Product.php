@@ -48,6 +48,10 @@ class Product extends Model
     {
         return $this->hasMany(CronLog::class, 'product_id', 'id');
     }
+    public function reserved_config()
+    {
+        return $this->hasMany(ReserverdConfig::class, 'product_id', 'id');
+    }
     public function getCreatedAtAttribute($value)
     {
         return verta(verta($value))->formatDifference();
