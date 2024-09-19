@@ -223,6 +223,9 @@ class CronJobController extends Controller
 
                 // $usageGB = round($usageGB, 2);
                 $limitGB = $value['usage_limit_GB'];
+                if($limitGB == 0 || $usageGB == 0){
+                    return true;
+                }
                 // get usage percent
                 $usagePercent = ($usageGB / $limitGB) * 100;
 

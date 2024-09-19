@@ -813,7 +813,6 @@ class TelegramController extends Controller
             app('telegram_bot')->sendMessage($pymentMenuCntrl->getResponseOfSelectedOfflineMenu(), $this->chat_id, null, 'MarkDown');
 
             $name = $this->userCommandArr[1];
-            \Log::info("selectedPayment $name");
             $selectedPayment = $pymCntrl->getPaymentTypeNyName($this->userCommandArr[1]);
             $result = app('telegram_bot')->sendMessage($selectedPayment->merchant_id, $this->chat_id, null, 'MarkDown');
 
