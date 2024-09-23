@@ -25,6 +25,7 @@ class TelegramController extends Controller
     public $userCommandArr = [];
     public $from_id;
     public $text;
+    public $referenceCode;
     public $first_name;
     public $caption;
     public $chat_id;
@@ -41,6 +42,7 @@ class TelegramController extends Controller
 
     public function inbound(Request $request)
     {
+
         $srtyCtrl = new ServiceTypeController();
         $prcaCtrl = new ProductCategoryController();
         $prCtrl = new ProductController();
@@ -143,6 +145,23 @@ class TelegramController extends Controller
             // if (!cache()->has("chat_id_{$this->from_id}") && $this->currentMenuLevel == 0) {
             // \Log::info("from_id:  $this->from_id");
 
+
+
+            if (strpos($this->text, "/start") !== false) {
+                    // Parse the URL to get its components
+
+                    // $url_components = parse_url($this->text);
+
+                    // // Parse the query string to get the parameters
+                    // parse_str($url_components['query'], $params);
+
+                    // // Extract the 'start' parameter
+                    // $start_param = $params['start'];
+                    \Log::info( "The 'start' parameter is:  $this->text");
+                } else {
+                    \Log::info( "ssssssssssss");
+                }
+
             if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
                 $this->text = $settingCtrl->getWelcomeMessage();
                 cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
@@ -151,6 +170,8 @@ class TelegramController extends Controller
 
                 $this->stickyMenu();
             } else {
+
+
                 $channelLock = $this->checkIsChannelsMember($this->from_id);
                 if ($channelLock == true || $channelLock == 1) {
                     $this->changeMenuLevel();
@@ -158,6 +179,16 @@ class TelegramController extends Controller
                     return $this->channelLockMenu();
                 }
             }
+
+
+
+
+
+
+
+
+
+
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
         }
@@ -244,6 +275,14 @@ class TelegramController extends Controller
     }
     public function recogniseTextMessage()
     {
+        if (strpos($this->text, "/start") !== false) {
+            // extract text after /start
+            $this->referralCode = substr($this->text, strpos($this->text, "/start") + 6);
+            // trim referral code
+            $this->referralCode = trim($this->referralCode);
+            \Log::info("message$this->referralCode");
+            // save refrence code in database
+        }
         $botUserCtrl = new BotUserController();
         $settingCtrl = new SettingController();
         if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {

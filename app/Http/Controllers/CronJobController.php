@@ -93,7 +93,15 @@ class CronJobController extends Controller
 
                 // $usageGB = round($usageGB, 2);
                 $limitGB = $value['usage_limit_GB'];
+
+                // check divide zero
+                if($usageGB == 0 || $limitGB == 0){
+                    return true;
+                }
+
                 // get usage percent
+
+
                 $usagePercent = ($usageGB / $limitGB) * 100;
 
                 if ($usagePercent > 84.99 && $usagePercent < 99.99) {
@@ -185,6 +193,8 @@ class CronJobController extends Controller
                             ->where('product_id', $product->id)
                             ->get();
                         // check has cronlog created in more than 23 hours ago or not
+                        // add $dateDifference +1 because time diff is on hout base
+                        $dateDifference +=1;
                         if ($cronLog->count() < 4) {
                             $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی تنها $dateDifference روز دیگر از بسته $productText باقی مانده است.", $user_id, null, 'MarkDown');
 
