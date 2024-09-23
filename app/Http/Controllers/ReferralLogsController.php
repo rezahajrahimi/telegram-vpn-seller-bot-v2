@@ -31,10 +31,13 @@ class ReferralLogsController extends Controller
                 return true;
             } else {
                 $newReferralLogs = new ReferralLogs();
-                $newReferralLogs->referral_id = $user_id;
+                $newReferralLogs->referral_user_id = $referral_id;
                 $newReferralLogs->referral_to_id = $user_id;
                 $newReferralLogs->amount = 0.0;
                 $newReferralLogs->save();
+                // send message to referral account
+                $resualt = app('telegram_bot')->sendMessage("یک کاربر با لینک دعوت شما وارد ربات شد.", $referralCode, null, 'MarkDown');
+
                 return true;
             }
         } catch (\Throwable $th) {

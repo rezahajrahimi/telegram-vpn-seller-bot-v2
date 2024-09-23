@@ -149,8 +149,6 @@ class TelegramController extends Controller
                 $this->text = $settingCtrl->getWelcomeMessage();
                 cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
                 app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
-                \Log::info('aaaaaaaaaaaaa');
-
                 $this->stickyMenu();
             } else {
                 $channelLock = $this->checkIsChannelsMember($this->from_id);
@@ -200,6 +198,10 @@ class TelegramController extends Controller
         if ($countOfMenuItem % 2 == 1) {
             $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem - 1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem - 1]->id}"];
             array_push($opr, [$firstRowIndicator]);
+        }
+        if (strpos($this->text, '/start') !== false) {
+            $result = app('telegram_bot')->buttonMessage("یک گزینه را انتخاب کنید.", $opr, $this->chat_id, $this->message_id);
+
         }
         $result = app('telegram_bot')->buttonMessage(null, $opr, $this->chat_id, $this->message_id);
         $this->setNewLevel($this->buySubscriptionLevel);
@@ -253,7 +255,6 @@ class TelegramController extends Controller
             // save refrence code in database
             $referralLogsCntrl = new ReferralLogsController();
             $saveRef = $referralLogsCntrl->check_user_has_referral_and_create($this->from_id, $this->referralCode);
-            \Log::info("userReferralCode: $this->referralCode and saveRef: $saveRef");
         }
         $botUserCtrl = new BotUserController();
         $settingCtrl = new SettingController();
