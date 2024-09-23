@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://433a-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://9b93-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
@@ -42,7 +42,6 @@ class TelegramController extends Controller
 
     public function inbound(Request $request)
     {
-
         $srtyCtrl = new ServiceTypeController();
         $prcaCtrl = new ProductCategoryController();
         $prCtrl = new ProductController();
@@ -146,22 +145,6 @@ class TelegramController extends Controller
             // \Log::info("from_id:  $this->from_id");
 
 
-
-            if (strpos($this->text, "/start") !== false) {
-                    // Parse the URL to get its components
-
-                    // $url_components = parse_url($this->text);
-
-                    // // Parse the query string to get the parameters
-                    // parse_str($url_components['query'], $params);
-
-                    // // Extract the 'start' parameter
-                    // $start_param = $params['start'];
-                    \Log::info( "The 'start' parameter is:  $this->text");
-                } else {
-                    \Log::info( "ssssssssssss");
-                }
-
             if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
                 $this->text = $settingCtrl->getWelcomeMessage();
                 cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
@@ -170,8 +153,6 @@ class TelegramController extends Controller
 
                 $this->stickyMenu();
             } else {
-
-
                 $channelLock = $this->checkIsChannelsMember($this->from_id);
                 if ($channelLock == true || $channelLock == 1) {
                     $this->changeMenuLevel();
@@ -179,16 +160,6 @@ class TelegramController extends Controller
                     return $this->channelLockMenu();
                 }
             }
-
-
-
-
-
-
-
-
-
-
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
         }
@@ -230,7 +201,7 @@ class TelegramController extends Controller
             $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem - 1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem - 1]->id}"];
             array_push($opr, [$firstRowIndicator]);
         }
-        $result = app('telegram_bot')->buttonMessage('از منوی پایین یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
+        $result = app('telegram_bot')->buttonMessage(null, $opr, $this->chat_id, $this->message_id);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
     }
@@ -261,7 +232,6 @@ class TelegramController extends Controller
 
             $this->userCommandArr = explode('-', $this->data);
 
-
             $command = $this->userCommandArr[0];
             \Log::info("command recognise: $command");
 
@@ -275,19 +245,21 @@ class TelegramController extends Controller
     }
     public function recogniseTextMessage()
     {
-        if (strpos($this->text, "/start") !== false) {
+        if (strpos($this->text, '/start') !== false) {
             // extract text after /start
-            $this->referralCode = substr($this->text, strpos($this->text, "/start") + 6);
+            $this->referralCode = substr($this->text, strpos($this->text, '/start') + 6);
             // trim referral code
             $this->referralCode = trim($this->referralCode);
-            \Log::info("message$this->referralCode");
             // save refrence code in database
+            $referralLogsCntrl = new ReferralLogsController();
+            $saveRef = $referralLogsCntrl->check_user_has_referral_and_create($this->from_id, $this->referralCode);
+            \Log::info("userReferralCode: $this->referralCode and saveRef: $saveRef");
         }
         $botUserCtrl = new BotUserController();
         $settingCtrl = new SettingController();
         if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
             $this->text = $settingCtrl->getWelcomeMessage();
-            cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
+            cache()->put("chat_id_{$this->from_id}", true, now()->addDays(10));
             app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
             $this->stickyMenu();
         } else {
@@ -313,9 +285,6 @@ class TelegramController extends Controller
             }
             // check is $this->text start with webapp
             // if yes return $this->webapp()
-
-
-
 
             $mainMenuCntrl = new MainMenuItemController();
             $checkIsMainMeniItem = $mainMenuCntrl->getMenuNameByAliasName($this->text);
@@ -353,6 +322,9 @@ class TelegramController extends Controller
                 case 'webapp':
                     return $this->subWebapp();
                     break;
+                case 'کسب درآمد':
+                    return $this->referral();
+                    break;
 
                 default:
                     return $this->stickyMenu();
@@ -372,7 +344,6 @@ class TelegramController extends Controller
         if ($this->currentMenuLevel != 0) {
             $this->currentMenuLevel -= 1;
         }
-
 
         $this->userText = '';
         $menuCntrl = new MenuLevelController();
@@ -415,6 +386,9 @@ class TelegramController extends Controller
                 break;
             case 'recharge':
                 $this->subRecharge();
+                break;
+            case 'subReferral':
+                $this->subReferral();
                 break;
 
             default:
@@ -977,7 +951,6 @@ class TelegramController extends Controller
                     // convert $startDate to valid carbon date
                     $startDate = Carbon::parse($startDate);
 
-
                     // expire date
                     $package_days = $configStatus['package_days'];
                     // convert $package_days to integer
@@ -1209,6 +1182,7 @@ class TelegramController extends Controller
                 $hasZarinPal = $pymCntrl->getZarinpalStatus();
                 if ($hasZarinPal == true) {
                     // send link
+                    $opr = [];
 
                     $openLink = $pymCntrl->getZarinpalLink();
                     $text = "پرداخت مبلغ $estimatedPrice تومان از طریق درگاه آنلاین \r\n";
@@ -1726,6 +1700,55 @@ class TelegramController extends Controller
 
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
         return response()->json($resualt, 200);
+    }
+    public function referral(){
+        $referralSettingCntrl = new ReferralSettingController();
+        $referralMenu = $referralSettingCntrl->get_referral_setting();
+
+        $referralDesc = $referralMenu->description;
+        $text ="";
+        $text = "$referralDesc \r\n";
+        $opr = [];
+        array_push($opr, [
+            [
+                'text' => 'ایجاد لینک دعوت',
+                'callback_data' => 'subReferral',
+            ],
+        ]);
+        $resualt = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+
+        return response()->json($resualt, 200);
+
+
+
+    }
+    public function subReferral(){
+        $referralSettingCntrl = new ReferralSettingController();
+        $visitCard = $referralSettingCntrl->get_referral_setting_visit_card_text();
+
+        // getbotname drom setting cntrl
+        $settingCntrl = new SettingController();
+        $botName = $settingCntrl->get_bot_name();
+
+        $inviteUrl = "https://t.me/{$botName}?start={$this->chat_id}";
+        $text = "";
+
+        $visitText = explode('\r\n', $visitCard);
+
+        foreach ($visitText as $key => $value) {
+            $newtext = trim($value);
+            $text .= "\n\r{$newtext}";
+        }
+
+        $text .= "\r\n $inviteUrl";
+
+
+        $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+        return response()->json($resualt, 200);
+
+
+
     }
     public function addNewBotLog($type, $message, $event)
     {

@@ -58,6 +58,11 @@ class MainMenuItemController extends Controller
             $menu->is_active = true;
             $menu->position = 9;
             $menu->save();
+            $menu->name = 'کسب درآمد';
+            $menu->alias_name = 'کسب درآمد';
+            $menu->is_active = true;
+            $menu->position = 10;
+            $menu->save();
             $data = MainMenuItem::all();
         }
 

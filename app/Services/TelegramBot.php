@@ -46,7 +46,7 @@ class TelegramBot
      * @param  mixed $reply_to_message_id
      * @return void
      */
-    public function sendMessage($text , $chat_id, $reply_to_message_id, $parse, $key = null)
+    public function sendMessage($text, $chat_id, $reply_to_message_id, $parse, $key = null)
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
@@ -148,22 +148,19 @@ class TelegramBot
         try {
             $response = Http::withHeaders($this->headers)->post($url, $params);
             if ($response->ok() != false) {
-
                 $result = ['success' => $response->ok(), 'body' => $response->json()];
                 $json = $response->json();
 
                 // $res = $json['status'];
-                if( $json["result"]["status"] == "left"){
+                if ($json['result']['status'] == 'left') {
                     return false;
                 }
                 // \Log::info('rss', ['json' => $json["result"]["status"]]);
 
                 // \Log::info('yesssssssss', ['result' => $result]);
 
-
                 return true;
             } else {
-
                 $result = ['False' => $response->ok(), 'body' => $response->json()];
                 // \Log::info('noooooooooo', ['result' => $result]);
 
@@ -180,20 +177,29 @@ class TelegramBot
 
         return false;
     }
-    public function buttonMessage($text , $opr, $chat_id, $reply_to_message_id)
+    public function buttonMessage($text, $opr, $chat_id, $reply_to_message_id)
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
 
         // Create params array
-
-        $params = [
-            'chat_id' => $chat_id,
-            // 'reply_to_message_id' => $reply_to_message_id,
-            'allow_sending_without_reply' => true,
-            'text' => $text,
-            'reply_markup' => ['keyboard' => $opr, 'resize_keyboard' => true],
-        ];
+        $params = [];
+        if ($text != null) {
+            $params = [
+                'chat_id' => $chat_id,
+                // 'reply_to_message_id' => $reply_to_message_id,
+                'allow_sending_without_reply' => true,
+                'text' => $text,
+                'reply_markup' => ['keyboard' => $opr, 'resize_keyboard' => true],
+            ];
+        } else {
+            $params = [
+                'chat_id' => $chat_id,
+                // 'reply_to_message_id' => $reply_to_message_id,
+                'allow_sending_without_reply' => true,
+                'reply_markup' => ['keyboard' => $opr, 'resize_keyboard' => true],
+            ];
+        }
 
         // Create url -> https://api.telegram.org/bot{token}/sendMessage
         $url = "{$this->api_endpoint}/{$this->token}/sendMessage";
