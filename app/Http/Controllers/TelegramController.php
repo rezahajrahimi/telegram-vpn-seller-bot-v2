@@ -167,12 +167,7 @@ class TelegramController extends Controller
         $menu = new MainMenuItemController();
         $menuItem = $menu->getAllActivatedMainMenuItems();
         $opr = [];
-        // check if there is bought subscription or not
-        // if ($menuItem[0]->name == 'webapp') {
-        //     array_push($opr, [['text' => $menuItem[10]->alias_name, 'callback_data' => "main-{$menuItem[10]->id}"]]);
-        //     // remove first item from menuItem list because we allreade added it to $opr
-        //     $menuItem = $menuItem->slice(1);
-        // }
+
         if ($menuItem[0]->name == 'خرید اشتراک') {
             array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
             // remove first item from menuItem list because we allreade added it to $opr
@@ -486,9 +481,21 @@ class TelegramController extends Controller
         $opr = [];
         $accBlCtrl = new AccountBallanceController();
         $prCntrl = new ProductController();
+        $hasBallance = false;
+            $hasBallance = $accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice, $productPriceInDollar);
 
-        if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice, $productPriceInDollar)) {
-            $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
+            // check ref wallet
+            $referalCntrl = new ReferralWalletController();
+            $referralAmount = $referalCntrl->get_amount_of_ref_wallet_by_account_id($this->chat_id);
+
+
+            $hasRefballance = false;
+            if($referralAmount >= $productPrice){
+                $hasRefballance = true;
+            }
+
+            if ($hasRefballance == true || $hasBallance == true) {
+            // $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
 
             // check pannel type
             $pnlCntrl = new PannelController();
@@ -616,8 +623,21 @@ class TelegramController extends Controller
             }
 
             // minus balance
-            $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice, $productPriceInDollar);
-            $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+                    if($hasBallance == true){
+                        $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice, $productPriceInDollar);
+                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+
+                    } else {
+                        $referalCntrl->dec_user_ref_wallet_ballance($this->chat_id, $productPrice);
+                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از کیف پول همکاری شما بابت شارژ بسته کم شد.", 'minus ballance');
+
+                    }
+
+            // $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice, $productPriceInDollar);
+
+
+
+            // $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
 
             // send how to use
             $opr = [];
@@ -1083,7 +1103,20 @@ class TelegramController extends Controller
             $productPrice = $selectedPrCat->price;
             $productPriceInDollar = $selectedPrCat->price_in_dollar;
             $accBlCtrl = new AccountBallanceController();
-            if ($accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice, $productPriceInDollar)) {
+            $hasBallance = false;
+            $hasBallance = $accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice, $productPriceInDollar);
+
+            // check ref wallet
+            $referalCntrl = new ReferralWalletController();
+            $referralAmount = $referalCntrl->get_amount_of_ref_wallet_by_account_id($this->chat_id);
+
+
+            $hasRefballance = false;
+            if($referralAmount >= $productPrice){
+                $hasRefballance = true;
+            }
+
+            if ($hasRefballance == true || $hasBallance == true) {
                 $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
 
                 // check pannel type
@@ -1109,8 +1142,15 @@ class TelegramController extends Controller
                     if ($updateRemark['msg'] !== 'ok') {
                         return response()->json(false, 401);
                     }
-                    $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
-                    $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+                    if($hasBallance == true){
+                        $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+
+                    } else {
+                        $referalCntrl->dec_user_ref_wallet_ballance($accountID, $productPrice);
+                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از کیف پول همکاری شما بابت شارژ بسته کم شد.", 'minus ballance');
+
+                    }
                     $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
 
                     $text .= "✅شارژ با موفقیت انجام شد✅ \r\n";
@@ -1211,7 +1251,6 @@ class TelegramController extends Controller
 
                     $opr = [];
                     foreach ($offlinePayment as $key => $value) {
-                        \Log::info("offlinePayment:$value->name");
                         array_push($opr, [['text' => "$value->name", 'callback_data' => "subAccountBalance-$value->id "]]);
                     }
 
@@ -1386,8 +1425,11 @@ class TelegramController extends Controller
         $this->addNewBotLog('ballance', 'نمایش اطلاعات حساب کاربر.', 'show');
 
         $accCntrl = new AccountBallanceController();
+
         $ballance = $accCntrl->getUserAccuntBalance($this->chat_id);
         $ballanceInDollar = $accCntrl->getUserAccuntBalanceInDollar($this->chat_id);
+        $referalCntrl = new ReferralWalletController();
+        $referralAmount = $referalCntrl->get_amount_of_ref_wallet_by_account_id($this->chat_id);
         $text = "♦️ اطلاعات حساب شما: \n\r";
 
         $text .= "نام کاربری: $this->username \n\r";
@@ -1402,6 +1444,11 @@ class TelegramController extends Controller
         // show $ballance with thousands seperator
         $text .= number_format($ballanceInDollar, 0, '.', ',');
         $text .= "$ \n\r";
+        $text .= 'موجودی کیف همکاری شما: ';
+        // show $ballance with thousands seperator
+        $text .= number_format($referralAmount, 0, '.', ',');
+        $text .= " تومان \n\r";
+
         $text .= ' ➖➖➖ ';
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 

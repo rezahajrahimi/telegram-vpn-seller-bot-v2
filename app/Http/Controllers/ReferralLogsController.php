@@ -124,6 +124,9 @@ class ReferralLogsController extends Controller
                 $referralWallet->amount = $request->amount;
                 $referralWallet->update();
             }
+            $text = "مقدار {$request->amount} تومان به کیف همکاری شما افزوده شد.";
+            $resualt = app('telegram_bot')->sendMessage($text, $referralCode, null, 'MarkDown');
+
             return $referralLogs;
         } catch (\Throwable $th) {
             \Log::info("Throwable add_amount_to_refrerral_user_Log_and_referral_wallet: $th");
