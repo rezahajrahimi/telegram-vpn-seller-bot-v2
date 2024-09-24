@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ReferralLogs;
 use App\Models\User;
 use App\Models\ReferralWallet;
+use App\Models\ReferralSetting;
 use Illuminate\Http\Request;
 
 class ReferralLogsController extends Controller
@@ -31,7 +32,7 @@ class ReferralLogsController extends Controller
                 return true;
             }
             return false;
-        }catch (\Throwable $th) {
+        } catch (\Throwable $th) {
             \Log::info("Throwable check_user_is_referred: $th");
             return response()->json(null, 500);
         }
@@ -121,11 +122,18 @@ class ReferralLogsController extends Controller
             return response()->json(null, 500);
         }
     }
-    public function add_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id,$amount)
+    public function add_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id, $amount)
     {
         try {
             $referralLogs = ReferralLogs::where('transaction_id', $transaction_id)->first();
             if ($referralLogs === null) {
+                return null;
+            }
+            // check if referral is active
+
+            $referralSetting = ReferralSetting::first();
+            $refferalActivation = $referralSetting->is_active;
+            if ($refferalActivation == 0 || $refferalActivation == null || $refferalActivation == false) {
                 return null;
             }
             // if referralLogs->updated_at != referralLogs->created_at means is updated before
@@ -156,16 +164,23 @@ class ReferralLogsController extends Controller
             return response()->json(null, 500);
         }
     }
-    public function decrease_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id,$amount)
+    public function decrease_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id, $amount)
     {
         try {
             $referralLogs = ReferralLogs::where('transaction_id', $transaction_id)->first();
             if ($referralLogs == null) {
                 return null;
             }
+            // check if referral is active
+
+            $referralSetting = ReferralSetting::first();
+            $refferalActivation = $referralSetting->is_active;
+            if ($refferalActivation == 0 || $refferalActivation == null || $refferalActivation == false) {
+                return null;
+            }
             // if referralLogs->updated_at == referralLogs->created_at means is the first time
             // and there is no need to decrease
-            if( $referralLogs->created_at === $referralLogs->updated_at ){
+            if ($referralLogs->created_at === $referralLogs->updated_at) {
                 return null;
             }
             $referralWallet = ReferralWallet::where('referral_user_id', $referralLogs->referral_user_id)->first();
