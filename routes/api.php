@@ -35,6 +35,7 @@ use App\Http\Controllers\AgentProductController;
 use App\Http\Controllers\AgentPermissonController;
 use App\Http\Controllers\ExecuteArtisanCommandController;
 use App\Http\Controllers\CronJobController;
+use App\Http\Controllers\ReferralSettingController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -289,7 +290,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('/getAllActiveCronJobs', [CronJobController::class, 'get_all_active_cron_jobs']);
     Route::get('/changeCronJobActiveStatusById/{id}', [CronJobController::class, 'change_cron_job_active_status']);
 
-
+    // ReferralSettingController
+    Route::get('/getReferralSetting', [ReferralSettingController::class, 'get_referral_setting']);
+    Route::put('/updateReferralSetting', [ReferralSettingController::class, 'update_referral_setting']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User

@@ -194,7 +194,7 @@ class CronJobController extends Controller
                             ->get();
                         // check has cronlog created in more than 23 hours ago or not
                         // add $dateDifference +1 because time diff is on hout base
-                        $dateDifference +=1;
+
                         if ($cronLog->count() < 4) {
                             $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی تنها $dateDifference روز دیگر از بسته $productText باقی مانده است.", $user_id, null, 'MarkDown');
 
