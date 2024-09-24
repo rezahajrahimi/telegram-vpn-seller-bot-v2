@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://9b93-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://df2d-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
@@ -118,7 +118,6 @@ class TelegramController extends Controller
 
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
                     $this->chat_type = 'callback';
-                    \Log::info('recogniseMessage');
                     $this->recogniseMessage();
                 }
             } catch (\Throwable $th) {
@@ -143,7 +142,6 @@ class TelegramController extends Controller
 
             // if (!cache()->has("chat_id_{$this->from_id}") && $this->currentMenuLevel == 0) {
             // \Log::info("from_id:  $this->from_id");
-
 
             if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
                 $this->text = $settingCtrl->getWelcomeMessage();
@@ -195,8 +193,7 @@ class TelegramController extends Controller
             array_push($opr, [$firstRowIndicator]);
         }
         if (strpos($this->text, '/start') !== false) {
-            $result = app('telegram_bot')->buttonMessage("یک گزینه را انتخاب کنید.", $opr, $this->chat_id, $this->message_id);
-
+            $result = app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
         }
         $result = app('telegram_bot')->buttonMessage(null, $opr, $this->chat_id, $this->message_id);
         $this->setNewLevel($this->buySubscriptionLevel);
@@ -327,7 +324,7 @@ class TelegramController extends Controller
                     break;
             }
 
-            return;
+            return $this->stickyMenu();
         } catch (\Throwable $th) {
             $this->userCommandArr = ['start'];
             \Log::info("Throwable $th");
@@ -351,48 +348,53 @@ class TelegramController extends Controller
 
         switch ($this->userCommandArr[0]) {
             case 'main':
-                $this->subMainMenu();
+              return  $this->subMainMenu();
                 break;
             case 'buySubscription':
-                $this->subBuySubscription();
+            return $this->subBuySubscription();
                 break;
             case 'addAccountBalance':
-                $this->addAccountBalance();
+            return $this->addAccountBalance();
                 break;
             case 'subAccountBalance':
-                $this->subAccountBalance();
+            return $this->subAccountBalance();
                 break;
             case 'subBuyHistory':
-                $this->subBuyHistory();
+            return $this->subBuyHistory();
                 break;
             case 'subSupport':
-                $this->subSupport();
+            return $this->subSupport();
                 break;
             case 'subFaq':
-                $this->subFaq();
+            return $this->subFaq();
                 break;
             case 'subAppDownload':
-                $this->subAppDownload();
+            return $this->subAppDownload();
                 break;
             case 'getAppDownload':
-                $this->getAppDownload();
+            return $this->getAppDownload();
                 break;
             case 'giftcard':
-                $this->subGiftCard();
+            return $this->subGiftCard();
                 break;
             case 'recharge':
-                $this->subRecharge();
+            return $this->subRecharge();
                 break;
             case 'subReferral':
-                $this->subReferral();
+            return $this->subReferral();
                 break;
-
+            case 'subFaq':
+            return $this->subFaq();
+                break;
+                case 'help':
+            return $this->help();
+                break;
             default:
                 $this->stickyMenu();
                 break;
         }
 
-        return;
+        $this->stickyMenu();
     }
     public function subMainMenu()
     {
@@ -416,9 +418,30 @@ class TelegramController extends Controller
             case 'آموزش استفاده و سوالات متداول':
                 $this->faqs();
                 break;
+
             case 'اطلاعات حساب':
                 $this->accountDetails();
                 break;
+            // case "اکانت تستی":
+            // $this->buySubscription();
+            //     break;
+
+            default:
+                $this->stickyMenu();
+                break;
+        }
+        return;
+    }
+    public function help()
+    {
+
+        switch ($this->userCommandArr[1]) {
+            case 'faqs':
+              return  $this->faqs();
+                break;
+            case 'appDownload':
+            return $this->appDownload();
+            break;
             // case "اکانت تستی":
             // $this->buySubscription();
             //     break;
@@ -482,19 +505,18 @@ class TelegramController extends Controller
         $accBlCtrl = new AccountBallanceController();
         $prCntrl = new ProductController();
         $hasBallance = false;
-            $hasBallance = $accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice, $productPriceInDollar);
+        $hasBallance = $accBlCtrl->checkUserHasBalance($this->chat_id, $productPrice, $productPriceInDollar);
 
-            // check ref wallet
-            $referalCntrl = new ReferralWalletController();
-            $referralAmount = $referalCntrl->get_amount_of_ref_wallet_by_account_id($this->chat_id);
+        // check ref wallet
+        $referalCntrl = new ReferralWalletController();
+        $referralAmount = $referalCntrl->get_amount_of_ref_wallet_by_account_id($this->chat_id);
 
+        $hasRefballance = false;
+        if ($referralAmount >= $productPrice) {
+            $hasRefballance = true;
+        }
 
-            $hasRefballance = false;
-            if($referralAmount >= $productPrice){
-                $hasRefballance = true;
-            }
-
-            if ($hasRefballance == true || $hasBallance == true) {
+        if ($hasRefballance == true || $hasBallance == true) {
             // $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
 
             // check pannel type
@@ -623,19 +645,15 @@ class TelegramController extends Controller
             }
 
             // minus balance
-                    if($hasBallance == true){
-                        $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice, $productPriceInDollar);
-                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
-
-                    } else {
-                        $referalCntrl->dec_user_ref_wallet_ballance($this->chat_id, $productPrice);
-                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از کیف پول همکاری شما بابت شارژ بسته کم شد.", 'minus ballance');
-
-                    }
+            if ($hasBallance == true) {
+                $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice, $productPriceInDollar);
+                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+            } else {
+                $referalCntrl->dec_user_ref_wallet_ballance($this->chat_id, $productPrice);
+                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از کیف پول همکاری شما بابت شارژ بسته کم شد.", 'minus ballance');
+            }
 
             // $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice, $productPriceInDollar);
-
-
 
             // $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
 
@@ -644,13 +662,13 @@ class TelegramController extends Controller
             array_push($opr, [
                 [
                     'text' => 'آموزش استفاده',
-                    'callback_data' => 'help-subscription',
+                    'callback_data' => 'help-faqs',
                 ],
             ]);
             array_push($opr, [
                 [
                     'text' => 'برنامه های مورد نیاز',
-                    'callback_data' => 'help-applications',
+                    'callback_data' => 'help-appDownload',
                 ],
             ]);
             $text = 'یک گزینه را انتخاب کنید.';
@@ -1046,13 +1064,13 @@ class TelegramController extends Controller
             array_push($opr, [
                 [
                     'text' => 'آموزش استفاده',
-                    'callback_data' => 'help-subscription',
+                    'callback_data' => 'help-faqs',
                 ],
             ]);
             array_push($opr, [
                 [
                     'text' => 'برنامه های مورد نیاز',
-                    'callback_data' => 'help-applications',
+                    'callback_data' => 'help-appDownload',
                 ],
             ]);
 
@@ -1067,12 +1085,6 @@ class TelegramController extends Controller
                 ],
             ]);
 
-            // array_push($opr, [
-            //     [
-            //         'text' => 'بازگشت به منوی اصلی',
-            //         'callback_data' => 'main menu',
-            //     ],
-            // ]);
             $text = 'یک گزینه را انتخاب کنید.';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
 
@@ -1110,9 +1122,8 @@ class TelegramController extends Controller
             $referalCntrl = new ReferralWalletController();
             $referralAmount = $referalCntrl->get_amount_of_ref_wallet_by_account_id($this->chat_id);
 
-
             $hasRefballance = false;
-            if($referralAmount >= $productPrice){
+            if ($referralAmount >= $productPrice) {
                 $hasRefballance = true;
             }
 
@@ -1142,14 +1153,12 @@ class TelegramController extends Controller
                     if ($updateRemark['msg'] !== 'ok') {
                         return response()->json(false, 401);
                     }
-                    if($hasBallance == true){
+                    if ($hasBallance == true) {
                         $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                         $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
-
                     } else {
                         $referalCntrl->dec_user_ref_wallet_ballance($accountID, $productPrice);
                         $this->addNewBotLog('ballance', "مبلغ  $productPrice را از کیف پول همکاری شما بابت شارژ بسته کم شد.", 'minus ballance');
-
                     }
                     $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
 
@@ -1170,14 +1179,14 @@ class TelegramController extends Controller
                 array_push($opr, [
                     [
                         'text' => 'آموزش استفاده',
-                        'callback_data' => 'help-subscription',
-                    ],
+                        'callback_data' => 'help-faqs',
+                        ],
                 ]);
                 array_push($opr, [
                     [
                         'text' => 'برنامه های مورد نیاز',
-                        'callback_data' => 'help-applications',
-                    ],
+                        'callback_data' => 'help-appDownload',
+                        ],
                 ]);
 
                 // set back buttun
@@ -1218,7 +1227,9 @@ class TelegramController extends Controller
                 $text .= "موجودی مورد نیاز: $productPrice تومان  \r\n";
                 $text .= "میزان مبلغ مورد نیاز برای شارژ حساب: $estimatedPrice تومان  \r\n";
 
-                $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+                // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
                 $pymCntrl = new PaymentTypeController();
                 $hasZarinPal = $pymCntrl->getZarinpalStatus();
                 if ($hasZarinPal == true) {
@@ -1349,6 +1360,7 @@ class TelegramController extends Controller
     }
     public function faqs()
     {
+        \Log::info("faqsssssss");
         $this->addNewBotLog('faq', 'نمایش گزینه های سوالات متدوال به کاربر.', 'show');
 
         $faqCtrl = new FaqController();
@@ -1749,12 +1761,13 @@ class TelegramController extends Controller
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
         return response()->json($resualt, 200);
     }
-    public function referral(){
+    public function referral()
+    {
         $referralSettingCntrl = new ReferralSettingController();
         $referralMenu = $referralSettingCntrl->get_referral_setting();
 
         $referralDesc = $referralMenu->description;
-        $text ="";
+        $text = '';
         $text = "$referralDesc \r\n";
         $opr = [];
         array_push($opr, [
@@ -1766,11 +1779,9 @@ class TelegramController extends Controller
         $resualt = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
 
         return response()->json($resualt, 200);
-
-
-
     }
-    public function subReferral(){
+    public function subReferral()
+    {
         $referralSettingCntrl = new ReferralSettingController();
         $visitCard = $referralSettingCntrl->get_referral_setting_visit_card_text();
 
@@ -1779,7 +1790,7 @@ class TelegramController extends Controller
         $botName = $settingCntrl->get_bot_name();
 
         $inviteUrl = "https://t.me/{$botName}?start={$this->chat_id}";
-        $text = "";
+        $text = '';
 
         $visitText = explode('\r\n', $visitCard);
 
@@ -1790,13 +1801,9 @@ class TelegramController extends Controller
 
         $text .= "\r\n $inviteUrl";
 
-
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
         return response()->json($resualt, 200);
-
-
-
     }
     public function addNewBotLog($type, $message, $event)
     {
