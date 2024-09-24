@@ -14,6 +14,7 @@ class ReferralLogs extends Model
     protected $fillable = [
         'referral_user_id',
         'referral_to_id',
+        'transaction_id',
         'amount',
     ];
     public function getCreatedAtAttribute($value)
@@ -28,6 +29,11 @@ class ReferralLogs extends Model
     public function referral_to()
     {
         return $this->belongsTo(User::class, 'referral_to_id', 'id');
+    }
+
+    public function transaction()
+    {
+        return $this->belongsTo(Transaction::class, 'transaction_id', 'id');
     }
 
 }

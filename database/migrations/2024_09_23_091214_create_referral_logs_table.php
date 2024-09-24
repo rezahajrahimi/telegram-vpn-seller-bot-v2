@@ -15,10 +15,13 @@ return new class extends Migration
             $table->id();
             $table->foreignId('referral_user_id');
             $table->foreignId('referral_to_id');
-            $table->double('amount', 15, 2)->default(0.0);
+            $table->foreignId('transaction_id')->nullable()->constrained('transactions')->onDelete('cascade');
+
+            $table->integer('amount')->unsigned()->default(0);
             $table->timestamps();
             $table->foreign('referral_user_id')->references('id')->on('users')->onDelete('cascade');
             $table->foreign('referral_to_id')->references('id')->on('users')->onDelete('cascade');
+
 
         });
     }

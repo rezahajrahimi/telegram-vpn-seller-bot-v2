@@ -112,7 +112,7 @@ class ReferralSettingController extends Controller
             if ($referralSetting != null) {
                 return $referralSetting->referral_percent;
             } else {
-                return null;
+                return 0;
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable get_referral_setting_referral_percent: $th");

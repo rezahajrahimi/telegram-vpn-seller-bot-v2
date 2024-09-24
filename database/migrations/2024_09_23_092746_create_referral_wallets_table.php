@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('referral_wallets', function (Blueprint $table) {
             $table->id();
             $table->foreignId('referral_user_id');
-            $table->double('amount', 15, 2)->default(0.0);
+            $table->integer('amount')->unsigned()->default(0);
             $table->timestamps();
             $table->foreign('referral_user_id')->references('id')->on('users')->onDelete('cascade');
         });

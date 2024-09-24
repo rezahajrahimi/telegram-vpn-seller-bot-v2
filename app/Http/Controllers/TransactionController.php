@@ -93,6 +93,28 @@ class TransactionController extends Controller
         $transaction->recipe_number = $recipeNUmber;
         $transaction->payment_type_id = $paymentTypeId;
         $transaction->save();
+        // check user have referral, if has create referral log
+        $referralLogsCntrl = new ReferralLogsController();
+        $hasRef = $referralLogsCntrl->check_user_is_referred($userID);
+
+        if ($hasRef == true) {
+            // get amount from referralsetting and calculate by percent stored in db
+            $referralSettingCntrl = new ReferralSettingController();
+            $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
+            $amount = 0;
+            if ($referral_percent !== null || $referral_percent !== 0) {
+                $amount = ($transaction->amount / 100) * $referral_percent;
+            }
+
+            $referReq = new Request();
+            $referReq->referral_to_id = $userID;
+
+            $referReq->amount = $amount;
+            $referReq->transaction_id = $transaction->id;
+
+            $referralLogsCntrl->add_new_referral_logs($referReq);
+        }
+
         return $transaction->id;
     }
     public function removeUnconfirmedTransaction($id)
@@ -100,11 +122,10 @@ class TransactionController extends Controller
         try {
             $transaction = Transaction::find($id);
             if ($transaction->confirmed == false || $transaction->confirmed == 0) {
-
                 // remove transaction image on disk
                 $transactionImage = TransactionImage::where('transaction_id', $id)->first();
                 if ($transactionImage != null) {
-                    $path = public_path() . ''.$transactionImage->img_src;
+                    $path = public_path() . '' . $transactionImage->img_src;
                     if (file_exists($path)) {
                         unlink($path);
                     }
@@ -145,8 +166,14 @@ class TransactionController extends Controller
                 if ($transaction->update()) {
                     if ($isConfirmed) {
                         $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$transaction->amount} به حساب شما افزوده شد.", $transaction->account_id, null, 'MarkDown');
+                        // set referral wallet
+                        $referralLogsCntrl = new ReferralLogsController();
+                        $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($transaction->id);
                     } else {
                         $result = app('telegram_bot')->sendMessage('تراکنش شما مورد تایید نمی باشد.', $transaction->account_id, null, 'MarkDown');
+                        // set referral wallet
+                        $referralLogsCntrl = new ReferralLogsController();
+                        $referralLogsCntrl->decrease_amount_to_refrerral_user_Log_and_referral_wallet($transaction->id);
                     }
 
                     return response()->json($transaction, 200);
@@ -179,6 +206,13 @@ class TransactionController extends Controller
         if ($data != null) {
             $data->confirmed = true;
             $data->update();
+
+
+            $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$transaction->amount} به حساب شما افزوده شد.", $transaction->account_id, null, 'MarkDown');
+            // set referral wallet
+            $referralLogsCntrl = new ReferralLogsController();
+            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($data->id);
+
             return true;
         } else {
             return false;
