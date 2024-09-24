@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ReferralLogs;
 use App\Models\User;
+use App\Models\ReferralWallet;
 use Illuminate\Http\Request;
 
 class ReferralLogsController extends Controller
@@ -30,6 +31,9 @@ class ReferralLogsController extends Controller
                 return true;
             }
             return false;
+        }catch (\Throwable $th) {
+            \Log::info("Throwable check_user_is_referred: $th");
+            return response()->json(null, 500);
         }
     }
     public function check_user_has_referral_and_create($account_id, $referralCode)
@@ -117,7 +121,7 @@ class ReferralLogsController extends Controller
             return response()->json(null, 500);
         }
     }
-    public function add_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id)
+    public function add_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id,$amount)
     {
         try {
             $referralLogs = ReferralLogs::where('transaction_id', $transaction_id)->first();
@@ -126,23 +130,24 @@ class ReferralLogsController extends Controller
             }
             // if referralLogs->updated_at != referralLogs->created_at means is updated before
             // and there is no need to decrease
-            if( $referralLogs->created_at !== $referralLogs->updated_at ){
-                return null;
-            }
+
+            $referralLogs->amount = $amount;
+            $referralLogs->update();
 
             $referralWallet = ReferralWallet::where('referral_user_id', $referralLogs->referral_user_id)->first();
+
             if ($referralWallet != null) {
-                $referralWallet->amount = $referralWallet->amount + $request->amount;
-                $referralWallet->save();
+                $referralWallet->amount = $referralWallet->amount + $referralLogs->amount;
+                $referralWallet->update();
             } else {
                 $referralWallet = new ReferralWallet();
-                $referralWallet->referral_user_id = $this->get_refreal_user_by_account_id($request->referral_to_id);
-                $referralWallet->amount = $request->amount;
-                $referralWallet->update();
+                $referralWallet->referral_user_id = $referralLogs->referral_user_id;
+                $referralWallet->amount = $referralLogs->amount;
+                $referralWallet->save();
             }
             $user = User::where('id', $referralLogs->referral_user_id)->first();
             $referralCode = $user->account_id;
-            $text = "مقدار {$request->amount} تومان به کیف همکاری شما افزوده شد.";
+            $text = "مقدار {$referralLogs->amount} تومان به کیف همکاری شما افزوده شد.";
             $resualt = app('telegram_bot')->sendMessage($text, $referralCode, null, 'MarkDown');
 
             return $referralLogs;
@@ -151,7 +156,7 @@ class ReferralLogsController extends Controller
             return response()->json(null, 500);
         }
     }
-    public function decrease_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id)
+    public function decrease_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id,$amount)
     {
         try {
             $referralLogs = ReferralLogs::where('transaction_id', $transaction_id)->first();
@@ -165,18 +170,13 @@ class ReferralLogsController extends Controller
             }
             $referralWallet = ReferralWallet::where('referral_user_id', $referralLogs->referral_user_id)->first();
             if ($referralWallet != null) {
-                $referralWallet->amount = $referralWallet->amount - $request->amount;
+                $referralWallet->amount = $referralWallet->amount - $referralLogs->amount;
                 $referralWallet->save();
-            } else {
-                $referralWallet = new ReferralWallet();
-                $referralWallet->referral_user_id = $this->get_refreal_user_by_account_id($request->referral_to_id);
-                $referralWallet->amount = $request->amount;
-                $referralWallet->update();
             }
             $user = User::where('id', $referralLogs->referral_user_id)->first();
             $referralCode = $user->account_id;
 
-            $text = "مقدار {$request->amount} تومان به کیف همکاری شما کم شد.";
+            $text = "مقدار {$referralLogs->amount} تومان به کیف همکاری شما کم شد.";
             $resualt = app('telegram_bot')->sendMessage($text, $referralCode, null, 'MarkDown');
             return $referralLogs;
         } catch (\Throwable $th) {
