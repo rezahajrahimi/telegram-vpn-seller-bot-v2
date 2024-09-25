@@ -82,7 +82,10 @@ class ReferralLogsController extends Controller
         try {
             $user_id = $this->get_userId_by_accountId($account_id);
 
-            $referralLogs = ReferralLogs::where('referral_user_id', $user_id)->get();
+            $referralLogs = ReferralLogs::where('referral_user_id', $user_id)
+            ->with(['referral_to', 'referral_user'])
+            ->orderBy('created_at', 'desc')
+            ->get();
             if ($referralLogs != null) {
                 return $referralLogs;
             } else {

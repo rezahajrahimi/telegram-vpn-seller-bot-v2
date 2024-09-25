@@ -37,6 +37,7 @@ use App\Http\Controllers\ExecuteArtisanCommandController;
 use App\Http\Controllers\CronJobController;
 use App\Http\Controllers\ReferralSettingController;
 use App\Http\Controllers\ReferralWalletController;
+use App\Http\Controllers\ReferralLogsController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -297,7 +298,6 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
     //  ReferralWalletController
     Route::put('/editAmountOfRefWalletByAccountId', [ReferralWalletController::class, 'edit_amount_of_ref_wallet_by_account_id']);
-
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User
@@ -348,6 +348,8 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 
     // UserController
     Route::put('updateUserPassword', [UserController::class, 'update_logged_password']);
+    //  ReferralLogsController
+    Route::get('/getReferralLogsByAccountId/{account_id}', [ReferralLogsController::class, 'get_referral_logs']);
 });
 
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);
