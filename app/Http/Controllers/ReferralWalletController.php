@@ -82,4 +82,17 @@ class ReferralWalletController extends Controller
             return false;
         }
     }
+    public function edit_amount_of_ref_wallet_by_account_id(Request $request)
+    {
+        try {
+            $user = User::where('account_id', $request->account_id)->first();
+            $wallet = ReferralWallet::where('referral_user_id', $user->id)->first();
+            $wallet->amount = $request->amount;
+            $wallet->update();
+            return true;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable edit_amount_of_ref_wallet_by_account_id: $th");
+            return false;
+        }
+    }
 }
