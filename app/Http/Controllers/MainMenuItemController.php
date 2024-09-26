@@ -11,62 +11,80 @@ class MainMenuItemController extends Controller
     {
         $data = MainMenuItem::all();
         // check if data was empty create new menu
-        if (count($data) == 0) {
-            $menu = new MainMenuItem();
-            $menu->name = 'خرید اشتراک';
-            $menu->alias_name = 'خرید اشتراک';
-            $menu->is_active = true;
-            $menu->position = 1;
-            $menu->save();
-            $menu->name = 'webapp';
-            $menu->alias_name = 'استفاده در وب اپلیکیشن';
-            $menu->is_active = true;
-            $menu->position = 2;
-            $menu->save();
-            $menu->name = 'سابقه خرید';
-            $menu->alias_name = 'سابقه خرید';
-            $menu->is_active = true;
-            $menu->position = 3;
-            $menu->save();
-            $menu->name = 'پشتیبانی';
-            $menu->alias_name = 'پشتیبانی';
-            $menu->is_active = true;
-            $menu->position = 4;
-            $menu->save();
-            $menu->name = 'آموزش استفاده و سوالات متداول';
-            $menu->alias_name = 'آموزش استفاده و سوالات متداول';
-            $menu->is_active = true;
-            $menu->position = 5;
-            $menu->save();
-            $menu->name = 'اطلاعات حساب';
-            $menu->alias_name = 'اطلاعات حساب';
-            $menu->is_active = true;
-            $menu->position = 6;
-            $menu->save();
-            $menu->name = 'اکانت آزمایشی';
-            $menu->alias_name = 'اکانت آزمایشی';
-            $menu->is_active = true;
-            $menu->position = 7;
-            $menu->save();
-            $menu->name = 'دانلود برنامه';
-            $menu->alias_name = 'دانلود برنامه';
-            $menu->is_active = true;
-            $menu->position = 8;
-            $menu->save();
-            $menu->name = 'گیف کارد';
-            $menu->alias_name = 'گیف کارد';
-            $menu->is_active = true;
-            $menu->position = 9;
-            $menu->save();
-            $menu->name = 'کسب درآمد';
-            $menu->alias_name = 'کسب درآمد';
-            $menu->is_active = true;
-            $menu->position = 10;
-            $menu->save();
-            $data = MainMenuItem::all();
-        }
+        if ($data->isEmpty()) {
+            $menu1 = new MainMenuItem();
+            $menu1->name = 'خرید اشتراک';
+            $menu1->alias_name = 'خرید اشتراک';
+            $menu1->is_active = true;
+            $menu1->position = 1;
+            $menu1->save();
+            $menu2 = new MainMenuItem();
 
-        return $data;
+            $menu2->name = 'webapp';
+            $menu2->alias_name = 'استفاده در وب اپلیکیشن';
+            $menu2->is_active = true;
+            $menu2->position = 2;
+            $menu2->save();
+            $menu3 = new MainMenuItem();
+
+            $menu3->name = 'سابقه خرید';
+            $menu3->alias_name = 'سابقه خرید';
+            $menu3->is_active = true;
+            $menu3->position = 3;
+            $menu3->save();
+            $menu4 = new MainMenuItem();
+
+            $menu4->name = 'پشتیبانی';
+            $menu4->alias_name = 'پشتیبانی';
+            $menu4->is_active = true;
+            $menu4->position = 4;
+            $menu4->save();
+            $menu5 = new MainMenuItem();
+
+            $menu5->name = 'آموزش استفاده و سوالات متداول';
+            $menu5->alias_name = 'آموزش استفاده و سوالات متداول';
+            $menu5->is_active = true;
+            $menu5->position = 5;
+            $menu5->save();
+            $menu6 = new MainMenuItem();
+
+            $menu6->name = 'اطلاعات حساب';
+            $menu6->alias_name = 'اطلاعات حساب';
+            $menu6->is_active = true;
+            $menu6->position = 6;
+            $menu6->save();
+            $menu7 = new MainMenuItem();
+
+            $menu7->name = 'اکانت آزمایشی';
+            $menu7->alias_name = 'اکانت آزمایشی';
+            $menu7->is_active = true;
+            $menu7->position = 7;
+            $menu7->save();
+            $menu8 = new MainMenuItem();
+
+            $menu8->name = 'دانلود برنامه';
+            $menu8->alias_name = 'دانلود برنامه';
+            $menu8->is_active = true;
+            $menu8->position = 8;
+            $menu8->save();
+            $menu9 = new MainMenuItem();
+
+            $menu9->name = 'گیف کارد';
+            $menu9->alias_name = 'گیف کارد';
+            $menu9->is_active = true;
+            $menu9->position = 9;
+            $menu9->save();
+            $menu10 = new MainMenuItem();
+
+            $menu10->name = 'کسب درآمد';
+            $menu10->alias_name = 'کسب درآمد';
+            $menu10->is_active = true;
+            $menu10->position = 10;
+            $menu10->save();
+        }
+        $newData = MainMenuItem::all();
+
+        return $newData;
     }
     public function getMenuNameByID($id)
     {

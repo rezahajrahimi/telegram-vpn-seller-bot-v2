@@ -254,7 +254,7 @@ class TelegramController extends Controller
             $this->text = $settingCtrl->getWelcomeMessage();
             cache()->put("chat_id_{$this->from_id}", true, now()->addDays(10));
             app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
-            $this->stickyMenu();
+            return  $this->stickyMenu();
         } else {
             $channelLock = $this->checkIsChannelsMember($this->from_id);
             if ($channelLock == true || $channelLock == 1) {
@@ -390,11 +390,11 @@ class TelegramController extends Controller
             return $this->help();
                 break;
             default:
-                $this->stickyMenu();
+              return  $this->stickyMenu();
                 break;
         }
 
-        $this->stickyMenu();
+        return  $this->stickyMenu();
     }
     public function subMainMenu()
     {
@@ -407,27 +407,27 @@ class TelegramController extends Controller
 
         switch ($selectedSubMenu->name) {
             case 'خرید اشتراک':
-                $this->buySubscription();
+            return   $this->buySubscription();
                 break;
             case 'سابقه خرید':
-                $this->buyHistory();
+            return  $this->buyHistory();
                 break;
             case 'پشتیبانی':
                 $this->supports();
                 break;
             case 'آموزش استفاده و سوالات متداول':
-                $this->faqs();
+            return $this->faqs();
                 break;
 
             case 'اطلاعات حساب':
-                $this->accountDetails();
+            return  $this->accountDetails();
                 break;
             // case "اکانت تستی":
             // $this->buySubscription();
             //     break;
 
             default:
-                $this->stickyMenu();
+            return  $this->stickyMenu();
                 break;
         }
         return;

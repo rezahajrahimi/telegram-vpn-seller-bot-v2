@@ -180,9 +180,13 @@ class AgentProductController extends Controller
                 ->first();
             if ($check) {
                 $request->id = $check->id;
-                return $this->updateAgentProduct($request);
+                \Log::info("aaaaaaaaaaaaaaaaaa upppppppppppppdateeeeeeeeeee");
+                 $this->updateAgentProduct($request);
+                 return;
             }
             $agentProduct = new AgentProduct();
+          \Log::info("aaaaaaaaaaaaaaaaaa {$request->product_categories_id}");
+
             $agentProduct->product_categories_id = $request->product_categories_id;
             $agentProduct->user_id = $request->user_id;
             $agentProduct->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
@@ -191,23 +195,27 @@ class AgentProductController extends Controller
             $agentProduct->save();
             return response()->json($agentProduct, 200);
         } catch (\Throwable $th) {
-            \Log::info("throw $th");
+            \Log::info("createANewAgentProduct throw $th");
             return response()->json(false, 500);
         }
     }
     public function updateAgentProduct(Request $request)
     {
+        \Log::info("bbbbbbbbbbb upppppppppppppdateeeeeeeeeee");
+
         try {
             $agentProduct = AgentProduct::find($request->id);
-            $agentProduct->product_categories_id = $request->product_categories_id;
+            // $agentProduct->product_categories_id = $request->product_categories_id;
             $agentProduct->user_id = $request->user_id;
             $agentProduct->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
             $agentProduct->price = $request->price ?? 0.0;
             $agentProduct->price_in_dollar = $request->price_in_dollar ?? 0.0;
+            \Log::info("ccccccccccc upppppppppppppdateeeeeeeeeee");
+
             $agentProduct->update();
             return response()->json($agentProduct, 200);
         } catch (\Throwable $th) {
-            \Log::info("throw $th");
+            \Log::info("updateAgentProduct throw $th");
             return response()->json(false, 500);
         }
     }
