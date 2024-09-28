@@ -1,6 +1,7 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://0a36-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://6755-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
+// in /start command, why $this->stickyMenu() run twice
 
 namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Cache;
@@ -39,6 +40,7 @@ class TelegramController extends Controller
     public $chat_type;
     public $markup;
     public $fileId;
+    private $stickyMenuCalled = false;
 
     public function inbound(Request $request)
     {
@@ -147,7 +149,7 @@ class TelegramController extends Controller
                 $this->text = $settingCtrl->getWelcomeMessage();
                 cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
                 app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
-                $this->stickyMenu();
+              return  $this->stickyMenu();
             } else {
                 $channelLock = $this->checkIsChannelsMember($this->from_id);
                 if ($channelLock == true || $channelLock == 1) {
@@ -192,12 +194,17 @@ class TelegramController extends Controller
             $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem - 1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem - 1]->id}"];
             array_push($opr, [$firstRowIndicator]);
         }
-        if (strpos($this->text, '/start') !== false) {
-            $result = app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
+        if (strpos($this->text, '/start') !== false && $this->stickyMenuCalled == false) {
+            $this->stickyMenuCalled = true;
+
+           return app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
         }
-        $result = app('telegram_bot')->buttonMessage(null, $opr, $this->chat_id, $this->message_id);
-        $this->setNewLevel($this->buySubscriptionLevel);
-        return response()->json($result, 200);
+        if (!$this->stickyMenuCalled) {
+            $result = app('telegram_bot')->buttonMessage(null, $opr, $this->chat_id, $this->message_id);
+                $this->setNewLevel($this->buySubscriptionLevel);
+        }
+
+        return ;
     }
     public function deleteMessage()
     {
