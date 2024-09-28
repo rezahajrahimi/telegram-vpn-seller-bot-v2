@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://df2d-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://0a36-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 
 namespace App\Http\Controllers;
