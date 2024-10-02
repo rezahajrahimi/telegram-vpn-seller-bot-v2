@@ -42,7 +42,7 @@ class ReferralLogsController extends Controller
         try {
             $user_id = $this->get_userId_by_accountId($account_id);
             $referral_id = $this->get_userId_by_accountId($referralCode);
-            if($user_id == $referral_id){
+            if ($user_id == $referral_id) {
                 return false;
             }
             $referralLogs = ReferralLogs::where('referral_to_id', $user_id)->first();
@@ -116,12 +116,10 @@ class ReferralLogsController extends Controller
     public function add_new_referral_logs(Request $request)
     {
         try {
-
-
             $referralLogs = new ReferralLogs();
             $referralLogs->referral_user_id = $this->get_refreal_user_by_account_id($request->referral_to_id);
             $referralLogs->referral_to_id = $this->get_userId_by_accountId($request->referral_to_id);
-            if($referralLogs->referral_to_id == $referralLogs->referral_user_id){
+            if ($referralLogs->referral_to_id == $referralLogs->referral_user_id) {
                 return false;
             }
             $referralLogs->amount = $request->amount;
@@ -214,10 +212,15 @@ class ReferralLogsController extends Controller
     }
     public function addNewBotLog($type, $message, $event)
     {
-        $logCtrl = new LogController();
-        $username = Auth::user()->name;
-        $account_id = Auth::user()->account_id;
-        $logCtrl->addNewLog($type, $message, $account_id, $username, $event);
-        return true;
+        try {
+            $logCtrl = new LogController();
+            $username = Auth::user()->name;
+            $account_id = Auth::user()->account_id;
+            $logCtrl->addNewLog($type, $message, $account_id, $username, $event);
+            return true;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable addNewBotLog: $th");
+            return;
+        }
     }
 }

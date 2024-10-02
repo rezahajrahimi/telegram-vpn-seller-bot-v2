@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://6755-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://8097-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -189,19 +189,20 @@ class TelegramController extends Controller
                 }
             }
         }
+        \Log::info("stickyMenuCalled {$this->stickyMenuCalled}");
         // because of if count of menuItem is odd we need to add last row indicator
         if ($countOfMenuItem % 2 == 1) {
             $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem - 1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem - 1]->id}"];
             array_push($opr, [$firstRowIndicator]);
         }
-        if (strpos($this->text, '/start') !== false && $this->stickyMenuCalled == false) {
+        if (strpos($this->text, '/start') !== false && $this->stickyMenuCalled == false || $this->stickyMenuCalled == null) {
             $this->stickyMenuCalled = true;
 
            return app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
-        }
-        if (!$this->stickyMenuCalled) {
+        } else {
             $result = app('telegram_bot')->buttonMessage(null, $opr, $this->chat_id, $this->message_id);
                 $this->setNewLevel($this->buySubscriptionLevel);
+
         }
 
         return ;
@@ -494,7 +495,6 @@ class TelegramController extends Controller
     }
     public function subBuySubscription()
     {
-        $this->deleteMessage();
 
         $prCat = new ProductCategoryController();
 
@@ -746,7 +746,6 @@ class TelegramController extends Controller
     {
         $this->addNewBotLog('ballance', 'گزینه های شارژ حساب به کاربر نمایش داده شد.', 'show');
 
-        $this->deleteMessage();
 
         $text = 'نوع پرداخت را انتخاب کنید.';
         $pymCntrl = new PaymentTypeController();
@@ -783,7 +782,6 @@ class TelegramController extends Controller
     }
     public function subAccountBalance()
     {
-        $this->deleteMessage();
         $pymCntrl = new PaymentTypeController();
 
         if ($this->userCommandArr[1] == 'zarinpal') {
@@ -960,8 +958,7 @@ class TelegramController extends Controller
     {
         // check is userCommandArr[1] an integer or not
         try {
-            $this->deleteMessage();
-            $selectedHistoryID = $this->userCommandArr[1];
+                $selectedHistoryID = $this->userCommandArr[1];
             $text = "ایتم انتخابی: $selectedHistoryID";
             $prCtrl = new ProductController();
             $prCatCntrl = new ProductCategoryController();
@@ -1329,7 +1326,6 @@ class TelegramController extends Controller
     {
         $this->addNewBotLog('support', 'نمایش جزییات گزینه انتخابی پشتیبانی به کاربر.', 'show');
 
-        $this->deleteMessage();
         $selectedSupportID = $this->userCommandArr[1];
         \Log::info("selectedSupportID:$selectedSupportID");
         $text = '';
@@ -1403,7 +1399,6 @@ class TelegramController extends Controller
     {
         $this->addNewBotLog('faq', 'نمایش جزییات گزینه انتخابی سوالات متداول به کاربر.', 'show');
 
-        $this->deleteMessage();
         $selectedFaqID = $this->userCommandArr[1];
         // \Log::info("selectedFaqID:$selectedFaqID");
         $text = '';
@@ -1518,10 +1513,8 @@ class TelegramController extends Controller
     {
         $this->addNewBotLog('app', 'نمایش لیست برنامه های مورد نیاز براساس سیتم عامل انتخابی به کاربر.', 'show');
 
-        $this->deleteMessage();
 
         $selectedOsID = $this->userCommandArr[1];
-        \Log::info("selectedOsID:$selectedOsID");
         $appCtrl = new ApplicationController();
         $apps = $appCtrl->getAllActiveAplicationListByOS($selectedOsID);
 
