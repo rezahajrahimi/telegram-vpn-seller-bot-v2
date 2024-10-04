@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://8097-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://7b62-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -147,7 +147,7 @@ class TelegramController extends Controller
 
             if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
                 $this->text = $settingCtrl->getWelcomeMessage();
-                cache()->put("chat_id_{$this->from_id}", true, now()->addMinute(10));
+                cache()->put("chat_id_{$this->from_id}", true, now()->addDays(10));
                 app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
               return  $this->stickyMenu();
             } else {
@@ -189,14 +189,13 @@ class TelegramController extends Controller
                 }
             }
         }
-        \Log::info("stickyMenuCalled {$this->stickyMenuCalled}");
         // because of if count of menuItem is odd we need to add last row indicator
         if ($countOfMenuItem % 2 == 1) {
             $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem - 1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem - 1]->id}"];
             array_push($opr, [$firstRowIndicator]);
         }
-        if (strpos($this->text, '/start') !== false && $this->stickyMenuCalled == false || $this->stickyMenuCalled == null) {
-            $this->stickyMenuCalled = true;
+        if (strpos($this->text, '/start') !== false && !cache()->has("chat_id_{$this->from_id}")) {
+            cache()->put("chat_id_{$this->from_id}", true, now()->addDays(10));
 
            return app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
         } else {
@@ -279,8 +278,8 @@ class TelegramController extends Controller
             }
             // check is $this->text start with giftcard-
             // if yes return $this->subGiftCard()
-            if (str_starts_with($this->text, 'giftcard-')) {
-                \Log::info('giftcard');
+            if (str_starts_with($this->text, 'Giftcard-') || str_starts_with($this->text, 'Gift-')) {
+                \Log::info('Giftcard');
 
                 return $this->subGiftCard();
             }
@@ -325,6 +324,9 @@ class TelegramController extends Controller
                     break;
                 case 'کسب درآمد':
                     return $this->referral();
+                    break;
+                case 'خرید گیفت کارت':
+                    return $this->buyGiftCard();
                     break;
 
                 default:
@@ -898,7 +900,6 @@ class TelegramController extends Controller
             } else {
                 return $response = true;
             }
-            \Log::info("checkIsChannelsMember: $response");
         }
         return $response;
     }
@@ -1511,7 +1512,6 @@ class TelegramController extends Controller
     }
     public function subAppDownload()
     {
-        $this->addNewBotLog('app', 'نمایش لیست برنامه های مورد نیاز براساس سیتم عامل انتخابی به کاربر.', 'show');
 
 
         $selectedOsID = $this->userCommandArr[1];
@@ -1541,7 +1541,6 @@ class TelegramController extends Controller
     }
     public function getAppDownload()
     {
-        $this->addNewBotLog('app', 'نمایش لیست برنامه های مورد نیاز براساس سیتم عامل انتخابی به کاربر.', 'show');
 
         // $this->deleteMessage();
 
@@ -1552,8 +1551,14 @@ class TelegramController extends Controller
         $text = '';
 
         if (isset($app)) {
-            $text .= "نام برنامه: $app->name \n\r";
-            $text .= "$app->description \n\r";
+            // $text .= "نام برنامه: $app->name \n\r";
+            // $text .= "$app->description \n\r";
+            if (isset($app['name'])) {
+                $text .= "نام برنامه: $app->name \n\r";
+            }
+            if (isset($app['description'])) {
+                $text .= "$app->description \n\r";
+            }
             if (isset($app['download_link'])) {
                 $text .= "لینک دانلود: $app->download_link \n\r";
             }
@@ -1804,6 +1809,30 @@ class TelegramController extends Controller
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
         return response()->json($resualt, 200);
+    }
+    public function buyGiftCard()
+    {
+
+        $channelLockCtrl = new ChannelLockController();
+        $channels = $channelLockCtrl->getAllActiveChannelLock();
+        $opr = [];
+
+        foreach ($channels as $channel => $value) {
+            array_push($opr, [
+                [
+                    'text' => "خرید گیفت کارت",
+                    'url' => "https://t.me/AppleGiftxbot",
+                ],
+            ]);
+        }
+
+        $channelLockMenuCtrl = new ChannelLockMenuItemController();
+
+        $text = "برای خرید گیفت کارد وارد این لینک بشوید.";
+
+        $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
+        return response()->json($result, 200);
+
     }
     public function addNewBotLog($type, $message, $event)
     {

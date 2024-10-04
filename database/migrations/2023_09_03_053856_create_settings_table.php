@@ -17,7 +17,7 @@ return new class extends Migration {
 
             $table->string('bot_token')->default('yukkbihb275Ui1LKeGpXSVw');
             $table->string('panel_address')->default('127.0.0.1:8000/admin');
-            $table->string('welcome_message')->default('سلامممممممم به ربات ما خوش آمدید.');
+            $table->string('welcome_message')->default('به ربات ما خوش آمدید.');
 
             $table->timestamps();
         });

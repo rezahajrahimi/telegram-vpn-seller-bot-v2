@@ -20,7 +20,20 @@ class SettingController extends Controller
     }
     public function getBotSetting()
     {
-        return Setting::find(1);
+
+        $setting = Setting::find(1);
+        if($setting != null){
+            return $setting;
+        } else {
+           $setting = new Setting();
+           $setting->bot_name = "setbotname";
+           $setting->admin_id = 0;
+           $setting->bot_token = "setbottoken";
+           $setting->welcome_message = "setwelcome";
+           $setting->panel_address = "setpaneladdress";
+           $setting->save();
+           return $setting;
+        }
     }
     public function updateBotSetting(Request $request)
     {

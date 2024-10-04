@@ -69,8 +69,8 @@ class MainMenuItemController extends Controller
             $menu8->save();
             $menu9 = new MainMenuItem();
 
-            $menu9->name = 'گیف کارد';
-            $menu9->alias_name = 'گیف کارد';
+            $menu9->name = 'گیفت کارت';
+            $menu9->alias_name = 'گیفت کارت';
             $menu9->is_active = true;
             $menu9->position = 9;
             $menu9->save();
