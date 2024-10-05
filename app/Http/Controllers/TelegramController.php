@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://c267-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://b9b0-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -147,7 +147,7 @@ class TelegramController extends Controller
 
             if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
                 $this->text = $settingCtrl->getWelcomeMessage();
-                cache()->put("chat_id_{$this->from_id}", true, now()->addSeconds(10));
+                cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
                 app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
               return  $this->stickyMenu();
             } else {
@@ -195,13 +195,29 @@ class TelegramController extends Controller
             array_push($opr, [$firstRowIndicator]);
         }
         // Cache::flush();
-        if (strpos($this->text, '/start') !== false && !cache()->has("chat_id_{$this->from_id}")) {
-            cache()->put("chat_id_{$this->from_id}", true, now()->addSeconds(10));
+        \Log::info('this->text ' . $this->text);
+        // check if $this->text is /start
+        // if (strpos($this->text, '/start') !== false) {
 
-           return app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
-        } else {
-            $result = app('telegram_bot')->buttonMessage(null, $opr, $this->chat_id, $this->message_id);
-                $this->setNewLevel($this->buySubscriptionLevel);
+        // }
+
+        if (strpos($this->text, '/start') !== false && cache()->has("chat_id_{$this->from_id}") !== true) {
+
+                cache()->put("chat_id_{$this->from_id}", true, now()->addseconds(10));
+                $this->stickyMenuCalled = true;
+                return app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
+
+
+        }
+        elseif (strpos($this->text, '/start') !== false  && $this->stickyMenuCalled == false) {
+            $this->stickyMenuCalled = true;
+
+            return app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
+        }
+        else {
+            $this->setNewLevel($this->buySubscriptionLevel);
+
+            return app('telegram_bot')->buttonMessage(null, $opr, $this->chat_id, $this->message_id);
 
         }
 
@@ -260,7 +276,7 @@ class TelegramController extends Controller
         $settingCtrl = new SettingController();
         if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
             $this->text = $settingCtrl->getWelcomeMessage();
-            cache()->put("chat_id_{$this->from_id}", true, now()->addDays(10));
+            cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
             app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
             return  $this->stickyMenu();
         } else {
@@ -1008,7 +1024,7 @@ class TelegramController extends Controller
                     // add expireDate to $startDate
                     $expireDate = Carbon::parse($startDate);
                     // add $pacje_days to $expireDate
-                    $expireDate->addDays($package_days);
+                    $expireDate->addMinutes($package_days);
 
                     $expireDate = $expireDate->toJalali()->format('Y.m.d');
                     $startDate = $startDate->toJalali()->format('Y.m.d');
