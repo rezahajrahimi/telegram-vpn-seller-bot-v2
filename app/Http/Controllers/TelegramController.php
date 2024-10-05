@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://7b62-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://c267-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -147,7 +147,7 @@ class TelegramController extends Controller
 
             if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
                 $this->text = $settingCtrl->getWelcomeMessage();
-                cache()->put("chat_id_{$this->from_id}", true, now()->addDays(10));
+                cache()->put("chat_id_{$this->from_id}", true, now()->addSeconds(10));
                 app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
               return  $this->stickyMenu();
             } else {
@@ -194,8 +194,9 @@ class TelegramController extends Controller
             $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem - 1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem - 1]->id}"];
             array_push($opr, [$firstRowIndicator]);
         }
+        // Cache::flush();
         if (strpos($this->text, '/start') !== false && !cache()->has("chat_id_{$this->from_id}")) {
-            cache()->put("chat_id_{$this->from_id}", true, now()->addDays(10));
+            cache()->put("chat_id_{$this->from_id}", true, now()->addSeconds(10));
 
            return app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
         } else {
@@ -278,7 +279,12 @@ class TelegramController extends Controller
             }
             // check is $this->text start with giftcard-
             // if yes return $this->subGiftCard()
-            if (str_starts_with($this->text, 'Giftcard-') || str_starts_with($this->text, 'Gift-')) {
+
+            // check is $this->text start with gift- in upper and lower case
+            // if yes return $this->subGiftCard()
+
+
+            if (str_starts_with(strtolower($this->text), 'giftcard-') || str_starts_with(strtolower($this->text), 'gift-')) {
                 \Log::info('Giftcard');
 
                 return $this->subGiftCard();
@@ -313,7 +319,7 @@ class TelegramController extends Controller
                 case 'دانلود برنامه':
                     return $this->appDownload();
                     break;
-                case 'گیف کارت':
+                case 'گیفت کارت':
                     return $this->giftCard();
                     break;
                 case 'اکانت آزمایشی':

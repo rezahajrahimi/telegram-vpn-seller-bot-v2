@@ -32,16 +32,18 @@ class AuthController extends Controller
             $host = $this->getHostName();
 
             $licenseType = 'gold';
-
+            // get afmin id from .env
+            $adminId = env('TELEGRAM_ADMIN_ID');
             // $host = '';
             // if (isset($_SERVER['HTTP_HOST'])) {
             //     $host = $_SERVER['HTTP_HOST'];
             // }
 
-            $hasLicense = Http::post('https://license-checker.chbk.run/api/checkLicense', [
+            $hasLicense = Http::post('https://license-checker.chabk.ir/api/checkLicense', [
                 'name' => 'Reza',
                 'type' => "{$licenseType}",
                 'host' => "{$host}",
+                'admin_id' => "{$adminId}",
             ]);
             // check if $hasLicense response was 401 or not
             // if not go on
