@@ -103,7 +103,6 @@ class TelegramController extends Controller
                     $this->forward_from_id = $request->message['reply_to_message']['forward_from']['id'] ?? 0;
                     $this->reply_text = $request->message['reply_to_message']['text'] ?? '0';
                     $this->chat_type = 'text';
-                    \Log::info('recogniseTextMessage');
 
                     return $this->recogniseTextMessage();
                 } elseif (isset($request->callback_query)) {
@@ -120,7 +119,7 @@ class TelegramController extends Controller
 
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
                     $this->chat_type = 'callback';
-                    $this->recogniseMessage();
+                    return  $this->recogniseMessage();
                 }
             } catch (\Throwable $th) {
                 \Log::info("Throwable:  $th");
@@ -138,7 +137,7 @@ class TelegramController extends Controller
                     $this->last_name = $request->callback_query['from']['last_name'] ?? '';
 
                     $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
-                    $this->recogniseMessage();
+                    return  $this->recogniseMessage();
                 }
             }
 
@@ -195,7 +194,6 @@ class TelegramController extends Controller
             array_push($opr, [$firstRowIndicator]);
         }
         // Cache::flush();
-        \Log::info('this->text ' . $this->text);
         // check if $this->text is /start
         // if (strpos($this->text, '/start') !== false) {
 

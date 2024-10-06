@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 use App\Models\TransactionImage;
 use Storage;
 use File;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Imagick\Driver;
 
 use Illuminate\Http\Request;
 
@@ -45,10 +47,26 @@ class TransactionImageController extends Controller
         $image_url = $request->image_url;
 
         // download $image_url from telegram and save on disk in transaction_images folder
-        $contents = file_get_contents($image_url);
+        // $contents = file_get_contents($image_url);
+        $manager = new ImageManager(new Driver());
+
         $name = substr($image_url, strrpos($image_url, '/') + 1);
 
-        Storage::disk('public')->put("/transaction_images/$name", $contents);
+        $image = $manager->read(file_get_contents($image_url));
+        // Storage::disk('public')->put("/transaction_images/$name", $contents);
+
+        $path = public_path() . "/transaction_images";
+        if (!File::isDirectory($path)) {
+            File::makeDirectory($path, 0755, true, true);
+        }
+
+
+        // $image_resize = ImageManager::make($contents->getRealPath());
+        // $image_resize->resize(1200, null, function ($constraint) {
+        //     $constraint->aspectRatio();
+        // });
+
+        $image->save(public_path("/transaction_images/$name"));
 
         $data = new TransactionImage();
         $data->transaction_id = $request->transaction_id;

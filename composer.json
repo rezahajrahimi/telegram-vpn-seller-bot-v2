@@ -9,6 +9,7 @@
         "econea/nusoap": "dev-master",
         "guzzlehttp/guzzle": "^7.2",
         "hekmatinasser/verta": "^8.3",
+        "intervention/image": "^3.8",
         "laravel/framework": "^10.10",
         "laravel/sanctum": "^3.3",
         "laravel/tinker": "^2.8",
