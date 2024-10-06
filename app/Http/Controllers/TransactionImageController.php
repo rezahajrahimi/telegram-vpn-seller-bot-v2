@@ -51,26 +51,26 @@ class TransactionImageController extends Controller
         $manager = new ImageManager(new Driver());
 
         $name = substr($image_url, strrpos($image_url, '/') + 1);
+        try {
+            $image = $manager->read(file_get_contents($image_url));
+            // Storage::disk('public')->put("/transaction_images/$name", $contents);
 
-        $image = $manager->read(file_get_contents($image_url));
-        // Storage::disk('public')->put("/transaction_images/$name", $contents);
+            $path = public_path() . '/images/transaction_images';
+            if (!File::isDirectory($path)) {
+                File::makeDirectory(storage_path('public/images/transaction_images'));
+            }
 
-        $path = public_path() . "/transaction_images";
-        if (!File::isDirectory($path)) {
-            File::makeDirectory($path, 0755, true, true);
+            $image->save(public_path() . '/images/transaction_images' . "/$name");
+
+
+            \Log::info("saveNewTransactionImage: $url");
+        } catch (\Throwable $th) {
+            \Log::info("saveNewTransactionImage:  $th");
         }
-
-
-        // $image_resize = ImageManager::make($contents->getRealPath());
-        // $image_resize->resize(1200, null, function ($constraint) {
-        //     $constraint->aspectRatio();
-        // });
-
-        $image->save(public_path("/transaction_images/$name"));
 
         $data = new TransactionImage();
         $data->transaction_id = $request->transaction_id;
-        $data->img_src = "/transaction_images/$name";
+        $data->img_src = '/images/transaction_images' . "/$name";
 
         $data->account_id = $request->account_id;
         $data->user_text = $request->user_text;
