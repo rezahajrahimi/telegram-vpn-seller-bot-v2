@@ -42,6 +42,10 @@ class ReserverdConfigController extends Controller
         try {
             // get reserverd config and checl user_id by user_id in auth ueser
             $reserverdConfig = ReserverdConfig::where('product_id', $request->product_id)->first();
+            // check $reservedConfig is null or not
+            if ($reserverdConfig == null) {
+                return response()->json(false, 401);
+            }
             if ($reserverdConfig->user_id == auth()->user()->id) {
                 return true;
             }

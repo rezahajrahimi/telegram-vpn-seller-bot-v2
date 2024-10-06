@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://b9b0-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://ba90-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -201,9 +201,9 @@ class TelegramController extends Controller
 
         // }
 
-        if (strpos($this->text, '/start') !== false && cache()->has("chat_id_{$this->from_id}") !== true) {
+        if (strpos($this->text, '/start') !== false && cache()->has("chat_id_{$this->from_id}") !== 1) {
 
-                cache()->put("chat_id_{$this->from_id}", true, now()->addseconds(10));
+                cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
                 $this->stickyMenuCalled = true;
                 return app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
 
@@ -301,10 +301,19 @@ class TelegramController extends Controller
 
 
             if (str_starts_with(strtolower($this->text), 'giftcard-') || str_starts_with(strtolower($this->text), 'gift-')) {
-                \Log::info('Giftcard');
 
                 return $this->subGiftCard();
             }
+
+            // check is $this->text start with fastcharge
+            // if yes return $this->subAdminFastCharge()
+
+            if (str_starts_with(strtolower($this->text), 'charge') !== false) {
+                return $this->subAdminFastCharge();
+            }
+
+
+
             // check is $this->text start with webapp
             // if yes return $this->webapp()
 
@@ -754,10 +763,12 @@ class TelegramController extends Controller
                 }
 
                 $opr = [];
+
+
                 foreach ($offlinePayment as $key => $value) {
-                    \Log::info("offlinePayment:$value->name");
-                    array_push($opr, [['text' => "$value->name", 'callback_data' => "subAccountBalance-$value->id "]]);
-                }
+            \Log::info("offlinePayment:$value->name");
+            array_push($opr, [['text' => "$value->name", 'callback_data' => "subAccountBalance-$value->name "]]);
+        }
 
                 $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             }
@@ -1854,6 +1865,40 @@ class TelegramController extends Controller
 
         $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
         return response()->json($result, 200);
+
+    }
+    public function subAdminFastCharge()
+    {
+        $insertedCharge = $this->text;
+        // explode inserted charge by -
+        $chargeArr = explode('-', $insertedCharge);
+        // check is admin or not
+        $adminId = env('TELEGRAM_ADMIN_ID');
+        // convert admin id from string to number
+        $adminId = (int)$adminId;
+        // check if chat id is admin
+        if($this->chat_id !== $adminId){
+            $text = 'درخواست مجاز نمی باشد.';
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+            return response()->json($resualt, 200);
+        }
+        $reqAccountId = $chargeArr[1];
+        $reqAmount = $chargeArr[2];
+
+        // add account ballance
+        $accounBalanceCntrl = new AccountBallanceController();
+            $accounBalanceCntrl->incUserAccuntBalance($reqAccountId, $reqAmount);
+            // sent message to admin of bot
+        $text = 'با موفقیت انجام شد.';
+        $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+        // send message to user
+        $text = '';
+
+        $text .= "مبلغ $reqAmount تومان به حساب شما افزوده شد. \n\r";
+        $resualt = app('telegram_bot')->sendMessage($text, $reqAccountId, null, 'MarkDown');
+        return response()->json($resualt, 200);
+
 
     }
     public function addNewBotLog($type, $message, $event)

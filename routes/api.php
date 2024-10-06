@@ -38,6 +38,7 @@ use App\Http\Controllers\CronJobController;
 use App\Http\Controllers\ReferralSettingController;
 use App\Http\Controllers\ReferralWalletController;
 use App\Http\Controllers\ReferralLogsController;
+use App\Http\Controllers\ReserverdConfigController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -298,6 +299,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
     //  ReferralWalletController
     Route::put('/editAmountOfRefWalletByAccountId', [ReferralWalletController::class, 'edit_amount_of_ref_wallet_by_account_id']);
+
+    // ReserverdConfigController
+    Route::post('/checkAProductHasReservedConfigByProductId', [ReserverdConfigController::class, 'check_a_product_has_reserved_config_by_product_id']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User
