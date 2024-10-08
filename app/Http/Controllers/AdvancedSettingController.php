@@ -1,0 +1,102 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\AdvancedSetting;
+use Illuminate\Http\Request;
+
+class AdvancedSettingController extends Controller
+{
+    public function advancedSetting(): AdvancedSetting
+    {
+        try {
+            // return first advanced setting or create a new one
+            $advancedSetting = AdvancedSetting::first();
+            if ($advancedSetting == null) {
+                $advancedSetting = new AdvancedSetting();
+                $advancedSetting->save();
+            }
+
+            return $advancedSetting;
+        } catch (\Throwable $th) {
+            \Log::info("advancedSetting: $th");
+
+            return response()->json(null, 500);
+        }
+    }
+    public function get_bot_show_configs_by_panels_category(): bool
+    {
+        try {
+            $advancedSetting = $this->advancedSetting();
+            return $advancedSetting->bot_show_configs_by_panels_category;
+        } catch (\Throwable $th) {
+            \Log::info("get_bot_show_configs_by_panels_category: $th");
+
+            return response()->json(null, 500);
+        }
+    }
+    public function change_bot_show_configs_by_panels_category($value): bool
+    {
+        try {
+            $advancedSetting = $this->advancedSetting();
+            $advancedSetting->bot_show_configs_by_panels_category = $value;
+            $advancedSetting->save();
+
+            return true;
+        } catch (\Throwable $th) {
+            \Log::info("change_bot_show_configs_by_panels_category: $th");
+
+            return response()->json(null, 500);
+        }
+    }
+    public function get_bot_auto_set_price_by_dollar_price(): bool
+    {
+        try {
+            $advancedSetting = $this->advancedSetting();
+            return $advancedSetting->bot_auto_set_price_by_dollar_price;
+        } catch (\Throwable $th) {
+            \Log::info("get_bot_auto_set_price_by_dollar_price: $th");
+
+            return response()->json(null, 500);
+        }
+    }
+    public function change_bot_auto_set_price_by_dollar_price($value): bool
+    {
+        try {
+            $advancedSetting = $this->advancedSetting();
+            $advancedSetting->bot_auto_set_price_by_dollar_price = $value;
+            $advancedSetting->save();
+
+            return true;
+        } catch (\Throwable $th) {
+            \Log::info("change_bot_auto_set_price_by_dollar_price: $th");
+
+            return response()->json(null, 500);
+        }
+    }
+    public function get_bot_show_web_app_link_in_telegram_for_all_users()
+    {
+        try {
+            $advancedSetting = $this->advancedSetting();
+            return $advancedSetting->bot_show_web_app_link_in_telegram_for_all_users;
+        } catch (\Throwable $th) {
+            \Log::info("get_bot_show_web_app_link_in_telegram_for_all_users: $th");
+
+            return response()->json(null, 500);
+        }
+    }
+    public function change_bot_show_web_app_link_in_telegram_for_all_users($value): bool
+    {
+        try {
+            $advancedSetting = $this->advancedSetting();
+            $advancedSetting->bot_show_web_app_link_in_telegram_for_all_users = $value;
+            $advancedSetting->save();
+
+            return true;
+        } catch (\Throwable $th) {
+            \Log::info("change_bot_show_web_app_link_in_telegram_for_all_users: $th");
+
+            return response()->json(null, 500);
+        }
+    }
+}
