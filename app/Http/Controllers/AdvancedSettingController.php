@@ -24,6 +24,25 @@ class AdvancedSettingController extends Controller
             return response()->json(null, 500);
         }
     }
+    public function update_advanced_setting(Request $request): bool
+    {
+        try {
+            $advancedSetting = $this->advancedSetting();
+            $key = $request->key;
+            $value = $request->value;
+            if ($key == 'bot_show_configs_by_panels_category') {
+                $advancedSetting->bot_show_configs_by_panels_category = $value;
+            } elseif ($key == 'bot_auto_set_price_by_dollar_price') {
+                $advancedSetting->bot_auto_set_price_by_dollar_price = $value;
+            }
+            $advancedSetting->update();
+            return true;
+        } catch (\Throwable $th) {
+            \Log::info("update_advanced_setting: $th");
+
+            return response()->json(null, 500);
+        }
+    }
     public function get_bot_show_configs_by_panels_category(): bool
     {
         try {
