@@ -10,6 +10,7 @@ use App\Models\ProductCategory;
 use App\Models\BotUser;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Hekmatinasser\Verta\Verta;
 
 use Illuminate\Http\Request;
@@ -95,12 +96,11 @@ class CronJobController extends Controller
                 $limitGB = $value['usage_limit_GB'];
 
                 // check divide zero
-                if($usageGB == 0 || $limitGB == 0){
+                if ($usageGB == 0 || $limitGB == 0) {
                     return true;
                 }
 
                 // get usage percent
-
 
                 $usagePercent = ($usageGB / $limitGB) * 100;
 
@@ -211,6 +211,33 @@ class CronJobController extends Controller
         }
         return true;
     }
+    public function calculate_product_category_price_by_tether()
+    {
+        try {
+            // checl is enable in advanced setting ot not
+            $advancedSettingCntrl = new AdvancedSettingController();
+            $isEnable = $advancedSettingCntrl->get_bot_auto_set_price_by_dollar_price();
+            if ($isEnable == false || $isEnable == 0) {
+                return false;
+            }
+
+            $tetherPrice = $this->get_tether_price_by_nobitex();
+            if ($tetherPrice == null) {
+                return false;
+            }
+            $productCats = ProductCategory::all();
+
+            foreach ($productCats as $key => $value) {
+                if ($value->category_name != 'اکانت آزمایشی') {
+                    $price = $value->price_in_dollar * $tetherPrice;
+                    $value->price = $price;
+                    $value->update();
+                }
+            }
+        } catch (\Throwable $th) {
+            //throw $th;
+        }
+    }
     public function execute_send_expired_products()
     {
         $cronJob = CronJob::where('name', 'Expired')->first();
@@ -233,7 +260,7 @@ class CronJobController extends Controller
 
                 // $usageGB = round($usageGB, 2);
                 $limitGB = $value['usage_limit_GB'];
-                if($limitGB == 0 || $usageGB == 0){
+                if ($limitGB == 0 || $usageGB == 0) {
                     return true;
                 }
                 // get usage percent
@@ -273,5 +300,31 @@ class CronJobController extends Controller
             }
         }
         return true;
+    }
+
+    public function get_tether_price_by_nobitex()
+    {
+        try {
+            // gest Irt usdt by nobitex
+
+            $response = Http::connectTimeout(30)->get('https://api.nobitex.ir/v2/trades/USDTIRT');
+            // Decode the response JSON into an array of data.
+            if ($response->ok()) {
+                $data = json_decode($response->getBody()->getContents(), true);
+
+                $price = $data['trades'][0]['price'];
+                // change price to toman
+                $price = mb_substr($price, 0, -1);
+
+                $intPrice = (int) $price;
+                return $intPrice;
+            } else {
+                return null;
+            }
+        } catch (\Exception $e) {
+            \Log::error($e->getMessage());
+
+            return null;
+        }
     }
 }
