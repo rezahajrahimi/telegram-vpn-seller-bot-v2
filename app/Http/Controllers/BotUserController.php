@@ -63,7 +63,21 @@ class BotUserController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+    public function search_bot_users(Request $request){
+        try {
+            $data = BotUser::where('username', 'like', '%' . $request->search . '%')
+            ->orWhere('first_name', 'like', '%' . $request->search . '%')
+            ->orWhere('last_name', 'like', '%' . $request->search . '%')
+            ->orWhere('account_id', 'like', '%' . $request->search . '%')
+            ->get();
 
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info("search_bot_users:  $th");
+
+            return response()->json('Server Error', 500);
+        }
+    }
     public function getBotUserByID($id)
     {
         try {

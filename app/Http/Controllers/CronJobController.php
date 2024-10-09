@@ -214,6 +214,12 @@ class CronJobController extends Controller
     public function calculate_product_category_price_by_tether()
     {
         try {
+            // check account license
+            $authCntrl = new AuthController();
+            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+            if ($getPowerPsLicenseType == 'free') {
+                return false;
+            }
             // checl is enable in advanced setting ot not
             $advancedSettingCntrl = new AdvancedSettingController();
             $isEnable = $advancedSettingCntrl->get_bot_auto_set_price_by_dollar_price();
@@ -231,6 +237,7 @@ class CronJobController extends Controller
                 if ($value->category_name != 'اکانت آزمایشی') {
                     $price = $value->price_in_dollar * $tetherPrice;
                     $value->price = $price;
+
                     $value->update();
                 }
             }
