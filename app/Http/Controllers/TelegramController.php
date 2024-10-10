@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://bbea-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://f275-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -105,6 +105,13 @@ class TelegramController extends Controller
                     $this->chat_type = 'text';
 
                     $result = $this->recogniseTextMessage();
+
+
+                    //
+                $this->text = $settingCtrl->getWelcomeMessage();
+                $clenedText = $this->prepareText($this->text);
+                app('telegram_bot')->sendMessage($clenedText, $this->chat_id, null, 'MarkDown');
+//
                     \Log::info('two');
                     return response()->json($result, 200);
                 } elseif (isset($request->callback_query)) {
@@ -151,14 +158,19 @@ class TelegramController extends Controller
             // if (!cache()->has("chat_id_{$this->from_id}") && $this->currentMenuLevel == 0) {
             // \Log::info("from_id:  $this->from_id");
 
+
+
             if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
                 $this->text = $settingCtrl->getWelcomeMessage();
+                $clenedText = $this->prepareText($this->text);
                 cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
-                app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
+                app('telegram_bot')->sendMessage($clenedText, $this->chat_id, null, 'MarkDown');
                 $this->stickyMenuCalled = true; // add this line
 
                 return $this->stickyMenu();
             } else {
+
+            //
                 if (!$this->stickyMenuCalled) {
                     // add this check
                     $this->stickyMenuCalled = true;
@@ -1957,5 +1969,14 @@ class TelegramController extends Controller
         $trSettingCntrl = new TransactionSettingController();
 
         return $trSettingCntrl->getDollorTransactionSetting();
+    }
+    // preper text
+    public function prepareText($text)
+    {
+        $text = str_replace("\r\n", "\n\r", $text);
+        $text = str_replace("\r", "\n\r", $text);
+        $text = str_replace("\n", "\n\r", $text);
+        $text = str_replace("{username}", $this->username, $text);
+        return $text;
     }
 }
