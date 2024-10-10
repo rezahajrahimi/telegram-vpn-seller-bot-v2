@@ -245,6 +245,45 @@ class CronJobController extends Controller
             //throw $th;
         }
     }
+    public function calculate_product_category_price_in_dollar_by_toman()
+    {
+        try {
+            // check account license
+
+            $authCntrl = new AuthController();
+            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+            if ($getPowerPsLicenseType == 'free') {
+                return false;
+            }
+
+            // checl is enable in advanced setting ot not
+            $advancedSettingCntrl = new AdvancedSettingController();
+            $isEnable = $advancedSettingCntrl->get_bot_calculate_product_category_price_in_dollar_by_toman();
+            if ($isEnable == false || $isEnable == 0) {
+                return false;
+            }
+
+            $tetherPrice = $this->get_tether_price_by_nobitex();
+            if ($tetherPrice == null) {
+                return false;
+            }
+            $productCats = ProductCategory::all();
+
+            foreach ($productCats as $key => $value) {
+
+                if ($value->category_name != 'اکانت آزمایشی') {
+
+                    $price =  $value->price / $tetherPrice ;
+                    // set $price in $value->price_in_dollar by two decimal digit
+
+                    $value->price_in_dollar = round($price, 2);
+                    $value->update();
+                }
+            }
+        } catch (\Throwable $th) {
+            //throw $th;
+        }
+    }
     public function execute_send_expired_products()
     {
         $cronJob = CronJob::where('name', 'Expired')->first();

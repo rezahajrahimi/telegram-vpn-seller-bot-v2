@@ -107,11 +107,7 @@ class TelegramController extends Controller
                     $result = $this->recogniseTextMessage();
 
 
-                    //
-                $this->text = $settingCtrl->getWelcomeMessage();
-                $clenedText = $this->prepareText($this->text);
-                app('telegram_bot')->sendMessage($clenedText, $this->chat_id, null, 'MarkDown');
-//
+
                     \Log::info('two');
                     return response()->json($result, 200);
                 } elseif (isset($request->callback_query)) {
@@ -164,10 +160,10 @@ class TelegramController extends Controller
                 $this->text = $settingCtrl->getWelcomeMessage();
                 $clenedText = $this->prepareText($this->text);
                 cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
-                app('telegram_bot')->sendMessage($clenedText, $this->chat_id, null, 'MarkDown');
+                // app('telegram_bot')->sendMessage($clenedText, $this->chat_id, null, 'MarkDown');
                 $this->stickyMenuCalled = true; // add this line
 
-                return $this->stickyMenu();
+                return $this->stickyMenu($clenedText);
             } else {
 
             //
@@ -185,9 +181,12 @@ class TelegramController extends Controller
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
+            return $this->stickyMenu();
+
         }
     }
-    public function stickyMenu()
+    // add a nullabe parametr to stickyMenu
+    public function stickyMenu($speceficText = null)
     {
         $menu = new MainMenuItemController();
         $menuItem = $menu->getAllActivatedMainMenuItems();
@@ -233,7 +232,7 @@ class TelegramController extends Controller
         }
         $this->setNewLevel($this->buySubscriptionLevel);
 
-        return app('telegram_bot')->buttonMessage(null, $opr, $this->chat_id, $this->message_id);
+        return app('telegram_bot')->buttonMessage($speceficText, $opr, $this->chat_id, $this->message_id);
     }
     public function deleteMessage()
     {
@@ -289,9 +288,9 @@ class TelegramController extends Controller
         if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
             $this->text = $settingCtrl->getWelcomeMessage();
             cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
-            app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
-
-            return $this->stickyMenu();
+            // app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
+            $clenedText = $this->prepareText($this->text);
+            return $this->stickyMenu($clenedText);
         } else {
             $channelLock = $this->checkIsChannelsMember($this->from_id);
             if ($channelLock == true || $channelLock == 1) {
@@ -380,6 +379,8 @@ class TelegramController extends Controller
             \Log::info("Throwable $th");
 
             return $this->userCommandArr;
+
+
         }
     }
     public function changeMenuLevel()
@@ -797,6 +798,7 @@ class TelegramController extends Controller
 
                 $openLink = $pymCntrl->getZarinpalLink();
                 $text = "پرداخت مبلغ $estimatedPrice تومان از طریق درگاه آنلاین \r\n";
+
 
                 array_push($opr, [
                     [
