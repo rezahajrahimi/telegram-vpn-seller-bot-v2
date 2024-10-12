@@ -26,6 +26,7 @@ Route::get('buy/{account_id}/{invoiceID}/{price}', function ($account_id, $invoi
 Route::post('shop', [TransactionController::class, 'add_order']); // for zarinpal
 
 Route::get('order', function (Request $request) {
+
     return redirect()->action([TransactionController::class, 'order'], ['transaction_id' => $request->Authority, 'status' => $request->Status]);
 });
 

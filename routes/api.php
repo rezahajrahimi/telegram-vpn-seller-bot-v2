@@ -372,3 +372,6 @@ Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']
 Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPaymentStatus']);
 
 Route::get('/prd', [CronJobController::class, 'calculate_product_category_price_in_dollar_by_toman']);
+
+
+Route::post('/orderch', [TransactionController::class, 'add_order']);

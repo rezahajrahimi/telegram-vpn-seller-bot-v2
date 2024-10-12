@@ -79,6 +79,7 @@ class TransactionCryptoController extends Controller
             if (!$this->isvalidPayment($transaction_id)) {
                 return 'تراکنش معتبر نمی باشد.';
             }
+
             // add to user account balance.
 
             $accBlCtrl = new AccountBallanceController();
@@ -86,6 +87,15 @@ class TransactionCryptoController extends Controller
             $amount = $this->getOrderIdByRecipeNumber($transaction_id);
             \Log::info("$userID \  $amount");
             $accBlCtrl->incUserAccuntBalanceInDollar($userID, $amount);
+
+            // send message to user
+            $text = '';
+            $text .= "✅شارژ با موفقیت انجام شد✅ \r\n";
+
+            $text .= "مبلغ {$amount} دلار به حساب شما افزوده شد. \r\n";
+            $resualt = app('telegram_bot')->sendMessage($text, $userID, null, 'MarkDown');
+            //////////////////
+
             return $this->orderSuccessMessage();
         } catch (InvalidPaymentException $exception) {
             return 'خطا در انجام عملیات';

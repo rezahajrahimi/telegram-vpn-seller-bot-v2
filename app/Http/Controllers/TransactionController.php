@@ -55,18 +55,42 @@ class TransactionController extends Controller
             $transaction_id = $request->transaction_id;
             $status = $request->status;
 
+
             $amount = $this->getAmountByRecipeNUmber($transaction_id);
 
-            $receipt = Payment::amount($amount)->transactionId($transaction_id)->verify();
+            //  $receipt = Payment::amount($amount)->transactionId($transaction_id)->verify();
             // confirm transaction
-            $this->setConfirmedTransaction($transaction_id);
-            // add to user account balance.
+            // get transaction with $transaction_id
+            $transaction = Transaction::where('recipe_number', $transaction_id)->first();
+            // check if transaction was confirmed before so return it's confirmed status
+            if ($transaction->confirmed == true) {
+                return "تراکنش تکراری می باشد.";
+            }
+            if($status !== "OK")
+            {
+                return "تراکنش ناموفق می باشد.";
+            }
+            $confirmReq = new Request();
+            $confirmReq->id = $transaction->id;
+            $confirmReq->confirmed = 1;
+            $confirmReq->amount = transaction->amount;
+            $confirmReq->account_id = transaction->account_id;
+            $confirmReq->recipe_number = transaction->recipe_number;
+            $confirmReq->payment_type_id = transaction->payment_type_id;
 
-            $accBlCtrl = new AccountBallanceController();
-            $userID = $this->getUserAccountIDByTransactionId($transaction_id);
-            $accBlCtrl->incUserAccuntBalance($userID, $amount);
+            $this->editUserTranaction($confirmReq);
+
+
+
             return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید و برای ادامه خرید به تلگرام برگردید.';
         } catch (InvalidPaymentException $exception) {
+            $transaction_id = $request->transaction_id;
+
+            $transaction = Transaction::where('recipe_number', $transaction_id)->first();
+
+            $this->removeUnconfirmedTransaction($transaction->id);
+            \Log::info("back from zarinpal $exception");
+            // $this->removeUnconfirmedTransaction($transaction_id);
             return 'خطا در انجام عملیات';
         }
     }
@@ -215,10 +239,10 @@ class TransactionController extends Controller
             $data->confirmed = true;
             $data->update();
 
-            $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$transaction->amount} به حساب شما افزوده شد.", $transaction->account_id, null, 'MarkDown');
+            $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$data->amount} به حساب شما افزوده شد.", $data->account_id, null, 'MarkDown');
             // set referral wallet
             $referralLogsCntrl = new ReferralLogsController();
-            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($data->id);
+            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($data->id,$data->amount);
 
             return true;
         } else {

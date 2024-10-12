@@ -17,7 +17,7 @@ class Kernel extends ConsoleKernel
         $schedule->call('App\Http\Controllers\CronJobController@execute_send_expired_products')->everyFiveMinutes();
         $schedule->call('App\Http\Controllers\CronJobController@execute_send_useage_more_than_85_percent')->everyFourMinutes();
         $schedule->call('App\Http\Controllers\CronJobController@calculate_product_category_price_by_tether')->everyFiveMinutes();
-        $schedule->call('App\Http\Controllers\CronJobController@change_bot_calculate_product_category_price_in_dollar_by_toman')->everyFiveMinutes();
+        $schedule->call('App\Http\Controllers\CronJobController@calculate_product_category_price_in_dollar_by_toman')->everyFiveMinutes();
 
     }
 

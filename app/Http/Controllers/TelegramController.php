@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://f275-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://5899-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -106,8 +106,6 @@ class TelegramController extends Controller
 
                     $result = $this->recogniseTextMessage();
 
-
-
                     \Log::info('two');
                     return response()->json($result, 200);
                 } elseif (isset($request->callback_query)) {
@@ -154,8 +152,6 @@ class TelegramController extends Controller
             // if (!cache()->has("chat_id_{$this->from_id}") && $this->currentMenuLevel == 0) {
             // \Log::info("from_id:  $this->from_id");
 
-
-
             if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
                 $this->text = $settingCtrl->getWelcomeMessage();
                 $clenedText = $this->prepareText($this->text);
@@ -165,8 +161,7 @@ class TelegramController extends Controller
 
                 return $this->stickyMenu($clenedText);
             } else {
-
-            //
+                //
                 if (!$this->stickyMenuCalled) {
                     // add this check
                     $this->stickyMenuCalled = true;
@@ -182,7 +177,6 @@ class TelegramController extends Controller
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
             return $this->stickyMenu();
-
         }
     }
     // add a nullabe parametr to stickyMenu
@@ -379,8 +373,6 @@ class TelegramController extends Controller
             \Log::info("Throwable $th");
 
             return $this->userCommandArr;
-
-
         }
     }
     public function changeMenuLevel()
@@ -557,7 +549,8 @@ class TelegramController extends Controller
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
     }
-    public function subBuySubscriptionByLocation() {
+    public function subBuySubscriptionByLocation()
+    {
         $location = $this->userCommandArr[1];
         // get panel id by location
         $panelCntrl = new PannelController();
@@ -793,17 +786,29 @@ class TelegramController extends Controller
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             $pymCntrl = new PaymentTypeController();
             $hasZarinPal = $pymCntrl->getZarinpalStatus();
-            if ($hasZarinPal == true) {
+            if ($hasZarinPal == true || $hasZarinPal == 1) {
                 // send link
 
                 $openLink = $pymCntrl->getZarinpalLink();
                 $text = "پرداخت مبلغ $estimatedPrice تومان از طریق درگاه آنلاین \r\n";
 
+                /////
+                $trCntrl = new TransactionController();
+                $trRequest = new Request();
+                $trRequest->invoiceID = $bill->bill_id;
+                $trRequest->account_id = $this->chat_id;
+                $trRequest->amount = $estimatedPrice;
+                $paymentLink = $trCntrl->add_order($trRequest);
 
+                $generalCntrl = new GeneralController();
+                $zarinPal = $generalCntrl->get_zarinpal_payment_link_from_html($paymentLink);
+
+
+                //
                 array_push($opr, [
                     [
-                        'text' => 'پرداخت آنلاین',
-                        'url' => "$openLink/$this->chat_id/$bill->bill_id/$bill->amount",
+                        'text' => "پرداخت آنلاین $estimatedPrice تومان",
+                        'url' => "$zarinPal",
                     ],
                 ]);
                 $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
@@ -890,15 +895,44 @@ class TelegramController extends Controller
 
                 $bill = $billCntrl->createNewBill($request);
 
+
+/////
+$trCntrl = new TransactionController();
+                $trRequest = new Request();
+                $trRequest->invoiceID = $bill->bill_id;
+                $trRequest->account_id = $this->chat_id;
+                $trRequest->amount = $amount;
+                $paymentLink = $trCntrl->add_order($trRequest);
+
+                $generalCntrl = new GeneralController();
+                $zarinPal = $generalCntrl->get_zarinpal_payment_link_from_html($paymentLink);
+
+
+                //
+
+
                 $openLink = $pymCntrl->getZarinpalLink();
-                $text = "پرداخت مبلغ $amount تومان از طریق درگاه آنلاین \r\n";
+                $text = "⚠️پس از پرداخت 5 دقیقه صبر کنید تا حسابتان شارژ شود، در صورت شارژ نشدن حساب به پشتیبانی پیام دهید.
+
+- بهتر است از مرورگر داخلی تلگرام استفاده نکنید و از مرورگر خارج تلگرام مثل کروم استفاده کنید.
+
+- در هنگام پرداخت vpn خاموش باشد.
+
+- 10 دقیقه زمان برای پرداخت دارید پس خواهشا در این تایم پرداختتان رو تکمیل کنید در غیر اینصورت باید منتظر لینک جدید بمانید.\r\n";
+
                 $opr = [];
                 array_push($opr, [
                     [
-                        'text' => 'پرداخت آنلاین',
-                        'url' => "$openLink/$this->chat_id/$bill->bill_id/$bill->amount",
+                        'text' => "پرداخت آنلاین $amount تومان",
+                        'url' => "$zarinPal",
                     ],
                 ]);
+                // array_push($opr, [
+                //     [
+                //         'text' => 'پرداخت آنلاین',
+                //         'url' => "$openLink/$this->chat_id/$bill->bill_id/$bill->amount",
+                //     ],
+                // ]);
                 $this->addNewBotLog('ballance', "صورتحساب به مبلغ $amount برای پرداهت از طریق درگاه زرین پال برای کاربر ارسال شد.", 'show');
 
                 $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
@@ -930,14 +964,36 @@ class TelegramController extends Controller
                 $bill = $billCntrl->createNewBillInDollar($request);
 
                 $openLink = $pymCntrl->getNowPaymentsLink();
+                ///
+                $trCryptoCntrl = new TransactionCryptoController();
+                $trRequest = new Request();
+                $trRequest->invoiceID = $bill->bill_id;
+                $trRequest->account_id = $this->chat_id;
+                $trRequest->amount = $amount;
+                $paymentLink = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
+
+                $generalCntrl = new GeneralController();
+                $nowpaymentLink = $generalCntrl->get_nowpayment_payment_link_from_html($paymentLink);
+
+
+
+
+
+                // ///
                 $text = "پرداخت مبلغ $amount دلار از طریق درگاه آنلاین \r\n";
                 $opr = [];
                 array_push($opr, [
                     [
                         'text' => 'پرداخت آنلاین',
-                        'url' => "$openLink/$this->chat_id/$bill->bill_id/$amount",
+                        'url' => "$nowpaymentLink",
                     ],
                 ]);
+                // array_push($opr, [
+                //     [
+                //         'text' => 'پرداخت آنلاین',
+                //         'url' => "$openLink/$this->chat_id/$bill->bill_id/$amount",
+                //     ],
+                // ]);
                 $this->addNewBotLog('ballance', "صورتحساب به مبلغ $amount برای پرداهت از طریق درگاه زرین پال برای کاربر ارسال شد.", 'show');
 
                 $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
@@ -1978,7 +2034,7 @@ class TelegramController extends Controller
         $text = str_replace("\r\n", "\n\r", $text);
         $text = str_replace("\r", "\n\r", $text);
         $text = str_replace("\n", "\n\r", $text);
-        $text = str_replace("{username}", $this->username, $text);
+        $text = str_replace('{username}', $this->username, $text);
         return $text;
     }
 }

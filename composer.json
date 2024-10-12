@@ -16,7 +16,8 @@
         "pishran/zarinpal": "^4.3",
         "prevailexcel/laravel-nowpayments": "^1.0",
         "shetabit/payment": "^5.4",
-        "simplesoftwareio/simple-qrcode": "^4.2"
+        "simplesoftwareio/simple-qrcode": "^4.2",
+        "symfony/dom-crawler": "^6.4"
     },
     "require-dev": {
         "fakerphp/faker": "^1.9.1",
