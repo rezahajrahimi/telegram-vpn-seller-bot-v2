@@ -126,7 +126,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
     }
@@ -173,7 +172,6 @@ class TelegramBot
             return false;
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return false;
     }
@@ -212,7 +210,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
     }
@@ -242,7 +239,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
     }
@@ -271,7 +267,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
     }
@@ -298,7 +293,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
     }
@@ -326,7 +320,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
     }
@@ -359,7 +352,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->getImageUrl->result', ['result' => $result]);
 
         return $image_url;
     }

@@ -107,7 +107,6 @@ class TransactionController extends Controller
     {
         if ($paymentTypeId == 0 || $paymentTypeId == null) {
             $pay = PaymentType::where('is_active', true)->where('type', 'offline')->first();
-
             $paymentTypeId = $pay->id;
         }
         $transaction = new Transaction();

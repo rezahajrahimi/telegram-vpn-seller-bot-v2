@@ -170,6 +170,7 @@ class TelegramController extends Controller
                 $channelLock = $this->checkIsChannelsMember($this->from_id);
                 if ($channelLock == true || $channelLock == 1) {
                     $this->changeMenuLevel();
+
                 } else {
                     return $this->channelLockMenu();
                 }
@@ -289,6 +290,7 @@ class TelegramController extends Controller
             $channelLock = $this->checkIsChannelsMember($this->from_id);
             if ($channelLock == true || $channelLock == 1) {
                 $this->changeMenuLevel();
+
             } else {
                 return $this->channelLockMenu();
             }
@@ -1065,6 +1067,13 @@ $trCntrl = new TransactionController();
                 ],
             ]);
         }
+         // add /start command
+        array_push($opr, [
+            [
+                'text' => "عضو شدم",
+                'callback_data' => 'start',
+            ]
+            ]);
 
         $channelLockMenuCtrl = new ChannelLockMenuItemController();
 
