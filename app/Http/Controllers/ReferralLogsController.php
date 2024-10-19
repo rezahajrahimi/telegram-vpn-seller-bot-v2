@@ -46,10 +46,10 @@ class ReferralLogsController extends Controller
                 return false;
             }
             // check referral_id exists
-            $user = User::where('id', $referral_id)->first();
-            if ($user == null) {
-                return false;
-            }
+            // $user = User::where('id', $referral_id)->first();
+            // if ($user == null) {
+            //     return false;
+            // }
             $referralLogs = ReferralLogs::where('referral_to_id', $user_id)->first();
             if ($referralLogs != null) {
                 return true;

@@ -63,6 +63,7 @@ class TransactionController extends Controller
             // get transaction with $transaction_id
             $transaction = Transaction::where('recipe_number', $transaction_id)->first();
             // check if transaction was confirmed before so return it's confirmed status
+
             if ($transaction->confirmed == true) {
                 return "تراکنش تکراری می باشد.";
             }
@@ -73,14 +74,12 @@ class TransactionController extends Controller
             $confirmReq = new Request();
             $confirmReq->id = $transaction->id;
             $confirmReq->confirmed = 1;
-            $confirmReq->amount = transaction->amount;
-            $confirmReq->account_id = transaction->account_id;
-            $confirmReq->recipe_number = transaction->recipe_number;
-            $confirmReq->payment_type_id = transaction->payment_type_id;
+            $confirmReq->amount = $transaction->amount;
+            $confirmReq->account_id = $transaction->account_id;
+            $confirmReq->recipeNUmber = $transaction->recipe_number;
+            $confirmReq->paymentTypeId = $transaction->payment_type_id;
 
             $this->editUserTranaction($confirmReq);
-
-
 
             return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید و برای ادامه خرید به تلگرام برگردید.';
         } catch (InvalidPaymentException $exception) {
@@ -170,14 +169,15 @@ class TransactionController extends Controller
         try {
             $transaction = Transaction::find($request->id);
             if ($transaction != null) {
-                $isConfirmed = $request->confirmed == 1 ? true : false;
+                $isConfirmed = $request->confirmed == 1 || $request->confirmed == true ? true : false;
 
-                if ($transaction->amount != $request->amount && $isConfirmed == true) {
+                // if ($transaction->amount != $request->amount && $isConfirmed == true) {
+                if ($isConfirmed == true) {
                     $accBlCtrl = new AccountBallanceController();
                     if ($transaction->amount > $request->amount) {
                         $accBlCtrl->decUserAccuntBalance($transaction->account_id, $transaction->amount - $request->amount);
                     } else {
-                        $accBlCtrl->incUserAccuntBalance($transaction->account_id, $request->amount - $transaction->amount);
+                        $accBlCtrl->incUserAccuntBalance($transaction->account_id, $request->amount);
                     }
 
                     $transaction->amount = $request->amount;

@@ -39,7 +39,7 @@ class AuthController extends Controller
             //     $host = $_SERVER['HTTP_HOST'];
             // }
 
-            $hasLicense = Http::post('https://license-checker.chabk.ir/api/checkLicense', [
+            $hasLicense = Http::post('https://license-checker.chbk.app/api/checkLicense', [
                 'name' => 'Reza',
                 'type' => "{$licenseType}",
                 'host' => "{$host}",

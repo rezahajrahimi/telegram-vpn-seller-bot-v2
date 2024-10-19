@@ -47,21 +47,28 @@ class TransactionImageController extends Controller
         $image_url = $request->image_url;
 
         // download $image_url from telegram and save on disk in transaction_images folder
-        // $contents = file_get_contents($image_url);
+        $contents = file_get_contents($image_url);
         $manager = new ImageManager(new Driver());
 
         $name = substr($image_url, strrpos($image_url, '/') + 1);
         try {
             $image = $manager->read(file_get_contents($image_url));
-            // Storage::disk('public')->put("/transaction_images/$name", $contents);
+            Storage::disk('public')->put("/images/transaction_images/$name", $contents);
 
-            $path = public_path() . '/images/transaction_images';
-            if (!File::isDirectory($path)) {
-                File::makeDirectory(storage_path('public/images/transaction_images'));
-            }
+            // $path = public_path() . '/images/transaction_images';
+            // $path = public_path() . '/images/transaction_images';
+            // if (!File::isDirectory($path)) {
+            //     \Log::info('Directory does not exist, trying to create it...');
+            //     File::makeDirectory($path, 0755, true, true);
+            //     \Log::info('Directory created successfully');
+            // } else {
+            //     \Log::info('Directory already exists');
+            // }
+            // if (!File::isDirectory($path)) {
+            //     File::makeDirectory(storage_path('public/images/transaction_images'));
+            // }
 
             $image->save(public_path() . '/images/transaction_images' . "/$name");
-
 
             \Log::info("saveNewTransactionImage: $url");
         } catch (\Throwable $th) {

@@ -1068,12 +1068,12 @@ $trCntrl = new TransactionController();
             ]);
         }
          // add /start command
-        array_push($opr, [
-            [
-                'text' => "عضو شدم",
-                'callback_data' => 'start',
-            ]
-            ]);
+        // array_push($opr, [
+        //     [
+        //         'text' => "عضو شدم",
+        //         'callback_data' => 'start',
+        //     ]
+        //     ]);
 
         $channelLockMenuCtrl = new ChannelLockMenuItemController();
 
