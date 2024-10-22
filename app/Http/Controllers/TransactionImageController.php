@@ -8,6 +8,8 @@ use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Imagick\Driver;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+
 
 class TransactionImageController extends Controller
 {
@@ -44,47 +46,48 @@ class TransactionImageController extends Controller
     }
     public function saveNewTransactionImage(Request $request)
     {
-        $image_url = $request->image_url;
-
-        // download $image_url from telegram and save on disk in transaction_images folder
-        $contents = file_get_contents($image_url);
-        $manager = new ImageManager(new Driver());
-
-        $name = substr($image_url, strrpos($image_url, '/') + 1);
         try {
-            $image = $manager->read(file_get_contents($image_url));
-            Storage::disk('public')->put("/images/transaction_images/$name", $contents);
 
-            // $path = public_path() . '/images/transaction_images';
-            // $path = public_path() . '/images/transaction_images';
-            // if (!File::isDirectory($path)) {
-            //     \Log::info('Directory does not exist, trying to create it...');
-            //     File::makeDirectory($path, 0755, true, true);
-            //     \Log::info('Directory created successfully');
-            // } else {
-            //     \Log::info('Directory already exists');
-            // }
-            // if (!File::isDirectory($path)) {
-            //     File::makeDirectory(storage_path('public/images/transaction_images'));
-            // }
+            // download image from $request->image_url and save on disk
 
-            $image->save(public_path() . '/images/transaction_images' . "/$name");
 
-            \Log::info("saveNewTransactionImage: $url");
+
+
+
+            $imageUrl = $request->image_url;
+
+            // Get the image contents
+            $imageContents = Http::get($imageUrl)->body();
+
+            // Define the image path and name
+            $imagePath = 'images/';
+            $imageName ='transaction_'.time() .  basename($imageUrl);
+
+            // Save the image on disk
+
+
+            // save image path in $path
+            $path = $imagePath . $imageName;
+            try {
+
+                Storage::disk('public')->put($imagePath . $imageName, $imageContents);
+
+            } catch (\Throwable $th) {
+                \Log::info("saveNewTransactionImage:  $th");
+            }
+
+            $data = new TransactionImage();
+            $data->transaction_id = $request->transaction_id;
+            $data->img_src ='/storage/'. $path;
+
+            $data->account_id = $request->account_id;
+            $data->user_text = $request->user_text;
+            $data->save();
+            return $data->id;
         } catch (\Throwable $th) {
             \Log::info("saveNewTransactionImage:  $th");
+
+            return response()->json('Server Error', 500);
         }
-
-        $data = new TransactionImage();
-        $data->transaction_id = $request->transaction_id;
-        $data->img_src = '/images/transaction_images' . "/$name";
-
-        $data->account_id = $request->account_id;
-        $data->user_text = $request->user_text;
-        $data->save();
-
-        // $uuppp = Storage::url($file);
-
-        return $data->id;
     }
 }

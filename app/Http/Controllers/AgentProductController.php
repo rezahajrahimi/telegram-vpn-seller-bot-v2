@@ -60,7 +60,7 @@ class AgentProductController extends Controller
             if ($agentsCount > 10 && $getPowerPsLicenseType == 'silver') {
                 $hasAccountLimitation = true;
             }
-            if ($agentsCount > 4 && $getPowerPsLicenseType == 'free') {
+            if ($agentsCount > 0 && $getPowerPsLicenseType == 'free') {
                 $hasAccountLimitation = true;
             }
             if ($hasAccountLimitation == true) {
@@ -180,12 +180,10 @@ class AgentProductController extends Controller
                 ->first();
             if ($check) {
                 $request->id = $check->id;
-                \Log::info("aaaaaaaaaaaaaaaaaa upppppppppppppdateeeeeeeeeee");
                  $this->updateAgentProduct($request);
                  return;
             }
             $agentProduct = new AgentProduct();
-          \Log::info("aaaaaaaaaaaaaaaaaa {$request->product_categories_id}");
 
             $agentProduct->product_categories_id = $request->product_categories_id;
             $agentProduct->user_id = $request->user_id;
@@ -201,7 +199,6 @@ class AgentProductController extends Controller
     }
     public function updateAgentProduct(Request $request)
     {
-        \Log::info("bbbbbbbbbbb upppppppppppppdateeeeeeeeeee");
 
         try {
             $agentProduct = AgentProduct::find($request->id);
