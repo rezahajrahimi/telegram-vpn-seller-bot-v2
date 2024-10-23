@@ -68,13 +68,13 @@ class UserController extends Controller
     }
     public function change_user_role_to_admin($id){
 
-        $user = User::find($id);
+        $user = User::where('account_id', $id)->first();
         if (!$user) {
-            return null;
+           return response()->json(null, 401);
         }
         $user->role = 'admin';
         $user->update();
-        return true;
+        return response()->json(true, 201);
     }
 
     public function getUserById($id)
@@ -119,6 +119,21 @@ class UserController extends Controller
         $user->role = 'user';
         $user->update();
         return true;
+    }
+    public function change_user_role_to_user($id)
+    {
+        $user = User::where('account_id', $id)->first();
+        if (!$user) {
+            return response()->json(null, 401);
+        }
+        // checl if user_account_id is not null and is not equal to TELEGRAM_ADMIN_ID in .env
+        if ($user->account_id == env('TELEGRAM_ADMIN_ID')) {
+            return response()->json(null, 401);
+        }
+
+        $user->role = 'user';
+        $user->update();
+        return response()->json(true, 201);
     }
     public function getUserIdByTelegramID($telID)
     {

@@ -46,7 +46,7 @@ class CronJobController extends Controller
             $cronJobs = CronJob::all();
             return response()->json($cronJobs);
         } catch (\Throwable $th) {
-            \Log::info("Throwable $th");
+            // \Log::info("Throwable $th");
             return response()->json('Server Error', 500);
         }
     }
@@ -56,7 +56,7 @@ class CronJobController extends Controller
             $cronJobs = CronJob::where('is_active', true)->get();
             return response()->json($cronJobs);
         } catch (\Throwable $th) {
-            \Log::info("Throwable $th");
+            // \Log::info("Throwable $th");
             return response()->json('Server Error', 500);
         }
     }
@@ -237,12 +237,12 @@ class CronJobController extends Controller
                 if ($value->category_name != 'اکانت آزمایشی') {
                     $price = $value->price_in_dollar * $tetherPrice;
                     $value->price = $price;
-
                     $value->update();
                 }
             }
         } catch (\Throwable $th) {
             //throw $th;
+            return;
         }
     }
     public function calculate_product_category_price_in_dollar_by_toman()
