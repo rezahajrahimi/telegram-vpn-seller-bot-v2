@@ -57,10 +57,11 @@ class AgentProductController extends Controller
             // check powerps license
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
             $hasAccountLimitation = false;
-            if ($agentsCount > 10 && $getPowerPsLicenseType == 'silver') {
+            if ($getPowerPsLicenseType == 'free') {
                 $hasAccountLimitation = true;
             }
-            if ($agentsCount > 0 && $getPowerPsLicenseType == 'free') {
+
+            if ($agentsCount > 10 && $getPowerPsLicenseType == 'silver') {
                 $hasAccountLimitation = true;
             }
             if ($hasAccountLimitation == true) {
@@ -86,14 +87,15 @@ class AgentProductController extends Controller
             $selectedProductList = json_decode($request['selectedProductList'], true);
             foreach ($selectedProductList as $value) {
                 $aa = json_decode($value, true);
-
                 $value = (array) $aa;
                 $req = new Request();
-                $req->product_categories_id = $value['id'];
-                $req->price = $value['newPrice'];
-                $req->price_in_dollar = $value['newPriceInDollar'];
+                $req->id = $value['id'] ?? null;
+                $req->product_categories_id = $value['productCategoriesId'] ?? $value['id'] ;
+                $req->price = $value['newPrice'] ?? $value['price'];
+                $req->price_in_dollar = $value['newPriceInDollar'] ?? $value['priceInDollar'];
                 $req->user_id = $userID;
                 $req->is_active = true;
+
                 $this->createANewAgentProduct($req);
             }
             $agentPremissionCntrl = new AgentPermissonController();
@@ -175,15 +177,24 @@ class AgentProductController extends Controller
     public function createANewAgentProduct(Request $request)
     {
         try {
-            $check = AgentProduct::where('product_categories_id', $request->product_categories_id)
-                ->where('user_id', $request->user_id)
-                ->first();
-            if ($check) {
-                $request->id = $check->id;
+
+            if (AgentProduct::where('id', $request->id)->first() != null) {
+                // log the $request
+                \Log::info("sssssss request: {$request->price}");
                  $this->updateAgentProduct($request);
                  return;
             }
+            // chceck if this product category is exist or not
+            $hasProductCategory = ProductCategory::where('id', $request->product_categories_id)->first();
+
+            if ($hasProductCategory == null) {
+                // log the $request
+                \Log::info("message $request->product_categories_id");
+                \Log::info("createANewAgentProduct dd request: $request");
+                return;
+            }
             $agentProduct = new AgentProduct();
+            \Log::info("product_categories_id request: $request->product_categories_id");
 
             $agentProduct->product_categories_id = $request->product_categories_id;
             $agentProduct->user_id = $request->user_id;
@@ -201,13 +212,14 @@ class AgentProductController extends Controller
     {
 
         try {
+            \Log::info("updateAgentProduct request: $request->newPrice $request->newPriceInDollar");
+
             $agentProduct = AgentProduct::find($request->id);
             // $agentProduct->product_categories_id = $request->product_categories_id;
-            $agentProduct->user_id = $request->user_id;
-            $agentProduct->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
-            $agentProduct->price = $request->price ?? 0.0;
+            // $agentProduct->user_id = $request->user_id;
+            // $agentProduct->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
+            $agentProduct->price = $request->price ?? 0;
             $agentProduct->price_in_dollar = $request->price_in_dollar ?? 0.0;
-            \Log::info("ccccccccccc upppppppppppppdateeeeeeeeeee");
 
             $agentProduct->update();
             return response()->json($agentProduct, 200);
