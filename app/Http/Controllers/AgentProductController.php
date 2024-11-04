@@ -85,6 +85,12 @@ class AgentProductController extends Controller
             }
 
             $selectedProductList = json_decode($request['selectedProductList'], true);
+
+            // create an array
+            $newSelectedProductList = [];
+
+            // $pannel = Pannel::find($data['pannelID']);
+
             foreach ($selectedProductList as $value) {
                 $aa = json_decode($value, true);
                 $value = (array) $aa;
@@ -95,9 +101,28 @@ class AgentProductController extends Controller
                 $req->price_in_dollar = $value['newPriceInDollar'] ?? $value['priceInDollar'];
                 $req->user_id = $userID;
                 $req->is_active = true;
+                 // add $req->product_categories_id to array
+
+                array_push($newSelectedProductList, $req->product_categories_id);
 
                 $this->createANewAgentProduct($req);
             }
+
+            // log the array
+
+            // get all agent products wich id is not in $newSelectedProductList array
+            $allAgentProducts = AgentProduct::where('user_id', $userID)->get();
+
+            foreach ($allAgentProducts as $value) {
+                if (!in_array($value->product_categories_id, $newSelectedProductList)) {
+                    $this->deleteAgentProductByPrCatIDAndUserID($userID, $value->product_categories_id);
+
+                }
+            }
+
+
+
+
             $agentPremissionCntrl = new AgentPermissonController();
             $reqPermission = new Request();
             $reqPermission->user_id = $userID;
@@ -124,7 +149,6 @@ class AgentProductController extends Controller
             // change agent role to user
             $userCntrl = new UserController();
             $userID = $userCntrl->getUserIdByTelegramID($reqUserID);
-            \Log::info("userID: $userID");
             if ($userID == null) {
                 return response()->json(false, 201);
             }
@@ -165,6 +189,8 @@ class AgentProductController extends Controller
                 $value = (array) $aa;
                 if ($value['productCategoriesId'] != null) {
                     $this->deleteAgentProductByPrCatIDAndUserID($userID, $value['productCategoriesId']);
+                } else {
+                    $this->deleteAgentProductByIDAndUserID($userID, $value['id']);
                 }
             }
             return response()->json(true, 200);
@@ -180,7 +206,6 @@ class AgentProductController extends Controller
 
             if (AgentProduct::where('id', $request->id)->first() != null) {
                 // log the $request
-                \Log::info("sssssss request: {$request->price}");
                  $this->updateAgentProduct($request);
                  return;
             }
@@ -189,12 +214,9 @@ class AgentProductController extends Controller
 
             if ($hasProductCategory == null) {
                 // log the $request
-                \Log::info("message $request->product_categories_id");
-                \Log::info("createANewAgentProduct dd request: $request");
                 return;
             }
             $agentProduct = new AgentProduct();
-            \Log::info("product_categories_id request: $request->product_categories_id");
 
             $agentProduct->product_categories_id = $request->product_categories_id;
             $agentProduct->user_id = $request->user_id;
@@ -212,7 +234,6 @@ class AgentProductController extends Controller
     {
 
         try {
-            \Log::info("updateAgentProduct request: $request->newPrice $request->newPriceInDollar");
 
             $agentProduct = AgentProduct::find($request->id);
             // $agentProduct->product_categories_id = $request->product_categories_id;
@@ -241,7 +262,6 @@ class AgentProductController extends Controller
     }
     public function deleteAgentProductByPrCatIDAndUserID($userID, $productCatId)
     {
-        \Log::info("message $userID $productCatId");
         try {
             $agentProduct = AgentProduct::where('user_id', $userID)->where('product_categories_id', $productCatId)->first();
             if (!$agentProduct) {
@@ -557,14 +577,12 @@ class AgentProductController extends Controller
                 $usedProductTerrafic = $usedProductTerrafic / 1000;
             }
             if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
-                \Log::info("usedProductTerrafic: {$usedProductTerrafic} > {$agentPermisson->traffic_limitation_tb}");
 
                 return response()->json('Reached to Max Terrafic Limitation', 401);
             }
             $usedProductCount = Product::where('account_id', $accountID)->count();
             if ($usedProductCount != null) {
                 if ($usedProductCount >= $agentPermisson->product_limitation) {
-                    \Log::info("usedProductCount: {$usedProductCount} > {$agentPermisson->product_limitation}");
                     return response()->json('Reached to Max Product Limitation', 401);
                 }
             }
@@ -943,8 +961,6 @@ class AgentProductController extends Controller
             }
 
             if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
-                \Log::info("usedProductTerrafic: {$usedProductTerrafic} > {$agentPermisson->traffic_limitation_tb}");
-
                 return response()->json('Reached to Max Terrafic Limitation', 401);
             }
         }
@@ -1023,8 +1039,6 @@ class AgentProductController extends Controller
             }
 
             if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
-                \Log::info("usedProductTerrafic: {$usedProductTerrafic} > {$agentPermisson->traffic_limitation_tb}");
-
                 return response()->json('Reached to Max Terrafic Limitation', 401);
             }
         }
