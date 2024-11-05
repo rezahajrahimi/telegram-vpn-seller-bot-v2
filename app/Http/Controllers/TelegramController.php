@@ -1985,15 +1985,14 @@ $trCntrl = new TransactionController();
         // explode inserted charge by -
         $chargeArr = explode('-', $insertedCharge);
         // check is admin or not
-        $adminId = env('TELEGRAM_ADMIN_ID');
-        // convert admin id from string to number
-        $adminId = (int) $adminId;
-        // check if chat id is admin
-        if ($this->chat_id !== $adminId) {
+        $user = User::where('account_id', $this->chat_id)->first();
+        $user_role = $user->role;
+        if ($user_role != 'admin') {
             $text = 'درخواست مجاز نمی باشد.';
             $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
             return response()->json($resualt, 200);
         }
+
         $reqAccountId = $chargeArr[1];
         $reqAmount = $chargeArr[2];
 

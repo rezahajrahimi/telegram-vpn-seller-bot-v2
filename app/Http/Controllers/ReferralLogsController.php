@@ -39,10 +39,11 @@ class ReferralLogsController extends Controller
     }
     public function check_user_has_referral_and_create($account_id, $referralCode)
     {
+
         try {
             $user_id = $this->get_userId_by_accountId($account_id);
             $referral_id = $this->get_userId_by_accountId($referralCode);
-            if ($user_id == $referral_id) {
+            if ($user_id == $referral_id || $referral_id == null) {
                 return false;
             }
             // check referral_id exists

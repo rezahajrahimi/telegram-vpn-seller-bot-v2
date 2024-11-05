@@ -96,12 +96,12 @@ class AgentProductController extends Controller
                 $value = (array) $aa;
                 $req = new Request();
                 $req->id = $value['id'] ?? null;
-                $req->product_categories_id = $value['productCategoriesId'] ?? $value['id'] ;
+                $req->product_categories_id = $value['productCategoriesId'] ?? $value['id'];
                 $req->price = $value['newPrice'] ?? $value['price'];
                 $req->price_in_dollar = $value['newPriceInDollar'] ?? $value['priceInDollar'];
                 $req->user_id = $userID;
                 $req->is_active = true;
-                 // add $req->product_categories_id to array
+                // add $req->product_categories_id to array
 
                 array_push($newSelectedProductList, $req->product_categories_id);
 
@@ -116,12 +116,8 @@ class AgentProductController extends Controller
             foreach ($allAgentProducts as $value) {
                 if (!in_array($value->product_categories_id, $newSelectedProductList)) {
                     $this->deleteAgentProductByPrCatIDAndUserID($userID, $value->product_categories_id);
-
                 }
             }
-
-
-
 
             $agentPremissionCntrl = new AgentPermissonController();
             $reqPermission = new Request();
@@ -203,11 +199,10 @@ class AgentProductController extends Controller
     public function createANewAgentProduct(Request $request)
     {
         try {
-
             if (AgentProduct::where('id', $request->id)->first() != null) {
                 // log the $request
-                 $this->updateAgentProduct($request);
-                 return;
+                $this->updateAgentProduct($request);
+                return;
             }
             // chceck if this product category is exist or not
             $hasProductCategory = ProductCategory::where('id', $request->product_categories_id)->first();
@@ -232,9 +227,7 @@ class AgentProductController extends Controller
     }
     public function updateAgentProduct(Request $request)
     {
-
         try {
-
             $agentProduct = AgentProduct::find($request->id);
             // $agentProduct->product_categories_id = $request->product_categories_id;
             // $agentProduct->user_id = $request->user_id;
@@ -577,7 +570,6 @@ class AgentProductController extends Controller
                 $usedProductTerrafic = $usedProductTerrafic / 1000;
             }
             if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
-
                 return response()->json('Reached to Max Terrafic Limitation', 401);
             }
             $usedProductCount = Product::where('account_id', $accountID)->count();
