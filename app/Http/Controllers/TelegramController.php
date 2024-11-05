@@ -167,7 +167,6 @@ class TelegramController extends Controller
                 $channelLock = $this->checkIsChannelsMember($this->from_id);
                 if ($channelLock == true || $channelLock == 1) {
                     $this->changeMenuLevel();
-
                 } else {
                     return $this->channelLockMenu();
                 }
@@ -287,7 +286,6 @@ class TelegramController extends Controller
             $channelLock = $this->checkIsChannelsMember($this->from_id);
             if ($channelLock == true || $channelLock == 1) {
                 $this->changeMenuLevel();
-
             } else {
                 return $this->channelLockMenu();
             }
@@ -822,9 +820,8 @@ class TelegramController extends Controller
 
                 $bill = $billCntrl->createNewBill($request);
 
-
-/////
-$trCntrl = new TransactionController();
+                /////
+                $trCntrl = new TransactionController();
                 $trRequest = new Request();
                 $trRequest->invoiceID = $bill->bill_id;
                 $trRequest->account_id = $this->chat_id;
@@ -834,9 +831,7 @@ $trCntrl = new TransactionController();
                 $generalCntrl = new GeneralController();
                 $zarinPal = $generalCntrl->get_zarinpal_payment_link_from_html($paymentLink);
 
-
                 //
-
 
                 $openLink = $pymCntrl->getZarinpalLink();
                 $text = "⚠️پس از پرداخت 5 دقیقه صبر کنید تا حسابتان شارژ شود، در صورت شارژ نشدن حساب به پشتیبانی پیام دهید.
@@ -901,10 +896,6 @@ $trCntrl = new TransactionController();
 
                 $generalCntrl = new GeneralController();
                 $nowpaymentLink = $generalCntrl->get_nowpayment_payment_link_from_html($paymentLink);
-
-
-
-
 
                 // ///
                 $text = "پرداخت مبلغ $amount دلار از طریق درگاه آنلاین \r\n";
@@ -985,7 +976,7 @@ $trCntrl = new TransactionController();
                 ],
             ]);
         }
-         // add /start command
+        // add /start command
         // array_push($opr, [
         //     [
         //         'text' => "عضو شدم",
