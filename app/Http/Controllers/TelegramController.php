@@ -562,14 +562,31 @@ class TelegramController extends Controller
         $opr = [];
         $index = 0;
         if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
-            array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-            foreach ($prCat as $key => $value) {
-                array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+            // check if show one row config text is true or not
+            $advancedSettingCntrl = new AdvancedSettingController();
+            $hasShowOneRowConfigText = $advancedSettingCntrl->get_bot_show_one_row_config();
+            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
+                foreach ($prCat as $key => $value) {
+                    array_push($opr, [['text' => "$value->category_name - قیمت(دلار): $value->price_in_dollar - قیمت(تومان): $value->price", 'callback_data' => "buySubscription-$value->id"]]);
+                }
+            } else {
+                array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
+                foreach ($prCat as $key => $value) {
+                    array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+                }
             }
         } else {
-            array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-            foreach ($prCat as $key => $value) {
-                array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+            $advancedSettingCntrl = new AdvancedSettingController();
+            $hasShowOneRowConfigText = $advancedSettingCntrl->get_bot_show_one_row_config();
+            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
+                foreach ($prCat as $key => $value) {
+                    array_push($opr, [['text' => "$value->category_name - قیمت(تومان): $value->price", 'callback_data' => "buySubscription-$value->id"]]);
+                }
+            } else {
+                array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
+                foreach ($prCat as $key => $value) {
+                    array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+                }
             }
         }
 
@@ -784,7 +801,7 @@ class TelegramController extends Controller
             $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
             $botGeneralCntrl = new BotGeneralController();
-            $result= $botGeneralCntrl->increase_account_ballance_menu_on_low_balance($this->chat_id, $estimatedPrice, $estimatedPriceInDollar);
+            $result = $botGeneralCntrl->increase_account_ballance_menu_on_low_balance($this->chat_id, $estimatedPrice, $estimatedPriceInDollar);
 
             $this->addNewBotLog('subscription', 'موجودی کیف پول کاربر برای حرید بسته کافی نبود.', 'low account ballance');
 
@@ -1112,7 +1129,7 @@ class TelegramController extends Controller
                     $text .= "🔗 لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
                 }
                 if ($selectedProductCategory->show_subscription_link == 1) {
-                    $text .= "🔗 لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+                    $text .= "🔗 لینک سابسکریپشن:  $userSubscriptionLInk \r\n";
                 }
                 $text .= "ℹ️ همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
                 $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
@@ -1323,7 +1340,7 @@ class TelegramController extends Controller
                 $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
                 $botGeneralCntrl = new BotGeneralController();
-                $result=  $botGeneralCntrl->increase_account_ballance_menu_on_low_balance($this->chat_id, $estimatedPrice, $estimatedPriceInDollar);
+                $result = $botGeneralCntrl->increase_account_ballance_menu_on_low_balance($this->chat_id, $estimatedPrice, $estimatedPriceInDollar);
 
                 $this->addNewBotLog('subscription', 'موجودی کیف پول کاربر برای حرید بسته کافی نبود.', 'low account ballance');
 

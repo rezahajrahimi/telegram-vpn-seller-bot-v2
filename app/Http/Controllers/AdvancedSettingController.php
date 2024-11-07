@@ -27,6 +27,13 @@ class AdvancedSettingController extends Controller
     public function update_advanced_setting(Request $request): bool
     {
         try {
+            // check account license
+            $authCntrl = new AuthController();
+            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+            if ($getPowerPsLicenseType == 'free') {
+                return false;
+            }
+
             $advancedSetting = $this->advancedSetting();
             $key = $request->key;
             $value = $request->value;
