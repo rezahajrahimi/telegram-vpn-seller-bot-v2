@@ -72,6 +72,7 @@ class BotGeneralController extends Controller
             if ($hasZarinPal == true || $hasZarinPal == 1) {
                 // send link
 
+                // $openLink = "https://googloooli.com";
                 $openLink = $pymCntrl->getZarinpalLink();
 
                 /////
@@ -83,9 +84,8 @@ class BotGeneralController extends Controller
                 $paymentLink = $trCntrl->add_order($trRequest);
 
                 $generalCntrl = new GeneralController();
-                // $zarinPal = $generalCntrl->get_zarinpal_payment_link_from_html($paymentLink);
+                 $zarinPal = $generalCntrl->get_zarinpal_payment_link_from_html($paymentLink);
 
-                $zarinPal = 'https://googooli.com';
 
                 //
 

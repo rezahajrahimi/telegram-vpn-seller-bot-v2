@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://badb-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://8704-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -88,6 +88,7 @@ class TelegramController extends Controller
 
                     // $imageTrCntrl->addNewTransactionImage($request);
                     $imageTrCntrl->saveNewTransactionImage($request);
+                    \Log::info('oneeeeee');
                     return response()->json($result, 200);
                 } elseif (isset($request->message)) {
                     $this->from_id = $request->message['from']['id'];
@@ -105,6 +106,7 @@ class TelegramController extends Controller
 
                     $result = $this->recogniseTextMessage();
 
+                    \Log::info('two');
                     return response()->json($result, 200);
                 } elseif (isset($request->callback_query)) {
                     $this->callbackId = $request->callback_query['id'];
@@ -125,6 +127,7 @@ class TelegramController extends Controller
                     $result = $this->changeMenuLevel();
                     return response()->json($result, 200);
                 }
+                \Log::info('last else');
                 return $this->stickyMenu();
             } catch (\Throwable $th) {
                 \Log::info("Throwable:  $th");
@@ -580,6 +583,7 @@ class TelegramController extends Controller
         $prCat = new ProductCategoryController();
 
         $id = $this->userCommandArr[1];
+        \Log::info("userCommandArr: $id");
 
         $selectedPrCat = $prCat->getProdctCategoryNameByID($this->userCommandArr[1]);
         $this->addNewBotLog('subscription', "بسته $selectedPrCat->category_name را انتخاب کرد.", 'buy subscription');
@@ -587,6 +591,7 @@ class TelegramController extends Controller
         // check user account balance
         $productPrice = $selectedPrCat->price;
         $productPriceInDollar = $selectedPrCat->price_in_dollar;
+        \Log::info("selectedPrCat->price: $productPrice");
         $opr = [];
         $accBlCtrl = new AccountBallanceController();
         $prCntrl = new ProductController();
@@ -739,27 +744,48 @@ class TelegramController extends Controller
                 $this->addNewBotLog('ballance', "مبلغ  $productPrice را از کیف پول همکاری شما بابت شارژ بسته کم شد.", 'minus ballance');
             }
 
+            // $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice, $productPriceInDollar);
+
+            // $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+
             // send how to use
-            $botGnrlCntrl = new BotGeneralController();
-            $result = $botGnrlCntrl->howToUse($this->chat_id);
+            $opr = [];
+            array_push($opr, [
+                [
+                    'text' => 'آموزش استفاده',
+                    'callback_data' => 'help-faqs',
+                ],
+            ]);
+            array_push($opr, [
+                [
+                    'text' => 'برنامه های مورد نیاز',
+                    'callback_data' => 'help-appDownload',
+                ],
+            ]);
+            $text = 'یک گزینه را انتخاب کنید.';
+            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
 
             return response()->json($result, 200);
         } else {
             $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
             $userAccouintBallanceInDollar = $accBlCtrl->getUserAccuntBalanceInDollar($this->chat_id);
+
             // get item price
             $estimatedPrice = $productPrice - $userAccouintBallance;
+            // calculate estimated price in dollar
             $estimatedPriceInDollar = $productPriceInDollar - $userAccouintBallanceInDollar;
 
+            // create link
             $text = "موجودی شما کم تر از قیمت بسته انتخابی می باشد. لطفا حساب خود را شارژ بفرمایید. \r\n";
             $text .= "موجودی حساب شما: $userAccouintBallance تومان  \r\n";
             $text .= "موجودی مورد نیاز: $productPrice تومان  \r\n";
             $text .= "میزان مبلغ مورد نیاز برای شارژ حساب: $estimatedPrice تومان  \r\n";
 
-            $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
-            $botGnrlCntrl = new BotGeneralController();
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
-            $result = $botGnrlCntrl->increase_account_ballance_menu_on_low_balance($this->chat_id, $estimatedPrice, $estimatedPriceInDollar);
+            $botGeneralCntrl = new BotGeneralController();
+            $result= $botGeneralCntrl->increase_account_ballance_menu_on_low_balance($this->chat_id, $estimatedPrice, $estimatedPriceInDollar);
+
             $this->addNewBotLog('subscription', 'موجودی کیف پول کاربر برای حرید بسته کافی نبود.', 'low account ballance');
 
             return response()->json($result, 200);
@@ -906,6 +932,13 @@ class TelegramController extends Controller
                         'url' => "$nowpaymentLink",
                     ],
                 ]);
+                // array_push($opr, [
+                //     [
+                //         'text' => 'پرداخت آنلاین',
+                //         'url' => "$openLink/$this->chat_id/$bill->bill_id/$amount",
+                //     ],
+                // ]);
+                $this->addNewBotLog('ballance', "صورتحساب به مبلغ $amount برای پرداهت از طریق درگاه زرین پال برای کاربر ارسال شد.", 'show');
 
                 $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
             } else {
@@ -1268,28 +1301,18 @@ class TelegramController extends Controller
                         'callback_data' => "main-{$menuItem->id}",
                     ],
                 ]);
-
-                // array_push($opr, [
-                //     [
-                //         'text' => 'بازگشت به منوی اصلی',
-                //         'callback_data' => 'main menu',
-                //     ],
-                // ]);
                 $text = 'یک گزینه را انتخاب کنید.';
                 $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
 
                 return response()->json($resualt, 200);
             } else {
                 $userAccouintBallance = $accBlCtrl->getUserAccuntBalance($this->chat_id);
+                $userAccouintBallanceInDollar = $accBlCtrl->getUserAccuntBalanceInDollar($this->chat_id);
                 // get item price
                 $estimatedPrice = $productPrice - $userAccouintBallance;
+                // calculate estimated price in dollar
+                $estimatedPriceInDollar = $productPriceInDollar - $userAccouintBallanceInDollar;
 
-                // create new invoice
-                $billCntrl = new BillController();
-                $request = new Request();
-                $request->account_id = $this->chat_id;
-                $request->amount = $estimatedPrice;
-                $bill = $billCntrl->createNewBill($request);
                 // create link
                 $text = "موجودی شما کم تر از قیمت بسته انتخابی می باشد. لطفا حساب خود را شارژ بفرمایید. \r\n";
                 $text .= "موجودی حساب شما: $userAccouintBallance تومان  \r\n";
@@ -1299,43 +1322,9 @@ class TelegramController extends Controller
                 // $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
                 $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
-                $pymCntrl = new PaymentTypeController();
-                $hasZarinPal = $pymCntrl->getZarinpalStatus();
-                if ($hasZarinPal == true) {
-                    // send link
-                    $opr = [];
+                $botGeneralCntrl = new BotGeneralController();
+                $result=  $botGeneralCntrl->increase_account_ballance_menu_on_low_balance($this->chat_id, $estimatedPrice, $estimatedPriceInDollar);
 
-                    $openLink = $pymCntrl->getZarinpalLink();
-                    $text = "پرداخت مبلغ $estimatedPrice تومان از طریق درگاه آنلاین \r\n";
-
-                    array_push($opr, [
-                        [
-                            'text' => 'پرداخت آنلاین',
-                            'url' => "$openLink/$this->chat_id/$bill->bill_id/$bill->amount",
-                        ],
-                    ]);
-                    $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $this->chat_id, '');
-                }
-
-                // send offline item
-                $offlinePayment = $pymCntrl->getAllActiveOfflinePaymentTypes();
-                if ($offlinePayment != null) {
-                    $pymMenCntrl = new PaymentMenuItemController();
-                    if ($hasZarinPal == true) {
-                        $text = 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.';
-                    } else {
-                        // $text = $pymMenCntrl->getPaymentTypeMainMenuTitle();
-                        $mainMenu = $pymMenCntrl->getPaymentTypeMainMenuTitle();
-                        $text = $mainMenu->alias_name;
-                    }
-
-                    $opr = [];
-                    foreach ($offlinePayment as $key => $value) {
-                        array_push($opr, [['text' => "$value->name", 'callback_data' => "subAccountBalance-$value->id "]]);
-                    }
-
-                    $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
-                }
                 $this->addNewBotLog('subscription', 'موجودی کیف پول کاربر برای حرید بسته کافی نبود.', 'low account ballance');
 
                 return response()->json($result, 200);
