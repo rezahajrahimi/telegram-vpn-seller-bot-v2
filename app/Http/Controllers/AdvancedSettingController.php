@@ -36,7 +36,8 @@ class AdvancedSettingController extends Controller
                 $advancedSetting->bot_auto_set_price_by_dollar_price = $value;
             } elseif ($key == 'bot_calculate_product_category_price_in_dollar_by_toman') {
                 $advancedSetting->bot_calculate_product_category_price_in_dollar_by_toman = $value;
-
+            } elseif ($key == 'bot_show_one_row_config') {
+                $advancedSetting->bot_show_one_row_config = $value;
             }
 
             $advancedSetting->update();
@@ -143,6 +144,31 @@ class AdvancedSettingController extends Controller
             return true;
         } catch (\Throwable $th) {
             \Log::info("change_bot_calculate_product_category_price_in_dollar_by_toman: $th");
+
+            return response()->json(null, 500);
+        }
+    }
+    public function get_bot_show_one_row_config(): bool
+    {
+        try {
+            $advancedSetting = $this->advancedSetting();
+            return $advancedSetting->bot_show_one_row_config;
+        } catch (\Throwable $th) {
+            \Log::info("get_bot_show_one_row_config: $th");
+
+            return response()->json(null, 500);
+        }
+    }
+    public function change_bot_show_one_row_config($value): bool
+    {
+        try {
+            $advancedSetting = $this->advancedSetting();
+            $advancedSetting->bot_show_one_row_config = $value;
+            $advancedSetting->save();
+
+            return true;
+        } catch (\Throwable $th) {
+            \Log::info("change_bot_show_one_row_config: $th");
 
             return response()->json(null, 500);
         }
