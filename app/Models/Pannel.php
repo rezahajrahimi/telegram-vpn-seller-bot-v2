@@ -24,4 +24,10 @@ class Pannel extends Model
     {
         return $this->hasMany(ProductCategory::class, 'pannel_id');
     }
+    public function product_category_and_count_products()
+    {
+     // get count of products count by realation of product category
+     return $this->hasMany(ProductCategory::class, 'pannel_id')->withCount('products');
+
+    }
 }

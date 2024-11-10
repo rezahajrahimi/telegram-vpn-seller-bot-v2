@@ -163,7 +163,7 @@ class AdvancedSettingController extends Controller
         } catch (\Throwable $th) {
             \Log::info("get_bot_show_one_row_config: $th");
 
-            return response()->json(null, 500);
+            return false;
         }
     }
     public function change_bot_show_one_row_config($value): bool
@@ -177,7 +177,6 @@ class AdvancedSettingController extends Controller
         } catch (\Throwable $th) {
             \Log::info("change_bot_show_one_row_config: $th");
 
-            return response()->json(null, 500);
-        }
+            return false;        }
     }
 }

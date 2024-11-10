@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://8704-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://0a99-31-15-18-168.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -512,7 +512,8 @@ class TelegramController extends Controller
         if ($hasShowConfigByPanelCategory == true || $hasShowConfigByPanelCategory == 1) {
             // get panels locations
             $panelCntrl = new PannelController();
-            $panels = $panelCntrl->get_all_pannels_locations();
+            $panels = $panelCntrl->get_all_panells_by_location_capacity_mode();
+            // $panels = $panelCntrl->get_all_pannels_locations();
             $text = 'مکان سرور را انتخاب کنید.';
             $opr = [];
             $index = 0;
@@ -532,15 +533,31 @@ class TelegramController extends Controller
         $prCat = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
         $opr = [];
         $index = 0;
+        $advancedSettingCntrl = new AdvancedSettingController();
+        $hasShowOneRowConfigText = $advancedSettingCntrl->get_bot_show_one_row_config();
         if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
-            array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-            foreach ($prCat as $key => $value) {
-                array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+            // check if show one row config text is true or not
+            $advancedSettingCntrl = new AdvancedSettingController();
+            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
+                foreach ($prCat as $key => $value) {
+                    array_push($opr, [['text' => "$value->category_name - $value->price_in_dollar$ - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
+                }
+            } else {
+                array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
+                foreach ($prCat as $key => $value) {
+                    array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+                }
             }
         } else {
-            array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-            foreach ($prCat as $key => $value) {
-                array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
+                foreach ($prCat as $key => $value) {
+                    array_push($opr, [['text' => "$value->category_name - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
+                }
+            } else {
+                array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
+                foreach ($prCat as $key => $value) {
+                    array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
+                }
             }
         }
 
@@ -561,13 +578,14 @@ class TelegramController extends Controller
         $prCat = $prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
         $opr = [];
         $index = 0;
+        $advancedSettingCntrl = new AdvancedSettingController();
+        $hasShowOneRowConfigText = $advancedSettingCntrl->get_bot_show_one_row_config();
         if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
             // check if show one row config text is true or not
             $advancedSettingCntrl = new AdvancedSettingController();
-            $hasShowOneRowConfigText = $advancedSettingCntrl->get_bot_show_one_row_config();
             if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
                 foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->category_name - قیمت(دلار): $value->price_in_dollar - قیمت(تومان): $value->price", 'callback_data' => "buySubscription-$value->id"]]);
+                    array_push($opr, [['text' => "$value->category_name - $value->price_in_dollar$ - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
                 }
             } else {
                 array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
@@ -576,11 +594,9 @@ class TelegramController extends Controller
                 }
             }
         } else {
-            $advancedSettingCntrl = new AdvancedSettingController();
-            $hasShowOneRowConfigText = $advancedSettingCntrl->get_bot_show_one_row_config();
             if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
                 foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->category_name - قیمت(تومان): $value->price", 'callback_data' => "buySubscription-$value->id"]]);
+                    array_push($opr, [['text' => "$value->category_name - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
                 }
             } else {
                 array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);

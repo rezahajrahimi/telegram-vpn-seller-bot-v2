@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 use App\Models\Pannel;
 use App\Models\Proxy;
 use App\Models\Inbound;
+use App\Models\Product;
+
 
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
@@ -321,6 +323,34 @@ class PannelController extends Controller
             return response()->json(false, 500);
         }
     }
+
+    public function get_all_panells_by_location_capacity_mode(){
+
+        // get all stored products conts with the pannel_id seperation
+
+        try {
+
+
+            $pannels = Pannel::with('product_category_and_count_products')->get();
+            foreach ($pannels as $key => $value) {
+                // remove each pannel wich capacity is above or equal to the products count
+                $rrr = $value->product_category_and_count_products[0]->products_count;
+                if ($value->product_category_and_count_products[0]->products_count >= $value->capacity  ) {
+                    $pannels->forget($key);
+                }
+            }
+            return $pannels->pluck('location')->unique();
+        } catch (\Throwable $th) {
+            \Log::info("get_all_panells_by_location_capacity_mode:  $th");
+            return response()->json(null, 500);
+        }
+
+    }
+
+
+
+
+
     // public function createHiddifyUser($accountId, $day, $vol, $pannelID)
     // {
     //     $panel = Pannel::find($pannelID);
