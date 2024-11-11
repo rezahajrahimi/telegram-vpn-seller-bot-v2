@@ -40,6 +40,7 @@ use App\Http\Controllers\ReferralWalletController;
 use App\Http\Controllers\ReferralLogsController;
 use App\Http\Controllers\ReserverdConfigController;
 use App\Http\Controllers\AdvancedSettingController;
+use App\Http\Controllers\WebAppMenuItemController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -367,7 +368,14 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::put('updateUserPassword', [UserController::class, 'update_logged_password']);
     //  ReferralLogsController
     Route::get('/getReferralLogsByAccountId/{account_id}', [ReferralLogsController::class, 'get_referral_logs']);
+
+    // WebAppMenuItem
+    Route::get('/getAllActiveWebAppMenuItems', [WebAppMenuItemController::class, 'get_all_active_web_app_menu_items']);
+
 });
+
+
+
 
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);
 Route::get('/order', [TransactionController::class, 'order']);
