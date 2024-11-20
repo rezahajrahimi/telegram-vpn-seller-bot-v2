@@ -123,8 +123,8 @@ class CronJobController extends Controller
                         // check has exist in cron log or not, if not exist send notification
                         $cronLog = CronLog::where('cron_id', $cronJob->id)
                             ->where('product_id', $product->id)
-                            ->first();
-                        if ($cronLog == null) {
+                            ->get();
+                        if ($cronLog->count() == 0) {
                             $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی شما بیشتر از $usagePercent درصد از بسته $productText را مصرف کرده اید.", $user_id, null, 'MarkDown');
 
                             if ($sendNotificationToUser) {
@@ -270,10 +270,8 @@ class CronJobController extends Controller
             $productCats = ProductCategory::all();
 
             foreach ($productCats as $key => $value) {
-
                 if ($value->category_name != 'اکانت آزمایشی') {
-
-                    $price =  $value->price / $tetherPrice ;
+                    $price = $value->price / $tetherPrice;
                     // set $price in $value->price_in_dollar by two decimal digit
 
                     $value->price_in_dollar = round($price, 2);
@@ -311,8 +309,9 @@ class CronJobController extends Controller
                 }
                 // get usage percent
                 $usagePercent = ($usageGB / $limitGB) * 100;
+                $usagePercent = round($usagePercent, 2);
 
-                if ($usagePercent >= 99.9) {
+                if ($usagePercent >= 99.97) {
                     // get releated products by uuid
                     $uuid = $value['uuid'];
                     $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
@@ -321,9 +320,7 @@ class CronJobController extends Controller
                         $cronLog = CronLog::where('cron_id', $cronJob->id)
                             ->where('product_id', $product->id)
                             ->get();
-                        if ($cronLog == null) {
-                            $usagePercent = round($usagePercent, 2);
-
+                        if ($cronLog->count() == 0) {
                             // get product category
                             $prcategory = ProductCategory::find($product->product_categories_id);
 
@@ -333,6 +330,7 @@ class CronJobController extends Controller
 
                             // send notification
                             $user_id = $product->account_id;
+
                             $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی بسته $productText منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.", $user_id, null, 'MarkDown');
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();

@@ -62,7 +62,7 @@ class WebAppMenuItemSeeder extends Seeder
             'position' => 7
         ]);
         \App\Models\WebAppMenuItem::factory()->create([
-            'key' => 'gift_card',
+            'key' => 'app_download',
             'title' => 'دانلود برنامه',
             'subtitle' => 'دانلود برنامه ها و اپلیکیشن های مورد نیاز',
             'is_active' => true,

@@ -40,12 +40,18 @@ class ProductCategoryController extends Controller
     }
     public function getAllActiveProdctCategoryOrderByPrice()
     {
-        return ProductCategory::orderBy('price')->where('is_active', true)->where('category_name', '!=', 'اکانت آزمایشی')
+        $panelCntrl = new PannelController();
+            $panels = $panelCntrl->get_all_panells_Id_by_location_capacity_mode();
+        return ProductCategory::orderBy('price')->where('is_active', true)
+        ->where('category_name', '!=', 'اکانت آزمایشی')
+        ->whereIn('pannel_id', $panels)
+
         ->get();
 
     }
     public function get_all_active_prodct_category_by_pannel_id_order_by_price($pannel_id)
     {
+
         return ProductCategory::orderBy('price')->where('is_active', true)
         ->where('pannel_id', $pannel_id)
         ->where('category_name', '!=', 'اکانت آزمایشی')->get();

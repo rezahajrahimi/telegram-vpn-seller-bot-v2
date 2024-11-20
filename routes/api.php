@@ -368,11 +368,18 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::put('updateUserPassword', [UserController::class, 'update_logged_password']);
     //  ReferralLogsController
     Route::get('/getReferralLogsByAccountId/{account_id}', [ReferralLogsController::class, 'get_referral_logs']);
-
-    // WebAppMenuItem
+    // WebAppMenuItemController
     Route::get('/getAllActiveWebAppMenuItems', [WebAppMenuItemController::class, 'get_all_active_web_app_menu_items']);
 
+    //ProxyController
+
 });
+
+
+Route::get('/getAllActiveProdctCategoryOrderByPrice', [ProductCategoryController::class, 'getAllActiveProdctCategoryOrderByPrice']);
+
+
+Route::get('/expp', [CronJobController::class, 'execute_send_useage_more_than_85_percent']);
 
 
 

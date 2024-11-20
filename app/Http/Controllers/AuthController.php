@@ -138,6 +138,7 @@ class AuthController extends Controller
         $user_password = substr(str_shuffle('abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRTUVWXYZ2346789'), 0, 8);
         $user->password = Hash::make($user_password);
         $user->update();
+        // \Log::info("passss {$user_password}");
         $user_id = $user->account_id;
         $text = "کاربر گرامی \n\r";
         $text .= "رمز عبور شما به پنل تغییر یافت \n\r";

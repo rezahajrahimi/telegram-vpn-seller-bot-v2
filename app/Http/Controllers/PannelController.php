@@ -346,6 +346,28 @@ class PannelController extends Controller
         }
 
     }
+    public function get_all_panells_Id_by_location_capacity_mode(){
+
+        // get all stored products conts with the pannel_id seperation
+
+        try {
+
+
+            $pannels = Pannel::with('product_category_and_count_products')->get();
+            foreach ($pannels as $key => $value) {
+                // remove each pannel wich capacity is above or equal to the products count
+                $rrr = $value->product_category_and_count_products[0]->products_count;
+                if ($value->product_category_and_count_products[0]->products_count >= $value->capacity  ) {
+                    $pannels->forget($key);
+                }
+            }
+            return $pannels->pluck('id');
+        } catch (\Throwable $th) {
+            \Log::info("get_all_panells_by_location_capacity_mode:  $th");
+            return response()->json(null, 500);
+        }
+
+    }
 
 
 
