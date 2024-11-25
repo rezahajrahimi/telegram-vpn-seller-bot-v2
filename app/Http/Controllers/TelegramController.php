@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://caa0-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://2ac2-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -256,7 +256,6 @@ class TelegramController extends Controller
             $this->userCommandArr = explode('-', $this->data);
 
             $command = $this->userCommandArr[0];
-            \Log::info("command recognise: $command");
 
             return $this->userCommandArr;
         } catch (\Throwable $th) {
@@ -281,7 +280,7 @@ class TelegramController extends Controller
         $settingCtrl = new SettingController();
         if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
             $this->text = $settingCtrl->getWelcomeMessage();
-            cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
+            cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(1000));
             // app('telegram_bot')->sendMessage($this->text, $this->chat_id, null, 'MarkDown');
             $clenedText = $this->prepareText($this->text);
             return $this->stickyMenu($clenedText);

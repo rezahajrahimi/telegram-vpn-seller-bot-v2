@@ -93,7 +93,7 @@ class MainMenuItemController extends Controller
     public function getMenuNameByAliasName($aliasName)
     {
         $data = MainMenuItem::where('alias_name', $aliasName)->first();
-        if ($data != null) {
+        if ($data != null && $data->name != null && $data->is_active == true) {
             return $data->name;
         }
         return 'خیر';

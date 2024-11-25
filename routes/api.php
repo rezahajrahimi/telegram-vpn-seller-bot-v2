@@ -379,7 +379,6 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
 Route::get('/getAllActiveProdctCategoryOrderByPrice', [ProductCategoryController::class, 'getAllActiveProdctCategoryOrderByPrice']);
 
 
-Route::get('/expp', [CronJobController::class, 'execute_send_useage_more_than_85_percent']);
 
 
 
