@@ -6,6 +6,8 @@ use App\Models\ReferralLogs;
 use App\Models\User;
 use App\Models\ReferralWallet;
 use App\Models\ReferralSetting;
+use App\Models\Transaction;
+
 use Illuminate\Http\Request;
 
 class ReferralLogsController extends Controller
@@ -137,20 +139,46 @@ class ReferralLogsController extends Controller
             return response()->json(null, 500);
         }
     }
-    public function add_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id, $amount)
+    public function add_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id, $amount,$isPaymentBack = false)
     {
         try {
-            $referralLogs = ReferralLogs::where('transaction_id', $transaction_id)->first();
-            if ($referralLogs === null) {
-                return null;
-            }
-            // check if referral is active
+                        // check if referral is active
 
             $referralSetting = ReferralSetting::first();
             $refferalActivation = $referralSetting->is_active;
             if ($refferalActivation == 0 || $refferalActivation == null || $refferalActivation == false) {
                 return null;
             }
+
+            $referralLogs = ReferralLogs::where('transaction_id', $transaction_id)->first();
+            if ($referralLogs === null) {
+                if($isPaymentBack){
+                    $transaction = Transaction::find($transaction_id);
+
+                    $referredUser = User::where('account_id', $transaction->account_id)->first()->id;
+
+                     $refferId = ReferralLogs::where('referral_to_id', $referredUser )->first()->referral_user_id;
+                    // get refer percent
+                    $referralSettingCntrl = new ReferralSettingController();
+                    $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
+                    $percentAmount = 0;
+                    if ($referral_percent !== null || $referral_percent !== 0) {
+                        $percentAmount = ($transaction->amount / 100) * $referral_percent;
+                     }
+
+                    $referralLogs = new ReferralLogs();
+                    $referralLogs->referral_user_id  = $refferId;
+                    $referralLogs->referral_to_id  = $referredUser;
+                    $referralLogs->amount = $percentAmount;
+                    $referralLogs->transaction_id = $transaction->id;
+                    $referralLogs->save();
+
+                } else {
+                    return null;
+
+                }
+            }
+
             // if referralLogs->updated_at != referralLogs->created_at means is updated before
             // and there is no need to decrease
 
@@ -172,7 +200,7 @@ class ReferralLogsController extends Controller
             $referralCode = $user->account_id;
             $text = "مقدار {$referralLogs->amount} تومان به کیف همکاری شما افزوده شد.";
             $resualt = app('telegram_bot')->sendMessage($text, $referralCode, null, 'MarkDown');
-            $this->addNewBotLog('referral', $text, 'newreferral');
+            // $this->addNewBotLog('referral', $text, 'newreferral');
             return $referralLogs;
         } catch (\Throwable $th) {
             \Log::info("Throwable add_amount_to_refrerral_user_Log_and_referral_wallet: $th");

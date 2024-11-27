@@ -39,12 +39,11 @@ class TransactionController extends Controller
         if ($this->amount != null) {
             // Create new invoice.
             // getzarinpal merchent id from .env
-            $zarinpalMerchentID = PaymentType::where('name','زرین پال' )->first()->merchant_id;
+            $zarinpalMerchentID = PaymentType::where('name', 'زرین پال')->first()->merchant_id;
             if ($zarinpalMerchentID == null) {
                 return 'ZARINPAL_MERCHANT_ID is not set in .env';
             }
-            $callbackUrl = 'http://localhost:8000/order';
-            // $callbackUrl = $mainUrl . '/order';
+            $callbackUrl = $mainUrl . '/order';
 
             $response = zarinpal()
                 ->merchantId($zarinpalMerchentID) // تعیین مرچنت کد در حین اجرا - اختیاری
@@ -66,14 +65,14 @@ class TransactionController extends Controller
             $transaction->amount = $this->amount;
             $transaction->confirmed = 0;
             $transaction->recipe_number = $authority;
-            $transaction->payment_type_id = PaymentType::where('name','زرین پال' )->first()->id;
+            $transaction->payment_type_id = PaymentType::where('name', 'زرین پال')->first()->id;
 
             $transaction->save();
 
             $result = ['success' => $response->redirect()];
             // \Log::info('add_order', ['result' => $result]);
 
-            $link = 'https://sandbox.zarinpal.com/pg/StartPay/' . $authority;
+            $link = 'https://www.zarinpal.com/pg/StartPay/' . $authority;
 
             return $link;
         } else {
@@ -102,7 +101,7 @@ class TransactionController extends Controller
             // }
 
             $authority = $transaction_id; // دریافت کوئری استرینگ ارسال شده توسط زرین پال
-            $zarinpalMerchentID = PaymentType::where('name','زرین پال' )->first()->merchant_id;
+            $zarinpalMerchentID = PaymentType::where('name', 'زرین پال')->first()->merchant_id;
 
             $response = zarinpal()
                 ->merchantId($zarinpalMerchentID) // تعیین مرچنت کد در حین اجرا - اختیاری
@@ -122,6 +121,7 @@ class TransactionController extends Controller
             $confirmReq->account_id = $transaction->account_id;
             $confirmReq->recipeNUmber = $transaction->recipe_number;
             $confirmReq->paymentTypeId = $transaction->payment_type_id;
+            $confirmReq->isPaymntBack = true;
 
             $this->editUserTranaction($confirmReq);
 
@@ -242,8 +242,11 @@ class TransactionController extends Controller
                     if ($isConfirmed) {
                         $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$transaction->amount} به حساب شما افزوده شد.", $transaction->account_id, null, 'MarkDown');
                         // set referral wallet
-
-                        $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($transaction->id, $amount);
+                        if ($request->isPaymntBack == true) {
+                            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($transaction->id, $amount, true);
+                        } else {
+                            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($transaction->id, $amount, false);
+                        }
                     } else {
                         $result = app('telegram_bot')->sendMessage('تراکنش شما مورد تایید نمی باشد.', $transaction->account_id, null, 'MarkDown');
                         // set referral wallet
