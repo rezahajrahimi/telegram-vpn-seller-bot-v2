@@ -73,7 +73,7 @@ class BotGeneralController extends Controller
                 // send link
 
                 // $openLink = "https://googloooli.com";
-                $openLink = $pymCntrl->getZarinpalLink();
+                // $openLink = $pymCntrl->getZarinpalLink();
 
                 /////
                 $trCntrl = new TransactionController();
@@ -84,7 +84,7 @@ class BotGeneralController extends Controller
                 $paymentLink = $trCntrl->add_order($trRequest);
 
                 $generalCntrl = new GeneralController();
-                 $zarinPal = $generalCntrl->get_zarinpal_payment_link_from_html($paymentLink);
+                //  $zarinPal = $generalCntrl->get_zarinpal_payment_link_from_html($paymentLink);
 
 
                 //
@@ -92,7 +92,7 @@ class BotGeneralController extends Controller
                 array_push($opr, [
                     [
                         'text' => "پرداخت آنلاین $estimatedPrice تومان",
-                        'url' => "$zarinPal",
+                        'url' => "$paymentLink",
                     ],
                 ]);
             }

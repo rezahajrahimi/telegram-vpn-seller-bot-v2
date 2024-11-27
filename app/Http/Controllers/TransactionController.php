@@ -11,6 +11,7 @@ use App\Models\Transaction;
 use App\Models\PaymentType;
 use App\Models\CryptoPayment;
 use App\Models\TransactionImage;
+use App\Models\Bill;
 
 use Illuminate\Http\Request;
 class TransactionController extends Controller
@@ -31,20 +32,50 @@ class TransactionController extends Controller
 
         $value = config('payment.drivers.zarinpal.merchantId');
         //get amount from bill
-        $bill = new BillController();
-        $this->amount = $bill->getBillAmountByBillId($request->invoiceID);
+        $bill = Bill::where('bill_id', $request->invoiceID)->first();
+
+        $this->amount = $bill->amount;
         $this->account_id = $request->account_id;
         if ($this->amount != null) {
             // Create new invoice.
-            $invoice = (new Invoice())->amount($this->amount);
-            return Payment::purchase($invoice, function ($driver, $transactionId) {
-                $pymntCntrrl = new PaymentTypeController();
+            // getzarinpal merchent id from .env
+            $zarinpalMerchentID = PaymentType::where('name','زرین پال' )->first()->merchant_id;
+            if ($zarinpalMerchentID == null) {
+                return 'ZARINPAL_MERCHANT_ID is not set in .env';
+            }
+            $callbackUrl = 'http://localhost:8000/order';
+            // $callbackUrl = $mainUrl . '/order';
 
-                $zarinPalId = $pymntCntrrl->getZarinpalTableID();
-                $this->addUserTranaction($this->account_id, $this->amount, $transactionId, $zarinPalId);
-            })
-                ->pay()
-                ->render();
+            $response = zarinpal()
+                ->merchantId($zarinpalMerchentID) // تعیین مرچنت کد در حین اجرا - اختیاری
+                ->amount($this->amount) // مبلغ تراکنش
+                ->request()
+                ->description('خرید کالا') // توضیحات تراکنش
+                ->callbackUrl($callbackUrl) // آدرس برگشت پس از پرداخت
+                ->send();
+            if (!$response->success()) {
+                return $response->error()->message();
+            }
+            $authority = $response->authority();
+
+            // save authority in db as new bill transaction_id
+            // create a new transaction
+            $transaction = new Transaction();
+            $transaction->account_id = $this->account_id;
+            $transaction->username = '';
+            $transaction->amount = $this->amount;
+            $transaction->confirmed = 0;
+            $transaction->recipe_number = $authority;
+            $transaction->payment_type_id = PaymentType::where('name','زرین پال' )->first()->id;
+
+            $transaction->save();
+
+            $result = ['success' => $response->redirect()];
+            // \Log::info('add_order', ['result' => $result]);
+
+            $link = 'https://sandbox.zarinpal.com/pg/StartPay/' . $authority;
+
+            return $link;
         } else {
             return 'این صورتحساب موجود نمی باشد.';
         }
@@ -55,7 +86,6 @@ class TransactionController extends Controller
             $transaction_id = $request->transaction_id;
             $status = $request->status;
 
-
             $amount = $this->getAmountByRecipeNUmber($transaction_id);
 
             //  $receipt = Payment::amount($amount)->transactionId($transaction_id)->verify();
@@ -65,12 +95,26 @@ class TransactionController extends Controller
             // check if transaction was confirmed before so return it's confirmed status
 
             if ($transaction->confirmed == true) {
-                return "تراکنش تکراری می باشد.";
+                return 'تراکنش تکراری می باشد.';
             }
-            if($status !== "OK")
-            {
-                return "تراکنش ناموفق می باشد.";
+            // if ($status !== 'OK') {
+            //     return 'تراکنش ناموفق می باشد.';
+            // }
+
+            $authority = $transaction_id; // دریافت کوئری استرینگ ارسال شده توسط زرین پال
+            $zarinpalMerchentID = PaymentType::where('name','زرین پال' )->first()->merchant_id;
+
+            $response = zarinpal()
+                ->merchantId($zarinpalMerchentID) // تعیین مرچنت کد در حین اجرا - اختیاری
+                ->amount($amount)
+                ->verification()
+                ->authority($authority)
+                ->send();
+
+            if (!$response->success()) {
+                return $response->error()->message();
             }
+
             $confirmReq = new Request();
             $confirmReq->id = $transaction->id;
             $confirmReq->confirmed = 1;
@@ -81,7 +125,7 @@ class TransactionController extends Controller
 
             $this->editUserTranaction($confirmReq);
 
-            return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید و برای ادامه خرید به تلگرام برگردید.';
+            return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید.';
         } catch (InvalidPaymentException $exception) {
             $transaction_id = $request->transaction_id;
 
@@ -241,7 +285,7 @@ class TransactionController extends Controller
             $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$data->amount} به حساب شما افزوده شد.", $data->account_id, null, 'MarkDown');
             // set referral wallet
             $referralLogsCntrl = new ReferralLogsController();
-            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($data->id,$data->amount);
+            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($data->id, $data->amount);
 
             return true;
         } else {

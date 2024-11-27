@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://2ac2-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://0d8c-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -886,12 +886,12 @@ class TelegramController extends Controller
                 $trRequest->amount = $amount;
                 $paymentLink = $trCntrl->add_order($trRequest);
 
-                $generalCntrl = new GeneralController();
-                $zarinPal = $generalCntrl->get_zarinpal_payment_link_from_html($paymentLink);
+                // $generalCntrl = new GeneralController();
+                // $zarinPal = $generalCntrl->get_zarinpal_payment_link_from_html($paymentLink);
 
                 //
 
-                $openLink = $pymCntrl->getZarinpalLink();
+                // $openLink = $pymCntrl->getZarinpalLink();
                 $text = "⚠️پس از پرداخت 5 دقیقه صبر کنید تا حسابتان شارژ شود، در صورت شارژ نشدن حساب به پشتیبانی پیام دهید.
 
 - بهتر است از مرورگر داخلی تلگرام استفاده نکنید و از مرورگر خارج تلگرام مثل کروم استفاده کنید.
@@ -904,7 +904,7 @@ class TelegramController extends Controller
                 array_push($opr, [
                     [
                         'text' => "پرداخت آنلاین $amount تومان",
-                        'url' => "$zarinPal",
+                        'url' => "$paymentLink",
                     ],
                 ]);
                 // array_push($opr, [
