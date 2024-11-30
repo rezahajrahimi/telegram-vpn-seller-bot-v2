@@ -50,7 +50,7 @@ class TelegramBot
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
-
+        $text = $this->replace_specefic_charecter($text);
         // Create params array
         $params = [
             'chat_id' => $chat_id,
@@ -76,6 +76,14 @@ class TelegramBot
         // \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
+    }
+    public function replace_specefic_charecter($text)
+    {
+        $specialCharacters = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '!'];
+        foreach ($specialCharacters as $char) {
+            $text = str_replace($char, '\\' . $char, $text);
+        }
+        return $text;
     }
     public function deleteMessage($chat_id, $message_id)
     {
@@ -126,7 +134,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-
         return $result;
     }
     public function checkMember($channelID, $chat_id)
@@ -172,7 +179,6 @@ class TelegramBot
             return false;
         }
 
-
         return false;
     }
     public function buttonMessage($text, $opr, $chat_id, $reply_to_message_id)
@@ -182,6 +188,8 @@ class TelegramBot
 
         // Create params array
         $params = [];
+        $text = $this->replace_specefic_charecter($text);
+
         if ($text != null) {
             $params = [
                 'chat_id' => $chat_id,
@@ -210,7 +218,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-
         return $result;
     }
     public function inlineKeyboardButton($text, $opr, $chat_id, $reply_to_message_id)
@@ -219,6 +226,7 @@ class TelegramBot
         $result = ['success' => false, 'body' => []];
 
         // Create params array
+        $text = $this->replace_specefic_charecter($text);
 
         $params = [
             'chat_id' => $chat_id,
@@ -238,7 +246,6 @@ class TelegramBot
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
         }
-
 
         return $result;
     }
@@ -267,7 +274,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-
         return $result;
     }
     public function imageMessageByLink($image, $chat_id, $caption)
@@ -293,7 +299,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-
         return $result;
     }
     public function commandMessage($command, $chat_id, $text)
@@ -302,6 +307,7 @@ class TelegramBot
         $result = ['success' => false, 'body' => []];
 
         // Create params array
+        $text = $this->replace_specefic_charecter($text);
 
         $params = [
             'chat_id' => $chat_id,
@@ -319,7 +325,6 @@ class TelegramBot
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
         }
-
 
         return $result;
     }
@@ -351,7 +356,6 @@ class TelegramBot
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
         }
-
 
         return $image_url;
     }
