@@ -28,18 +28,29 @@ class HiddifyPannelController extends Controller
         // Output the 36 character UUID.
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
+    public function get_hiddify_subscription_link($url, $link): string
+    {
+        if (substr($url, -1) == '/') {
+            $url = substr($url, 0, -1);
+        }
+        // check $link start with /
+        if (str_starts_with($link, '/')) {
+            $link = ltrim($link, '/');
+        }
+        return "{$url}/{$link}";
+    }
     public function getClearHiddifyRequestUrl($mainUrl, $requestAPi)
     {
         // get substring from end of str until /
         $mainUrl = str_replace('/admin/', '', $mainUrl);
         $mainUrl = str_replace('/admin', '', $mainUrl);
-        if (str_starts_with($requestAPi, '/')) {
-            $requestAPi = ltrim($requestAPi, '/');
-        }
+        // if (str_starts_with($requestAPi, '/')) {
+        //     $requestAPi = ltrim($requestAPi, '/');
+        // }
         if (str_ends_with($mainUrl, '/')) {
             $mainUrl = rtrim($mainUrl, '/');
         }
-        return "{$mainUrl}/{$requestAPi}";
+        return "{$mainUrl}";
     }
     public function extractUUID($string)
     {
@@ -58,106 +69,29 @@ class HiddifyPannelController extends Controller
             $pannelUrl = rtrim($pannelUrl, '/');
         }
 
-        $client = new Client(['cookies' => true]);
+        // $headers = [
+        //     'Content-Type' => 'application/json',
+        //     'Accept' => 'application/json',
+        //     'Hiddify-API-Key' => $secretValue,
+        // ];
+        $url = "$pannelUrl/api/v2/admin/server_status/";
 
-        $response = $client->post("{$pannelUrl}/", [
-            'form_params' => [
-                'secret_textbox' => $secretValue,
-            ],
-        ]);
-        $statusCode = $response->getStatusCode();
+        $subsequentResponse = Http::withHeaders([
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'Hiddify-API-Key' => $secretValue,
+        ])->get($url);
 
-        if ($statusCode === 200) {
-            $cookieJar = new \GuzzleHttp\Cookie\CookieJar();
-            $cookieJar = $response->getHeader('Set-Cookie');
-            $arr = explode(';', $cookieJar[0]);
-
-            $cook = $arr[0];
-            $delimiterPos = strpos($cook, '=');
-            $cook = substr($cook, $delimiterPos + 1);
-
-            $headers = [
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-            ];
-
-            $cookies = [
-                'session' => $cook,
-            ];
-            $url = "$pannelUrl/api/v2/admin/server_status/";
-
-            $subsequentResponse = Http::withCookies($cookies, parse_url($url, PHP_URL_HOST))->get($url);
-
-            if ($subsequentResponse->getStatusCode() == 200) {
-                $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
-                if ($checkIsHtmlPage !== false) {
-                    return response()->json(false, 401);
-                }
-                return response()->json(true, 200);
+        if ($subsequentResponse->getStatusCode() == 200) {
+            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
+            if ($checkIsHtmlPage !== false) {
+                return response()->json(false, 401);
             }
-            return response()->json(false, 401);
-        } else {
-            return response()->json(false, 401);
+            return response()->json(true, 200);
         }
+        return response()->json(false, 401);
     }
-    public function getNewCookieToken($pannelID)
-    {
-            return;
-        // $pannel = Pannel::find($pannelID);
 
-        // $pannelUrl = $pannel->admin_url;
-        // // check is $pannelUrl ended with "/"
-
-        // $secretValue = $pannel->secret_code;
-        // if (str_ends_with($pannelUrl, '/')) {
-        //     $pannelUrl = rtrim($pannelUrl, '/');
-        // }
-
-        // $client = new Client(['cookies' => true]);
-
-        // $response = $client->post("{$pannelUrl}/", [
-        //     'form_params' => [
-        //         'secret_textbox' => $secretValue,
-        //     ],
-        // ]);
-        // $statusCode = $response->getStatusCode();
-
-        // if ($statusCode === 200) {
-        //     $cookieJar = new \GuzzleHttp\Cookie\CookieJar();
-        //     $cookieJar = $response->getHeader('Set-Cookie');
-        //     $arr = explode(';', $cookieJar[0]);
-
-        //     $cook = $arr[0];
-        //     $delimiterPos = strpos($cook, '=');
-        //     $cook = substr($cook, $delimiterPos + 1);
-
-        //     $headers = [
-        //         'Content-Type' => 'application/json',
-        //         'Accept' => 'application/json',
-        //     ];
-
-        //     $cookies = [
-        //         'session' => $cook,
-        //     ];
-        //     $url = "{$pannelUrl}/api/v2/admin/server_status/";
-
-        //     $subsequentResponse = Http::withCookies($cookies, parse_url($url, PHP_URL_HOST))->get($url);
-
-        //     if ($subsequentResponse->getStatusCode() == 200) {
-        //         $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
-        //         if ($checkIsHtmlPage !== false) {
-        //             return;
-        //         }
-        //         // save new header cookie
-        //         $pannel->cookie_session = $cook;
-        //         $pannel->update();
-        //         \Log::info('pannel cookie updated');
-        //     }
-        //     return;
-        // } else {
-        //     return;
-        // }
-    }
     public function addHiddifyPannel(Request $request)
     {
         try {
@@ -186,7 +120,6 @@ class HiddifyPannelController extends Controller
             $pannel->url_port = parse_url($request->admin_url, PHP_URL_HOST);
             // check cookie
             $pannel->save();
-            $this->checkCookieSeason($pannel->id);
             return response()->json($pannel->id, 200);
         } catch (\Throwable $th) {
             \Log::info("Throwable $th");
@@ -206,7 +139,6 @@ class HiddifyPannelController extends Controller
             $pannel->url_port = parse_url($request->admin_url, PHP_URL_HOST);
             // check cookie
             if ($pannel->update()) {
-                $this->getNewCookieToken($request->id);
                 return response()->json(true, 201);
             }
 
@@ -217,25 +149,14 @@ class HiddifyPannelController extends Controller
             return response()->json(false, 500);
         }
     }
-    public function checkCookieSeason($pannelID)
-    {
-        $pannel = Pannel::find($pannelID);
-        $checkLastTimeUpdated = $pannel->updated_at->diffInDays(now()) > 5;
 
-        if ($pannel->secret_code == null || ($pannel->secret_code = '' || $checkLastTimeUpdated == false)) {
-            $this->getNewCookieToken($pannelID);
-            return;
-        }
-
-        return;
-    }
     public function getHiddifyPanelUsersByPannelID($pannelID)
     {
         $pannel = Pannel::find($pannelID);
 
-        $adminUUID = $pannel->secret_code;
+        $adminUUID = $pannel->admin_url;
 
-        $data = $this->sendGetRequestToHiddifyPannel($pannelID, "$adminUUID/api/v1/user/");
+        $data = $this->sendGetRequestToHiddifyPannel($pannelID, "$adminUUID/api/v2/user/");
         return $data;
     }
     public function getHiddifyPanelUserByPannelID($pannelID, $userUUID)
@@ -270,7 +191,7 @@ class HiddifyPannelController extends Controller
             'added_by_uuid' => "$adminUUID",
             'comment' => "$comment",
         ];
-        $data = $this->sendPutRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/', $params);
+        $data = $this->sendPostRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/', $params);
         if ($data != false) {
             return $uuid;
         }
@@ -315,10 +236,11 @@ class HiddifyPannelController extends Controller
         $adminUUID = $pannel->secret_code;
         $uuid = $request->uuid;
         $comment = $request->comment ?? '';
+        $name = $request->name ?? '';
+
         $params = [
             'uuid' => "$uuid",
-            'name' => 'asdasdsa',
-            // 'name' => "bot$accountId",
+            'name' => $name,
             'current_usage_GB' => 0,
             'usage_limit_GB' => $vol,
             'package_days' => $day,
@@ -345,6 +267,22 @@ class HiddifyPannelController extends Controller
         $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
 
         $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
+        return $data;
+    }
+    public function updateUserNameOfHiddifyPanelApi(Request $request)
+    {
+        $pannelID = $request->pannelID;
+        $pannel = Pannel::find($pannelID);
+        $adminUUID = $pannel->secret_code;
+
+        $uuid = $request->uuid;
+        $name = $request->name ?? '';
+        $params = [
+            'uuid' => "$uuid",
+            'name' => "$name",
+        ];
+        $data = $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
+
         return $data;
     }
     public function rechargeUserOfHiddifyPanelOldApi(Request $request)
@@ -378,6 +316,34 @@ class HiddifyPannelController extends Controller
         $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
         return $data;
     }
+    public function rechargeUserOfHiddifyPanelApi(Request $request)
+    {
+        $pannelID = $request->pannelID;
+        $pannel = Pannel::find($pannelID);
+        $vol = $request->vol;
+        $day = $request->day;
+
+        $adminUUID = $pannel->secret_code;
+
+        $uuid = $request->uuid;
+        $name = $request->name ?? '';
+        $comment = $request->comment ?? '';
+        // get today date as format like 2024-01-01
+        $today = date('Y-m-d');
+        $params = [
+            'uuid' => "$uuid",
+            'name' => "$name",
+            'current_usage_GB' => 0,
+            'usage_limit_GB' => $vol,
+            'package_days' => $day,
+            'mode' => 'no_reset',
+            'start_date' => "$today",
+            'added_by_uuid' => "$adminUUID",
+            'comment' => "$comment",
+        ];
+
+        return $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
+    }
     public function upgradeUserOfHiddifyPanelOldApi(Request $request)
     {
         $pannelID = $request->pannelID;
@@ -407,6 +373,33 @@ class HiddifyPannelController extends Controller
         $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
         return $data;
     }
+    public function upgradeUserOfHiddifyPanelApi(Request $request)
+    {
+        $pannelID = $request->pannelID;
+        $pannel = Pannel::find($pannelID);
+        $vol = $request->vol;
+        $day = $request->day;
+
+        $adminUUID = $pannel->secret_code;
+
+        $uuid = $request->uuid;
+        $name = $request->name ?? '';
+        $comment = $request->comment ?? '';
+        // get today date as format like 2024-01-01
+        $today = date('Y-m-d');
+        $params = [
+            'uuid' => "$uuid",
+            'name' => "$name",
+            'usage_limit_GB' => $vol,
+            'package_days' => $day,
+            'mode' => 'no_reset',
+            'added_by_uuid' => "$adminUUID",
+            'comment' => "$comment",
+        ];
+
+        $data = $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
+        return $data;
+    }
     public function changeUserActivationOfHiddifyPanelOldApi(Request $request)
     {
         $pannelID = $request->pannelID;
@@ -430,6 +423,28 @@ class HiddifyPannelController extends Controller
         $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
 
         $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
+        return $data;
+    }
+    public function changeUserActivationOfHiddifyPanelApi(Request $request)
+    {
+        $pannelID = $request->pannelID;
+        $pannel = Pannel::find($pannelID);
+
+        $adminUUID = $pannel->secret_code;
+
+        $uuid = $request->uuid;
+        $comment = $request->comment ?? '';
+
+        $enable = $request->enable == true || $request->enable == 1 ? true : false;
+        // get today date as format like 2024-01-01
+        $today = date('Y-m-d');
+        $params = [
+            'uuid' => "$uuid",
+            'comment' => "$comment",
+            'enable' => $enable,
+            'added_by_uuid' => "$adminUUID",
+        ];
+        $data = $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
         return $data;
     }
     public function deleteUserOfHiddifyPanelOldApi(Request $request)
@@ -470,20 +485,14 @@ class HiddifyPannelController extends Controller
     public function sendGetRequestToHiddifyPannel($pannelID, $requestAPi)
     {
         $pannel = Pannel::find($pannelID);
-        $this->checkCookieSeason($pannel->id);
-        // $url = '';
-        // if (str_ends_with($pannel->admin_url, '/')) {
-        //     $url = "{$pannel->admin_url}{$requestAPi}";
-        // } else {
-        //     $url = "{$pannel->admin_url}/{$requestAPi}";
-        // }
         $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
-        \Log::info("url => $url");
-        $cookies = [
-            'session' => $pannel->cookie_session,
-        ];
+        $secretValue = $pannel->secret_code;
 
-        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->get($url);
+        $subsequentResponse = Http::withHeaders([
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'Hiddify-API-Key' => $secretValue,
+        ])->get($url);
 
         if ($subsequentResponse->getStatusCode() == 200) {
             $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
@@ -502,45 +511,40 @@ class HiddifyPannelController extends Controller
     public function sendDeleteRequestToHiddifyPannel($pannelID, $requestAPi)
     {
         $pannel = Pannel::find($pannelID);
-        $this->checkCookieSeason($pannel->id);
-        // $url = '';
-        // if (str_ends_with($pannel->admin_url, '/')) {
-        //     $url = "{$pannel->admin_url}{$requestAPi}";
-        // } else {
-        //     $url = "{$pannel->admin_url}/{$requestAPi}";
-        // }
-        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
+        $secretValue = $pannel->secret_code;
 
-        \Log::info("url => $url");
-        $cookies = [
-            'session' => $pannel->cookie_session,
-        ];
+        $url = $pannel->admin_url;
+        // checkj if url ended with "/" remove it
+        if (substr($url, -1) == '/') {
+            $url = substr($url, 0, -1);
+        }
+        $url = $url . $requestAPi;
 
-        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->delete($url);
+        $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->delete($url);
 
         if ($subsequentResponse->getStatusCode() == 200) {
-            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
-            if ($checkIsHtmlPage !== false) {
-                return response()->json(false, 401);
-            }
             // dd($subsequentResponse);
-            return json_decode($subsequentResponse->getBody(), true);
+            return response()->json(true, 200);
         }
         return response()->json(false, 401);
     }
     public function sendPutRequestToHiddifyPannel($pannelID, $requestAPi, $params = [])
     {
         $pannel = Pannel::find($pannelID);
-        $this->checkCookieSeason($pannel->id);
-        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
+        $secretValue = $pannel->secret_code;
 
-        \Log::info("url => $url");
-        $cookies = [
-            'session' => $pannel->cookie_session,
-        ];
+        $url = $pannel->admin_url;
+        // checkj if url ended with "/" remove it
+        if (substr($url, -1) == '/') {
+            $url = substr($url, 0, -1);
+        }
+        $url = $url . $requestAPi;
 
-        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->put($url, $params);
-        \Log::info("message1 => {$subsequentResponse->getBody()}");
+        $subsequentResponse = Http::withHeaders([
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+            'Hiddify-API-Key' => $secretValue,
+        ])->put($url, $params);
 
         if ($subsequentResponse->getStatusCode() == 200) {
             $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
@@ -556,16 +560,16 @@ class HiddifyPannelController extends Controller
     public function sendPostRequestToHiddifyPannel($pannelID, $requestAPi, $params = [])
     {
         $pannel = Pannel::find($pannelID);
-        $this->checkCookieSeason($pannel->id);
-        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
+        $secretValue = $pannel->secret_code;
 
-        \Log::info("url => $url");
-        $cookies = [
-            'session' => $pannel->cookie_session,
-        ];
+        $url = $pannel->admin_url;
+        // checkj if url ended with "/" remove it
+        if (substr($url, -1) == '/') {
+            $url = substr($url, 0, -1);
+        }
+        $url = $url . $requestAPi;
 
-        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->post($url, $params);
-        \Log::info("message1 => {$subsequentResponse->getBody()}");
+        $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->post($url, $params);
 
         if ($subsequentResponse->getStatusCode() == 200) {
             $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
@@ -581,31 +585,16 @@ class HiddifyPannelController extends Controller
     public function sendPatchRequestToHiddifyPannel($pannelID, $requestAPi, $params = [])
     {
         $pannel = Pannel::find($pannelID);
-        $this->checkCookieSeason($pannel->id);
-        // $url = '';
-        // if (str_ends_with($pannel->admin_url, '/')) {
-        //     $url = "{$pannel->admin_url}{$requestAPi}";
-        // } else {
-        //     $url = "{$pannel->admin_url}/{$requestAPi}";
-        // }
-        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
+        $secretValue = $pannel->secret_code;
 
-        \Log::info("url => $url");
-        $cookies = [
-            'session' => $pannel->cookie_session,
-        ];
-
-        $subsequentResponse = Http::withCookies($cookies, $pannel->url_port)->patch($url, $params);
-        \Log::info("getStatusCode => {$subsequentResponse->getStatusCode()}");
-        \Log::info("getBody => {$subsequentResponse->getBody()}");
-        if ($subsequentResponse->getStatusCode() == 200) {
-            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
-            if ($checkIsHtmlPage !== false) {
-                return response()->json(false, 401);
-            }
-            // dd($subsequentResponse);
-            return json_decode($subsequentResponse->getBody(), true);
+        $url = $pannel->admin_url;
+        // checkj if url ended with "/" remove it
+        if (substr($url, -1) == '/') {
+            $url = substr($url, 0, -1);
         }
-        return response()->json(false, 401);
+        $url = $url . $requestAPi;
+        $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->patch($url, $params);
+
+        return $subsequentResponse;
     }
 }

@@ -79,10 +79,10 @@ class TelegramBot
     }
     public function replace_specefic_charecter($text)
     {
-        $specialCharacters = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '!'];
-        foreach ($specialCharacters as $char) {
-            $text = str_replace($char, '\\' . $char, $text);
-        }
+        // $specialCharacters = ['*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '!'];
+        // foreach ($specialCharacters as $char) {
+        //     $text = str_replace($char, '\\' . $char, $text);
+        // }
         return $text;
     }
     public function deleteMessage($chat_id, $message_id)
@@ -294,9 +294,12 @@ class TelegramBot
                 'chat_id' => $chat_id,
                 'caption' => $caption,
             ]);
+            // log resualt array
+            // \Log::info('TelegramBot->imageMessageByLink->result', ['result' => $response->json()]);
             $result = ['success' => $response->ok(), 'body' => $response->json()];
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
+            \Log::info("Throwable imageMessageByLink: $th");
         }
 
         return $result;

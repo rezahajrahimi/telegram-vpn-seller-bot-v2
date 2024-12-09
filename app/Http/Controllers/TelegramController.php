@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://ce4f-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://6cda-46-226-165-205.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -652,43 +652,47 @@ class TelegramController extends Controller
             $productID += 1;
 
             if ($pannel->type == 'hiddify') {
-                $req = new Request();
-                $req->accountId = "$this->chat_id-$productID";
-                $req->pannelID = $selectedPrCat->pannel_id;
-                $req->vol = $volume;
-                $req->day = $day;
-                $hiddifcCntrl = new HiddifyPannelController();
+                $generalCntrl = new GeneralController();
+                $resualt= $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat,$pannel,$volume,$day,$this->chat_id,$productID);
 
-                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); api v2
-                $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
+                // $req = new Request();
+                // $req->accountId = "$this->chat_id-$productID";
+                // $req->pannelID = $selectedPrCat->pannel_id;
+                // $req->vol = $volume;
+                // $req->day = $day;
+                // $hiddifcCntrl = new HiddifyPannelController();
 
-                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
+                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
+                // // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
 
-                // $userPannelLink = $pnlCntrl->getHiddifyPannelLinkByPannelID($selectedPrCat->pannel_id);
-                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+                // $userLink = $pannel->user_link;
+                // // check $pannel->user_link ended with "/" if be remove it
+                // if (substr($userLink, -1) == '/') {
+                //     $userLink = substr($userLink, 0, -1);
+                // }
+                // $userSubscriptionLInk = "$userLink/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+                // $userPannelLink = "$userLink/{$newUUID}/#{$req->accountId}";
 
-                // $userSubscriptionLInk = "$userPannelLink/$newUUID/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+                // $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+                // $text = '';
+                // $text .= "خرید شما با موفقیت انجام شد\r\n";
+                // if ($selectedPrCat->show_pannel_link == 1) {
+                //     $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
+                // }
+                // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
+                // $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
 
-                $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-                $text = '';
-                $text .= "خرید شما با موفقیت انجام شد\r\n";
-                if ($selectedPrCat->show_pannel_link == 1) {
-                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
-                }
-                $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
-                $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
+                // $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+                // // save as dectivate product, So we can use it in future when user want to recharge it;
+                // $request = new Request();
+                // $request->account_id = $this->chat_id;
+                // $request->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+                // $request->product_categories_id = $selectedPrCat->id;
+                // $request->panel_link = "/{$newUUID}/#{$req->accountId}";
+                // $request->configs = '';
+                // $request->remark = "$this->chat_id-$productID";
 
-                $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
-                // save as dectivate product, So we can use it in future when user want to recharge it;
-                $request = new Request();
-                $request->account_id = $this->chat_id;
-                $request->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                $request->product_categories_id = $selectedPrCat->id;
-                $request->panel_link = "/{$newUUID}/#{$req->accountId}";
-                $request->configs = '';
-                $request->remark = "$this->chat_id-$productID";
-
-                $prCntrl->addAutomatedProductDetails($request);
+                // $prCntrl->addAutomatedProductDetails($request);
             } elseif ($pannel->type == 'marzban') {
                 $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id$productID", $day, $volume, $selectedPrCat->pannel_id);
                 $userSub = $userData['subscription_link'];
@@ -1101,53 +1105,9 @@ class TelegramController extends Controller
 
             // check pannel type
             if ($pannel->type == 'hiddify') {
-                $hiddifcCntrl = new HiddifyPannelController();
-                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "{$selectedProduct->panel_link}");
-                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "{$selectedProduct->subscription_link}");
+              $generalCntrl = new GeneralController();
+               $resualt =   $generalCntrl->return_exist_hiddify_config_telegram_text($selectedProduct, $selectedProductCategory,$pannel,$this->chat_id);
 
-                $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-                $text = '';
-                $agentCntrl = new AgentProductController();
-                $configStatus = $agentCntrl->getBoughtProductsStatusFromServerById($selectedProduct->id);
-                if ($configStatus != null) {
-                    // \Log::info('configStatus', ['configStatus' => $configStatus]);
-                    $enableText = $configStatus['enable'] == true ? 'فعال' : 'غیر فعال';
-                    // $text = "وضعیت بسته: {$enableText} \r\n";
-                    $text = "📦 وضعیت بسته: {$enableText} \r\n";
-                    $usageGB = $configStatus['current_usage_GB'];
-                    // show usageGb only with two decimal
-                    $usageGB = round($usageGB, 2);
-                    $limitGB = $configStatus['usage_limit_GB'];
-                    $text .= "📊 میزان حجم مصرف شده:  {$usageGB}GB از {$limitGB}GB \r\n";
-                    //
-                    $startDate = $configStatus['start_date'];
-                    // convert $startDate to valid carbon date
-                    $startDate = Carbon::parse($startDate);
-
-                    // expire date
-                    $package_days = $configStatus['package_days'];
-                    // convert $package_days to integer
-                    $package_days = intval($package_days);
-                    // add expireDate to $startDate
-                    $expireDate = Carbon::parse($startDate);
-                    // add $pacje_days to $expireDate
-                    $expireDate->addMinutes($package_days);
-
-                    $expireDate = $expireDate->toJalali()->format('Y.m.d');
-                    $startDate = $startDate->toJalali()->format('Y.m.d');
-
-                    $text .= "🗓️ تاریخ شروع: {$startDate} \r\n";
-
-                    $text .= "⏳ تاریخ انقضا: {$expireDate} \r\n";
-                }
-                if ($selectedProductCategory->show_pannel_link == 1) {
-                    $text .= "🔗 لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
-                }
-                if ($selectedProductCategory->show_subscription_link == 1) {
-                    $text .= "🔗 لینک سابسکریپشن:  $userSubscriptionLInk \r\n";
-                }
-                $text .= "ℹ️ همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
-                $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
             } else {
                 if ($selectedProduct->panel_link != null) {
                     $panel_link = $selectedProduct->panel_link;
@@ -1222,9 +1182,10 @@ class TelegramController extends Controller
             $text = 'یک گزینه را انتخاب کنید.';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
 
-            return response()->json($resualt, 200);
+            return response()->json($result, 200);
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
+            return null;
         }
     }
     public function subRecharge()
@@ -1281,12 +1242,8 @@ class TelegramController extends Controller
                 $today = Verta::now();
                 $req->comment = "شارژ مجدد در {$today}";
 
-                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
-                // $updateRemark = json_encode($updateRemark);
-                if ($updateRemark['status'] == 200) {
-                    if ($updateRemark['msg'] !== 'ok') {
-                        return response()->json(false, 401);
-                    }
+                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
+                if ($updateRemark->getStatusCode() == 200) {
                     if ($hasBallance == true) {
                         $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                         $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
@@ -1760,12 +1717,16 @@ class TelegramController extends Controller
             $req->day = $day;
             \Log::info("vol $volume day $day");
             $hiddifcCntrl = new HiddifyPannelController();
+            $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
 
-            $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req);
+            // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req);
+            $userLink = $pannel->user_link;
+            if (substr($userLink, -1) == '/') {
+                $userLink = substr($userLink, 0, -1);
+            }
 
-            $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
-
-            $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+            $userSubscriptionLInk = "$userLink/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            $userPannelLink = "$userLink/{$newUUID}/#{$req->accountId}";
 
             $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
             if ($selectedPrCat->show_pannel_link == 1) {
