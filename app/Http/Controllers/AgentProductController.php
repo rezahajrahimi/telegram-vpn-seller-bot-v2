@@ -602,11 +602,7 @@ class AgentProductController extends Controller
                 $hiddifcCntrl = new HiddifyPannelController();
 
                 $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
-                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
-
-                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
-
-                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+                $userPannelLink= $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
                 $reqProductDetails = new Request();
                 $reqProductDetails->account_id = $accountID;
@@ -664,9 +660,8 @@ class AgentProductController extends Controller
                 $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
                 // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
 
-                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
-                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+                $userPannelLink= $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
                 $reqProductDetails = new Request();
                 $reqProductDetails->account_id = $accountID;
@@ -875,9 +870,9 @@ class AgentProductController extends Controller
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
 
             $hiddifcCntrl = new HiddifyPannelController();
+            $hiddifcCntrl = new HiddifyPannelController();
 
-            $panel_link = $data->panel_link;
-            return $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, $panel_link);
+            return $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $data->panel_link);
         } else {
             return null;
         }

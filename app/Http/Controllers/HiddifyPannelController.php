@@ -83,10 +83,7 @@ class HiddifyPannelController extends Controller
         ])->get($url);
 
         if ($subsequentResponse->getStatusCode() == 200) {
-            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
-            if ($checkIsHtmlPage !== false) {
-                return response()->json(false, 401);
-            }
+
             return response()->json(true, 200);
         }
         return response()->json(false, 401);
