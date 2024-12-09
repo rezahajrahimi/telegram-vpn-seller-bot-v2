@@ -488,8 +488,8 @@ class AgentProductController extends Controller
 
             $hiddifcCntrl = new HiddifyPannelController();
 
-            $panel_link = $data->panel_link;
-            return $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, $panel_link);
+            return $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $data->panel_link);
+
         } else {
             return null;
         }

@@ -655,44 +655,6 @@ class TelegramController extends Controller
                 $generalCntrl = new GeneralController();
                 $resualt= $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat,$pannel,$volume,$day,$this->chat_id,$productID);
 
-                // $req = new Request();
-                // $req->accountId = "$this->chat_id-$productID";
-                // $req->pannelID = $selectedPrCat->pannel_id;
-                // $req->vol = $volume;
-                // $req->day = $day;
-                // $hiddifcCntrl = new HiddifyPannelController();
-
-                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
-                // // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
-
-                // $userLink = $pannel->user_link;
-                // // check $pannel->user_link ended with "/" if be remove it
-                // if (substr($userLink, -1) == '/') {
-                //     $userLink = substr($userLink, 0, -1);
-                // }
-                // $userSubscriptionLInk = "$userLink/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                // $userPannelLink = "$userLink/{$newUUID}/#{$req->accountId}";
-
-                // $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-                // $text = '';
-                // $text .= "خرید شما با موفقیت انجام شد\r\n";
-                // if ($selectedPrCat->show_pannel_link == 1) {
-                //     $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:{$userPannelLink} \r\n";
-                // }
-                // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
-                // $text .= "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
-
-                // $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
-                // // save as dectivate product, So we can use it in future when user want to recharge it;
-                // $request = new Request();
-                // $request->account_id = $this->chat_id;
-                // $request->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                // $request->product_categories_id = $selectedPrCat->id;
-                // $request->panel_link = "/{$newUUID}/#{$req->accountId}";
-                // $request->configs = '';
-                // $request->remark = "$this->chat_id-$productID";
-
-                // $prCntrl->addAutomatedProductDetails($request);
             } elseif ($pannel->type == 'marzban') {
                 $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id$productID", $day, $volume, $selectedPrCat->pannel_id);
                 $userSub = $userData['subscription_link'];
@@ -779,10 +741,6 @@ class TelegramController extends Controller
                 $referalCntrl->dec_user_ref_wallet_ballance($this->chat_id, $productPrice);
                 $this->addNewBotLog('ballance', "مبلغ  $productPrice را از کیف پول همکاری شما بابت شارژ بسته کم شد.", 'minus ballance');
             }
-
-            // $accBlCtrl->decUserAccuntBalance($this->chat_id, $productPrice, $productPriceInDollar);
-
-            // $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
 
             // send how to use
             $opr = [];
