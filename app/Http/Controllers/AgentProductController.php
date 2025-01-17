@@ -51,6 +51,29 @@ class AgentProductController extends Controller
     public function createBatchOfUserAgentProduct(Request $request)
     {
         try {
+            // get count of users with agent role
+            $agentsCount = User::where('role', 'agent')->count();
+            $authCntrl = new AuthController();
+            // check powerps license
+            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+            $hasAccountLimitation = false;
+            if ($getPowerPsLicenseType == 'free') {
+                $hasAccountLimitation = true;
+            }
+
+            if ($agentsCount > 10 && $getPowerPsLicenseType == 'silver') {
+                $hasAccountLimitation = true;
+            }
+            if ($hasAccountLimitation == true) {
+                // check this operation is update or create, so if user alreade have a agent role it's a update and we have to continue else it's a create
+
+                $checkIsExist = User::where('role', 'agent')
+                    ->where('account_id', $request['UserID'])
+                    ->first();
+                if (null == $checkIsExist) {
+                    return response()->json('به محدودیت افزودن دستیار فروش رسیده اید، برای افزودن دستیار جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.', 201);
+                }
+            }
             $data = json_decode($request, true);
 
             $reqUserID = $request['UserID'];
@@ -62,26 +85,48 @@ class AgentProductController extends Controller
             }
 
             $selectedProductList = json_decode($request['selectedProductList'], true);
+
+            // create an array
+            $newSelectedProductList = [];
+
+            // $pannel = Pannel::find($data['pannelID']);
+
             foreach ($selectedProductList as $value) {
                 $aa = json_decode($value, true);
-
                 $value = (array) $aa;
                 $req = new Request();
-                $req->product_categories_id = $value['id'];
-                $req->price = $value['newPrice'];
-                $req->price_in_dollar = $value['newPriceInDollar'];
+                $req->id = $value['id'] ?? null;
+                $req->product_categories_id = $value['productCategoriesId'] ?? $value['id'];
+                $req->price = $value['newPrice'] ?? $value['price'];
+                $req->price_in_dollar = $value['newPriceInDollar'] ?? $value['priceInDollar'];
                 $req->user_id = $userID;
                 $req->is_active = true;
+                // add $req->product_categories_id to array
+
+                array_push($newSelectedProductList, $req->product_categories_id);
+
                 $this->createANewAgentProduct($req);
             }
+
+            // log the array
+
+            // get all agent products wich id is not in $newSelectedProductList array
+            $allAgentProducts = AgentProduct::where('user_id', $userID)->get();
+
+            foreach ($allAgentProducts as $value) {
+                if (!in_array($value->product_categories_id, $newSelectedProductList)) {
+                    $this->deleteAgentProductByPrCatIDAndUserID($userID, $value->product_categories_id);
+                }
+            }
+
             $agentPremissionCntrl = new AgentPermissonController();
             $reqPermission = new Request();
             $reqPermission->user_id = $userID;
             $reqPermission->minus_ballance = $request['minusBallance'];
             $reqPermission->create_products = $request['createProducts'];
             $reqPermission->delete_products = $request['deleteProducts'];
-            $adasd = $request['minusBallance'];
-
+            $reqPermission->traffic_limitation_tb = $request['trafficLimitationTB'] ? $request['trafficLimitationTB'] : 10;
+            $reqPermission->product_limitation = $request['productLimitation'] ? $request['productLimitation'] : 1000;
             $agentPremissionCntrl->updateAgentPremisson($reqPermission);
             $userCntrl->changeUserRoleToAgent($userID);
             return response()->json(true, 200);
@@ -100,7 +145,6 @@ class AgentProductController extends Controller
             // change agent role to user
             $userCntrl = new UserController();
             $userID = $userCntrl->getUserIdByTelegramID($reqUserID);
-            \Log::info("userID: $userID");
             if ($userID == null) {
                 return response()->json(false, 201);
             }
@@ -141,6 +185,8 @@ class AgentProductController extends Controller
                 $value = (array) $aa;
                 if ($value['productCategoriesId'] != null) {
                     $this->deleteAgentProductByPrCatIDAndUserID($userID, $value['productCategoriesId']);
+                } else {
+                    $this->deleteAgentProductByIDAndUserID($userID, $value['id']);
                 }
             }
             return response()->json(true, 200);
@@ -153,14 +199,20 @@ class AgentProductController extends Controller
     public function createANewAgentProduct(Request $request)
     {
         try {
-            $check = AgentProduct::where('product_categories_id', $request->product_categories_id)
-                ->where('user_id', $request->user_id)
-                ->first();
-            if ($check) {
-                $request->id = $check->id;
-                return $this->updateAgentProduct($request);
+            if (AgentProduct::where('id', $request->id)->first() != null) {
+                // log the $request
+                $this->updateAgentProduct($request);
+                return;
+            }
+            // chceck if this product category is exist or not
+            $hasProductCategory = ProductCategory::where('id', $request->product_categories_id)->first();
+
+            if ($hasProductCategory == null) {
+                // log the $request
+                return;
             }
             $agentProduct = new AgentProduct();
+
             $agentProduct->product_categories_id = $request->product_categories_id;
             $agentProduct->user_id = $request->user_id;
             $agentProduct->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
@@ -169,7 +221,7 @@ class AgentProductController extends Controller
             $agentProduct->save();
             return response()->json($agentProduct, 200);
         } catch (\Throwable $th) {
-            \Log::info("throw $th");
+            \Log::info("createANewAgentProduct throw $th");
             return response()->json(false, 500);
         }
     }
@@ -177,15 +229,16 @@ class AgentProductController extends Controller
     {
         try {
             $agentProduct = AgentProduct::find($request->id);
-            $agentProduct->product_categories_id = $request->product_categories_id;
-            $agentProduct->user_id = $request->user_id;
-            $agentProduct->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
-            $agentProduct->price = $request->price ?? 0.0;
+            // $agentProduct->product_categories_id = $request->product_categories_id;
+            // $agentProduct->user_id = $request->user_id;
+            // $agentProduct->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
+            $agentProduct->price = $request->price ?? 0;
             $agentProduct->price_in_dollar = $request->price_in_dollar ?? 0.0;
+
             $agentProduct->update();
             return response()->json($agentProduct, 200);
         } catch (\Throwable $th) {
-            \Log::info("throw $th");
+            \Log::info("updateAgentProduct throw $th");
             return response()->json(false, 500);
         }
     }
@@ -202,7 +255,6 @@ class AgentProductController extends Controller
     }
     public function deleteAgentProductByPrCatIDAndUserID($userID, $productCatId)
     {
-        \Log::info("message $userID $productCatId");
         try {
             $agentProduct = AgentProduct::where('user_id', $userID)->where('product_categories_id', $productCatId)->first();
             if (!$agentProduct) {
@@ -292,22 +344,138 @@ class AgentProductController extends Controller
             $today = Verta::now();
             $req->comment = "شارژ مجدد در {$today}";
 
-            $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
-            // $updateRemark = json_encode($updateRemark);
-            if ($updateRemark['status'] == 200) {
-                if ($updateRemark['msg'] !== 'ok') {
-                    return response()->json(false, 401);
-                }
+            $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
+            if ($updateRemark->getStatusCode()== 200) {
                 $this->addNewBotLog('product', "$data->remark توسط مدیر شارژ شد", 'charge product');
 
                 return response()->json(true, 200);
-                // dd($subsequentResponse);
             }
 
             return response()->json(false, 500);
         } else {
             return response()->json(false, 500);
         }
+    }
+    public function changeProductByAdminWithPrID(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+        $oldPrCat = ProductCategory::find($data->product_categories_id);
+        $newPrCat = ProductCategory::find($request->newPrCatID);
+
+        if ($data != null) {
+            $hiddifcCntrl = new HiddifyPannelController();
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+            $day = $newPrCat->expire_day;
+            $volume = $newPrCat->volume;
+
+            $req = new Request();
+            $req->pannelID = $newPrCat->pannel_id;
+            $req->name = $data->remark;
+            $req->uuid = $uuid;
+            $req->vol = $volume;
+            $req->day = $day;
+            // get today date with new variable
+            $today = Verta::now();
+            if ($request->recharge == true || $request->recharge == 1) {
+                $req->comment = "تغییر دسته بندی همراه با ریست زمان و حجم {$today}";
+
+                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
+                // $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
+                if ($updateRemark->getStatusCode()== 200) {
+                    $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'charge product');
+                } else {
+                    return response()->json(false, 500);
+                }
+                if ($request->changeBallance == 1 || $request->changeBallance == true) {
+                    $accBalCntrl = new AccountBallanceController();
+                    // get difference between old and new price
+                    $diffInToman = $newPrCat->price - $oldPrCat->price;
+                    $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
+                    if ($diffInToman < 0) {
+                        $accBalCntrl->decUserAccuntBalance($data->account_id, $diffInToman, $dissInDollar);
+                    }
+                    $data->product_categories_id = $newPrCat->id;
+                    $data->update();
+
+                    return response()->json(true, 200);
+                }
+                $data->product_categories_id = $newPrCat->id;
+                $data->update();
+
+                return response()->json(true, 200);
+            } else {
+                $req->comment = "تغییر دسته بندی  {$today}";
+
+                $updateRemark = $hiddifcCntrl->upgradeUserOfHiddifyPanelApi($req);
+                // $updateRemark = $hiddifcCntrl->upgradeUserOfHiddifyPanelOldApi($req);
+                if ($updateRemark['status'] == 200) {
+                    if ($updateRemark['msg'] !== 'ok') {
+                        return response()->json(false, 401);
+                    }
+                    $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'charge product');
+                }
+                if ($request->changeBallance == 1 || $request->changeBallance == true) {
+                    $accBalCntrl = new AccountBallanceController();
+
+                    // get difference between old and new price
+                    $diffInToman = $newPrCat->price - $oldPrCat->price;
+                    $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
+                    if ($diffInToman > 0) {
+                        $accBalCntrl->decUserAccuntBalance($data->account_id, $diffInToman, $dissInDollar);
+                    }
+                    $data->product_categories_id = $newPrCat->id;
+                    $data->update();
+
+                    return response()->json(true, 200);
+                }
+            }
+            $data->product_categories_id = $newPrCat->id;
+            $data->update();
+
+            return response()->json(false, 500);
+        }
+        return response()->json(false, 500);
+    }
+    public function changeActivationOfHiddifyUserByAdmin(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+
+        if ($data != null) {
+            $hiddifcCntrl = new HiddifyPannelController();
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+
+            $req = new Request();
+            $req->pannelID = $data->product_category_and_panel->pannel_id;
+            $req->uuid = $uuid;
+            $today = Verta::now();
+
+            if ($request->enable == true || $request->enable == 1 || $request->enable == 'true') {
+                $req->comment = "فعال شدن بسته توسط مدیر در {$today}";
+                $req->enable = true;
+                $data->deactive_by_admin = false;
+            } else {
+                $req->comment = "غیر فعال شدن بسته توسط مدیر در {$today}";
+                $req->enable = false;
+                $data->deactive_by_admin = true;
+            }
+            // get today date with new variable
+
+            $updateRemark = $hiddifcCntrl->changeUserActivationOfHiddifyPanelApi($req);
+            if ($updateRemark->getStatusCode()== 200) {
+                $this->addNewBotLog('product', "$data->remark توسط مدیر غیر فعال شد.", 'charge product');
+                $data->update();
+                return response()->json(true, 200);
+            } else {
+                return response()->json(false, 401);
+            }
+
+            return response()->json(false, 500);
+        }
+        return response()->json($request->id, 404);
     }
     public function getBoughtProductsPannelLinkFromServerByIdAdminMode($id)
     {
@@ -320,8 +488,8 @@ class AgentProductController extends Controller
 
             $hiddifcCntrl = new HiddifyPannelController();
 
-            $panel_link = $data->panel_link;
-            return $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, $panel_link);
+            return $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $data->panel_link);
+
         } else {
             return null;
         }
@@ -357,11 +525,8 @@ class AgentProductController extends Controller
             $today = Verta::now();
             $req->comment = "حذف شده در {$today}";
 
-            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanelOldApi($req);
-            if ($updateRemark['status'] == 200) {
-                if ($updateRemark['msg'] !== 'ok') {
-                    return response()->json(false, 401);
-                }
+            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id,$uuid);
+            if ($updateRemark->getStatusCode() == 200) {
                 $data->delete();
                 $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
                 return response()->json(true, 200);
@@ -385,6 +550,28 @@ class AgentProductController extends Controller
         $userID = auth('sanctum')->user()->id;
         $agentname = auth('sanctum')->user()->name;
         $remark = "$agentname -  $request->remark ";
+        // check agent has terrafic limition or not
+        $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
+
+        if ($agentPermisson != null) {
+            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
+
+            //convert $usedProductTerrafic from Gb to TB
+
+            if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {
+                $usedProductTerrafic = $usedProductTerrafic / 1000;
+            }
+            if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
+                return response()->json('Reached to Max Terrafic Limitation', 401);
+            }
+            $usedProductCount = Product::where('account_id', $accountID)->count();
+            if ($usedProductCount != null) {
+                if ($usedProductCount >= $agentPermisson->product_limitation) {
+                    return response()->json('Reached to Max Product Limitation', 401);
+                }
+            }
+        }
+        //
         if ($selectedPrCat == null) {
             return response()->json(false, 500);
         }
@@ -414,12 +601,8 @@ class AgentProductController extends Controller
                 $req->day = $day;
                 $hiddifcCntrl = new HiddifyPannelController();
 
-                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); api v2
-                $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
-
-                $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
-
-                $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+                $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
+                $userPannelLink= $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
                 $reqProductDetails = new Request();
                 $reqProductDetails->account_id = $accountID;
@@ -437,6 +620,123 @@ class AgentProductController extends Controller
             }
         }
         return response()->json('low ballance', 401);
+    }
+    public function buyProductByUserWithPrID(Request $request)
+    {
+        $selectedPrCat = ProductCategory::find($request->id);
+
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+        $agentname = auth('sanctum')->user()->name;
+        $remark = "$agentname -  $request->remark ";
+
+        //
+        if ($selectedPrCat == null) {
+            return response()->json(false, 500);
+        }
+
+        if ($selectedPrCat->is_active == false) {
+            return response()->json(false, 500);
+        }
+        $productPrice = $selectedPrCat->price;
+        $productPriceInDollar = $selectedPrCat->price_in_dollar;
+
+        $accBlCtrl = new AccountBallanceController();
+        if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+            $pnlCntrl = new PannelController();
+            $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
+            // get selected item specefic data
+            $day = $selectedPrCat->expire_day;
+            $volume = $selectedPrCat->volume;
+            $prCntrl = new ProductController();
+            if ($pannel->type == 'hiddify') {
+                $req = new Request();
+                $req->accountId = $remark;
+                $req->pannelID = $selectedPrCat->pannel_id;
+                $req->vol = $volume;
+                $req->day = $day;
+                $hiddifcCntrl = new HiddifyPannelController();
+
+                $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
+                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
+
+
+                $userPannelLink= $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
+
+                $reqProductDetails = new Request();
+                $reqProductDetails->account_id = $accountID;
+                $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+                $reqProductDetails->product_categories_id = $selectedPrCat->id;
+                $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
+                $reqProductDetails->configs = '';
+                $reqProductDetails->remark = $remark;
+
+                $prCntrl->addAutomatedProductDetails($reqProductDetails);
+                $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+
+                return $userPannelLink;
+            }
+        }
+        return response()->json('low ballance', 401);
+    }
+    public function reChargeProductByUserWithPrID(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+        $selectedPrCat = ProductCategory::find($data->product_categories_id);
+        // check agent has terrafic limition or not
+
+        if ($accountID != $data->account_id) {
+            return response()->json(false, 401);
+        }
+        if ($selectedPrCat->is_active == false) {
+            return response()->json(false, 500);
+        }
+
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $agentProduct = AgentProduct::where('product_categories_id', $data->product_category_and_panel->id)
+                ->where('user_id', $userID)
+                ->first();
+            // return $agentProduct;
+            $productPrice = $selectedPrCat->price;
+            $productPriceInDollar = $selectedPrCat->price_in_dollar;
+            $accBlCtrl = new AccountBallanceController();
+            if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+                $hiddifcCntrl = new HiddifyPannelController();
+
+                $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+                $day = $selectedPrCat->expire_day;
+                $volume = $selectedPrCat->volume;
+
+                $req = new Request();
+                $req->pannelID = $pannel->id;
+                $req->name = $data->remark;
+                $req->uuid = $uuid;
+                $req->vol = $volume;
+                $req->day = $day;
+                // get today date with new variable
+                $today = Verta::now();
+                $req->comment = "شارژ مجدد در {$today}";
+
+                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
+                if ($updateRemark->getStatusCode()== 200) {
+                    $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                    $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+                    $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
+
+                    return response()->json(true, 200);
+                    // dd($subsequentResponse);
+                }
+            }
+            return response()->json(false, 401);
+        }
+        return response()->json(false, 500);
     }
     public function buyProductByAdmin(Request $request)
     {
@@ -483,8 +783,8 @@ class AgentProductController extends Controller
             $req->day = $day;
             $hiddifcCntrl = new HiddifyPannelController();
 
-            // $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); api v2
-            $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
+            $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
+            // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
 
             $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
@@ -505,12 +805,28 @@ class AgentProductController extends Controller
             return $userPannelLink;
         }
     }
-    public function getAgentSelledProducts()
+    public function getAgentSelledProducts($count = 10)
     {
         $userId = auth('sanctum')->user()->account_id;
-        $product = Product::where('account_id', $userId)->with('product_category_and_panel')->get();
+        $product = Product::where('account_id', $userId)->with('product_category_and_panel')->take($count)->orderBy('id', 'desc')->get();
 
         return $product;
+    }
+    public function getAgentSelledProductsByPagination()
+    {
+        try {
+            $userId = auth('sanctum')->user()->account_id;
+            $product = Product::where('account_id', $userId)
+                ->with('product_category_and_panel')
+                ->orderBy('id', 'desc')
+                ->paginate(10, ['*'], 'page');
+
+            return $product;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return response()->json('Server Error', 500);
+        }
     }
     public function getBoughtProductsStatusFromServerById($id)
     {
@@ -523,19 +839,19 @@ class AgentProductController extends Controller
 
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
             $url = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
-            $url = "{$url}/api/v1/user/?uuid={$uuid}";
+            $url = "{$url}/api/v2/admin/user/$uuid";
 
-            $subsequentResponse = Http::get($url);
+            $secretValue = $pannel->secret_code;
 
+            // $subsequentResponse = Http::get($url);
+            $subsequentResponse = Http::withHeaders([
+            'Content-Type' => 'application/json',
+            'Accept' => 'application/json',
+                'Hiddify-API-Key' => $secretValue,
+            ])->get($url);
             if ($subsequentResponse->getStatusCode() == 200) {
-                $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
-                if ($checkIsHtmlPage !== false) {
-                    return response()->json(false, 401);
-                }
-                // dd($subsequentResponse);
                 return json_decode($subsequentResponse->getBody(), true);
             }
-
             return response()->json(null, 401);
         } else {
             return null;
@@ -554,9 +870,9 @@ class AgentProductController extends Controller
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
 
             $hiddifcCntrl = new HiddifyPannelController();
+            $hiddifcCntrl = new HiddifyPannelController();
 
-            $panel_link = $data->panel_link;
-            return $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, $panel_link);
+            return $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $data->panel_link);
         } else {
             return null;
         }
@@ -584,7 +900,8 @@ class AgentProductController extends Controller
             $req->name = $request->name;
             $req->uuid = $uuid;
 
-            $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelOldApi($req);
+            $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelApi($req);
+            // $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelOldApi($req);
             // $updateRemark = json_encode($updateRemark);
             if ($updateRemark['status'] == 200) {
                 if ($updateRemark['msg'] !== 'ok') {
@@ -609,7 +926,21 @@ class AgentProductController extends Controller
         $accountID = auth('sanctum')->user()->account_id;
         $userID = auth('sanctum')->user()->id;
         $selectedPrCat = ProductCategory::find($data->product_categories_id);
+        // check agent has terrafic limition or not
 
+        $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
+
+        if ($agentPermisson != null) {
+            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
+            //convert $usedProductTerrafic from Gb to TB
+            if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {
+                $usedProductTerrafic = $usedProductTerrafic / 1000;
+            }
+
+            if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
+                return response()->json('Reached to Max Terrafic Limitation', 401);
+            }
+        }
         if ($accountID != $data->account_id) {
             return response()->json(false, 401);
         }
@@ -644,24 +975,179 @@ class AgentProductController extends Controller
                 $today = Verta::now();
                 $req->comment = "شارژ مجدد در {$today}";
 
-                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
-                // $updateRemark = json_encode($updateRemark);
-                if ($updateRemark['status'] == 200) {
-                    if ($updateRemark['msg'] !== 'ok') {
-                        return response()->json(false, 401);
-                    }
+                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
+                if ($updateRemark->getStatusCode()== 200) {
                     $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                     $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
                     $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
 
                     return response()->json(true, 200);
                     // dd($subsequentResponse);
+                } else {
+                    return response()->json(false, 401);
                 }
             }
             return response()->json(false, 401);
-        } else {
+        }
+        return response()->json(false, 500);
+    }
+    public function changeProductByAgentWithPrID(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+        $oldPrCat = ProductCategory::find($data->product_categories_id);
+        $newPrCat = ProductCategory::find($request->newPrCatID);
+
+        // check agent has terrafic limition or not
+
+        $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
+
+        if ($agentPermisson != null) {
+            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
+            //convert $usedProductTerrafic from Gb to TB
+            if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {
+                $usedProductTerrafic = $usedProductTerrafic / 1000;
+            }
+
+            if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
+                return response()->json('Reached to Max Terrafic Limitation', 401);
+            }
+        }
+        if ($accountID != $data->account_id) {
+            return response()->json(false, 401);
+        }
+        if ($oldPrCat->is_active == false) {
             return response()->json(false, 500);
         }
+
+        if ($data != null) {
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $agentProduct = AgentProduct::where('product_categories_id', $data->product_category_and_panel->id)
+                ->where('user_id', $userID)
+                ->first();
+
+            // $newAgentProduct = AgentProduct::find($request->newPrCatID);
+            $newAgentProduct = AgentProduct::where('product_categories_id', $request->newPrCatID)
+                ->where('user_id', $userID)
+                ->first();
+
+            // return $agentProduct;
+            $oldProductPrice = $agentProduct->price;
+            $oldProductPriceInDollar = $agentProduct->price_in_dollar;
+            $productPrice = $newAgentProduct->price;
+            $productPriceInDollar = $newAgentProduct->price_in_dollar;
+            $accBlCtrl = new AccountBallanceController();
+            if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+                $hiddifcCntrl = new HiddifyPannelController();
+                $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+                $day = $newPrCat->expire_day;
+                $volume = $newPrCat->volume;
+
+                $req = new Request();
+                $req->pannelID = $newPrCat->pannel_id;
+                $req->name = $data->remark;
+                $req->uuid = $uuid;
+                $req->vol = $volume;
+                $req->day = $day;
+                // get today date with new variable
+                $today = Verta::now();
+                if ($request->recharge == true || $request->recharge == 1) {
+                    $req->comment = "تغییر دسته بندی همراه با ریست زمان و حجم {$today}";
+
+                    $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
+                    if ($updateRemark->getStatusCode()== 200) {
+                        $this->addNewBotLog('product', "$data->remark توسط کاربر تغییر یافت.", 'charge product');
+                    } else {
+                        return response()->json(false, 401);
+
+                    }
+                    // get difference between old and new price
+                    $diffInToman = $newPrCat->price - $oldPrCat->price;
+                    $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
+                    if ($diffInToman > 0) {
+                        $accBlCtrl->decUserAccuntBalance($accountID, $diffInToman, $dissInDollar);
+                    }
+                    $data->product_categories_id = $newPrCat->id;
+                    $data->update();
+                    return response()->json(true, 200);
+                }
+
+                $req->comment = "تغییر دسته بندی  {$today}";
+
+                $updateRemark = $hiddifcCntrl->upgradeUserOfHiddifyPanelApi($req);
+                // $updateRemark = $hiddifcCntrl->upgradeUserOfHiddifyPanelOldApi($req);
+                if ($updateRemark['status'] == 200) {
+                    if ($updateRemark['msg'] !== 'ok') {
+                        return response()->json(false, 401);
+                    }
+                    $this->addNewBotLog('product', "$data->remark توسط کاربر تغییر یافت.", 'charge product');
+                }
+
+                // get difference between old and new price
+                $diffInToman = $newPrCat->price - $oldPrCat->price;
+                $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
+                if ($diffInToman < 0) {
+                    $accBlCtrl->decUserAccuntBalance($accountID, $diffInToman, $dissInDollar);
+                }
+                $data->product_categories_id = $newPrCat->id;
+                $data->update();
+
+                return response()->json(true, 200);
+            }
+
+            return response()->json('Low Ballance', 401);
+        }
+
+        return response()->json(false, 500);
+    }
+    public function changeActivationOfHiddifyUserByAgent(Request $request)
+    {
+        $data = Product::where('id', $request->id)
+            ->with('product_category_and_panel')
+            ->first();
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+        if ($accountID != $data->account_id) {
+            return response()->json('This product is not yours', 401);
+        }
+        if ($data->deactive_by_admin == true) {
+            return response()->json('This product is deactivated by admin', 401);
+        }
+        if ($data != null) {
+            $hiddifcCntrl = new HiddifyPannelController();
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+
+            $req = new Request();
+            $req->pannelID = $data->product_category_and_panel->pannel_id;
+            $req->uuid = $uuid;
+            $today = Verta::now();
+
+            if ($request->enable == true || $request->enable == 1 || $request->enable == 'true') {
+                $req->comment = "فعال شدن بسته توسط کاربر در {$today}";
+                $req->enable = true;
+            } else {
+                $req->comment = "غیر فعال شدن بسته توسط کاربر در {$today}";
+                $req->enable = false;
+            }
+            // get today date with new variable
+
+            $updateRemark = $hiddifcCntrl->changeUserActivationOfHiddifyPanelApi($req);
+            if ($updateRemark->getStatusCode()== 200) {
+                $this->addNewBotLog('product', "$data->remark توسط کاربر غیر فعال شد.", 'charge product');
+                return response()->json(true, 200);
+            } else {
+                return response()->json(false, 401);
+
+            }
+
+            return response()->json(false, 500);
+        }
+        return response()->json($request->id, 404);
     }
     public function softDeleteProductByAgentWithPrID($id)
     {
@@ -698,11 +1184,9 @@ class AgentProductController extends Controller
             $today = Verta::now();
             $req->comment = "حذف شده در {$today}";
 
-            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanelOldApi($req);
-            if ($updateRemark['status'] == 200) {
-                if ($updateRemark['msg'] !== 'ok') {
-                    return response()->json(false, 401);
-                }
+            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id,$uuid);
+            if ($updateRemark->getStatusCode() == 200) {
+
                 $data->delete();
                 $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
 
@@ -724,6 +1208,53 @@ class AgentProductController extends Controller
                         }
                     }
                 }
+
+                return response()->json(true, 200);
+            } else {
+                return response()->json(null, 500);
+            }
+        }
+        return response()->json(false, 401);
+    }
+    public function softDeleteProductByUserWithPrID($id)
+    {
+        $data = Product::where('id', $id)->with('product_category_and_panel')->first();
+        $accountID = auth('sanctum')->user()->account_id;
+        $userID = auth('sanctum')->user()->id;
+
+        if ($accountID != $data->account_id) {
+            return response()->json(false, 401);
+        }
+
+        if ($data != null) {
+            // save current usage
+            $currentStatus = $this->getBoughtProductsStatusFromServerById($id);
+            if ($currentStatus == null) {
+                return response()->json(null, 500);
+            }
+            $currentUsage = $currentStatus['current_usage_GB'];
+            //
+
+            // get pannel url
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+
+            $req = new Request();
+            $req->pannelID = $pannel->id;
+            $req->name = $data->remark;
+            $req->uuid = $uuid;
+            $req->vol = 0.0;
+            $req->day = 0;
+            // get today date with new variable
+            $today = Verta::now();
+            $req->comment = "حذف شده در {$today}";
+
+            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id,$uuid);
+            if ($updateRemark->getStatusCode() == 200) {
+                $data->delete();
+                $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
 
                 return response()->json(true, 200);
             } else {

@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TransactionCryptoController;
+use App\Http\Controllers\ExecuteArtisanCommandController;
 use Illuminate\Http\Request;
 
 /*
@@ -25,6 +26,7 @@ Route::get('buy/{account_id}/{invoiceID}/{price}', function ($account_id, $invoi
 Route::post('shop', [TransactionController::class, 'add_order']); // for zarinpal
 
 Route::get('order', function (Request $request) {
+
     return redirect()->action([TransactionController::class, 'order'], ['transaction_id' => $request->Authority, 'status' => $request->Status]);
 });
 
@@ -48,3 +50,8 @@ Route::get('/payback', function () {
 Route::get('/cancelpay', function () {
     return "پرداخت شما لغو شد.";
 });
+
+
+
+// run command by url
+Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);

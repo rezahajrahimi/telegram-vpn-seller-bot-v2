@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class AgentPermisson extends Model
 {
     use HasFactory;
-    protected $fillable = [ 'user_id', 'minus_ballance','create_products', 'delete_products'];
+    protected $fillable = [ 'user_id', 'minus_ballance','create_products', 'delete_products','traffic_limitation_tb','product_limitation'];
     public function user()
     {
         return $this->belongsTo(Pannel::class, 'user_id');

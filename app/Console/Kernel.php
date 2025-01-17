@@ -13,6 +13,12 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // $schedule->command('inspire')->hourly();
+        $schedule->call('App\Http\Controllers\CronJobController@execute_send_lass_there_than_3_days')->dailyAt("12:00");
+        $schedule->call('App\Http\Controllers\CronJobController@execute_send_expired_products')->everyFiveMinutes();
+        $schedule->call('App\Http\Controllers\CronJobController@execute_send_useage_more_than_85_percent')->everyFourMinutes();
+        $schedule->call('App\Http\Controllers\CronJobController@calculate_product_category_price_by_tether')->everyFiveMinutes();
+        $schedule->call('App\Http\Controllers\CronJobController@calculate_product_category_price_in_dollar_by_toman')->everyFiveMinutes();
+
     }
 
     /**

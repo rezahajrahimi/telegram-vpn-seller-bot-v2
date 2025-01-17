@@ -48,4 +48,17 @@ class User extends Authenticatable
     {
         return $this->hasOne(AgentPermisson::class, 'user_id', 'id');
     }
+    public function reserved_products()
+    {
+        return $this->hasMany(ReserverdConfig::class, 'user_id', 'id');
+    }
+    public function referral_wallet()
+    {
+        return $this->hasOne(ReferralWallet::class, 'referral_user_id', 'id');
+    }
+
+    // public function bot_user()
+    // {
+    //     return $this->belongsTo(BotUser::class, 'account_id', 'account_id');
+    // }
 }

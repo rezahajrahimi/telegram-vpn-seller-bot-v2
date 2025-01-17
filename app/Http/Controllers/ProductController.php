@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\Product;
+use App\Models\BotUser;
 use Illuminate\Http\Request;
 // use carbon
 use Carbon\Carbon;
@@ -39,6 +40,21 @@ class ProductController extends Controller
             return null;
         }
     }
+    public function getUserProductsHistoryByUserIDWithPagination($userId)
+    {
+        try {
+            $botUser = BotUser::where('id', $userId)->first();
+            $accountID = $botUser->account_id;
+            $data = Product::where('account_id', $accountID)
+                ->with('product_category')
+                ->paginate(10, ['*'], 'page');
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return response()->json('Server Error', 500);
+        }
+    }
     public function getActiveProductsByProductCatID($selectedProductCatID)
     {
         $data = Product::where('product_categories_id', $selectedProductCatID)->where('isActive', true)->get();
@@ -56,7 +72,7 @@ class ProductController extends Controller
         $data->subscription_link = $request->subscription_link;
         $data->panel_link = $request->panel_link;
         $data->remark = $request->remark;
-
+        $data->deactive_by_admin = false;
         if ($data->save()) {
             return $this->getActiveProductsByProductCatID($request->product_categories_id);
         } else {
@@ -81,7 +97,7 @@ class ProductController extends Controller
         $data->isActive = false;
         $data->account_id = $request->account_id;
         $data->remark = $request->remark;
-
+        $data->deactive_by_admin = false;
         if ($data->save()) {
             return true;
         } else {
@@ -98,6 +114,7 @@ class ProductController extends Controller
         $data->isActive = false;
         $data->account_id = $request->account_id;
         $data->remark = $request->remark;
+        $data->deactive_by_admin = false;
         if ($data->save()) {
             return $this->getActiveProductsByProductCatID($request->product_categories_id);
         } else {
@@ -182,8 +199,11 @@ class ProductController extends Controller
     }
     public function getLastProductSelled($count)
     {
-
-        $data = Product::with(['user', 'product_category'])->orderBy('id', 'desc')->take($count)->get();
+        $data = Product::with(['user', 'product_category'])
+            ->orderBy('id', 'desc')
+            ->take($count)
+            ->get();
         return $data;
     }
+
 }
