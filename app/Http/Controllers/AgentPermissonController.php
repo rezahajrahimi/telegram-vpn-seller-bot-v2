@@ -34,6 +34,8 @@ class AgentPermissonController extends Controller
             $agentPermisson->minus_ballance = $request->minus_ballance == 'false' || $request->minus_ballance == false || $request->minus_ballance == 0 ? 0 : 1;
             $agentPermisson->create_products = $request->create_products == 'false' || $request->create_products == false || $request->create_products == 0 ? 0 : 1;
             $agentPermisson->delete_products = $request->delete_products == 'false' || $request->delete_products == false || $request->delete_products == 0 ? 0 : 1;
+            $agentPermisson->traffic_limitation_tb = $request->traffic_limitation_tb ? $request->traffic_limitation_tb : 10;
+            $agentPermisson->product_limitation = $request->product_limitation ? $request->product_limitation : 1000;
             $agentPermisson->save();
             return response()->json($agentPermisson, 200);
         } catch (\Throwable $th) {
@@ -51,6 +53,8 @@ class AgentPermissonController extends Controller
             $agentPermisson->minus_ballance = $request->minus_ballance == 'false' || $request->minus_ballance == 0 ? 0 : 1;
             $agentPermisson->create_products = $request->create_products == 'false' || $request->create_products == 0 ? 0 : 1;
             $agentPermisson->delete_products = $request->delete_products == 'false' || $request->delete_products == 0 ? 0 : 1;
+            $agentPermisson->traffic_limitation_tb = $request->traffic_limitation_tb ? $request->traffic_limitation_tb : 10;
+            $agentPermisson->product_limitation = $request->product_limitation ? $request->product_limitation : 1000;
 
             $agentPermisson->update();
             return response()->json($agentPermisson, 200);

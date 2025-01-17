@@ -31,11 +31,8 @@ class BotUserController extends Controller
     {
         $user = BotUser::where('account_id', $account_id)->first();
         if ($user != null) {
-            \Log::info("hasRegistred ");
             return true;
         } else {
-            \Log::info("has not Registred ");
-
             $this->createNewUserBot($account_id, $userName, $firstName, $lastName);
             return false;
         }
@@ -55,11 +52,37 @@ class BotUserController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+    public function getBotUserListByPagination()
+    {
+        try {
+            $data = BotUser::paginate(16, ['*'], 'page');
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return response()->json('Server Error', 500);
+        }
+    }
+    public function search_bot_users(Request $request){
+        try {
+            $data = BotUser::where('username', 'like', '%' . $request->search . '%')
+            ->orWhere('first_name', 'like', '%' . $request->search . '%')
+            ->orWhere('last_name', 'like', '%' . $request->search . '%')
+            ->orWhere('account_id', 'like', '%' . $request->search . '%')
+            ->get();
+
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info("search_bot_users:  $th");
+
+            return response()->json('Server Error', 500);
+        }
+    }
     public function getBotUserByID($id)
     {
         try {
             $data = BotUser::where('id', $id)
-                ->with(['products', 'transaction', 'ballance', 'logs'])
+                ->with(['products', 'transaction', 'ballance', 'logs', 'user'])
                 ->first();
             if ($data != null) {
                 return response()->json($data, 200);
@@ -87,5 +110,12 @@ class BotUserController extends Controller
             \Log::info("Throwable:  $th");
         }
     }
-
+    public function getUserIDByAccountID($accountID){
+        $data = BotUser::where('account_id', $accountID)->first();
+        if ($data != null) {
+            return $data->id;
+        } else {
+            return null;
+        }
+    }
 }

@@ -17,7 +17,6 @@ class BillController extends Controller
         }
     }
 
-
     public function createNewBill(Request $request)
     {
         $bill = new Bill();
@@ -79,12 +78,18 @@ class BillController extends Controller
         $bill->amount = $amount;
         $bill->amount_dollar = 0.0;
         if ($bill->save()) {
-            $pymCntrl = new PaymentTypeController();
+            $trCntrl = new TransactionController();
+            $trRequest = new Request();
+            $trRequest->invoiceID = $bill->bill_id;
+            $trRequest->account_id = $account_id;
+            $trRequest->amount = $amount;
+            $paymentLink = $trCntrl->add_order($trRequest);
+            return $paymentLink;
+            // $pymCntrl = new PaymentTypeController();
 
-            $openLink = $pymCntrl->getZarinpalLink();
+            // $openLink = $pymCntrl->getZarinpalLink();
 
-            return "$openLink/$account_id/$bill->bill_id/$bill->amount";
-
+            // return "$openLink/$account_id/$bill->bill_id/$bill->amount";
         } else {
             return null;
         }
@@ -99,12 +104,21 @@ class BillController extends Controller
         $bill->amount = 0;
         $bill->amount_dollar = $amount;
         if ($bill->save()) {
-            $pymCntrl = new PaymentTypeController();
+            $trCryptoCntrl = new TransactionCryptoController();
+                $trRequest = new Request();
+                $trRequest->invoiceID = $bill->bill_id;
+                $trRequest->account_id = $account_id;
+                $trRequest->amount = $amount;
+                $paymentLink = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
 
-            $openLink = $pymCntrl->getNowPaymentsLink();
+                $generalCntrl = new GeneralController();
+                $nowpaymentLink = $generalCntrl->get_nowpayment_payment_link_from_html($paymentLink);
+                return $nowpaymentLink;
+            // $pymCntrl = new PaymentTypeController();
 
-            return "$openLink/$account_id/$bill->bill_id/$bill->amount_dollar";
+            // $openLink = $pymCntrl->getNowPaymentsLink();
 
+            // return "$openLink/$account_id/$bill->bill_id/$bill->amount_dollar";
         } else {
             return null;
         }

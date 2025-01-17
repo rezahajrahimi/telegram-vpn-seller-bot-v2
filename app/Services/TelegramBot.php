@@ -46,11 +46,11 @@ class TelegramBot
      * @param  mixed $reply_to_message_id
      * @return void
      */
-    public function sendMessage($text , $chat_id, $reply_to_message_id, $parse, $key = null)
+    public function sendMessage($text, $chat_id, $reply_to_message_id, $parse, $key = null)
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
-
+        $text = $this->replace_specefic_charecter($text);
         // Create params array
         $params = [
             'chat_id' => $chat_id,
@@ -76,6 +76,14 @@ class TelegramBot
         // \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
+    }
+    public function replace_specefic_charecter($text)
+    {
+        // $specialCharacters = ['*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '!'];
+        // foreach ($specialCharacters as $char) {
+        //     $text = str_replace($char, '\\' . $char, $text);
+        // }
+        return $text;
     }
     public function deleteMessage($chat_id, $message_id)
     {
@@ -126,8 +134,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
-
         return $result;
     }
     public function checkMember($channelID, $chat_id)
@@ -148,22 +154,19 @@ class TelegramBot
         try {
             $response = Http::withHeaders($this->headers)->post($url, $params);
             if ($response->ok() != false) {
-
                 $result = ['success' => $response->ok(), 'body' => $response->json()];
                 $json = $response->json();
 
                 // $res = $json['status'];
-                if( $json["result"]["status"] == "left"){
+                if ($json['result']['status'] == 'left') {
                     return false;
                 }
                 // \Log::info('rss', ['json' => $json["result"]["status"]]);
 
                 // \Log::info('yesssssssss', ['result' => $result]);
 
-
                 return true;
             } else {
-
                 $result = ['False' => $response->ok(), 'body' => $response->json()];
                 // \Log::info('noooooooooo', ['result' => $result]);
 
@@ -176,24 +179,33 @@ class TelegramBot
             return false;
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
-
         return false;
     }
-    public function buttonMessage($text , $opr, $chat_id, $reply_to_message_id)
+    public function buttonMessage($text, $opr, $chat_id, $reply_to_message_id)
     {
         // Default result array
         $result = ['success' => false, 'body' => []];
 
         // Create params array
+        $params = [];
+        $text = $this->replace_specefic_charecter($text);
 
-        $params = [
-            'chat_id' => $chat_id,
-            // 'reply_to_message_id' => $reply_to_message_id,
-            'allow_sending_without_reply' => true,
-            'text' => $text,
-            'reply_markup' => ['keyboard' => $opr, 'resize_keyboard' => true],
-        ];
+        if ($text != null) {
+            $params = [
+                'chat_id' => $chat_id,
+                // 'reply_to_message_id' => $reply_to_message_id,
+                'allow_sending_without_reply' => true,
+                'text' => $text,
+                'reply_markup' => ['keyboard' => $opr, 'resize_keyboard' => true],
+            ];
+        } else {
+            $params = [
+                'chat_id' => $chat_id,
+                // 'reply_to_message_id' => $reply_to_message_id,
+                'allow_sending_without_reply' => true,
+                'reply_markup' => ['keyboard' => $opr, 'resize_keyboard' => true],
+            ];
+        }
 
         // Create url -> https://api.telegram.org/bot{token}/sendMessage
         $url = "{$this->api_endpoint}/{$this->token}/sendMessage";
@@ -206,8 +218,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
-
         return $result;
     }
     public function inlineKeyboardButton($text, $opr, $chat_id, $reply_to_message_id)
@@ -216,6 +226,7 @@ class TelegramBot
         $result = ['success' => false, 'body' => []];
 
         // Create params array
+        $text = $this->replace_specefic_charecter($text);
 
         $params = [
             'chat_id' => $chat_id,
@@ -235,8 +246,6 @@ class TelegramBot
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
         }
-
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
     }
@@ -265,8 +274,6 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
-
         return $result;
     }
     public function imageMessageByLink($image, $chat_id, $caption)
@@ -287,12 +294,13 @@ class TelegramBot
                 'chat_id' => $chat_id,
                 'caption' => $caption,
             ]);
+            // log resualt array
+            // \Log::info('TelegramBot->imageMessageByLink->result', ['result' => $response->json()]);
             $result = ['success' => $response->ok(), 'body' => $response->json()];
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
+            \Log::info("Throwable imageMessageByLink: $th");
         }
-
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
     }
@@ -302,6 +310,7 @@ class TelegramBot
         $result = ['success' => false, 'body' => []];
 
         // Create params array
+        $text = $this->replace_specefic_charecter($text);
 
         $params = [
             'chat_id' => $chat_id,
@@ -319,8 +328,6 @@ class TelegramBot
         } catch (\Throwable $th) {
             $result['error'] = $th->getMessage();
         }
-
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
 
         return $result;
     }
@@ -353,7 +360,32 @@ class TelegramBot
             $result['error'] = $th->getMessage();
         }
 
-        \Log::info('TelegramBot->getImageUrl->result', ['result' => $result]);
+        return $image_url;
+    }
+    public function getImageUrlByFileID($file_id)
+    {
+        $image_url = '';
+
+        // $file_id = $photo[count($photo) - 1]['file_id'];
+
+        // set url -> https://api.telegram.org/bot<Your-Bot-token>/getFile?file_id=<Your-file-id>
+        $url = "{$this->api_endpoint}/{$this->token}/getFile?file_id={$file_id}";
+
+        // Send the request
+        try {
+            $response = Http::withHeaders($this->headers)->get($url);
+            $result = ['success' => $response->ok(), 'body' => $response->json()];
+
+            $file_path = $result['body']['result']['file_path'];
+
+            // https://api.telegram.org/file/bot<Your-Bot-token>/<Your-file-path>
+            $image_url = "{$this->api_endpoint}/file/{$this->token}/{$file_path}";
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+        }
+
+        // \Log::info('TelegramBot->getImageUrl->result', ['result' => $result]);
+        // \Log::info("image_url:  $image_url");
 
         return $image_url;
     }

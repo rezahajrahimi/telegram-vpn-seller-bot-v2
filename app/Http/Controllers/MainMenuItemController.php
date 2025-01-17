@@ -9,27 +9,110 @@ class MainMenuItemController extends Controller
 {
     public function getAllMainMenuItems()
     {
-        return MainMenuItem::all();
+        $data = MainMenuItem::all();
+        // check if data was empty create new menu
+        if ($data->isEmpty()) {
+            $menu1 = new MainMenuItem();
+            $menu1->name = 'خرید اشتراک';
+            $menu1->alias_name = 'خرید اشتراک';
+            $menu1->is_active = true;
+            $menu1->position = 1;
+            $menu1->save();
+            $menu2 = new MainMenuItem();
+
+            $menu2->name = 'webapp';
+            $menu2->alias_name = 'استفاده در وب اپلیکیشن';
+            $menu2->is_active = true;
+            $menu2->position = 2;
+            $menu2->save();
+            $menu3 = new MainMenuItem();
+
+            $menu3->name = 'سابقه خرید';
+            $menu3->alias_name = 'سابقه خرید';
+            $menu3->is_active = true;
+            $menu3->position = 3;
+            $menu3->save();
+            $menu4 = new MainMenuItem();
+
+            $menu4->name = 'پشتیبانی';
+            $menu4->alias_name = 'پشتیبانی';
+            $menu4->is_active = true;
+            $menu4->position = 4;
+            $menu4->save();
+            $menu5 = new MainMenuItem();
+
+            $menu5->name = 'آموزش استفاده و سوالات متداول';
+            $menu5->alias_name = 'آموزش استفاده و سوالات متداول';
+            $menu5->is_active = true;
+            $menu5->position = 5;
+            $menu5->save();
+            $menu6 = new MainMenuItem();
+
+            $menu6->name = 'اطلاعات حساب';
+            $menu6->alias_name = 'اطلاعات حساب';
+            $menu6->is_active = true;
+            $menu6->position = 6;
+            $menu6->save();
+            $menu7 = new MainMenuItem();
+
+            $menu7->name = 'اکانت آزمایشی';
+            $menu7->alias_name = 'اکانت آزمایشی';
+            $menu7->is_active = true;
+            $menu7->position = 7;
+            $menu7->save();
+            $menu8 = new MainMenuItem();
+
+            $menu8->name = 'دانلود برنامه';
+            $menu8->alias_name = 'دانلود برنامه';
+            $menu8->is_active = true;
+            $menu8->position = 8;
+            $menu8->save();
+            $menu9 = new MainMenuItem();
+
+            $menu9->name = 'گیفت کارت';
+            $menu9->alias_name = 'گیفت کارت';
+            $menu9->is_active = true;
+            $menu9->position = 9;
+            $menu9->save();
+            $menu10 = new MainMenuItem();
+
+            $menu10->name = 'کسب درآمد';
+            $menu10->alias_name = 'کسب درآمد';
+            $menu10->is_active = true;
+            $menu10->position = 10;
+            $menu10->save();
+        }
+        $newData = MainMenuItem::all();
+
+        return $newData;
     }
     public function getMenuNameByID($id)
     {
-        return MainMenuItem::where('id',$id)->first();
+        return MainMenuItem::where('id', $id)->first();
     }
     public function getMenuNameByAliasName($aliasName)
     {
-        $data = MainMenuItem::where('alias_name',$aliasName)->first();
-        if($data != null) {
-            return $data;
+        $data = MainMenuItem::where('alias_name', $aliasName)->first();
+        if ($data != null && $data->name != null && $data->is_active == true) {
+            return $data->name;
         }
-        return false;
+        return 'خیر';
+    }
+    public function getMenuAliasNameByName($name)
+    {
+        $data = MainMenuItem::where('name', $name)->first();
+        if ($data != null) {
+            return $data->alias_name;
+        }
+        return 'خیر';
     }
     public function getMenuIdByName($name)
     {
-        return MainMenuItem::where('name',$name)->first();
+        return MainMenuItem::where('name', $name)->first();
     }
     public function getAllActivatedMainMenuItems()
     {
-        return MainMenuItem::where('is_active', true)->get();
+        return MainMenuItem::where('is_active', true)->orderby('position', 'asc')->get();
     }
     public function deActiveMainMenuItem($name)
     {

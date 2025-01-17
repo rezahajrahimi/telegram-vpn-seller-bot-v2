@@ -59,6 +59,24 @@ class UserController extends Controller
             return response()->json(null, 500);
         }
     }
+    public function get_admin_users()
+    {
+        $users = User::where('role', 'admin')->get();
+        return response()->json([
+            'admins' => $users,
+        ]);
+    }
+    public function change_user_role_to_admin($id){
+
+        $user = User::where('account_id', $id)->first();
+        if (!$user) {
+           return response()->json(null, 401);
+        }
+        $user->role = 'admin';
+        $user->update();
+        return response()->json(true, 201);
+    }
+
     public function getUserById($id)
     {
         $user = User::find($id);
@@ -93,9 +111,29 @@ class UserController extends Controller
         if (!$user) {
             return null;
         }
+        // checl if user_account_id is not null and is not equal to TELEGRAM_ADMIN_ID in .env
+        if ($user->account_id != env('TELEGRAM_ADMIN_ID')) {
+            return null;
+        }
+
         $user->role = 'user';
         $user->update();
         return true;
+    }
+    public function change_user_role_to_user($id)
+    {
+        $user = User::where('account_id', $id)->first();
+        if (!$user) {
+            return response()->json(null, 401);
+        }
+        // checl if user_account_id is not null and is not equal to TELEGRAM_ADMIN_ID in .env
+        if ($user->account_id == env('TELEGRAM_ADMIN_ID')) {
+            return response()->json(null, 401);
+        }
+
+        $user->role = 'user';
+        $user->update();
+        return response()->json(true, 201);
     }
     public function getUserIdByTelegramID($telID)
     {
@@ -168,7 +206,33 @@ class UserController extends Controller
             \Log::info("Throwable $th");
         }
     }
+    public function update_logged_password(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string|min:8',
+        ]);
+        $accountID = auth('sanctum')->user()->account_id;
+        $user = User::where('account_id', $accountID)->first();
+        if (!$user) {
+            return response()->json(
+                [
+                    'message' => 'User not found',
+                ],
+                404,
+            );
+        }
 
+        $user->password = Hash::make($request->password);
+        $user->update();
+
+        return response()->json(
+            [
+                'message' => 'User updated successfully',
+                'user' => $user,
+            ],
+            200,
+        );
+    }
     public function deleteUser(Request $request)
     {
         $request->validate([

@@ -45,4 +45,17 @@ class BotUser extends Model
     {
         return $this->hasMany(Log::class, 'account_id', 'account_id')->orderBy('id', 'desc');
     }
+    // public function referral_logs()
+    // {
+    //     return $this->hasMany(ReferralLogs::class, 'referral_to_id', 'account_id')->orderBy('id', 'desc');
+    // }
+    public function user()
+    {
+        return $this->hasOne(User::class, 'account_id', 'account_id')->with('referral_wallet');
+    }
+
+    // public function referral_wallet()
+    // {
+    //     return $this->hasOne(ReferralWallet::class, 'referral_user_id', 'id');
+    // }
 }

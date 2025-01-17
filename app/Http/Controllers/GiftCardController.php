@@ -94,7 +94,6 @@ class GiftCardController extends Controller
 
     public function getMiladyDate($oldDate)
     {
-        \Log::info("aaaaaaaaaaaaaaaa $oldDate");
 
         try {
             if ($oldDate != null) {

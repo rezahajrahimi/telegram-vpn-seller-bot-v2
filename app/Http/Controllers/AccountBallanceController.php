@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\AccountBallance;
+use App\Models\BotUser;
 use Illuminate\Http\Request;
 
 class AccountBallanceController extends Controller
@@ -12,28 +13,31 @@ class AccountBallanceController extends Controller
         if ($price == 0 && $parice_in_dollar == 0) {
             return true;
         }
+
+        // check agent
+
+        $agentPremissionCntrl = new AgentPermissonController();
+        $agentPr = $agentPremissionCntrl->getUserPremission();
+        if ($agentPr != null) {
+            if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
+
+                return true;
+            }
+        }
+
         // common product categorey check
         $data = AccountBallance::where('account_id', $userID)->first();
-        \Log::info('messageaaaaaa');
 
         if ($data != null) {
             if ($data->ballance >= $price) {
                 return true;
             } elseif ($data->account_ballance_in_dollar >= $parice_in_dollar) {
-                return true;
-            } else {
-
-                $agentPremissionCntrl = new AgentPermissonController();
-                $agentPr = $agentPremissionCntrl->getUserPremission();
-                if ($agentPr != null) {
-                    if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
-                        return true;
-                    }
-                    return false;
-
+                if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1 && $parice_in_dollar > 0) {
+                    return true;
                 }
                 return false;
             }
+            return false;
         } else {
             return false;
         }
@@ -77,6 +81,67 @@ class AccountBallanceController extends Controller
         } catch (\Throwable $th) {
             \Log::info("message $th");
             return false;
+        }
+    }
+    public function increaseUserAccuntBalanceByUserID(Request $request)
+    {
+        try {
+            $user = BotUser::where('id', $request->userID)->first();
+
+            if ($user != null) {
+                $userAccountID = $user->account_id;
+                $ballance = $request->ballance;
+                $type = $request->type;
+
+                if ($type == 'toman') {
+                    $this->incUserAccuntBalance($userAccountID, $ballance);
+
+                    $logCtrl = new LogController();
+                    $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان افزایش یافت', $userAccountID, '', 'edit');
+                    return $this->getUserAccuntBalance($userAccountID);
+                } else {
+                    $this->incUserAccuntBalanceInDollar($userAccountID, $ballance);
+                    $logCtrl = new LogController();
+
+                    $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار افزایش یافت', $userAccountID, '', 'edit');
+                    return $this->getUserAccuntBalanceInDollar($userAccountID);
+                }
+            }
+            return response()->json(null, 404);
+        } catch (\Throwable $th) {
+            \Log::info("message $th");
+            return response()->json(null, 500);
+        }
+    }
+    public function decreaseUserAccuntBalanceByUserID(Request $request)
+    {
+        try {
+            $user = BotUser::where('id', $request->userID)->first();
+
+            if ($user != null) {
+                $userAccountID = $user->account_id;
+                $ballance = $request->ballance;
+                $type = $request->type;
+                $accBallance = AccountBallance::where('account_id', $userAccountID)->first();
+
+                if ($type == 'toman') {
+                    $accBallance->ballance -= $ballance;
+                    $accBallance->update();
+                    $logCtrl = new LogController();
+                    $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
+                    return $accBallance->ballance;
+                } elseif ($type == 'dollar') {
+                    $accBallance->account_ballance_in_dollar -= doubleval($ballance);
+                    $accBallance->update();
+                    $logCtrl = new LogController();
+                    $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
+                    return $accBallance->account_ballance_in_dollar;
+                }
+            }
+            return response()->json(null, 404);
+        } catch (\Throwable $th) {
+            \Log::info("message $th");
+            return response()->json(null, 500);
         }
     }
     public function incUserAccuntBalanceInDollar($userID, $ballance)
@@ -204,5 +269,12 @@ class AccountBallanceController extends Controller
             \Log::info("$th");
             return response()->json(false, 500);
         }
+    }
+    /// check  dollarPay is valid or not
+    public function checkDollarPay()
+    {
+        $trSettingCntrl = new TransactionSettingController();
+
+        return $trSettingCntrl->getDollorTransactionSetting();
     }
 }

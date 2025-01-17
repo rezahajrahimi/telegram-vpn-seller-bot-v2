@@ -30,8 +30,17 @@ use App\Http\Controllers\TestAccountController;
 use App\Http\Controllers\BillController;
 use App\Http\Controllers\CryptoPaymentController;
 use App\Http\Controllers\TransactionCryptoController;
+use App\Http\Controllers\TransactionSettingController;
 use App\Http\Controllers\AgentProductController;
 use App\Http\Controllers\AgentPermissonController;
+use App\Http\Controllers\ExecuteArtisanCommandController;
+use App\Http\Controllers\CronJobController;
+use App\Http\Controllers\ReferralSettingController;
+use App\Http\Controllers\ReferralWalletController;
+use App\Http\Controllers\ReferralLogsController;
+use App\Http\Controllers\ReserverdConfigController;
+use App\Http\Controllers\AdvancedSettingController;
+use App\Http\Controllers\WebAppMenuItemController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -62,10 +71,15 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 // Admin Routes
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function () {
+    // run a command by api
+    Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);
+    ///
     Route::get('getUserOrder/{userID}', [OrderController::class, 'getUserOrder']);
     Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
     // Admin
     Route::put('buyProductByAdmin', [AgentProductController::class, 'buyProductByAdmin']);
+    Route::put('changeProductByAdminWithPrID', [AgentProductController::class, 'changeProductByAdminWithPrID']);
+    Route::post('changeActivationOfHiddifyUserByAdmin', [AgentProductController::class, 'changeActivationOfHiddifyUserByAdmin']);
 
     // UserController
     Route::get('getUsers', [UserController::class, 'getUsers']);
@@ -76,6 +90,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::post('createUser', [UserController::class, 'createUser']);
     Route::put('updateUser', [UserController::class, 'updateUser']);
     Route::delete('deleteUser', [UserController::class, 'deleteUser']);
+    Route::get('getAdminUsers', [UserController::class, 'get_admin_users']);
+    Route::patch('changeUserRoleToAdmin/{id}', [UserController::class, 'change_user_role_to_admin']);
+    Route::patch('changeAgentRoleToUser/{id}', [UserController::class, 'change_user_role_to_user']);
 
     // GeneralController
     Route::get('getDashboardAnalytics', [GeneralController::class, 'getDashboardAnalytics']);
@@ -98,6 +115,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getLastBuyersByCatIdAndCount/{id}/{count}', [ProductController::class, 'getLastBuyersByCatIdAndCount']);
     Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
     Route::get('deleteProductByProductID/{id}', [ProductController::class, 'deleteProductByProductID']);
+    Route::get('getUserProductsHistoryByUserIDWithPagination/{userId}', [ProductController::class, 'getUserProductsHistoryByUserIDWithPagination']);
 
     //Settings
     Route::get('getBotSetting', [SettingController::class, 'getBotSetting']);
@@ -219,8 +237,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
     //  BotUser
     Route::get('getBotUserList', [BotUserController::class, 'getBotUserList']);
+    Route::get('getBotUserListByPagination', [BotUserController::class, 'getBotUserListByPagination']);
     Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
-
+    Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
 
     Route::get('getLast10Users', [BotUserController::class, 'getLast10Users']);
     Route::get('getProductBoughtedByProductId/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
@@ -228,12 +247,15 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getBoughtProductsPannelLinkFromServerByIdAdminMode/{id}', [AgentProductController::class, 'getBoughtProductsPannelLinkFromServerByIdAdminMode']);
     Route::delete('softDeleteProductByAgentWithPrIDAdminMOde/{id}', [AgentProductController::class, 'softDeleteProductByAgentWithPrIDAdminMOde']);
 
+
     // Log
     Route::get('getAllLogs/{count}', [LogController::class, 'getAllLogs']);
 
-    //  Account
+    //  AccountBallanceController
     Route::post('setNewAccountBallance', [AccountBallanceController::class, 'setNewAccountBallance']);
     Route::post('setNewDollarAccountBallance', [AccountBallanceController::class, 'setNewDollarAccountBallance']);
+    Route::put('increaseUserAccuntBalanceByUserID', [AccountBallanceController::class, 'increaseUserAccuntBalanceByUserID']);
+    Route::put('decreaseUserAccuntBalanceByUserID', [AccountBallanceController::class, 'decreaseUserAccuntBalanceByUserID']);
 
     // Application
     Route::get('getAllAplicationList', [ApplicationController::class, 'getAllAplicationList']);
@@ -252,6 +274,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     // CryptoPaymentController
     Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
     Route::patch('updateNowPayment', [CryptoPaymentController::class, 'updateNowPayment']);
+    // TransactionSettingController
+    Route::get('getDollorTransactionSetting', [TransactionSettingController::class, 'getDollorTransactionSetting']);
+    Route::patch('setDollorTransactionSetting', [TransactionSettingController::class, 'setDollorTransactionSetting']);
 
     // AgentProductController
     Route::post('createBatchOfUserAgentProduct', [AgentProductController::class, 'createBatchOfUserAgentProduct']);
@@ -270,38 +295,51 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::patch('updateAgentPremission', [AgentPermissonController::class, 'updateAgentPremission']);
     Route::delete('deleteAgentPremission/{id}', [AgentPermissonController::class, 'deleteAgentPremission']);
 
+    // CronJobController
+    Route::get('/getAllCronJobs', [CronJobController::class, 'get_all_cron_jobs']);
+    Route::get('/getAllActiveCronJobs', [CronJobController::class, 'get_all_active_cron_jobs']);
+    Route::get('/changeCronJobActiveStatusById/{id}', [CronJobController::class, 'change_cron_job_active_status']);
+    // Route::get('/getTetherPriceByNobitex', [CronJobController::class, 'get_tether_price_by_nobitex']);
+
+
+    // ReferralSettingController
+    Route::get('/getReferralSetting', [ReferralSettingController::class, 'get_referral_setting']);
+    Route::put('/updateReferralSetting', [ReferralSettingController::class, 'update_referral_setting']);
+
+    //  ReferralWalletController
+    Route::put('/editAmountOfRefWalletByAccountId', [ReferralWalletController::class, 'edit_amount_of_ref_wallet_by_account_id']);
+
+    // ReserverdConfigController
+    Route::post('/checkAProductHasReservedConfigByProductId', [ReserverdConfigController::class, 'check_a_product_has_reserved_config_by_product_id']);
+
+    // AdvancedSettingController
+    Route::get('/advancedSetting', [AdvancedSettingController::class, 'advancedSetting']);
+    Route::patch('/advancedSetting', [AdvancedSettingController::class, 'update_advanced_setting']);
 
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
-
     // User
     Route::put('updateAgentPassword', [UserController::class, 'updateAgentPassword']);
 
-
     // GeneralController
     Route::get('getAgentDashboardAnalytics', [GeneralController::class, 'getAgentDashboardAnalytics']);
-    Route::get('getAgentPaymentWays', [GeneralController::class, 'getAgentPaymentWays']);
-
 
     // AccountBallanceController
     Route::get('getLoggedAgentUserBallancce', [AccountBallanceController::class, 'getLoggedUserBallancce']);
     // AgentProductController
     Route::get('getProductsOfLoggedAgent', [AgentProductController::class, 'getProductsOfLoggedAgent']);
     Route::get('getAgentSelledProducts', [AgentProductController::class, 'getAgentSelledProducts']);
+    Route::get('getAgentSelledProductsByPagination', [AgentProductController::class, 'getAgentSelledProductsByPagination']);
     Route::get('getBoughtProductsStatusFromServerById/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
-    Route::get('getBoughtProductsPannelLinkFromServerById/{id}', [AgentProductController::class, 'getBoughtProductsPannelLinkFromServerById']);
     Route::put('buyProductByAgentWithPrID', [AgentProductController::class, 'buyProductByAgentWithPrID']);
     Route::patch('renameHiddifyRemark', [AgentProductController::class, 'renameHiddifyRemark']);
     Route::patch('reChargeProductByAgentWithPrID', [AgentProductController::class, 'reChargeProductByAgentWithPrID']);
+    Route::put('changeProductByAgentWithPrID', [AgentProductController::class, 'changeProductByAgentWithPrID']);
     Route::delete('softDeleteProductByAgentWithPrID/{id}', [AgentProductController::class, 'softDeleteProductByAgentWithPrID']);
-
-    // BillController
-    Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
-    Route::get('createNewAgentDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
-
-
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:user']], function () {
+    // GeneralController
+    Route::get('getUserDashboardAnalytics', [GeneralController::class, 'getUserDashboardAnalytics']);
 
     // AccountBallanceController
     Route::get('getLoggedUserBallancce', [AccountBallanceController::class, 'getLoggedUserBallancce']);
@@ -310,10 +348,47 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:user']], function (
     Route::get('createNewUserTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
     Route::get('createNewUserDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
 
+    // AgentProductController
+    Route::put('buyProductByUserWithPrID', [AgentProductController::class, 'buyProductByUserWithPrID']);
+    Route::get('getUserSelledProductsByPagination', [AgentProductController::class, 'getAgentSelledProductsByPagination']);
+    Route::get('getProductBoughtedByProductIdUserMode/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
+    Route::patch('reChargeProductByUserWithPrID', [AgentProductController::class, 'reChargeProductByUserWithPrID']);
+    Route::delete('softDeleteProductByUserWithPrID/{id}', [AgentProductController::class, 'softDeleteProductByUserWithPrID']);
+});
+// shared route
+Route::group(['middleware' => ['auth:sanctum']], function () {
+    Route::get('getBoughtProductsPannelLinkFromServerById/{id}', [AgentProductController::class, 'getBoughtProductsPannelLinkFromServerById']);
+    Route::post('changeActivationOfHiddifyUserByAgent', [AgentProductController::class, 'changeActivationOfHiddifyUserByAgent']);
+    Route::get('getAgentPaymentWays', [GeneralController::class, 'getAgentPaymentWays']);
+    // BillController
+    Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
+    Route::get('createNewAgentDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
 
+    // UserController
+    Route::put('updateUserPassword', [UserController::class, 'update_logged_password']);
+    //  ReferralLogsController
+    Route::get('/getReferralLogsByAccountId/{account_id}', [ReferralLogsController::class, 'get_referral_logs']);
+    // WebAppMenuItemController
+    Route::get('/getAllActiveWebAppMenuItems', [WebAppMenuItemController::class, 'get_all_active_web_app_menu_items']);
+
+    //ProxyController
 
 });
+
+
+Route::get('/getAllActiveProdctCategoryOrderByPrice', [ProductCategoryController::class, 'getAllActiveProdctCategoryOrderByPrice']);
+
+
+
+
+
+
 Route::post('createNewBillInDollar', [BillController::class, 'createNewBillInDollar']);
 Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']);
 Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPaymentStatus']);
+
+Route::get('/prd', [CronJobController::class, 'calculate_product_category_price_in_dollar_by_toman']);
+
+
+Route::post('/orderch', [TransactionController::class, 'add_order']);
