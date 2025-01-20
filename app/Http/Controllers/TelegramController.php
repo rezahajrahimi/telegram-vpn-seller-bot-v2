@@ -962,8 +962,11 @@ class TelegramController extends Controller
 
             $name = $this->userCommandArr[1];
             $selectedPayment = $pymCntrl->getPaymentTypeNyName($this->userCommandArr[1]);
-            $result = app('telegram_bot')->sendMessage($selectedPayment->merchant_id, $this->chat_id, null, 'MarkDown');
-
+            $merchent_id = $selectedPayment->merchant_id;
+            $retrun_text = "<code>{$merchent_id}</code>";
+            $result = app('telegram_bot')->sendMessage($retrun_text, $this->chat_id, null, 'HTML');
+            // log resualt as a array
+            \Log::info("result: " . json_encode($result));
             $this->addNewBotLog('ballance', 'مشخصات پرداخت آفلاین انتخابی به کاربر نمایش داده شد.', 'show');
 
             return response()->json($result, 200);
