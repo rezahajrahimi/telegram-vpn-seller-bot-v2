@@ -276,6 +276,9 @@ class TelegramController extends Controller
             $this->referralCode = trim($this->referralCode);
             // save refrence code in database
             $referralLogsCntrl = new ReferralLogsController();
+                    $botUserCtrl = new BotUserController();
+
+            $botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name);
             $saveRef = $referralLogsCntrl->check_user_has_referral_and_create($this->from_id, $this->referralCode);
         }
         $botUserCtrl = new BotUserController();

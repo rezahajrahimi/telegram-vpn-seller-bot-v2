@@ -43,20 +43,21 @@ class ReferralLogsController extends Controller
     {
 
         try {
+            // $saveRef = $referralLogsCntrl->check_user_has_referral_and_create($this->from_id, $this->referralCode);
+
+
+
             $user_id = $this->get_userId_by_accountId($account_id);
             $referral_id = $this->get_userId_by_accountId($referralCode);
             if ($user_id == $referral_id || $referral_id == null) {
                 return false;
             }
-            // check referral_id exists
-            // $user = User::where('id', $referral_id)->first();
-            // if ($user == null) {
-            //     return false;
-            // }
             $referralLogs = ReferralLogs::where('referral_to_id', $user_id)->first();
             if ($referralLogs != null) {
                 return true;
             } else {
+
+
                 $newReferralLogs = new ReferralLogs();
                 $newReferralLogs->referral_user_id = $referral_id;
                 $newReferralLogs->referral_to_id = $user_id;
@@ -64,7 +65,7 @@ class ReferralLogsController extends Controller
                 $newReferralLogs->save();
                 // send message to referral account
                 $resualt = app('telegram_bot')->sendMessage('یک کاربر با لینک دعوت شما وارد ربات شد.', $referralCode, null, 'MarkDown');
-                $this->addNewBotLog('referral', 'یک کاربر با لینک دعوت شما وارد ربات شد.', 'newreferral');
+                // $this->addNewBotLog('referral', 'یک کاربر با لینک دعوت شما وارد ربات شد.', 'newreferral');
 
                 return true;
             }
@@ -132,7 +133,7 @@ class ReferralLogsController extends Controller
             }
             $referralLogs->amount = $request->amount;
             $referralLogs->transaction_id = $request->transaction_id ?? null;
-            $referralLogs->save();
+            $referralLogs->save(null,);
             return $referralLogs;
         } catch (\Throwable $th) {
             \Log::info("Throwable add_new_referral_logs: $th");
