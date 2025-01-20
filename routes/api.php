@@ -145,6 +145,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('reActivePaymentType/{name}', [PaymentTypeController::class, 'reActivePaymentType']);
     Route::get('removePaymentType/{name}', [PaymentTypeController::class, 'removePaymentType']);
     Route::post('chanegeMerChantIdByPaymentTypeName', [PaymentTypeController::class, 'chanegeMerChantIdByPaymentTypeName']);
+    Route::post('updateOfflinePaymentType', [PaymentTypeController::class, 'update_offline_payment_type']);
 
     // paymenyt type menu
     Route::get('getPaymentTypeMainMenuTitle', [PaymentMenuItemController::class, 'getPaymentTypeMainMenuTitle']);

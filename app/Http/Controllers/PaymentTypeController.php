@@ -160,6 +160,18 @@ class PaymentTypeController extends Controller
             return false;
         }
     }
+    public function update_offline_payment_type(Request $request)
+    {
+        $data = PaymentType::find($request->id);
+        if ($data != null) {
+            $data->name = $request->name;
+            $data->merchant_id = $request->merchant_id;
+            $data->save();
+            return $data;
+        } else {
+            return false;
+        }
+    }
     public function removePaymentType($name)
     {
         $data = PaymentType::where('name', $name)->first();
