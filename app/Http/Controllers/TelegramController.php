@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://4cb3-2a12-5940-4449-00-2.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://51b1-2a12-5940-4449-00-2.ngrok-free.app/api/telegram/webhooks/inbound
 
 // https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://71da-185-197-74-113.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
@@ -1807,10 +1807,12 @@ class TelegramController extends Controller
             $newtext = trim($value);
             $text .= "\n\r{$newtext}";
         }
-
-        $text .= "\r\n $inviteUrl";
-
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+        $text = "$inviteUrl";
+        
+                $resualt = app('telegram_bot')->sendMessage("<code>$text</code>", $this->chat_id, null, 'HTML');
+
 
         return response()->json($resualt, 200);
     }
