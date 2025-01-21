@@ -144,13 +144,13 @@ class AuthController extends Controller
         $text .= "رمز عبور شما به پنل تغییر یافت \n\r";
         $text .= 'نام کاربری ورود به پنل:';
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text = "{$user_id}";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        $text = "<code>{$user_id}</code>";
+        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
 
         $text = "پسورد ورود به پنل:  \n\r";
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text = "{$user_password}";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        $text = "<code>{$user_password}</code>";
+        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
         return response()->json(true);
     }
     public function generate_auto_login_link(Request $request)
@@ -179,16 +179,16 @@ class AuthController extends Controller
         // $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
         $result = app('telegram_bot')->sendMessage('لینک ورود به پنل:', $user_id, null, 'MarkDown');
 
-        $text = "$frontUrl";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        $text = "<code>{$frontUrl}</code>";
+        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
         $text = "username:\n\r";
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text = "$user_id";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        $text = "<code>{$user_id}</code>";
+        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
         $text = 'password:';
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text = "$user_password";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
+        $text = "<code>{$user_password}</code>";
+        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
 
         $text = "ورود سریع به پنل ⬇️\n\r";
 

@@ -19,7 +19,7 @@ class AccountBallanceController extends Controller
         $agentPremissionCntrl = new AgentPermissonController();
         $agentPr = $agentPremissionCntrl->getUserPremission();
         if ($agentPr != null) {
-            if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
+            if ($agentPr->minus_ballance === 1 || $agentPr->minus_ballance === true) {
 
                 return true;
             }
