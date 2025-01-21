@@ -179,7 +179,6 @@ class AccountBallanceController extends Controller
             } elseif ($data->account_ballance_in_dollar >= $parice_in_dollar) {
                 $data->account_ballance_in_dollar -= doubleval($parice_in_dollar);
                 $data->update();
-
                 return true;
             } else {
                 $agentPremissionCntrl = new AgentPermissonController();
