@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 use Exception;
+use Illuminate\Support\Facades\File;
 
 class BackupController extends Controller
 {
@@ -16,17 +17,40 @@ class BackupController extends Controller
     public function createBackup()
     {
         try {
+            // قبل از ایجاد فایل backup
+            $backupPath = storage_path('app/backups');
+
+            if (!File::exists($backupPath)) {
+                File::makeDirectory($backupPath, 0775, true);
+                
+                // تنظیم دسترسی‌ها در سیستم‌عامل‌های یونیکس
+                if (PHP_OS !== 'WINNT') {
+                    chmod($backupPath, 0775);
+                    
+                    // اگر در محیط لینوکس هستید و می‌خواهید مالکیت را هم تغییر دهید
+                    // $user = get_current_user();
+                    // chown($backupPath, $user);
+                }
+            }
+
             // نام فایل بکاپ با تاریخ و زمان
             $filename = 'backup_' . Carbon::now()->format('Y-m-d_H-i-s') . '.sql';
             
             // دستور mysqldump برای گرفتن بکاپ
-            $command = sprintf(
-                'mysqldump -u%s -p%s %s > %s',
+        $command = sprintf(
+        'mariadb-dump --skip-set-charset --no-tablespaces -h %s -u %s -p%s %s > %s',
                 config('database.connections.mysql.username'),
                 config('database.connections.mysql.password'),
                 config('database.connections.mysql.database'),
                 storage_path('app/backups/' . $filename)
             );
+        // $command = sprintf(
+        //     'mysqldump --skip-set-charset -h %s -u %s -p%s %s > %s',
+        //         config('database.connections.mysql.username'),
+        //         config('database.connections.mysql.password'),
+        //         config('database.connections.mysql.database'),
+        //         storage_path('app/backups/' . $filename)
+        //     );
 
             // اجرای دستور
             exec($command);
@@ -42,6 +66,7 @@ class BackupController extends Controller
             ], 500);
 
         } catch (Exception $e) {
+            \Log::error('خطا در ایجاد فایل بکاپ: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
                 'message' => $e->getMessage()
@@ -65,12 +90,19 @@ class BackupController extends Controller
             // گرفتن بکاپ از دیتابیس فعلی قبل از بازیابی
             $backupBeforeRestore = 'backup_before_restore_' . Carbon::now()->format('Y-m-d_H-i-s') . '.sql';
             $backupCommand = sprintf(
-                'mysqldump -u%s -p%s %s > %s',
+                'mariadb -u%s -p%s %s > %s',
                 config('database.connections.mysql.username'),
                 config('database.connections.mysql.password'),
                 config('database.connections.mysql.database'),
                 storage_path('app/backups/' . $backupBeforeRestore)
             );
+            // $backupCommand = sprintf(
+            //     'mysqldump -u%s -p%s %s > %s',
+            //     config('database.connections.mysql.username'),
+            //     config('database.connections.mysql.password'),
+            //     config('database.connections.mysql.database'),
+            //     storage_path('app/backups/' . $backupBeforeRestore)
+            // );
             exec($backupCommand);
 
             // حذف تمام جداول موجود
@@ -114,10 +146,53 @@ class BackupController extends Controller
             ]);
 
         } catch (Exception $e) {
+            \Log::error('خطا در بازیابی اطلاعات: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
                 'message' => $e->getMessage()
             ], 500);
         }
     }
+
+    // private function createDatabaseBackup(): string 
+    // {
+    //     $dbName = config('database.connections.mysql.database');
+    //     $username = config('database.connections.mysql.username'); 
+    //     $password = config('database.connections.mysql.password');
+    //     $host = config('database.connections.mysql.host');
+
+    //     // Add --skip-set-charset to avoid sandbox mode error
+    //     $command = sprintf(
+    //         'mysqldump --skip-set-charset -h %s -u %s -p%s %s > %s',
+    //         $host,
+    //         $username, 
+    //         $password,
+    //         $dbName,
+    //         storage_path('app/backups/database_' . date('Y-m-d_H-i-s') . '.sql')
+    //     );
+
+    //     exec($command);
+        
+    //     return 'database_' . date('Y-m-d_H-i-s') . '.sql';
+    // }
+
+    // private function restoreDatabaseBackup(string $backupFile): void
+    // {
+    //     $dbName = config('database.connections.mysql.database');
+    //     $username = config('database.connections.mysql.username'); 
+    //     $password = config('database.connections.mysql.password');
+    //     $host = config('database.connections.mysql.host');
+
+    //     // Add --skip-set-charset to avoid sandbox mode error
+    //     $command = sprintf(
+    //         'mysql --skip-set-charset -h %s -u %s -p%s %s < %s',
+    //         $host,
+    //         $username,
+    //         $password,
+    //         $dbName,
+    //         storage_path('app/backups/' . $backupFile)
+    //     );
+
+    //     exec($command);
+    // }
 } 
