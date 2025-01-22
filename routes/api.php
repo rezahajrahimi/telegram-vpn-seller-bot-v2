@@ -41,6 +41,7 @@ use App\Http\Controllers\ReferralLogsController;
 use App\Http\Controllers\ReserverdConfigController;
 use App\Http\Controllers\AdvancedSettingController;
 use App\Http\Controllers\WebAppMenuItemController;
+use App\Http\Controllers\BackupController;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -80,6 +81,11 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::put('buyProductByAdmin', [AgentProductController::class, 'buyProductByAdmin']);
     Route::put('changeProductByAdminWithPrID', [AgentProductController::class, 'changeProductByAdminWithPrID']);
     Route::post('changeActivationOfHiddifyUserByAdmin', [AgentProductController::class, 'changeActivationOfHiddifyUserByAdmin']);
+
+    // backup
+    Route::get('createBackup', [BackupController::class, 'createBackup']);
+    Route::post('restoreBackup', [BackupController::class, 'restoreBackup']);
+
 
     // UserController
     Route::get('getUsers', [UserController::class, 'getUsers']);
@@ -393,3 +399,5 @@ Route::get('/prd', [CronJobController::class, 'calculate_product_category_price_
 
 
 Route::post('/orderch', [TransactionController::class, 'add_order']);
+
+
