@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "bd58db9efed78f701c07cfba96ec698b",
+    "content-hash": "19988e6584429bf17b1119fbce00b725",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -7884,6 +7884,67 @@
                 }
             ],
             "time": "2025-01-13T09:33:05+00:00"
+        },
+        {
+            "name": "sbamtr/laravel-source-encrypter",
+            "version": "1.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/SiavashBamshadnia/Laravel-Source-Encrypter.git",
+                "reference": "598e4cc804b11aa489fc919326c71e4b80684c24"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/SiavashBamshadnia/Laravel-Source-Encrypter/zipball/598e4cc804b11aa489fc919326c71e4b80684c24",
+                "reference": "598e4cc804b11aa489fc919326c71e4b80684c24",
+                "shasum": ""
+            },
+            "require": {
+                "ext-bolt": "*",
+                "illuminate/console": "^6|^7|^8|^9|^10",
+                "illuminate/support": "^6|^7|^8|^9|^10",
+                "php": ">=7.2.5"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "sbamtr\\LaravelSourceEncrypter\\SourceEncryptServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "sbamtr\\LaravelSourceEncrypter\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Siavash Bamshadnia",
+                    "email": "sbamtr@gmail.com"
+                }
+            ],
+            "description": "Laravel Source Encrypter",
+            "keywords": [
+                "encrypt",
+                "encrypter",
+                "encryption",
+                "encryptor",
+                "ioncube",
+                "laravel",
+                "lumen",
+                "phpBolt",
+                "source"
+            ],
+            "support": {
+                "issues": "https://github.com/SiavashBamshadnia/Laravel-Source-Encrypter/issues",
+                "source": "https://github.com/SiavashBamshadnia/Laravel-Source-Encrypter/tree/1.5.0"
+            },
+            "time": "2023-03-10T19:11:37+00:00"
         },
         {
             "name": "sebastian/cli-parser",
