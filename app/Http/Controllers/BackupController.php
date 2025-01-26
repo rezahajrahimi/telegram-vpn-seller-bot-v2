@@ -99,8 +99,6 @@ class BackupController extends Controller
                 \Artisan::call('storage:link');
             }
 
-
-
             // حذف تمام جداول موجود
             DB::statement('SET FOREIGN_KEY_CHECKS = 0');
 
@@ -115,6 +113,12 @@ class BackupController extends Controller
 
             DB::statement('SET FOREIGN_KEY_CHECKS = 1');
 
+            // ایجاد دایرکتوری temp اگر وجود نداشته باشد
+            $tempPath = storage_path('app/public/backups/temp');
+            if (!File::exists($tempPath)) {
+                File::makeDirectory($tempPath, 0775, true);
+            }
+
             // اگر URL ارسال شده باشد، فایل را از مسیر storage کپی می‌کنیم
             if ($backupUrl) {
                 $path = parse_url($backupUrl, PHP_URL_PATH);
@@ -128,27 +132,44 @@ class BackupController extends Controller
                     ], 404);
                 }
 
-                copy($sourcePath, storage_path('app/public/backups/temp/' . $filename));
+                copy($sourcePath, $tempPath . '/' . $filename);
             } else {
                 $file = $request->file('backup_file');
+                if (!$file) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'فایل آپلود شده معتبر نیست'
+                    ], 400);
+                }
                 $filename = 'restore_' . time() . '.sql';
-                $file->storeAs('backups/temp', $filename);
+                $file->move($tempPath, $filename);
             }
 
-            // دستور mysql برای بازیابی
+            // دستور mysql برای بازیابی - اصلاح پارامترها
             $command = sprintf(
-                'mysql -u%s -p%s %s < %s',
+                'mysql -h %s -u %s -p%s %s < %s',
                 config('database.connections.mysql.host'),
                 config('database.connections.mysql.username'),
                 config('database.connections.mysql.password'),
                 config('database.connections.mysql.database'),
-                storage_path('app/public/backups/temp/' . $filename)
+                $tempPath . '/' . $filename
             );
 
-            exec($command);
+            // \Log::info('File received: ' . ($file ? 'yes' : 'no'));
+            // \Log::info('Command: ' . $command);
+
+            // اجرای دستور و بررسی خطا
+            $output = [];
+            $returnVar = 0;
+            exec($command . ' 2>&1', $output, $returnVar);
+
+            if ($returnVar !== 0) {
+                \Log::error('MySQL Error: ' . implode("\n", $output));
+                throw new Exception('خطا در اجرای دستور MySQL: ' . implode("\n", $output));
+            }
 
             // پاک کردن فایل موقت
-            Storage::delete('backups/temp/' . $filename);
+            File::delete($tempPath . '/' . $filename);
 
             return response()->json([
                 'status' => 'success',
