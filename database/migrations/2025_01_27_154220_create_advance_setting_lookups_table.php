@@ -11,12 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('advanced_settings', function (Blueprint $table) {
+        Schema::create('advance_setting_lookups', function (Blueprint $table) {
             $table->id();
-            $table->boolean('bot_show_configs_by_panels_category')->default(false);
-            $table->boolean('bot_auto_set_price_by_dollar_price')->default(false);
-            $table->boolean('bot_show_web_app_link_in_telegram_for_all_users')->default(true);
-
+            $table->string('name');
+            $table->string('value');
+            $table->string('description')->nullable();
             $table->timestamps();
         });
     }
@@ -26,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('advanced_settings');
+        Schema::dropIfExists('advance_setting_lookups');
     }
 };

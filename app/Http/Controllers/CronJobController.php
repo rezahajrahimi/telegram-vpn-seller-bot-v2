@@ -48,7 +48,7 @@ class CronJobController extends Controller
             $createDailyBackupCronJob->name = 'Create Daily Backup';
             $createDailyBackupCronJob->frequency = '1d';
             $createDailyBackupCronJob->is_active = true;
-            $createDailyBackupCronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 06:00';
+            $createDailyBackupCronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
             $createDailyBackupCronJob->save();
             $cronJobs = CronJob::all();
             return response()->json($cronJobs);
@@ -240,8 +240,8 @@ class CronJobController extends Controller
                 return false;
             }
             // checl is enable in advanced setting ot not
-            $advancedSettingCntrl = new AdvancedSettingController();
-            $isEnable = $advancedSettingCntrl->get_bot_auto_set_price_by_dollar_price();
+            $advancedSettingCntrl = new AdvanceSettingLookupController();
+            $isEnable = $advancedSettingCntrl->getByNameAndValueWithBooleanValue('bot_auto_set_price_by_dollar_price');
             if ($isEnable == false || $isEnable == 0) {
                 return false;
             }
@@ -276,8 +276,8 @@ class CronJobController extends Controller
             }
 
             // checl is enable in advanced setting ot not
-            $advancedSettingCntrl = new AdvancedSettingController();
-            $isEnable = $advancedSettingCntrl->get_bot_calculate_product_category_price_in_dollar_by_toman();
+            $advancedSettingCntrl = new AdvanceSettingLookupController();
+            $isEnable = $advancedSettingCntrl->getByNameAndValueWithBooleanValue('bot_calculate_product_category_price_in_dollar_by_toman');
             if ($isEnable == false || $isEnable == 0) {
                 return false;
             }
@@ -453,7 +453,7 @@ class CronJobController extends Controller
         $cronJob->name = 'Create Daily Backup';
         $cronJob->frequency = '1d';
         $cronJob->is_active = true;
-        $cronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 06:00';
+        $cronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
         $cronJob->save();
         return $cronJob;
     }

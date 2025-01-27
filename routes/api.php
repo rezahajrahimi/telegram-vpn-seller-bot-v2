@@ -39,7 +39,7 @@ use App\Http\Controllers\ReferralSettingController;
 use App\Http\Controllers\ReferralWalletController;
 use App\Http\Controllers\ReferralLogsController;
 use App\Http\Controllers\ReserverdConfigController;
-use App\Http\Controllers\AdvancedSettingController;
+use App\Http\Controllers\AdvanceSettingLookupController;
 use App\Http\Controllers\WebAppMenuItemController;
 use App\Http\Controllers\BackupController;
 
@@ -319,10 +319,15 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     // ReserverdConfigController
     Route::post('/checkAProductHasReservedConfigByProductId', [ReserverdConfigController::class, 'check_a_product_has_reserved_config_by_product_id']);
 
-    // AdvancedSettingController
-    Route::get('/advancedSetting', [AdvancedSettingController::class, 'advancedSetting']);
-    Route::patch('/advancedSetting', [AdvancedSettingController::class, 'update_advanced_setting']);
-
+    // AdvanceSettingLookupController
+    Route::get('/advanceSettingLookup', [AdvanceSettingLookupController::class, 'getAll']);
+    Route::get('/advanceSettingLookupByName/{name}', [AdvanceSettingLookupController::class, 'getByName']);
+    Route::get('/advanceSettingLookupByNameWithBooleanValue/{name}', [AdvanceSettingLookupController::class, 'getByNameWithBooleanValue']);
+    Route::get('/advanceSettingLookupByNameAndValue/{name}/{value}', [AdvanceSettingLookupController::class, 'getByNameAndValue']);
+    Route::get('/advanceSettingLookupByNameAndValueWithBooleanValue/{name}/{value}', [AdvanceSettingLookupController::class, 'getByNameAndValueWithBooleanValue']);
+    Route::post('/advanceSettingLookupCreate', [AdvanceSettingLookupController::class, 'create']);
+    Route::post('/advanceSettingLookupUpdate', [AdvanceSettingLookupController::class, 'update']);
+    Route::post('/advanceSettingLookupUpdateByName', [AdvanceSettingLookupController::class, 'updateByName']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User
