@@ -8,6 +8,7 @@ use App\Models\Pannel;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\BotUser;
+use App\Models\User;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -43,6 +44,12 @@ class CronJobController extends Controller
             $usageMoreThan85PercentCronJob->is_active = true;
             $usageMoreThan85PercentCronJob->description = 'ارسال پیام به کاربرانی که میزان استفاده از اکانت بیشتر از 85 درصد دارند.';
             $usageMoreThan85PercentCronJob->save();
+            $createDailyBackupCronJob = new CronJob();
+            $createDailyBackupCronJob->name = 'Create Daily Backup';
+            $createDailyBackupCronJob->frequency = '1d';
+            $createDailyBackupCronJob->is_active = true;
+            $createDailyBackupCronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 06:00';
+            $createDailyBackupCronJob->save();
             $cronJobs = CronJob::all();
             return response()->json($cronJobs);
         } catch (\Throwable $th) {
@@ -370,5 +377,53 @@ class CronJobController extends Controller
 
             return null;
         }
+    }
+    public function execute_create_daily_backup()
+    {
+         $authCntrl = new AuthController();
+        $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+        if ($getPowerPsLicenseType == 'free') {
+            return false;
+        }
+        $cronJob = CronJob::where('name', 'Create Daily Backup')->first();
+        if($cronJob == null){
+          $cronJob=  $this->create_cron_job_for_create_daily_backup();
+        }
+        // check if is_active was false, return
+        if ($cronJob->is_active == false) {
+            return false;
+        }
+        $backupCtrl = new BackupController();
+        $backup = $backupCtrl->createBackup();
+        $backup = json_decode($backup->getContent(), true);
+        $backupFile = $backup['url'];
+        $backupFile = str_replace('http://localhost:8002', 'https://a721-2a12-5940-4449-00-2.ngrok-free.app', $backupFile);
+        \Log::info('backupFile', ['backupFile' => $backupFile]);
+        $admin = User::where('role', 'admin')->first();
+        $admin_id = $admin->account_id;
+
+        $currentDate = now()->toJalali()->format('Y/m/d');
+        $currentDate = Verta::parse($currentDate)->format('Y-m-d');
+        $text = "نسخه پشتیبان $currentDate";
+        $text .= "\n\n";
+
+        $text .= "<a href='$backupFile'>دانلود فایل</a>";
+        $result = app('telegram_bot')->sendMessage($text, $admin_id, null, 'HTML');
+
+        if ($result['success']) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+    public function create_cron_job_for_create_daily_backup()
+    {
+        $cronJob = new CronJob();
+        $cronJob->name = 'Create Daily Backup';
+        $cronJob->frequency = '1d';
+        $cronJob->is_active = true;
+        $cronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 06:00';
+        $cronJob->save();
+        return $cronJob;
     }
 }

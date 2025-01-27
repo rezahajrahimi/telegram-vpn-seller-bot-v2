@@ -11,6 +11,13 @@ use Illuminate\Support\Facades\File;
 
 class BackupController extends Controller
 {
+
+    public function __construct()
+    {
+        $this->telegramBot = app('telegram_bot');
+    }
+
+
     /**
      * گرفتن بکاپ از کل دیتابیس
      */
@@ -78,6 +85,7 @@ class BackupController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+
 
     /**
      * بازیابی اطلاعات از فایل بکاپ

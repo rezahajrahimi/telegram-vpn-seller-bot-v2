@@ -304,6 +304,28 @@ class TelegramBot
 
         return $result;
     }
+    public function sendMessageWithFile($file, $chat_id, $caption)
+    {
+        try {
+            $result = ['success' => false, 'body' => []];
+            $url = "{$this->api_endpoint}/{$this->token}/sendDocument";
+            $params = [
+                'chat_id' => $chat_id,
+                'document' => $file,
+                'caption' => $caption,
+            ];
+            $response = Http::withHeaders($this->headers)->post($url, $params);
+            $result = ['success' => $response->ok(), 'body' => $response->json()];
+            \Log::info('TelegramBot->sendMessageWithFile->result', ['result' => $result]);
+            return $result;
+        } catch (\Throwable $th) {
+            $result['error'] = $th->getMessage();
+            \Log::info("Throwable sendMessageWithFile: $th");
+            return $result;
+        }
+
+
+    }
     public function commandMessage($command, $chat_id, $text)
     {
         // Default result array
