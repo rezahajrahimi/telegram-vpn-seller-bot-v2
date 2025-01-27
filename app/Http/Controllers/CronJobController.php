@@ -95,7 +95,13 @@ class CronJobController extends Controller
         $pannel = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
         foreach ($pannel as $key => $value) {
-            $users = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            // تبدیل Response به آرایه
+            $users = json_decode($usersResponse->getContent(), true);
+
+            if (!is_array($users)) {
+                continue;
+            }
             foreach ($users as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
 
@@ -163,7 +169,13 @@ class CronJobController extends Controller
         $pannel = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
         foreach ($pannel as $key => $value) {
-            $users = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            // تبدیل Response به آرایه
+            $users = json_decode($usersResponse->getContent(), true);
+
+            if (!is_array($users)) {
+                continue;
+            }
             foreach ($users as $key => $value) {
                 $startDate = $value['start_date'];
                 // convert $startDate to valid carbon date
@@ -296,24 +308,33 @@ class CronJobController extends Controller
         if ($cronJob->is_active == false) {
             return false;
         }
+
         $authCntrl = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
         if ($getPowerPsLicenseType == 'free') {
             return false;
         }
+
         $pannel = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
 
         foreach ($pannel as $key => $value) {
-            $users = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            // تبدیل Response به آرایه
+            $users = json_decode($usersResponse->getContent(), true);
+
+            if (!is_array($users)) {
+                continue;
+            }
+
             foreach ($users as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
-
-                // $usageGB = round($usageGB, 2);
                 $limitGB = $value['usage_limit_GB'];
+
                 if ($limitGB == 0 || $usageGB == 0) {
-                    return true;
+                    continue;
                 }
+
                 // get usage percent
                 $usagePercent = ($usageGB / $limitGB) * 100;
                 $usagePercent = round($usagePercent, 2);
@@ -327,10 +348,10 @@ class CronJobController extends Controller
                         $cronLog = CronLog::where('cron_id', $cronJob->id)
                             ->where('product_id', $product->id)
                             ->get();
+
                         if ($cronLog->count() == 0) {
                             // get product category
                             $prcategory = ProductCategory::find($product->product_categories_id);
-
                             // get product category name
                             $productCategoryName = $prcategory->category_name;
                             $productText = "{$productCategoryName} - {$product->remark}";
@@ -338,8 +359,14 @@ class CronJobController extends Controller
                             // send notification
                             $user_id = $product->account_id;
 
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی بسته $productText منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.", $user_id, null, 'MarkDown');
-                            if ($sendNotificationToUser) {
+                            $sendNotificationToUser = app('telegram_bot')->sendMessage(
+                                "کاربر گرامی بسته $productText منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.",
+                                $user_id,
+                                null,
+                                'MarkDown'
+                            );
+
+                            if ($sendNotificationToUser['success']) {
                                 $cronLog = new CronLog();
                                 $cronLog->cron_id = $cronJob->id;
                                 $cronLog->product_id = $product->id;
@@ -394,11 +421,15 @@ class CronJobController extends Controller
             return false;
         }
         $backupCtrl = new BackupController();
-        $backup = $backupCtrl->createBackup();
-        $backup = json_decode($backup->getContent(), true);
+        $backupResponse = $backupCtrl->createBackup();
+        $backup = json_decode($backupResponse->getContent(), true);
+
+        if (!isset($backup['url'])) {
+            return false;
+        }
+
         $backupFile = $backup['url'];
-        $backupFile = str_replace('http://localhost:8002', 'https://a721-2a12-5940-4449-00-2.ngrok-free.app', $backupFile);
-        \Log::info('backupFile', ['backupFile' => $backupFile]);
+        // $backupFile = str_replace('http://localhost:8002', 'https://a721-2a12-5940-4449-00-2.ngrok-free.app', $backupFile);
         $admin = User::where('role', 'admin')->first();
         $admin_id = $admin->account_id;
 

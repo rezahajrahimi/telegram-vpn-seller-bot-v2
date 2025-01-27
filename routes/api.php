@@ -307,7 +307,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('/getAllActiveCronJobs', [CronJobController::class, 'get_all_active_cron_jobs']);
     Route::get('/changeCronJobActiveStatusById/{id}', [CronJobController::class, 'change_cron_job_active_status']);
     // Route::get('/getTetherPriceByNobitex', [CronJobController::class, 'get_tether_price_by_nobitex']);
-
+    Route::get('/dailyBackup', [CronJobController::class, 'execute_create_daily_backup']);
 
     // ReferralSettingController
     Route::get('/getReferralSetting', [ReferralSettingController::class, 'get_referral_setting']);

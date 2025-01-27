@@ -39,6 +39,36 @@ class TelegramBot
     }
 
     /**
+     * needsHtmlParsing
+     *
+     * @param  mixed $text
+     * @return bool
+     */
+    protected function needsHtmlParsing($text)
+    {
+        // کاراکترهای خاص که نیاز به HTML دارند
+        $specialCharacters = [
+            '♦️', '➖', '$',
+            '_', // زیرخط در نام کاربری
+            ' ', // فاصله‌های متعدد
+            '\n', // خط جدید
+        ];
+
+        // اگر متن شامل کاراکترهای خاص باشد
+        foreach ($specialCharacters as $char) {
+            if (strpos($text, $char) !== false) {
+                // متن را آماده‌سازی می‌کنیم
+                $text = str_replace(["\n", "\r"], "<br>", $text); // تبدیل خط جدید به <br>
+                $text = preg_replace('/\s+/', ' ', $text); // حذف فاصله‌های اضافی
+                $text = htmlspecialchars($text, ENT_QUOTES, 'UTF-8'); // تبدیل کاراکترهای خاص
+                return $text;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * sendMessage
      *
      * @param  mixed $text
@@ -48,34 +78,47 @@ class TelegramBot
      */
     public function sendMessage($text, $chat_id, $reply_to_message_id, $parse, $key = null)
     {
-        // Default result array
-        $result = ['success' => false, 'body' => []];
-        $text = $this->replace_specefic_charecter($text);
-        // Create params array
         $params = [
             'chat_id' => $chat_id,
             'reply_to_message_id' => $reply_to_message_id,
             'text' => $text,
             'allow_sending_without_reply' => true,
-            // 'reply_markup' => $key,
-
-            'parse_mode' => $parse,
         ];
 
-        // Create url -> https://api.telegram.org/bot{token}/sendMessage
-        $url = "{$this->api_endpoint}/{$this->token}/sendMessage";
-
-        // Send the request
-        try {
-            $response = Http::withHeaders($this->headers)->post($url, $params);
-            $result = ['success' => $response->ok(), 'body' => $response->json()];
-        } catch (\Throwable $th) {
-            $result['error'] = $th->getMessage();
+        if ($key !== null) {
+            $params['reply_markup'] = $key;
         }
 
-        // \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
+        if ($parse) {
+            $params['parse_mode'] = $parse;
+        }
 
-        return $result;
+        $url = "{$this->api_endpoint}/{$this->token}/sendMessage";
+
+        try {
+            // اول بدون HTML امتحان می‌کنیم
+            $response = Http::withHeaders($this->headers)->post($url, $params);
+
+            if (!$response->ok()) {
+                \Log::info('First attempt failed, trying with HTML mode');
+                // اگر خطا داد، با HTML امتحان می‌کنیم
+                $params['parse_mode'] = 'HTML';
+                $params['text'] = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+
+                $response = Http::withHeaders($this->headers)->post($url, $params);
+            }
+
+            $result = ['success' => $response->ok(), 'body' => $response->json()];
+            return $result;
+
+        } catch (\Throwable $th) {
+            \Log::error('TelegramBot->sendMessage->error', [
+                'error' => $th->getMessage(),
+                'text' => $text,
+                'parse_mode' => $parse
+            ]);
+            return ['success' => false, 'error' => $th->getMessage()];
+        }
     }
     public function replace_specefic_charecter($text)
     {
