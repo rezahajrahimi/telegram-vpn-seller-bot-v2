@@ -512,7 +512,7 @@ class TelegramController extends Controller
         $this->addNewBotLog('subscription', 'وارد بخش خرید اشتراک شد.', 'show');
         // check has flag for show configs by panels category in advanced setting or not
         $advancedSettingCntrl = new AdvanceSettingLookupController();
-        $hasShowConfigByPanelCategory = $advancedSettingCntrl->getByNameAndValueWithBooleanValue('bot_show_configs_by_panels_category');
+        $hasShowConfigByPanelCategory = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_configs_by_panels_category');
         if ($hasShowConfigByPanelCategory == true || $hasShowConfigByPanelCategory == 1) {
             // get panels locations
             $panelCntrl = new PannelController();
@@ -538,7 +538,7 @@ class TelegramController extends Controller
         $opr = [];
         $index = 0;
         $advancedSettingCntrl = new AdvanceSettingLookupController();
-        $hasShowOneRowConfigText = $advancedSettingCntrl->getByNameAndValueWithBooleanValue('bot_show_one_row_config');
+        $hasShowOneRowConfigText = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
         if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
             // check if show one row config text is true or not
             $advancedSettingCntrl = new AdvancedSettingController();
@@ -583,7 +583,7 @@ class TelegramController extends Controller
         $opr = [];
         $index = 0;
         $advancedSettingCntrl = new AdvanceSettingLookupController();
-        $hasShowOneRowConfigText = $advancedSettingCntrl->getByNameAndValueWithBooleanValue('bot_show_one_row_config');
+        $hasShowOneRowConfigText = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
         if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
             // check if show one row config text is true or not
             $advancedSettingCntrl = new AdvancedSettingController();

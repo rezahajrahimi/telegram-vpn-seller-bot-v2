@@ -43,9 +43,9 @@ class AdvanceSettingLookupController extends Controller
     {
         $advanceSettingLookups = [
             ['name' => 'bot_show_configs_by_panels_category', 'value' => 'false', 'description' => 'نمایش کانفیگ ها براساس موقیت جغرافیایی پنل'],
-            ['name' => 'bot_auto_set_price_by_dollar_price', 'value' => 'false', 'description' => 'برای اتوماتیک قیمت گذاری بر اساس قیمت دلار'],
-            ['name' => 'bot_calculate_product_category_price_in_dollar_by_toman', 'value' => 'false', 'description' => 'برای اتوماتیک قیمت گذاری بر اساس قیمت تومان'],
-            ['name' => 'bot_show_one_row_config', 'value' => 'true', 'description' => 'برای نمایش پیکربندی ها در یک ردیف'],
+            ['name' => 'bot_auto_set_price_by_dollar_price', 'value' => 'false', 'description' => 'قیمت گذاری اتوماتیک بر اساس قیمت دلار'],
+            ['name' => 'bot_calculate_product_category_price_in_dollar_by_toman', 'value' => 'false', 'description' => 'قیمت گذاری اتوماتیک بر اساس قیمت تومان'],
+            ['name' => 'bot_show_one_row_config', 'value' => 'true', 'description' => 'نمایش پیکربندی ها در یک ردیف'],
             ['name' => 'bot_daily_backup', 'value' => 'true', 'description' => 'برای ایجاد بکاپ روزانه'],
         ];
         AdvanceSettingLookup::insert($advanceSettingLookups);
@@ -77,10 +77,17 @@ class AdvanceSettingLookupController extends Controller
             return null;
         }
     }
-    public function getByNameAndValueWithBooleanValue($name, $value)
+    public function getValueByNameWithBooleanValue($name)
     {
         try {
-            return AdvanceSettingLookup::getByNameAndValue($name, $value)->booleanValue;
+           $advanceSettingLookup = AdvanceSettingLookup::getByName($name);
+           if($advanceSettingLookup == null){
+            return null;
+           }
+           if($advanceSettingLookup->booleanValue == 'true'){
+            return true;
+           }
+           return false;
         } catch (\Throwable $th) {
             \Log::info("AdvanceSettingLookupController->getByNameAndValue->error", ['error' => $th->getMessage(), 'name' => $name, 'value' => $value]);
             return null;

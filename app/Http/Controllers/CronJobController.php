@@ -241,7 +241,7 @@ class CronJobController extends Controller
             }
             // checl is enable in advanced setting ot not
             $advancedSettingCntrl = new AdvanceSettingLookupController();
-            $isEnable = $advancedSettingCntrl->getByNameAndValueWithBooleanValue('bot_auto_set_price_by_dollar_price');
+            $isEnable = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_auto_set_price_by_dollar_price');
             if ($isEnable == false || $isEnable == 0) {
                 return false;
             }
@@ -277,7 +277,7 @@ class CronJobController extends Controller
 
             // checl is enable in advanced setting ot not
             $advancedSettingCntrl = new AdvanceSettingLookupController();
-            $isEnable = $advancedSettingCntrl->getByNameAndValueWithBooleanValue('bot_calculate_product_category_price_in_dollar_by_toman');
+            $isEnable = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_calculate_product_category_price_in_dollar_by_toman');
             if ($isEnable == false || $isEnable == 0) {
                 return false;
             }

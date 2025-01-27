@@ -324,7 +324,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('/advanceSettingLookupByName/{name}', [AdvanceSettingLookupController::class, 'getByName']);
     Route::get('/advanceSettingLookupByNameWithBooleanValue/{name}', [AdvanceSettingLookupController::class, 'getByNameWithBooleanValue']);
     Route::get('/advanceSettingLookupByNameAndValue/{name}/{value}', [AdvanceSettingLookupController::class, 'getByNameAndValue']);
-    Route::get('/advanceSettingLookupByNameAndValueWithBooleanValue/{name}/{value}', [AdvanceSettingLookupController::class, 'getByNameAndValueWithBooleanValue']);
+    Route::get('/advanceSettingLookupByValueWithBooleanValue/{name}', [AdvanceSettingLookupController::class, 'getValueByNameWithBooleanValue']);
     Route::post('/advanceSettingLookupCreate', [AdvanceSettingLookupController::class, 'create']);
     Route::post('/advanceSettingLookupUpdate', [AdvanceSettingLookupController::class, 'update']);
     Route::post('/advanceSettingLookupUpdateByName', [AdvanceSettingLookupController::class, 'updateByName']);
