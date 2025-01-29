@@ -1,0 +1,335 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Services\TelegramService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Cache;
+use App\Services\TelegramMessageFormatter;
+
+class TelegramWebhookController extends Controller
+{
+    private TelegramService $telegramService;
+
+    public function __construct(TelegramService $telegramService)
+    {
+        $this->telegramService = $telegramService;
+    }
+
+    public function handle(Request $request)
+    {
+        try {
+            $update = $request->all();
+
+            // پردازش callback queries (دکمه‌های اینلاین)
+            if (isset($update['callback_query'])) {
+                return $this->handleCallbackQuery($update['callback_query']);
+            }
+
+            $message = $update['message'] ?? null;
+            if (!$message) {
+                return response()->json(['status' => 'success']);
+            }
+
+            $chatId = $message['chat']['id'];
+
+            // نمایش وضعیت تایپ کردن
+            $this->telegramService->sendChatAction($chatId, 'typing');
+
+            // پردازش انواع مختلف پیام
+            if (isset($message['text'])) {
+                $response = $this->processTextMessage($message);
+                // بررسی وضعیت کاربر برای دریافت پاسخ اجباری
+                if ($this->awaitingReply($chatId)) {
+                    $this->handleAwaitingReply($chatId, $message['text']);
+                    return response()->json(['status' => 'success']);
+                }
+                $this->telegramService->sendMessage($chatId, $response);
+            }
+            elseif (isset($message['photo'])) {
+                $response = $this->processPhotoMessage($message);
+                $this->telegramService->sendMessage($chatId, $response);
+            }
+            elseif (isset($message['document'])) {
+                $response = $this->processDocumentMessage($message);
+                $this->telegramService->sendMessage($chatId, $response);
+            }
+            elseif (isset($message['location'])) {
+                $response = $this->processLocationMessage($message);
+                $this->telegramService->sendMessage($chatId, $response);
+            }
+            elseif (isset($message['voice'])) {
+                $response = $this->processVoiceMessage($message);
+                $this->telegramService->sendMessage($chatId, $response);
+            }
+            elseif (isset($message['video'])) {
+                $response = $this->processVideoMessage($message);
+                $this->telegramService->sendMessage($chatId, $response);
+            }
+            elseif (isset($message['contact'])) {
+                $response = $this->processContactMessage($message);
+                $this->telegramService->sendMessage($chatId, $response);
+            }
+
+            return response()->json(['status' => 'success']);
+
+        } catch (\Exception $e) {
+            Log::error('خطا در پردازش webhook تلگرام: ' . $e->getMessage());
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    private function processTextMessage(array $message): string
+    {
+        $text = $message['text'];
+
+        // پردازش دستورات
+        if (str_starts_with($text, '/')) {
+            return $this->processCommand($text);
+        }
+
+        return "پیام متنی شما دریافت شد: " . $text;
+    }
+
+    private function processPhotoMessage(array $message): string
+    {
+        $photos = $message['photo'];
+        $photo = end($photos); // بزرگترین سایز عکس
+        $fileId = $photo['file_id'];
+        $caption = $message['caption'] ?? '';
+
+        // در اینجا می‌توانید عکس را ذخیره یا پردازش کنید
+        return "عکس شما با شناسه {$fileId} دریافت شد." . ($caption ? "\nکپشن: {$caption}" : '');
+    }
+
+    private function processDocumentMessage(array $message): string
+    {
+        $document = $message['document'];
+        $fileId = $document['file_id'];
+        $fileName = $document['file_name'] ?? 'بدون نام';
+        $mimeType = $document['mime_type'] ?? 'نامشخص';
+
+        return "فایل شما با نام {$fileName} و نوع {$mimeType} دریافت شد.";
+    }
+
+    private function processLocationMessage(array $message): string
+    {
+        $location = $message['location'];
+        $latitude = $location['latitude'];
+        $longitude = $location['longitude'];
+
+        return "موقعیت مکانی شما در مختصات {$latitude}, {$longitude} دریافت شد.";
+    }
+
+    private function processVoiceMessage(array $message): string
+    {
+        $voice = $message['voice'];
+        $fileId = $voice['file_id'];
+        $duration = $voice['duration'];
+
+        // ذخیره فایل صوتی
+        $fileInfo = $this->telegramService->getFile($fileId);
+        if (isset($fileInfo['result']['file_path'])) {
+            $fileContent = $this->telegramService->downloadFile($fileInfo['result']['file_path']);
+            Storage::put("telegram/voices/{$fileId}.ogg", $fileContent);
+        }
+
+        return "پیام صوتی شما با مدت زمان {$duration} ثانیه دریافت شد.";
+    }
+
+    private function processVideoMessage(array $message): string
+    {
+        $video = $message['video'];
+        $fileId = $video['file_id'];
+        $duration = $video['duration'];
+        $caption = $message['caption'] ?? '';
+
+        // ذخیره ویدیو
+        $fileInfo = $this->telegramService->getFile($fileId);
+        if (isset($fileInfo['result']['file_path'])) {
+            $fileContent = $this->telegramService->downloadFile($fileInfo['result']['file_path']);
+            Storage::put("telegram/videos/{$fileId}.mp4", $fileContent);
+        }
+
+        return "ویدیوی شما با مدت زمان {$duration} ثانیه دریافت شد." .
+               ($caption ? "\nکپشن: {$caption}" : '');
+    }
+
+    private function processContactMessage(array $message): string
+    {
+        $contact = $message['contact'];
+        $phoneNumber = $contact['phone_number'];
+        $firstName = $contact['first_name'];
+        $lastName = $contact['last_name'] ?? '';
+
+        return "اطلاعات تماس دریافت شد:\nنام: {$firstName} {$lastName}\nشماره تماس: {$phoneNumber}";
+    }
+
+    private function processCommand(string $text): string
+    {
+        $command = strtolower(explode(' ', $text)[0]);
+
+        return match($command) {
+            '/start' => $this->handleStartCommand(),
+            '/help' => $this->handleHelpCommand(),
+            '/menu' => $this->handleMenuCommand(),
+            default => "دستور نامعتبر است. برای مشاهده لیست دستورات از /help استفاده کنید."
+        };
+    }
+
+    private function handleStartCommand(): string
+    {
+        $chatId = $this->getCurrentChatId();
+
+        $formatter = new TelegramMessageFormatter($this->telegramService);
+        $message = $formatter
+            ->addBold("سلام! به ربات ما خوش آمدید. 👋")
+            ->addNewLine()
+            ->addNewLine()
+            ->addText("برای شروع می‌توانید از دستورات زیر استفاده کنید:")
+            ->addNewLine()
+            ->addCode("/help")
+            ->addText(" - راهنمای دستورات")
+            ->addNewLine()
+            ->addCode("/menu")
+            ->addText(" - منوی اصلی")
+            ->addNewLine()
+            ->addNewLine()
+            ->addItalic("برای اطلاعات بیشتر به ")
+            ->addLink("وب‌سایت ما", "https://example.com")
+            ->addText(" مراجعه کنید.")
+            ->getMessage();
+
+        $buttons = [
+            ['منو اصلی', 'راهنما'],
+            ['درباره ما', 'تماس با ما']
+        ];
+
+        $this->telegramService->sendMessageWithKeyboard($chatId, $message, $buttons);
+
+        return '';
+    }
+
+    private function handleMenuCommand(): string
+    {
+        $chatId = $this->getCurrentChatId();
+
+        $buttons = [
+            ['ارسال موقعیت مکانی' => 'send_location', 'ارسال شماره تماس' => 'send_contact'],
+            ['آپلود فایل' => 'upload_file', 'ارسال عکس' => 'send_photo'],
+            ['راهنما' => 'help', 'بازگشت' => 'back']
+        ];
+
+        $this->telegramService->sendMessageWithInlineKeyboard(
+            $chatId,
+            "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
+            $buttons
+        );
+
+        return '';
+    }
+
+    private function handleCallbackQuery(array $callbackQuery): \Illuminate\Http\JsonResponse
+    {
+        $chatId = $callbackQuery['from']['id'];
+        $data = $callbackQuery['data'];
+        $callbackQueryId = $callbackQuery['id'];
+
+        $response = match($data) {
+            'action_1' => $this->handleAction1($chatId),
+            'action_2' => $this->handleAction2($chatId),
+            'action_3' => $this->handleAction3($chatId),
+            'action_4' => $this->handleAction4($chatId),
+            default => "عملیات نامعتبر است."
+        };
+
+        // ارسال پاسخ به callback query
+        $this->telegramService->answerCallbackQuery(
+            $callbackQueryId,
+            "عملیات با موفقیت انجام شد",
+            false
+        );
+
+        $this->telegramService->sendMessage($chatId, $response);
+        return response()->json(['status' => 'success']);
+    }
+
+    private function handleAction1(string $chatId): string
+    {
+        // مثال درخواست اطلاعات از کاربر
+        $this->setAwaitingReply($chatId, 'action_1_reply');
+        return $this->telegramService->forceReply($chatId, "لطفاً نام خود را وارد کنید:");
+    }
+
+    private function handleAction2(string $chatId): string
+    {
+        // درخواست شماره تماس با کیبورد مخصوص
+        $buttons = [[['text' => 'ارسال شماره تماس', 'request_contact' => true]]];
+        $this->telegramService->sendMessage($chatId, 'لطفاً شماره تماس خود را به اشتراک بگذارید:', [
+            'reply_markup' => json_encode([
+                'keyboard' => $buttons,
+                'resize_keyboard' => true,
+                'one_time_keyboard' => true
+            ])
+        ]);
+
+        return '';
+    }
+
+    private function handleAction3(string $chatId): string
+    {
+        // درخواست موقعیت مکانی با کیبورد مخصوص
+        $buttons = [[['text' => 'ارسال موقعیت مکانی', 'request_location' => true]]];
+        $this->telegramService->sendMessage($chatId, 'لطفاً موقعیت مکانی خود را به اشتراک بگذارید:', [
+            'reply_markup' => json_encode([
+                'keyboard' => $buttons,
+                'resize_keyboard' => true,
+                'one_time_keyboard' => true
+            ])
+        ]);
+
+        return '';
+    }
+
+    private function handleAwaitingReply(string $chatId, string $text): void
+    {
+        $awaitingType = $this->getAwaitingReplyType($chatId);
+
+        switch ($awaitingType) {
+            case 'action_1_reply':
+                $this->telegramService->sendMessage($chatId, "نام شما با موفقیت ثبت شد: {$text}");
+                $this->clearAwaitingReply($chatId);
+                break;
+            // سایر موارد...
+        }
+    }
+
+    // متدهای کمکی برای مدیریت وضعیت انتظار پاسخ
+    private function setAwaitingReply(string $chatId, string $type): void
+    {
+        // می‌توانید از کش یا دیتابیس استفاده کنید
+        Cache::put("awaiting_reply_{$chatId}", $type, now()->addMinutes(5));
+    }
+
+    private function awaitingReply(string $chatId): bool
+    {
+        return Cache::has("awaiting_reply_{$chatId}");
+    }
+
+    private function getAwaitingReplyType(string $chatId): ?string
+    {
+        return Cache::get("awaiting_reply_{$chatId}");
+    }
+
+    private function clearAwaitingReply(string $chatId): void
+    {
+        Cache::forget("awaiting_reply_{$chatId}");
+    }
+
+    private function getCurrentChatId(): string
+    {
+        return request()->input('message.chat.id');
+    }
+}

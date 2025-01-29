@@ -56,10 +56,11 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle']);
 
-Route::prefix('telegram/webhooks')->group(function () {
-    Route::post('inbound', [TelegramController::class, 'inbound'])->name('telegram.inbound');
-});
+// Route::prefix('telegram/webhooks')->group(function () {
+//     Route::post('inbound', [TelegramController::class, 'inbound'])->name('telegram.inbound');
+// });
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
