@@ -148,9 +148,10 @@ class TransactionController extends Controller
     }
     public function addUserTranaction($userID, $amount, $recipeNUmber, $paymentTypeId)
     {
-        if ($paymentTypeId == 0 || $paymentTypeId == null) {
-            $pay = PaymentType::where('is_active', true)->where('type', 'offline')->first();
-            $paymentTypeId = $pay->id;
+        try {
+            if ($paymentTypeId == 0 || $paymentTypeId == null) {
+                $pay = PaymentType::where('is_active', true)->where('type', 'offline')->first();
+                $paymentTypeId = $pay->id;
         }
         $transaction = new Transaction();
         $transaction->account_id = $userID;
@@ -181,7 +182,10 @@ class TransactionController extends Controller
             $referralLogsCntrl->add_new_referral_logs($referReq);
         }
 
-        return $transaction->id;
+            return $transaction->id;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable  $th");
+        }
     }
     public function removeUnconfirmedTransaction($id)
     {

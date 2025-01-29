@@ -9,7 +9,7 @@ class TelegramService
 
     public function __construct()
     {
-        $this->baseUrl = 'https://api.telegram.org/bot';
+        $this->baseUrl = 'https://api.telegram.org/';
         $this->botToken = config('services.telegram.bot_token');
     }
 
@@ -34,6 +34,17 @@ class TelegramService
         return $this->sendMessage($chatId, $text, array_merge([
             'parse_mode' => 'HTML'
         ], $options));
+    }
+      // check that the chatId is channel member
+    public function checkChatIdIsChannelMember(string $chatId, $channelId): bool
+    {
+        $url = $this->baseUrl . $this->botToken . '/getChatMember';
+        $params = [
+            'chat_id' => $channelId,
+            'user_id' => $chatId
+        ];
+        $response = $this->makeRequest('getChatMember', $params);
+        return $response['result'] > 0;
     }
 
     /**
@@ -150,12 +161,13 @@ class TelegramService
 
     public function sendMessageWithKeyboard(string $chatId, string $text, array $buttons, bool $resize = true): array
     {
-        return $this->sendMessage($chatId, $text, [
+        $response = $this->sendMessage($chatId, $text, [
             'reply_markup' => json_encode([
                 'keyboard' => $this->formatKeyboardButtons($buttons),
                 'resize_keyboard' => $resize
             ])
         ]);
+        return $response;
     }
 
     public function sendMessageWithInlineKeyboard(string $chatId, string $text, array $buttons): array
@@ -286,6 +298,7 @@ class TelegramService
         }
         return $keyboard;
     }
+
 
     private function formatInlineKeyboardButtons(array $buttons): array
     {

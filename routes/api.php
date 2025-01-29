@@ -42,6 +42,8 @@ use App\Http\Controllers\ReserverdConfigController;
 use App\Http\Controllers\AdvanceSettingLookupController;
 use App\Http\Controllers\WebAppMenuItemController;
 use App\Http\Controllers\BackupController;
+use App\Http\Controllers\TelegramWebhookController;
+
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
