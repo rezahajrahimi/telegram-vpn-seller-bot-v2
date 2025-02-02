@@ -209,12 +209,19 @@ class TelegramService
 
     public function sendDocument(string $chatId, string $document, string $caption = '', array $options = []): array
     {
-        return $this->makeRequest('sendDocument', array_merge([
-            'chat_id' => $chatId,
-            'document' => $document,
-            'caption' => $caption,
-            'parse_mode' => 'HTML'
+        try {
+            $result = $this->makeRequest('sendDocument', array_merge([
+                'chat_id' => $chatId,
+                'document' => $document,
+                'caption' => $caption,
+                'parse_mode' => 'HTML'
         ], $options));
+        // \Log::info("sendDocument result=> $result");
+        return $result;
+        } catch (\Throwable $th) {
+            \Log::error($th->getMessage());
+            return [];
+        }
     }
 
     public function sendLocation(string $chatId, float $latitude, float $longitude): array

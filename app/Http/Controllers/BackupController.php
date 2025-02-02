@@ -85,6 +85,63 @@ class BackupController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+    public function createBackupAndReturnZipFile()
+    {
+        try {
+                    // Create symbolic link if not exists
+            if (!file_exists(public_path('storage'))) {
+                \Artisan::call('storage:link');
+            }
+                    // Create symbolic link if not exists
+            if (!file_exists(public_path('storage'))) {
+                \Artisan::call('storage:link');
+            }
+            // قبل از ایجاد فایل backup
+            $backupPath = storage_path('app/public/backups');
+
+            if (!File::exists($backupPath)) {
+                File::makeDirectory($backupPath, 0775, true);
+
+                // تنظیم دسترسی‌ها در سیستم‌عامل‌های یونیکس
+                if (PHP_OS !== 'WINNT') {
+                    chmod($backupPath, 0775);
+
+                    // اگر در محیط لینوکس هستید و می‌خواهید مالکیت را هم تغییر دهید
+                    // $user = get_current_user();
+                    // chown($backupPath, $user);
+                }
+            }
+
+            // نام فایل بکاپ با تاریخ و زمان
+            $filename = 'backup_' . Carbon::now()->format('Y-m-d_H-i-s') . '.sql';
+
+            // دستور mysqldump برای گرفتن بکاپ
+            $command = sprintf(
+                'mysqldump --skip-set-charset -h %s -u %s -p%s %s > %s',
+                config('database.connections.mysql.host'),
+                config('database.connections.mysql.username'),
+                config('database.connections.mysql.password'),
+                config('database.connections.mysql.database'),
+                storage_path('app/public/backups/' . $filename)
+            );
+
+            // اجرای دستور
+            exec($command);
+
+            // ذخیره فایل در storage
+            if (file_exists(storage_path('app/public/backups/' . $filename))) {
+                // return url to download file
+                $backupFile = $filename . '.zip';
+                return $backupFile;
+            }
+
+            return null;
+
+       } catch (\Throwable $th) {
+            \Log::info("Throwable $th");
+            return response()->json('Server Error', 500);
+        }
+    }
 
 
     /**

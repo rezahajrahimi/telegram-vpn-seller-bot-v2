@@ -63,6 +63,7 @@ class ReferralLogsController extends Controller
                 $newReferralLogs->referral_to_id = $user_id;
                 $newReferralLogs->amount = 0.0;
                 $newReferralLogs->save();
+                \Log::info("newReferralLogs: $newReferralLogs->referral_user_id $newReferralLogs->referral_to_id");
                 // send message to referral account
                 $resualt = app('telegram_bot')->sendMessage('یک کاربر با لینک دعوت شما وارد ربات شد.', $referralCode, null, 'MarkDown');
                 // $this->addNewBotLog('referral', 'یک کاربر با لینک دعوت شما وارد ربات شد.', 'newreferral');
@@ -71,7 +72,7 @@ class ReferralLogsController extends Controller
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable check_user_has_referral: $th");
-            return response()->json(null, 500);
+            return null;
         }
     }
     public function get_refreal_user_by_account_id($account_id)

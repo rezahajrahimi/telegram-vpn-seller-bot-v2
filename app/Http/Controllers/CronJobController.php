@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\BotUser;
 use App\Models\User;
+use App\Services\TelegramService;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -407,9 +408,10 @@ class CronJobController extends Controller
     }
     public function execute_create_daily_backup()
     {
-         $authCntrl = new AuthController();
-        $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-        if ($getPowerPsLicenseType == 'free') {
+        try {
+            $authCntrl = new AuthController();
+            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+            if ($getPowerPsLicenseType == 'free') {
             return false;
         }
         $cronJob = CronJob::where('name', 'Create Daily Backup')->first();
@@ -427,9 +429,15 @@ class CronJobController extends Controller
         if (!isset($backup['url'])) {
             return false;
         }
-
+        // log backup file as a array
         $backupFile = $backup['url'];
-        // $backupFile = str_replace('http://localhost:8002', 'https://a721-2a12-5940-4449-00-2.ngrok-free.app', $backupFile);
+        // set download url in backup file according to the current domain
+        $currentDomain = request()->getHttpHost();
+        $backupFile = str_replace('http://localhost', 'https://'.$currentDomain, $backupFile);
+
+        //compress backup file to a zip file
+
+        // $backupFile = str_replace('http://localhost:8005', 'https://c9d6-2a12-5940-4449-00-2.ngrok-free.app', $backupFile);
         $admin = User::where('role', 'admin')->first();
         $admin_id = $admin->account_id;
 
@@ -437,13 +445,14 @@ class CronJobController extends Controller
         $currentDate = Verta::parse($currentDate)->format('Y-m-d');
         $text = "نسخه پشتیبان $currentDate";
         $text .= "\n\n";
-
-        $text .= "<a href='$backupFile'>دانلود فایل</a>";
+        $text .= "<code>$backupFile</code>";
+        // $telegramService = new TelegramService();
+        // $result = $telegramService->sendDocument($admin_id, $backupFile, $text);
         $result = app('telegram_bot')->sendMessage($text, $admin_id, null, 'HTML');
 
-        if ($result['success']) {
-            return true;
-        } else {
+        return $result;
+        } catch (\Throwable $th) {
+            \Log::error($th->getMessage());
             return false;
         }
     }
