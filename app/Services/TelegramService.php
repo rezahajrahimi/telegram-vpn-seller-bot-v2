@@ -299,7 +299,10 @@ class TelegramService
         foreach ($buttons as $row) {
             $keyboardRow = [];
             foreach ($row as $button) {
-                $keyboardRow[] = ['text' => $button];
+                if (!isset($button['callback_data'])) {
+                    $button['callback_data'] = '';
+                }
+                $keyboardRow[] = $button;
             }
             $keyboard[] = $keyboardRow;
         }
