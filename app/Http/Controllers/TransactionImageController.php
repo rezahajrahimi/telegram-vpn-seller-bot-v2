@@ -6,6 +6,7 @@ use Storage;
 use File;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Imagick\Driver;
+use App\Services\TelegramService;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Http;
 
 class TransactionImageController extends Controller
 {
+
     public function getTransactionImage($trID)
     {
         try {
@@ -51,21 +53,19 @@ class TransactionImageController extends Controller
             // download image from $request->image_url and save on disk
 
 
+            $telegramService = new TelegramService();
 
 
-
-            $imageUrl = $request->image_url;
+            $img_src = $request->img_src;
 
             // Get the image contents
-            $imageContents = Http::get($imageUrl)->body();
+            $imageContents = $telegramService->downloadFile($img_src);
 
             // Define the image path and name
             $imagePath = 'images/';
-            $imageName ='transaction_'.time() .  basename($imageUrl);
+            $imageName ='transaction_'.time() .  basename($img_src);
 
             // Save the image on disk
-
-
             // save image path in $path
             $path = $imagePath . $imageName;
             try {

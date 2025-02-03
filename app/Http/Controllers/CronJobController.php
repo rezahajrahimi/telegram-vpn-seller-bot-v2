@@ -8,6 +8,8 @@ use App\Models\Pannel;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\BotUser;
+use App\Models\User;
+use App\Services\TelegramService;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -43,6 +45,12 @@ class CronJobController extends Controller
             $usageMoreThan85PercentCronJob->is_active = true;
             $usageMoreThan85PercentCronJob->description = 'ارسال پیام به کاربرانی که میزان استفاده از اکانت بیشتر از 85 درصد دارند.';
             $usageMoreThan85PercentCronJob->save();
+            $createDailyBackupCronJob = new CronJob();
+            $createDailyBackupCronJob->name = 'Create Daily Backup';
+            $createDailyBackupCronJob->frequency = '1d';
+            $createDailyBackupCronJob->is_active = true;
+            $createDailyBackupCronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
+            $createDailyBackupCronJob->save();
             $cronJobs = CronJob::all();
             return response()->json($cronJobs);
         } catch (\Throwable $th) {
@@ -88,7 +96,13 @@ class CronJobController extends Controller
         $pannel = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
         foreach ($pannel as $key => $value) {
-            $users = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            // تبدیل Response به آرایه
+            $users = json_decode($usersResponse->getContent(), true);
+
+            if (!is_array($users)) {
+                continue;
+            }
             foreach ($users as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
 
@@ -156,7 +170,13 @@ class CronJobController extends Controller
         $pannel = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
         foreach ($pannel as $key => $value) {
-            $users = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            // تبدیل Response به آرایه
+            $users = json_decode($usersResponse->getContent(), true);
+
+            if (!is_array($users)) {
+                continue;
+            }
             foreach ($users as $key => $value) {
                 $startDate = $value['start_date'];
                 // convert $startDate to valid carbon date
@@ -221,8 +241,8 @@ class CronJobController extends Controller
                 return false;
             }
             // checl is enable in advanced setting ot not
-            $advancedSettingCntrl = new AdvancedSettingController();
-            $isEnable = $advancedSettingCntrl->get_bot_auto_set_price_by_dollar_price();
+            $advancedSettingCntrl = new AdvanceSettingLookupController();
+            $isEnable = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_auto_set_price_by_dollar_price');
             if ($isEnable == false || $isEnable == 0) {
                 return false;
             }
@@ -257,8 +277,8 @@ class CronJobController extends Controller
             }
 
             // checl is enable in advanced setting ot not
-            $advancedSettingCntrl = new AdvancedSettingController();
-            $isEnable = $advancedSettingCntrl->get_bot_calculate_product_category_price_in_dollar_by_toman();
+            $advancedSettingCntrl = new AdvanceSettingLookupController();
+            $isEnable = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_calculate_product_category_price_in_dollar_by_toman');
             if ($isEnable == false || $isEnable == 0) {
                 return false;
             }
@@ -289,24 +309,33 @@ class CronJobController extends Controller
         if ($cronJob->is_active == false) {
             return false;
         }
+
         $authCntrl = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
         if ($getPowerPsLicenseType == 'free') {
             return false;
         }
+
         $pannel = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
 
         foreach ($pannel as $key => $value) {
-            $users = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+            // تبدیل Response به آرایه
+            $users = json_decode($usersResponse->getContent(), true);
+
+            if (!is_array($users)) {
+                continue;
+            }
+
             foreach ($users as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
-
-                // $usageGB = round($usageGB, 2);
                 $limitGB = $value['usage_limit_GB'];
+
                 if ($limitGB == 0 || $usageGB == 0) {
-                    return true;
+                    continue;
                 }
+
                 // get usage percent
                 $usagePercent = ($usageGB / $limitGB) * 100;
                 $usagePercent = round($usagePercent, 2);
@@ -320,10 +349,10 @@ class CronJobController extends Controller
                         $cronLog = CronLog::where('cron_id', $cronJob->id)
                             ->where('product_id', $product->id)
                             ->get();
+
                         if ($cronLog->count() == 0) {
                             // get product category
                             $prcategory = ProductCategory::find($product->product_categories_id);
-
                             // get product category name
                             $productCategoryName = $prcategory->category_name;
                             $productText = "{$productCategoryName} - {$product->remark}";
@@ -331,8 +360,14 @@ class CronJobController extends Controller
                             // send notification
                             $user_id = $product->account_id;
 
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی بسته $productText منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.", $user_id, null, 'MarkDown');
-                            if ($sendNotificationToUser) {
+                            $sendNotificationToUser = app('telegram_bot')->sendMessage(
+                                "کاربر گرامی بسته $productText منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.",
+                                $user_id,
+                                null,
+                                'MarkDown'
+                            );
+
+                            if ($sendNotificationToUser['success']) {
                                 $cronLog = new CronLog();
                                 $cronLog->cron_id = $cronJob->id;
                                 $cronLog->product_id = $product->id;
@@ -370,5 +405,65 @@ class CronJobController extends Controller
 
             return null;
         }
+    }
+    public function execute_create_daily_backup()
+    {
+        try {
+            $authCntrl = new AuthController();
+            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+            if ($getPowerPsLicenseType == 'free') {
+            return false;
+        }
+        $cronJob = CronJob::where('name', 'Create Daily Backup')->first();
+        if($cronJob == null){
+          $cronJob=  $this->create_cron_job_for_create_daily_backup();
+        }
+        // check if is_active was false, return
+        if ($cronJob->is_active == false) {
+            return false;
+        }
+        $backupCtrl = new BackupController();
+        $backupResponse = $backupCtrl->createBackup();
+        $backup = json_decode($backupResponse->getContent(), true);
+
+        if (!isset($backup['url'])) {
+            return false;
+        }
+        // log backup file as a array
+        $backupFile = $backup['url'];
+        // set download url in backup file according to the current domain
+        $currentDomain = request()->getHttpHost();
+        $backupFile = str_replace('http://localhost', 'https://'.$currentDomain, $backupFile);
+
+        //compress backup file to a zip file
+
+        // $backupFile = str_replace('http://localhost:8005', 'https://c9d6-2a12-5940-4449-00-2.ngrok-free.app', $backupFile);
+        $admin = User::where('role', 'admin')->first();
+        $admin_id = $admin->account_id;
+
+        $currentDate = now()->toJalali()->format('Y/m/d');
+        $currentDate = Verta::parse($currentDate)->format('Y-m-d');
+        $text = "نسخه پشتیبان $currentDate";
+        $text .= "\n\n";
+        $text .= "<code>$backupFile</code>";
+        // $telegramService = new TelegramService();
+        // $result = $telegramService->sendDocument($admin_id, $backupFile, $text);
+        $result = app('telegram_bot')->sendMessage($text, $admin_id, null, 'HTML');
+
+        return $result;
+        } catch (\Throwable $th) {
+            \Log::error($th->getMessage());
+            return false;
+        }
+    }
+    public function create_cron_job_for_create_daily_backup()
+    {
+        $cronJob = new CronJob();
+        $cronJob->name = 'Create Daily Backup';
+        $cronJob->frequency = '1d';
+        $cronJob->is_active = true;
+        $cronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
+        $cronJob->save();
+        return $cronJob;
     }
 }

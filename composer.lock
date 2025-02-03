@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d28608a3d0410e31f49da98c4f495e4f",
+    "content-hash": "19988e6584429bf17b1119fbce00b725",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -1780,16 +1780,16 @@
         },
         {
             "name": "laravel/framework",
-            "version": "v10.48.25",
+            "version": "v10.48.27",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/framework.git",
-                "reference": "f132b23b13909cc22c615c01b0c5640541c3da0c"
+                "reference": "eb0be33e4b806b92f396357b99ffcb2d3ef67957"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/framework/zipball/f132b23b13909cc22c615c01b0c5640541c3da0c",
-                "reference": "f132b23b13909cc22c615c01b0c5640541c3da0c",
+                "url": "https://api.github.com/repos/laravel/framework/zipball/eb0be33e4b806b92f396357b99ffcb2d3ef67957",
+                "reference": "eb0be33e4b806b92f396357b99ffcb2d3ef67957",
                 "shasum": ""
             },
             "require": {
@@ -1983,7 +1983,7 @@
                 "issues": "https://github.com/laravel/framework/issues",
                 "source": "https://github.com/laravel/framework"
             },
-            "time": "2024-11-26T15:32:57+00:00"
+            "time": "2025-01-24T16:17:36+00:00"
         },
         {
             "name": "laravel/prompts",
@@ -7886,6 +7886,67 @@
             "time": "2025-01-13T09:33:05+00:00"
         },
         {
+            "name": "sbamtr/laravel-source-encrypter",
+            "version": "1.5.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/SiavashBamshadnia/Laravel-Source-Encrypter.git",
+                "reference": "598e4cc804b11aa489fc919326c71e4b80684c24"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/SiavashBamshadnia/Laravel-Source-Encrypter/zipball/598e4cc804b11aa489fc919326c71e4b80684c24",
+                "reference": "598e4cc804b11aa489fc919326c71e4b80684c24",
+                "shasum": ""
+            },
+            "require": {
+                "ext-bolt": "*",
+                "illuminate/console": "^6|^7|^8|^9|^10",
+                "illuminate/support": "^6|^7|^8|^9|^10",
+                "php": ">=7.2.5"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "sbamtr\\LaravelSourceEncrypter\\SourceEncryptServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "sbamtr\\LaravelSourceEncrypter\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Siavash Bamshadnia",
+                    "email": "sbamtr@gmail.com"
+                }
+            ],
+            "description": "Laravel Source Encrypter",
+            "keywords": [
+                "encrypt",
+                "encrypter",
+                "encryption",
+                "encryptor",
+                "ioncube",
+                "laravel",
+                "lumen",
+                "phpBolt",
+                "source"
+            ],
+            "support": {
+                "issues": "https://github.com/SiavashBamshadnia/Laravel-Source-Encrypter/issues",
+                "source": "https://github.com/SiavashBamshadnia/Laravel-Source-Encrypter/tree/1.5.0"
+            },
+            "time": "2023-03-10T19:11:37+00:00"
+        },
+        {
             "name": "sebastian/cli-parser",
             "version": "2.0.1",
             "source": {
@@ -9312,8 +9373,8 @@
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
-        "php": "^8.2"
+        "php": "^8.3"
     },
-    "platform-dev": {},
+    "platform-dev": [],
     "plugin-api-version": "2.6.0"
 }

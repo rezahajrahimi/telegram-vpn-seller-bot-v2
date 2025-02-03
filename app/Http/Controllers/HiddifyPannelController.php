@@ -494,15 +494,12 @@ class HiddifyPannelController extends Controller
         if ($subsequentResponse->getStatusCode() == 200) {
             $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
             if ($checkIsHtmlPage !== false) {
-                \Log::info("url => {$subsequentResponse->getBody()}");
-
                 return response()->json(false, 401);
             }
             // dd($subsequentResponse);
             return json_decode($subsequentResponse->getBody(), true);
         }
-        \Log::info("url => {$subsequentResponse->getBody()}");
-
+        \Log::info("sendGetRequestToHiddifyPannel => {$subsequentResponse->getBody()}");
         return response()->json(false, 401);
     }
     public function sendDeleteRequestToHiddifyPannel($pannelID, $requestAPi)

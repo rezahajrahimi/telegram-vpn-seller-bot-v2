@@ -151,58 +151,56 @@ class GeneralController extends Controller
             }
         }
     }
-    public function return_exist_hiddify_config_telegram_text($selectedProduct, $selectedProductCategory,$pannel,$chat_id){
-               $hiddifcCntrl = new HiddifyPannelController();
-               $pnlCntrl = new PannelController();
+    public function return_exist_hiddify_config_telegram_text($selectedProduct, $selectedProductCategory, $pannel, $chat_id)
+    {
+        $hiddifcCntrl = new HiddifyPannelController();
+        $pnlCntrl = new PannelController();
+        $userPannelLink = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $selectedProduct->panel_link);
+        $userSubscriptionLInk = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $selectedProduct->subscription_link);
+        $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+        $text = '';
+        $agentCntrl = new AgentProductController();
+        $configStatus = $agentCntrl->getBoughtProductsStatusFromServerById($selectedProduct->id);
 
-                $userPannelLink = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $selectedProduct->panel_link);
+        // روش 1: بررسی نوع داده
+        if (is_string($configStatus)) {
+            $configStatus = json_decode($configStatus, true);
+        }
+        // یا
+        // روش 2: حذف json_decode
+        // $configStatus = $configStatus;
 
-                $userSubscriptionLInk = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $selectedProduct->subscription_link);
+        if ($configStatus != null) {
+            $enableText = $configStatus['enable'] == true ? 'فعال' : 'غیر فعال';
+            $text = "📦 وضعیت بسته: {$enableText} \r\n";
+            $usageGB = $configStatus['current_usage_GB'];
+            $usageGB = round($usageGB, 2);
+            $limitGB = $configStatus['usage_limit_GB'];
+            $text .= "📊 میزان حجم مصرف شده:  {$usageGB}GB از {$limitGB}GB \r\n";
 
-                $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-                $text = '';
-                $agentCntrl = new AgentProductController();
-                $configStatus = $agentCntrl->getBoughtProductsStatusFromServerById($selectedProduct->id);
-                if ($configStatus != null) {
-                    $enableText = $configStatus['enable'] == true ? 'فعال' : 'غیر فعال';
-                    $text = "📦 وضعیت بسته: {$enableText} \r\n";
-                    $usageGB = $configStatus['current_usage_GB'];
-                    // show usageGb only with two decimal
-                    $usageGB = round($usageGB, 2);
-                    $limitGB = $configStatus['usage_limit_GB'];
-                    $text .= "📊 میزان حجم مصرف شده:  {$usageGB}GB از {$limitGB}GB \r\n";
-                    //
-                    $startDate = $configStatus['start_date'];
-                    // convert $startDate to valid carbon date
-                    $startDate = Carbon::parse($startDate);
+            $startDate = $configStatus['start_date'];
+            $startDate = Carbon::parse($startDate);
+            $package_days = $configStatus['package_days'];
+            $package_days = intval($package_days);
+            $expireDate = Carbon::parse($startDate);
+            $expireDate->addDays($package_days);
 
-                    // expire date
-                    $package_days = $configStatus['package_days'];
-                    // convert $package_days to integer
-                    $package_days = intval($package_days);
-                    // add expireDate to $startDate
-                    $expireDate = Carbon::parse($startDate);
-                    // add $pacje_days to $expireDate
-                    $expireDate->addDays($package_days);
+            $expireDate = $expireDate->toJalali()->format('Y.m.d');
+            $startDate = $startDate->toJalali()->format('Y.m.d');
 
-                    $expireDate = $expireDate->toJalali()->format('Y.m.d');
-                    $startDate = $startDate->toJalali()->format('Y.m.d');
+            $text .= "🗓️ تاریخ شروع: {$startDate} \r\n";
+            $text .= "⏳ تاریخ انقضا: {$expireDate} \r\n";
+        }
+        if ($selectedProductCategory->show_pannel_link == 1) {
+            $text .= "🔗 لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:\r\n{$userPannelLink} \r\n";
+        }
+        if ($selectedProductCategory->show_subscription_link == 1) {
+            $text .= "🔗 لینک سابسکریپشن: \r\n{$userSubscriptionLInk} \r\n";
+        }
+         app('telegram_bot')->sendMessage($text, $chat_id, null, 'MarkDown');
 
-                    $text .= "🗓️ تاریخ شروع: {$startDate} \r\n";
-
-                    $text .= "⏳ تاریخ انقضا: {$expireDate} \r\n";
-                }
-                if ($selectedProductCategory->show_pannel_link == 1) {
-                    $text .= "🔗 لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:\r\n{$userPannelLink} \r\n";
-                }
-                if ($selectedProductCategory->show_subscription_link == 1) {
-                    $text .= "🔗 لینک سابسکریپشن: \r\n{$userSubscriptionLInk} \r\n";
-                }
-                 app('telegram_bot')->sendMessage($text, $chat_id, null, 'MarkDown');
-
-                $text = "ℹ️ همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
-                return app('telegram_bot')->imageMessageByLink($image, $chat_id, $text);
-
+        $text = "ℹ️ همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
+        return app('telegram_bot')->imageMessageByLink($image, $chat_id, $text);
     }
     public function new_hiddify_config_telegram_text($selectedPrCat,$pannel ,$volume,$day,$chat_id,$productID){
                 $hiddifcCntrl = new HiddifyPannelController();

@@ -98,6 +98,10 @@ class MainMenuItemController extends Controller
         }
         return 'خیر';
     }
+    public function getMenuItemByAliasName($aliasName)
+    {
+        return MainMenuItem::where('alias_name', $aliasName)->first();
+    }
     public function getMenuAliasNameByName($name)
     {
         $data = MainMenuItem::where('name', $name)->first();

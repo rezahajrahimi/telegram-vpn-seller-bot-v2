@@ -39,8 +39,11 @@ use App\Http\Controllers\ReferralSettingController;
 use App\Http\Controllers\ReferralWalletController;
 use App\Http\Controllers\ReferralLogsController;
 use App\Http\Controllers\ReserverdConfigController;
-use App\Http\Controllers\AdvancedSettingController;
+use App\Http\Controllers\AdvanceSettingLookupController;
 use App\Http\Controllers\WebAppMenuItemController;
+use App\Http\Controllers\BackupController;
+use App\Http\Controllers\TelegramWebhookController;
+
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -55,10 +58,11 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+Route::post('/telegram/webhooks/inbound', [TelegramWebhookController::class, 'handle']);
 
-Route::prefix('telegram/webhooks')->group(function () {
-    Route::post('inbound', [TelegramController::class, 'inbound'])->name('telegram.inbound');
-});
+// Route::prefix('telegram/webhooks')->group(function () {
+//     Route::post('inbound', [TelegramController::class, 'inbound'])->name('telegram.inbound');
+// });
 
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
@@ -80,6 +84,11 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::put('buyProductByAdmin', [AgentProductController::class, 'buyProductByAdmin']);
     Route::put('changeProductByAdminWithPrID', [AgentProductController::class, 'changeProductByAdminWithPrID']);
     Route::post('changeActivationOfHiddifyUserByAdmin', [AgentProductController::class, 'changeActivationOfHiddifyUserByAdmin']);
+
+    // backup
+    Route::get('createBackup', [BackupController::class, 'createBackup']);
+    Route::post('restoreBackup', [BackupController::class, 'restoreBackup']);
+
 
     // UserController
     Route::get('getUsers', [UserController::class, 'getUsers']);
@@ -301,7 +310,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('/getAllActiveCronJobs', [CronJobController::class, 'get_all_active_cron_jobs']);
     Route::get('/changeCronJobActiveStatusById/{id}', [CronJobController::class, 'change_cron_job_active_status']);
     // Route::get('/getTetherPriceByNobitex', [CronJobController::class, 'get_tether_price_by_nobitex']);
-
+    Route::get('/dailyBackup', [CronJobController::class, 'execute_create_daily_backup']);
 
     // ReferralSettingController
     Route::get('/getReferralSetting', [ReferralSettingController::class, 'get_referral_setting']);
@@ -313,10 +322,15 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     // ReserverdConfigController
     Route::post('/checkAProductHasReservedConfigByProductId', [ReserverdConfigController::class, 'check_a_product_has_reserved_config_by_product_id']);
 
-    // AdvancedSettingController
-    Route::get('/advancedSetting', [AdvancedSettingController::class, 'advancedSetting']);
-    Route::patch('/advancedSetting', [AdvancedSettingController::class, 'update_advanced_setting']);
-
+    // AdvanceSettingLookupController
+    Route::get('/advanceSettingLookup', [AdvanceSettingLookupController::class, 'getAll']);
+    Route::get('/advanceSettingLookupByName/{name}', [AdvanceSettingLookupController::class, 'getByName']);
+    Route::get('/advanceSettingLookupByNameWithBooleanValue/{name}', [AdvanceSettingLookupController::class, 'getByNameWithBooleanValue']);
+    Route::get('/advanceSettingLookupByNameAndValue/{name}/{value}', [AdvanceSettingLookupController::class, 'getByNameAndValue']);
+    Route::get('/advanceSettingLookupByValueWithBooleanValue/{name}', [AdvanceSettingLookupController::class, 'getValueByNameWithBooleanValue']);
+    Route::post('/advanceSettingLookupCreate', [AdvanceSettingLookupController::class, 'create']);
+    Route::post('/advanceSettingLookupUpdate', [AdvanceSettingLookupController::class, 'update']);
+    Route::post('/advanceSettingLookupUpdateByName', [AdvanceSettingLookupController::class, 'updateByName']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User
@@ -393,3 +407,5 @@ Route::get('/prd', [CronJobController::class, 'calculate_product_category_price_
 
 
 Route::post('/orderch', [TransactionController::class, 'add_order']);
+
+

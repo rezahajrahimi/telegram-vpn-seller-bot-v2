@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://51b1-2a12-5940-4449-00-2.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://188f-2a12-5940-4449-00-2.ngrok-free.app/api/telegram/webhooks/inbound
 
 // https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://71da-185-197-74-113.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
@@ -511,8 +511,8 @@ class TelegramController extends Controller
         // $this->deleteMessage();
         $this->addNewBotLog('subscription', 'وارد بخش خرید اشتراک شد.', 'show');
         // check has flag for show configs by panels category in advanced setting or not
-        $advancedSettingCntrl = new AdvancedSettingController();
-        $hasShowConfigByPanelCategory = $advancedSettingCntrl->get_bot_show_configs_by_panels_category();
+        $advancedSettingCntrl = new AdvanceSettingLookupController();
+        $hasShowConfigByPanelCategory = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_configs_by_panels_category');
         if ($hasShowConfigByPanelCategory == true || $hasShowConfigByPanelCategory == 1) {
             // get panels locations
             $panelCntrl = new PannelController();
@@ -537,8 +537,8 @@ class TelegramController extends Controller
         $prCat = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
         $opr = [];
         $index = 0;
-        $advancedSettingCntrl = new AdvancedSettingController();
-        $hasShowOneRowConfigText = $advancedSettingCntrl->get_bot_show_one_row_config();
+        $advancedSettingCntrl = new AdvanceSettingLookupController();
+        $hasShowOneRowConfigText = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
         if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
             // check if show one row config text is true or not
             $advancedSettingCntrl = new AdvancedSettingController();
@@ -582,8 +582,8 @@ class TelegramController extends Controller
         $prCat = $prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
         $opr = [];
         $index = 0;
-        $advancedSettingCntrl = new AdvancedSettingController();
-        $hasShowOneRowConfigText = $advancedSettingCntrl->get_bot_show_one_row_config();
+        $advancedSettingCntrl = new AdvanceSettingLookupController();
+        $hasShowOneRowConfigText = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
         if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
             // check if show one row config text is true or not
             $advancedSettingCntrl = new AdvancedSettingController();
@@ -1810,7 +1810,7 @@ class TelegramController extends Controller
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
         $text = "$inviteUrl";
-        
+
                 $resualt = app('telegram_bot')->sendMessage("<code>$text</code>", $this->chat_id, null, 'HTML');
 
 
