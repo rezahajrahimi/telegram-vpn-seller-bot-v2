@@ -286,15 +286,43 @@ class TelegramWebhookController extends Controller
             //     ->addText(" مراجعه کنید.")
             //     ->getMessage();
 
-            $buttons = [
-                ['منو اصلی', 'راهنما'],
-                ['درباره ما', 'تماس با ما']
-            ];
+            $menu = new MainMenuItemController();
+        $menuItem = $menu->getAllActivatedMainMenuItems();
+        $opr = [];
+
+        if ($menuItem[0]->name == 'خرید اشتراک') {
+            array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
+            // remove first item from menuItem list because we allreade added it to $opr
+            $menuItem = $menuItem->slice(1);
+        }
+        $countOfMenuItem = count($menuItem);
+        for ($i = 0; $i < $countOfMenuItem; $i += 2) {
+            $pair = $menuItem->slice($i, 2);
+            $index = 1;
+
+            foreach ($pair as $key => $value) {
+                if ($index % 2 == 1) {
+                    $firstRowIndicator = ['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"];
+                    $index += 1;
+                } elseif ($index % 2 == 0) {
+                    array_push($opr, [$firstRowIndicator, ['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"]]);
+                    $index += 1;
+                    break;
+                }
+            }
+        }
+        // because of if count of menuItem is odd we need to add last row indicator
+        if ($countOfMenuItem % 2 == 1) {
+            $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem - 1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem - 1]->id}"];
+            array_push($opr, [$firstRowIndicator]);
+        }
+            // extract menu alias_name
+        
 
             $settingCtrl = new SettingController();
             $this->message = $settingCtrl->getWelcomeMessage();
 
-            $this->telegramService->sendMessageWithKeyboard($chatId, $message, $buttons);
+            $this->telegramService->sendMessageWithKeyboard($chatId, $message, $opr);
 
             return '';
         } catch (\Throwable $th) {
