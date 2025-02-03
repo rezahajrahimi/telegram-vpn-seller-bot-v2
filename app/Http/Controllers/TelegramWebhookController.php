@@ -107,45 +107,43 @@ class TelegramWebhookController extends Controller
         $this->addNewBotLog('menu', "وارد منوی {$menuItem->name} ربات شد.", 'show');
 
         switch ($menuItem->name) {
-                case 'منوی اصلی':
-                    return $this->subMainMenu();
-                    break;
                 case 'خرید اشتراک':
-                    return $this->buySubscription();
+                    // return $this->buySubscription();
+                    return "خرید اشتراک";
                     break;
-                case 'اطلاعات حساب':
-                    return $this->accountDetails();
-                    break;
-                case 'سابقه خرید':
-                    return $this->buyHistory();
-                    break;
-                case 'پشتیبانی':
-                    return $this->supports();
-                    break;
-                case 'آموزش استفاده و سوالات متداول':
-                    return $this->faqs();
-                    break;
-                case 'دانلود برنامه':
-                    return $this->appDownload();
-                    break;
-                case 'گیفت کارت':
-                    return $this->giftCard();
-                    break;
-                case 'اکانت آزمایشی':
-                    return $this->testAccount();
-                    break;
-                case 'webapp':
-                    return $this->subWebapp();
-                    break;
-                case 'کسب درآمد':
-                    return $this->referral();
-                    break;
-                case 'خرید گیفت کارت':
-                    return $this->buyGiftCard();
-                    break;
+                // case 'اطلاعات حساب':
+                //     return $this->accountDetails();
+                //     break;
+                // case 'سابقه خرید':
+                //     return $this->buyHistory();
+                //     break;
+                // case 'پشتیبانی':
+                //     return $this->supports();
+                //     break;
+                // case 'آموزش استفاده و سوالات متداول':
+                //     return $this->faqs();
+                //     break;
+                // case 'دانلود برنامه':
+                //     return $this->appDownload();
+                //     break;
+                // case 'گیفت کارت':
+                //     return $this->giftCard();
+                //     break;
+                // case 'اکانت آزمایشی':
+                //     return $this->testAccount();
+                //     break;
+                // case 'webapp':
+                //     return $this->subWebapp();
+                //     break;
+                // case 'کسب درآمد':
+                //     return $this->referral();
+                //     break;
+                // case 'خرید گیفت کارت':
+                //     return $this->buyGiftCard();
+                //     break;
 
                 default:
-                    return $this->stickyMenu();
+                    return "منوی مورد نظر یافت نشد";
                     break;
             }
         return;
