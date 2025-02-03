@@ -92,8 +92,63 @@ class TelegramWebhookController extends Controller
         if (str_starts_with($text, '/')) {
             return $this->processCommand($text);
         }
+        // check if text is a menu item
+        $menuItemCtrl = new MainMenuItemController();
+        $menuItem = $menuItemCtrl->getMenuItemByAliasName($text);
+        if ($menuItem) {
+            return $this->processMenuCommand($menuItem);
+            // return $this->handleMenuCommand();
+        }
 
         return "پیام متنی شما دریافت شد: " . $text;
+    }
+    private function processMenuCommand($menuItem)
+    {
+        $this->addNewBotLog('menu', "وارد منوی {$menuItem->name} ربات شد.", 'show');
+
+        switch ($menuItem->name) {
+                case 'منوی اصلی':
+                    return $this->subMainMenu();
+                    break;
+                case 'خرید اشتراک':
+                    return $this->buySubscription();
+                    break;
+                case 'اطلاعات حساب':
+                    return $this->accountDetails();
+                    break;
+                case 'سابقه خرید':
+                    return $this->buyHistory();
+                    break;
+                case 'پشتیبانی':
+                    return $this->supports();
+                    break;
+                case 'آموزش استفاده و سوالات متداول':
+                    return $this->faqs();
+                    break;
+                case 'دانلود برنامه':
+                    return $this->appDownload();
+                    break;
+                case 'گیفت کارت':
+                    return $this->giftCard();
+                    break;
+                case 'اکانت آزمایشی':
+                    return $this->testAccount();
+                    break;
+                case 'webapp':
+                    return $this->subWebapp();
+                    break;
+                case 'کسب درآمد':
+                    return $this->referral();
+                    break;
+                case 'خرید گیفت کارت':
+                    return $this->buyGiftCard();
+                    break;
+
+                default:
+                    return $this->stickyMenu();
+                    break;
+            }
+        return;
     }
 
     private function processPhotoMessage(array $message): string
@@ -497,6 +552,12 @@ class TelegramWebhookController extends Controller
         } else {
             $result = $this->telegramService->sendMessage($admin_id, $text);
         }
+    }
+    private function addNewBotLog($type, $message, $event)
+    {
+        $logCtrl = new LogController();
+        $logCtrl->addNewLog($type, $message, $this->getCurrentChatId(), $this->getCurrentChatUserName(), $event);
+        return true;
     }
 }
 
