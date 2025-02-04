@@ -13,12 +13,18 @@ class CustomTextController extends Controller
     {
         $this->customText = new CustomText();
     }
-    public function seed()
+    private function seed()
     {
-        // check if the table is empty
+        \Log::info('Seeding CustomText table');
+        // check if we are on local
+        if (env('APP_ENV') == 'local') {
+            // delete all the data
+            CustomText::truncate();
+        }
+            // check if the table is empty
         if (CustomText::count() == 0) {
-            $data = [
-                ['key' => 'action.start', 'default_text' => 'به بات آموزشی خوش آمدید', 'custom_text' => null],
+                $data = [
+                ['key' => 'action.start', 'default_text' => 'سلام {name}! به ربات آموزشی خوش آمدید', 'custom_text' => null],
                 ['key' => 'action.help', 'default_text' => 'راهنما', 'custom_text' => null],
                 ['key' => 'action.back', 'default_text' => 'بازگشت', 'custom_text' => null],
                 ['key' => 'action.send_location', 'default_text' => 'ارسال موقعیت مکانی', 'custom_text' => null],
@@ -26,24 +32,41 @@ class CustomTextController extends Controller
                 ['key' => 'action.upload_file', 'default_text' => 'آپلود فایل', 'custom_text' => null],
                 ['key' => 'action.send_photo', 'default_text' => 'ارسال عکس', 'custom_text' => null],
                 ['key' => 'error.server_error', 'default_text' => 'خطایی رخ داده است', 'custom_text' => null],
-
+                ['key' => 'error.menu.not_found', 'default_text' => 'گزینه ای یافت نشد', 'custom_text' => null],
+                ['key' => 'error.command.not_found', 'default_text' => 'دستور نامعتبر است. برای مشاهده لیست دستورات از /help استفاده کنید.', 'custom_text' => null],
+                ['key' => 'action.welcome_back', 'default_text' => 'خوش برگشتی {name}! آخرین بازدید شما: {last_visit}', 'custom_text' => null],
             ];
-            CustomText::insert($data);
+                CustomText::insert($data);
+
+                \Log::info('CustomText table seeded successfully');
+                return true;
         }
+
     }
-    public function getText($key)
+    public function getText($key, $variables = [])
     {
-        $text = $this->customText->getText($key);
-        if ($text == null) {
-            // run the seed function
+        try {
+            $text = $this->customText->getText($key, $variables);
+            if ($text == null) {
+                \Log::info('CustomText table is empty, seeding...');
+                $this->seed();
+                return $this->customText->getText($key, $variables);
+            }
+            return $text;
+        } catch (\Throwable $th) {
+            \Log::error('Error getting text: ' . $th->getMessage());
             $this->seed();
             return $this->customText->getDefaultText($key);
         }
-        return $text;
     }
 
     public function setText($key, $text)
     {
-        return $this->customText->setText($key, $text);
+
+        // check if the key is in the database
+        if ($this->customText->where('key', $key)->exists()) {
+            return $this->customText->setText($key, $text);
+        }
+        return false;
     }
 }

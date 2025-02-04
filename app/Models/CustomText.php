@@ -19,5 +19,9 @@ class CustomText extends Model
     {
         $this->where('key', $key)->update(['custom_text' => $text]);
     }
+    public function getDefaultText($key)
+    {
+        return $this->where('key', $key)->first()->default_text;
+    }
 
 }

@@ -43,6 +43,7 @@ use App\Http\Controllers\AdvanceSettingLookupController;
 use App\Http\Controllers\WebAppMenuItemController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\TelegramWebhookController;
+use App\Http\Controllers\CustomTextController;
 
 
 use Illuminate\Http\Request;
@@ -331,6 +332,10 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::post('/advanceSettingLookupCreate', [AdvanceSettingLookupController::class, 'create']);
     Route::post('/advanceSettingLookupUpdate', [AdvanceSettingLookupController::class, 'update']);
     Route::post('/advanceSettingLookupUpdateByName', [AdvanceSettingLookupController::class, 'updateByName']);
+
+    // CustomTextController
+    Route::get('/get-text/{key}', [CustomTextController::class, 'getText']);
+    Route::post('/set-text/{key}/{text}', [CustomTextController::class, 'setText']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User

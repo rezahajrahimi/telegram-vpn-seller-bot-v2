@@ -8,14 +8,16 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use App\Services\TelegramMessageFormatter;
+use App\Http\Controllers\CustomTextController;
 
 class TelegramWebhookController extends Controller
 {
     private TelegramService $telegramService;
-
+    private CustomTextController $customTextCtrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService = $telegramService;
+        $this->customTextCtrl = new CustomTextController();
     }
 
     public function handle(Request $request)
@@ -108,8 +110,7 @@ class TelegramWebhookController extends Controller
 
         switch ($menuItem->name) {
                 case 'خرید اشتراک':
-                    // return $this->buySubscription();
-                    return "خرید اشتراک";
+                    return $this->processBuySubscription();
                     break;
                 // case 'اطلاعات حساب':
                 //     return $this->accountDetails();
@@ -143,7 +144,7 @@ class TelegramWebhookController extends Controller
                 //     break;
 
                 default:
-                    return "منوی مورد نظر یافت نشد";
+                    return $this->customTextCtrl->getText('error.menu.not_found');
                     break;
             }
         return;
@@ -258,7 +259,7 @@ class TelegramWebhookController extends Controller
             '/restart' => $this->handleStartCommand($text),
             '/help' => $this->handleHelpCommand(),
             '/menu' => $this->handleMenuCommand(),
-            default => "دستور نامعتبر است. برای مشاهده لیست دستورات از /help استفاده کنید."
+            default => $this->customTextCtrl->getText('error.command.not_found')
         };
         return $response;
     }
@@ -558,4 +559,3 @@ class TelegramWebhookController extends Controller
         return true;
     }
 }
-
