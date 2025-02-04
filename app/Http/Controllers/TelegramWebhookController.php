@@ -359,8 +359,8 @@ class TelegramWebhookController extends Controller
             return '';
         } catch (\Throwable $th) {
             \Log::error("خطا در پردازش handleStartCommand: " . $th->getMessage());
-            $error = $this->customTextCtrl->getText('error.server_error');
-            return $error;
+            return $this->customTextCtrl->getText('error.server_error');
+
         }
     }
     public function handleHelpCommand(): string
