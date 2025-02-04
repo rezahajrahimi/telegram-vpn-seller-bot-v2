@@ -43,6 +43,13 @@ class SettingController extends Controller
         $data->welcome_message = $request->welcome_message;
         $data->panel_address = $request->panel_address;
         if ($data->update()) {
+            // change in .env
+            $env = new DotenvEditor();
+            $env->changeEnv([
+                'TELEGRAM_BOT_TOKEN' => $request->bot_token,
+                'TELEGRAM_ADMIN_ID' => $request->admin_id,
+                'APP_URL' => $request->panel_address,
+            ]);
             return true;
         } else {
             return false;

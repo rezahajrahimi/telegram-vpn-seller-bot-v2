@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\BotUser;
 use App\Models\User;
+use App\Models\Setting;
 use App\Services\TelegramService;
 
 use Illuminate\Support\Carbon;
@@ -432,7 +433,9 @@ class CronJobController extends Controller
         // log backup file as a array
         $backupFile = $backup['url'];
         // set download url in backup file according to the current domain
-        $currentDomain = request()->getHttpHost();
+        // get current domain from settings
+        $currentDomain = Setting::find(1);
+        $currentDomain = $currentDomain->panel_address;
         $backupFile = str_replace('http://localhost', 'https://'.$currentDomain, $backupFile);
 
         //compress backup file to a zip file
