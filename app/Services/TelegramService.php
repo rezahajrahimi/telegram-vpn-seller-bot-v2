@@ -172,11 +172,14 @@ class TelegramService
 
     public function sendMessageWithInlineKeyboard(string $chatId, string $text, array $buttons): array
     {
-        return $this->sendMessage($chatId, $text, [
+        $response =  $this->sendMessage($chatId, $text, [
             'reply_markup' => json_encode([
                 'inline_keyboard' => $this->formatInlineKeyboardButtons($buttons)
             ])
         ]);
+        // log response as a array
+        \Log::info("sendMessageWithInlineKeyboard response=> " . json_encode($response));
+        return $response;
     }
 
     public function removeKeyboard(string $chatId, string $text): array

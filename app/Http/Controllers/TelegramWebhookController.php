@@ -9,15 +9,17 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Cache;
 use App\Services\TelegramMessageFormatter;
 use App\Http\Controllers\CustomTextController;
-
+use App\Http\Controllers\SubscriptionProcessController;
 class TelegramWebhookController extends Controller
 {
     private TelegramService $telegramService;
     private CustomTextController $customTextCtrl;
+    private SubscriptionProcessController $subscriptionProcessCtrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService = $telegramService;
         $this->customTextCtrl = new CustomTextController();
+        $this->subscriptionProcessCtrl = new SubscriptionProcessController($this->telegramService);
     }
 
     public function handle(Request $request)
@@ -99,7 +101,6 @@ class TelegramWebhookController extends Controller
         $menuItem = $menuItemCtrl->getMenuItemByAliasName($text);
         if ($menuItem) {
             return $this->processMenuCommand($menuItem);
-            // return $this->handleMenuCommand();
         }
 
         return "پیام متنی شما دریافت شد: " . $text;
@@ -107,10 +108,10 @@ class TelegramWebhookController extends Controller
     private function processMenuCommand($menuItem)
     {
         $this->addNewBotLog('menu', "وارد منوی {$menuItem->name} ربات شد.", 'show');
-
+        $chatId = $this->getCurrentChatId();
         switch ($menuItem->name) {
                 case 'خرید اشتراک':
-                    return $this->processBuySubscription();
+                   return $this->subscriptionProcessCtrl->buySubscriptionMenu($chatId);
                     break;
                 // case 'اطلاعات حساب':
                 //     return $this->accountDetails();
@@ -147,7 +148,7 @@ class TelegramWebhookController extends Controller
                     return $this->customTextCtrl->getText('error.menu.not_found');
                     break;
             }
-        return;
+        return $this->customTextCtrl->getText('error.menu.not_found');
     }
 
     private function processPhotoMessage(array $message): string
@@ -313,7 +314,7 @@ class TelegramWebhookController extends Controller
 
             $botUserCtrl->hasRegistred($chatId, $userName, $firstName, $lastName);
 
-            $welcomeFormats = $this->customTextCtrl->getText('welcome.message', [
+            $welcomeFormats = $this->customTextCtrl->getText('action.welcome.message', [
                 'name' => $firstName,
                 'lastName' => $lastName,
                 'website' => 'https://powerps.ir'
@@ -417,19 +418,23 @@ class TelegramWebhookController extends Controller
         $chatId = $callbackQuery['from']['id'];
         $data = $callbackQuery['data'];
         $callbackQueryId = $callbackQuery['id'];
+        \Log::info('Callback query data: ' . json_encode($data));
+        // explode the data to get the action
+        $actionList = explode('-', $data);
 
-        $response = match ($data) {
-            'action_1' => $this->handleAction1($chatId),
+        $action = $actionList[0];
+        $response = match ($action) {
+            'buySubscription' => $this->subscriptionProcessCtrl->buySubscriptionAction($chatId, $actionList[1]),
             'action_2' => $this->handleAction2($chatId),
             'action_3' => $this->handleAction3($chatId),
             'action_4' => $this->handleAction4($chatId),
-            default => "عملیات نامعتبر است."
+            default => $this->customTextCtrl->getText('error.action.not_found')
         };
 
         // ارسال پاسخ به callback query
         $this->telegramService->answerCallbackQuery(
             $callbackQueryId,
-            "عملیات با موفقیت انجام شد",
+            $this->customTextCtrl->getText('action.process.on_progress'),
             false
         );
 
