@@ -304,7 +304,6 @@ class TelegramWebhookController extends Controller
     private function handleStartCommand(String $message,): string
     {
         try {
-
             $chatId = $this->getCurrentChatId();
             $firstName = $this->getCurrentChatFirstName();
             $lastName = $this->getCurrentChatLastName();
@@ -314,30 +313,16 @@ class TelegramWebhookController extends Controller
 
             $botUserCtrl->hasRegistred($chatId, $userName, $firstName, $lastName);
 
+            $welcomeFormats = $this->customTextCtrl->getText('welcome.message', [
+                'name' => $firstName,
+                'lastName' => $lastName,
+                'website' => 'https://powerps.ir'
+            ]);
 
-
-
-
-
-
-            // $formatter = new TelegramMessageFormatter($this->telegramService);
-            // $message = $formatter
-            //     ->addBold("سلام! به ربات ما خوش آمدید. 👋")
-            //     ->addNewLine()
-            //     ->addNewLine()
-            //     ->addText("برای شروع می‌توانید از دستورات زیر استفاده کنید:")
-            //     ->addNewLine()
-            //     ->addCode("/help")
-            //     ->addText(" - راهنمای دستورات")
-            //     ->addNewLine()
-            //     ->addCode("/menu")
-            //     ->addText(" - منوی اصلی")
-            //     ->addNewLine()
-            //     ->addNewLine()
-            //     ->addItalic("برای اطلاعات بیشتر به ")
-            //     ->addLink("وب‌سایت ما", "https://example.com")
-            //     ->addText(" مراجعه کنید.")
-            //     ->getMessage();
+            $formatter = new TelegramMessageFormatter($this->telegramService);
+            $message = $formatter
+                ->addFormattedText('', $welcomeFormats)
+                ->getMessage();
 
         $menu = new MainMenuItemController();
         $menuItem = $menu->getAllActivatedMainMenuItems();
@@ -360,21 +345,22 @@ class TelegramWebhookController extends Controller
                 ];
             }
 
-            if (!empty($row)) {
-                $opr[] = $row;
+                if (!empty($row)) {
+                    $opr[] = $row;
+                }
             }
-        }
 
-            $settingCtrl = new SettingController();
-            $this->message = $settingCtrl->getWelcomeMessage();
+            // $settingCtrl = new SettingController();
+            // $this->message = $settingCtrl->getWelcomeMessage();
 
-            $result = $this->telegramService->sendMessageWithKeyboard($chatId, $this->message, $opr);
+            $result = $this->telegramService->sendMessageWithKeyboard($chatId, $message, $opr);
             \Log::info("result: " . json_encode($result));
 
             return '';
         } catch (\Throwable $th) {
             \Log::error("خطا در پردازش handleStartCommand: " . $th->getMessage());
-            return "خطا در پردازش ";
+            $error = $this->customTextCtrl->getText('error.server_error');
+            return $error;
         }
     }
     public function handleHelpCommand(): string

@@ -35,6 +35,23 @@ class CustomTextController extends Controller
                 ['key' => 'error.menu.not_found', 'default_text' => 'گزینه ای یافت نشد', 'custom_text' => null],
                 ['key' => 'error.command.not_found', 'default_text' => 'دستور نامعتبر است. برای مشاهده لیست دستورات از /help استفاده کنید.', 'custom_text' => null],
                 ['key' => 'action.welcome_back', 'default_text' => 'خوش برگشتی {name}! آخرین بازدید شما: {last_visit}', 'custom_text' => null],
+                ['key' => 'welcome.message', 'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "سلام {name} {lastName}! به ربات ما خوش آمدید. 👋"],
+                    ['type' => 'newline'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "برای شروع می‌توانید از دستورات زیر استفاده کنید:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "/help"],
+                    ['type' => 'text', 'text' => " - راهنمای دستورات"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "/menu"],
+                    ['type' => 'text', 'text' => " - منوی اصلی"],
+                    ['type' => 'newline'],
+                    ['type' => 'newline'],
+                    ['type' => 'italic', 'text' => "برای اطلاعات بیشتر به "],
+                    ['type' => 'link', 'text' => "وب‌سایت ما", 'url' => "{website}"],
+                    ['type' => 'text', 'text' => " مراجعه کنید."],
+                ]), 'custom_text' => null],
             ];
                 CustomText::insert($data);
 
@@ -47,10 +64,8 @@ class CustomTextController extends Controller
     {
         try {
             $text = $this->customText->getText($key, $variables);
-            if ($text == null) {
-                \Log::info('CustomText table is empty, seeding...');
-                $this->seed();
-                return $this->customText->getText($key, $variables);
+            if (json_validate($text)) {
+                return json_decode($text, true);
             }
             return $text;
         } catch (\Throwable $th) {
