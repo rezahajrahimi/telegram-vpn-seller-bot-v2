@@ -432,11 +432,23 @@ class CronJobController extends Controller
         }
         // log backup file as a array
         $backupFile = $backup['url'];
+        // check if backup file is http or https
+        if (strpos($backupFile, 'http://') !== 0) {
+            // remove http://
+            $backupFile = str_replace('http://', '', $backupFile);
+            $backupFile = 'https://' . $backupFile;
+        }
         // set download url in backup file according to the current domain
         // get current domain from settings
         $currentDomain = Setting::find(1);
         $currentDomain = $currentDomain->panel_address;
-        $backupFile = str_replace('http://localhost', 'https://'.$currentDomain, $backupFile);
+        // check if current domain is http or https
+        if (strpos($currentDomain, 'http://') !== 0) {
+            // remove http://
+            $currentDomain = str_replace('http://', '', $currentDomain);
+            $currentDomain = 'https://' . $currentDomain;
+        }
+        $backupFile = str_replace('https://localhost', $currentDomain, $backupFile);
 
         //compress backup file to a zip file
 
