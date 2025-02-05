@@ -248,6 +248,23 @@ class TelegramService
             return [];
         }
     }
+    public function sendDocumentFile(string $chatId, string $document, string $caption = '', array $options = []): array
+    {
+        try {
+            $document = new \CURLFile($document);
+            $result = $this->makeRequestFile('sendDocument', array_merge([
+                'chat_id' => $chatId,
+                'document' => $document,
+                'caption' => $caption,
+                'parse_mode' => 'HTML'
+        ], $options));
+        // \Log::info("sendDocument result=> $result");
+        return $result;
+        } catch (\Throwable $th) {
+            \Log::error($th->getMessage());
+            return [];
+        }
+    }
 
     public function sendLocation(string $chatId, float $latitude, float $longitude): array
     {

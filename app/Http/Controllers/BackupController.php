@@ -130,16 +130,20 @@ class BackupController extends Controller
 
             // ذخیره فایل در storage
             if (file_exists(storage_path('app/public/backups/' . $filename))) {
-                // return url to download file
-                $backupFile = $filename . '.zip';
-                return $backupFile;
+               // تغییر این قسمت
+               $zipPath = storage_path('app/public/backups/' . $filename . '.zip');
+               $zip = new \ZipArchive();
+               $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+               $zip->addFile(storage_path('app/public/backups/' . $filename), $filename);
+               $zip->close();
+               return $zipPath; // برگرداندن مسیر فایل به جای محتوای آن
             }
 
             return null;
 
        } catch (\Throwable $th) {
             \Log::info("Throwable $th");
-            return response()->json('Server Error', 500);
+            return null;
         }
     }
 

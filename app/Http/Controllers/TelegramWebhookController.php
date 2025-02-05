@@ -100,7 +100,12 @@ class TelegramWebhookController extends Controller
         $menuItemCtrl = new MainMenuItemController();
         $menuItem = $menuItemCtrl->getMenuItemByAliasName($text);
         if ($menuItem) {
-            return $this->processMenuCommand($menuItem);
+            $response =  $this->processMenuCommand($menuItem);
+            // if response == true or false or null, don't return anything
+            if ($response == true || $response == false || $response == null) {
+                return "";
+            }
+            return $response;
         }
 
         return "پیام متنی شما دریافت شد: " . $text;

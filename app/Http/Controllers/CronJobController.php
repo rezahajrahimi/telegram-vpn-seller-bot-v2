@@ -424,51 +424,23 @@ class CronJobController extends Controller
             return false;
         }
         $backupCtrl = new BackupController();
-        $backupResponse = $backupCtrl->createBackup();
-        $backup = json_decode($backupResponse->getContent(), true);
-
-        if (!isset($backup['url'])) {
+        $backupFile = $backupCtrl->createBackupAndReturnZipFile();
+        if (!isset($backupFile)) {
             return false;
         }
         // log backup file as a array
-        $backupFile = $backup['url'];
-        // check if backup file is http or https
-        if (strpos($backupFile, 'http://') !== 0) {
-            // remove http://
-            $backupFile = str_replace('http://', '', $backupFile);
-            $backupFile = 'https://' . $backupFile;
-        }
-        // set download url in backup file according to the current domain
-        // get current domain from settings
-        $currentDomain = Setting::find(1);
-        $currentDomain = $currentDomain->panel_address;
-        // check if current domain is http or https
-        if (strpos($currentDomain, 'http://') !== 0) {
-            // remove http://
-            $currentDomain = str_replace('http://', '', $currentDomain);
-            $currentDomain = 'https://' . $currentDomain;
-        }
-        $backupFile = str_replace('https://localhost', $currentDomain, $backupFile);
-
-        //compress backup file to a zip file
-
-        // $backupFile = str_replace('http://localhost:8005', 'https://c9d6-2a12-5940-4449-00-2.ngrok-free.app', $backupFile);
         $admin = User::where('role', 'admin')->first();
         $admin_id = $admin->account_id;
 
         $currentDate = now()->toJalali()->format('Y/m/d');
         $currentDate = Verta::parse($currentDate)->format('Y-m-d');
         $text = "نسخه پشتیبان $currentDate";
-        $text .= "\n\n";
-        $text .= "<code>$backupFile</code>";
-        // $telegramService = new TelegramService();
-        // $result = $telegramService->sendDocument($admin_id, $backupFile, $text);
-        $result = app('telegram_bot')->sendMessage($text, $admin_id, null, 'HTML');
-
-        return $result;
+        $telegramService = new TelegramService();
+        $result = $telegramService->sendDocumentFile($admin_id, $backupFile, $text);
+        return "done";
         } catch (\Throwable $th) {
             \Log::error($th->getMessage());
-            return false;
+            return "error";
         }
     }
     public function create_cron_job_for_create_daily_backup()
