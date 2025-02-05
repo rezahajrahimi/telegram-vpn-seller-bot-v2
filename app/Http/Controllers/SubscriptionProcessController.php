@@ -7,6 +7,7 @@ use App\Services\TelegramService;
 use App\Http\Controllers\CustomTextController;
 // add BotUser model
 use App\Models\BotUser;
+use App\Models\ProductCategory;
 
 
 
@@ -14,6 +15,7 @@ class SubscriptionProcessController extends Controller
 {
     private $chatId;
     private $botUser;
+    private $selectedPrCat;
     private TelegramService $telegramService;
     private CustomTextController $customTextCtrl;
     private AccountBallanceController $accBlCtrl;
@@ -21,6 +23,7 @@ class SubscriptionProcessController extends Controller
     private ProductCategoryController $prCatCntrl;
     private PannelController $panelCntrl;
     private AdvanceSettingLookupController $advancedSettingCntrl;
+    private GeneralController $generalCntrl;
     private LogController $logCtrl;
 
     public function __construct(TelegramService $telegramService)
@@ -32,8 +35,10 @@ class SubscriptionProcessController extends Controller
         $this->prCatCntrl = new ProductCategoryController();
         $this->panelCntrl = new PannelController();
         $this->advancedSettingCntrl = new AdvanceSettingLookupController();
+        $this->generalCntrl = new GeneralController();
         $this->logCtrl = new LogController();
         $this->botUser = new BotUser();
+        $this->selectedPrCat = new ProductCategory();
     }
 
     public function buySubscriptionMenu($chatId)
@@ -112,33 +117,86 @@ class SubscriptionProcessController extends Controller
     public function buySubscriptionAction($chatId, $subscriptionId)
     {
         try {
+            $this->chatId = $chatId;
             $prCat = new ProductCategoryController();
-            $selectedPrCat = $prCat->getProdctCategoryNameByID($subscriptionId);
-
+            $this->selectedPrCat = $this->selectedPrCat->getProdctCategorByID($subscriptionId);
+            // check if selectedPrCat is null
+            if ($this->selectedPrCat == null) {
+                return $this->customTextCtrl->getText('action.process.failed_buy');
+            }
             // بررسی موجودی کاربر
-            $productPrice = $selectedPrCat->price;
-            $productPriceInDollar = $selectedPrCat->price_in_dollar;
+            $productPrice = $this->selectedPrCat->price;
+            $productPriceInDollar = $this->selectedPrCat->price_in_dollar;
 
-            $accBlCtrl = new AccountBallanceController();
-            $hasBallance = $accBlCtrl->checkUserHasBalance($chatId, $productPrice, $productPriceInDollar);
-
+            $hasBallance = $this->accBlCtrl->checkUserHasBalance($chatId, $productPrice, $productPriceInDollar);
+            \Log::info('hasBallance: ' . $hasBallance);
             // بررسی کیف پول ارجاع
-            $referalCntrl = new ReferralWalletController();
-            $referralAmount = $referalCntrl->get_amount_of_ref_wallet_by_account_id($chatId);
-            $hasRefballance = $referralAmount >= $productPrice;
+            $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $this->selectedPrCat->price);
 
-            if ($hasRefballance || $hasBallance) {
-                // return $this->processSubscriptionPurchase($chatId, $selectedPrCat, $hasBallance);
-                return $this->customTextCtrl->getText('action.process.success_buy');
+            if ($hasRefballance == true || $hasBallance == true || $hasBallance == 1 || $hasRefballance == 1) {
+                \Log::info('mojodid dashte: ' . $hasRefballance);
+                return $this->processSubscriptionPurchase();
+                // return $this->customTextCtrl->getText('action.process.success_buy');
+            } else {
+                return $this->customTextCtrl->getText('action.process.insufficient_balance');
             }
 
-            // return $this->handleInsufficientBalance($chatId, $productPrice, $productPriceInDollar);
-            return $this->customTextCtrl->getText('action.process.insufficient_balance');
 
         } catch (\Throwable $th) {
             \Log::error("خطا در خرید بسته: " . $th->getMessage());
             return $this->customTextCtrl->getText('action.process.failed_buy');
         }
+    }
+
+
+    private function processSubscriptionPurchase()
+    {
+        try {
+            \Log::info('processSubscriptionPurchase');
+
+            $selectedPrCat = $this->selectedPrCat;
+             // بررسی موجودی کاربر
+            $productPrice = $this->selectedPrCat->price;
+            $productPriceInDollar = $this->selectedPrCat->price_in_dollar;
+            \Log::info('chatId: ' . $this->chatId);
+            $hasBallance = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
+            \Log::info('hasBallance: ' . $hasBallance);
+            // بررسی کیف پول ارجاع
+            $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $this->selectedPrCat->price);
+
+            if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
+                \Log::info('processSubscriptionPurchase: ' . $hasBallance);
+                return $this->customTextCtrl->getText('action.process.insufficient_balance');
+            }
+            \Log::info('hasBallance: ' . $hasBallance);
+
+            $productID = $this->selectedPrCat->id;
+            $productID += 1;
+
+            $pannel = $this->panelCntrl->getPannelById($this->selectedPrCat->pannel_id);
+            $day = $this->selectedPrCat->expire_day;
+            $volume = $this->selectedPrCat->volume;
+            $productID = $this->selectedPrCat->id;
+            $productID += 1;
+
+            if ($pannel->type == 'hiddify') {
+                $generalCntrl = new GeneralController();
+                $resualt= $generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat,$pannel,$volume,$day,$this->chatId,$productID);
+
+            } elseif ($pannel->type == 'marzban') {
+                // create marzban user
+                return " پنل مارزبان";
+            }
+
+            return $this->customTextCtrl->getText('action.process.success_buy');
+
+
+
+        } catch (\Throwable $th) {
+            \Log::error("خطا در خرید بسته: " . $th->getMessage());
+            return $this->customTextCtrl->getText('action.process.failed_buy');
+        }
+
     }
 
     private function addNewBotLog($type, $message, $event)

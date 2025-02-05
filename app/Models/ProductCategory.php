@@ -10,6 +10,12 @@ class ProductCategory extends Model
     use HasFactory;
     protected $guarded = ['id','pannel_id'];
     protected $fillable = ['pannel_id','category_name','price','expire_day','volume','rechargable','show_subscription_link','show_pannel_link','is_active','price_in_dollar'];
+
+
+    public function getProdctCategorByID($id)
+    {
+        return ProductCategory::find($id);
+    }
     /**
      * Get the user that owns the ProductCategory
      *
