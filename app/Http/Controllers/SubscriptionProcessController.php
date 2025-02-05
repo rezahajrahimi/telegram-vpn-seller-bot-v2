@@ -129,12 +129,10 @@ class SubscriptionProcessController extends Controller
             $productPriceInDollar = $this->selectedPrCat->price_in_dollar;
 
             $hasBallance = $this->accBlCtrl->checkUserHasBalance($chatId, $productPrice, $productPriceInDollar);
-            \Log::info('hasBallance: ' . $hasBallance);
             // بررسی کیف پول ارجاع
             $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $this->selectedPrCat->price);
 
             if ($hasRefballance == true || $hasBallance == true || $hasBallance == 1 || $hasRefballance == 1) {
-                \Log::info('mojodid dashte: ' . $hasRefballance);
                 return $this->processSubscriptionPurchase();
                 // return $this->customTextCtrl->getText('action.process.success_buy');
             } else {
@@ -152,23 +150,17 @@ class SubscriptionProcessController extends Controller
     private function processSubscriptionPurchase()
     {
         try {
-            \Log::info('processSubscriptionPurchase');
-
             $selectedPrCat = $this->selectedPrCat;
              // بررسی موجودی کاربر
             $productPrice = $this->selectedPrCat->price;
             $productPriceInDollar = $this->selectedPrCat->price_in_dollar;
-            \Log::info('chatId: ' . $this->chatId);
             $hasBallance = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
-            \Log::info('hasBallance: ' . $hasBallance);
             // بررسی کیف پول ارجاع
             $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $this->selectedPrCat->price);
 
             if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
-                \Log::info('processSubscriptionPurchase: ' . $hasBallance);
                 return $this->customTextCtrl->getText('action.process.insufficient_balance');
             }
-            \Log::info('hasBallance: ' . $hasBallance);
 
             $productID = $this->selectedPrCat->id;
             $productID += 1;
@@ -178,19 +170,29 @@ class SubscriptionProcessController extends Controller
             $volume = $this->selectedPrCat->volume;
             $productID = $this->selectedPrCat->id;
             $productID += 1;
+            $resualt = false;
 
             if ($pannel->type == 'hiddify') {
                 $generalCntrl = new GeneralController();
                 $resualt= $generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat,$pannel,$volume,$day,$this->chatId,$productID);
-
             } elseif ($pannel->type == 'marzban') {
                 // create marzban user
                 return " پنل مارزبان";
             }
 
-            return $this->customTextCtrl->getText('action.process.success_buy');
-
-
+            if($resualt == true){
+                    // decrease user balance
+                    $request = new Request();
+                    $request->userID = $this->chatId;
+                    $request->ballance = $productPrice;
+                    $request->type = 'toman';
+                    $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+                $this->addNewBotLog('subscription', 'خرید اشتراک با موفقیت انجام شد.', 'show');
+                return $this->customTextCtrl->getText('action.process.success_buy');
+            }else{
+                $this->addNewBotLog('subscription', 'خرید اشتراک با شکست مواجه شد.', 'show');
+                return $this->customTextCtrl->getText('action.process.failed_buy');
+            }
 
         } catch (\Throwable $th) {
             \Log::error("خطا در خرید بسته: " . $th->getMessage());

@@ -200,6 +200,27 @@ class TelegramService
         ]);
     }
 
+    public function sendPhotoFile(string $chatId, string $photoPath, string $caption = '', array $options = []): array
+    {
+        // ایجاد CURLFile از فایل تصویر
+        $photo = new \CURLFile($photoPath);
+
+        $result = $this->makeRequestFile('sendPhoto', array_merge([
+            'chat_id' => $chatId,
+            'photo' => $photo,
+            'caption' => $caption,
+            'parse_mode' => 'HTML'
+        ], $options));
+
+        // پاک کردن فایل موقت بعد از ارسال
+        if (file_exists($photoPath)) {
+            unlink($photoPath);
+        }
+
+        \Log::info('sendPhoto', ['result' => $result]);
+        return $result;
+    }
+
     public function sendPhoto(string $chatId, string $photo, string $caption = '', array $options = []): array
     {
         return $this->makeRequest('sendPhoto', array_merge([
@@ -209,6 +230,7 @@ class TelegramService
             'parse_mode' => 'HTML'
         ], $options));
     }
+
 
     public function sendDocument(string $chatId, string $document, string $caption = '', array $options = []): array
     {
@@ -339,6 +361,29 @@ class TelegramService
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+
+        $response = curl_exec($ch);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            throw new \Exception('خطا در ارتباط با تلگرام: ' . $error);
+        }
+
+        return json_decode($response, true) ?? [];
+    }
+
+    private function makeRequestFile(string $method, array $params = []): array
+    {
+        $url = $this->baseUrl . $this->botToken . '/' . $method;
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+        // برای ارسال فایل نیازی به تنظیم Content-Type نیست
+        // CURL به صورت خودکار Content-Type: multipart/form-data را تنظیم می‌کند
 
         $response = curl_exec($ch);
         $error = curl_error($ch);

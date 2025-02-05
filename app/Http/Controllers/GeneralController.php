@@ -14,10 +14,33 @@ use App\Models\AgentPermisson;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Hekmatinasser\Verta\Verta;
+use App\Http\Controllers\CustomTextController;
+use App\Services\TelegramService;
+use App\Http\Controllers\AccountBallanceController;
+use App\Http\Controllers\ReferralWalletController;
+use App\Http\Controllers\ProductCategoryController;
+use App\Http\Controllers\PannelController;
+use App\Services\TelegramMessageFormatter;
+
 
 
 class GeneralController extends Controller
 {
+    private CustomTextController $customTextCtrl;
+    private TelegramService $telegramService;
+    private AccountBallanceController $accBlCtrl;
+    private ReferralWalletController $referralCntrl;
+    private ProductCategoryController $prCatCntrl;
+    private PannelController $panelCntrl;
+    public function __construct()
+    {
+        $this->customTextCtrl = new CustomTextController();
+        $this->telegramService = new TelegramService();
+        $this->accBlCtrl = new AccountBallanceController();
+        $this->referralCntrl = new ReferralWalletController();
+        $this->prCatCntrl = new ProductCategoryController();
+        $this->panelCntrl = new PannelController();
+    }
     public function getDashboardAnalytics()
     {
         try {
@@ -203,6 +226,7 @@ class GeneralController extends Controller
         return app('telegram_bot')->imageMessageByLink($image, $chat_id, $text);
     }
     public function new_hiddify_config_telegram_text($selectedPrCat,$pannel ,$volume,$day,$chat_id,$productID){
+        try {
                 $hiddifcCntrl = new HiddifyPannelController();
                 $pnlCntrl = new PannelController();
 
@@ -225,18 +249,17 @@ class GeneralController extends Controller
                 $userPannelLink = "$userLink/{$newUUID}/#{$req->accountId}";
 
                 $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-                $text = '';
-                $text .= "خرید شما با موفقیت انجام شد\r\n";
-                if ($selectedPrCat->show_pannel_link == 1) {
-                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:\r\n{$userPannelLink}\r\n";
-                }
-                $text .= "لینک سابسکریپشن:\r\n{$userSubscriptionLInk}\r\n";
-                app('telegram_bot')->sendMessage($text, $chat_id, null, 'MarkDown');
-
-                $text = "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
-
-                $resualt = app('telegram_bot')->imageMessageByLink($image, $chat_id, $text);
+                \Log::info("image => $image");
+                $text = $this->customTextCtrl->getText('action.subscription.hiddify', [
+                    'panel_link' => $userPannelLink,
+                    'userSubscriptionLInk' => $userSubscriptionLInk,
+                ]);
+                $formatter = new TelegramMessageFormatter($this->telegramService);
+                $text = $formatter->addFormattedText('', $text)->getMessage();
                 // save as dectivate product, So we can use it in future when user want to recharge it;
+                $resualt = $this->telegramService->sendPhotoFile($chat_id, $image, $text);
+
+
                 $request = new Request();
                 $request->account_id = $chat_id;
                 $request->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
@@ -246,7 +269,11 @@ class GeneralController extends Controller
                 $request->remark = "$chat_id-$productID";
                 $prCntrl = new ProductController();
                 $prCntrl->addAutomatedProductDetails($request);
-                return $resualt;
+                return true;
+        } catch (\Throwable $th) {
+            \Log::info("error on new_hiddify_config_telegram_text-> $th");
+            return false;
+        }
 
     }
 }

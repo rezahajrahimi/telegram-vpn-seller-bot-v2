@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 
 class PannelController extends Controller
 {
@@ -443,14 +445,33 @@ class PannelController extends Controller
 
     public function generateQrMOC($str)
     {
-        $image = QrCode::format('png')->size(250)->backgroundColor(255, 255, 255)->color(0, 0, 255)->margin(1)->generate($str);
+        $fileName = 'qr_' . time() . '_' . rand(1000, 9999) . '.png';
 
-        $path = public_path() . '/images/' . 'aa.png';
-        if (file_exists($path)) {
-            unlink($path);
+        $image = QrCode::format('png')
+            ->size(250)
+            ->backgroundColor(255, 255, 255)
+            ->color(0, 0, 255)
+            ->margin(1)
+            ->generate($str);
+
+        $directory = public_path('images/qrcodes');
+        if (!File::exists($directory)) {
+            File::makeDirectory($directory, 0755, true);
         }
 
-        $res = file_put_contents($path, $image);
+        $path = $directory . '/' . $fileName;
+        if (File::exists($path)) {
+            File::delete($path);
+        }
+
+        $result = file_put_contents($path, $image);
+
+        if (!$result) {
+            return false;
+        }
+        //         $downloadUrl = asset('images/qrcodes/' . $fileName);
+
+        // برگرداندن مسیر کامل فایل به جای URL
         return $path;
     }
     public function createMarzbanUser($accountId, $day, $vol, $pannelID)
