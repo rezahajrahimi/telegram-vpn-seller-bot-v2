@@ -60,15 +60,54 @@ class SubscriptionProcessController extends Controller
                 $text = $this->customTextCtrl->getText('action.buy_subscription_by_location.location');
                 $opr = [];
 
-                foreach ($panels as $value) {
-                    array_push($opr, [['text' => $value, 'callback_data' => 'buySubscriptionByLocation-' . $value]]);
+                foreach ($panels as $key => $value) {
+                     $buttonText = $value;
+                     $opr[] = [
+                    $buttonText => "buySubscriptionByLocation-" . $value
+                ];
                 }
 
-                 $this->telegramService->sendMessageWithKeyboard($chatId, $text, $opr);
-                 return true;
+                  $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+                 return "";
 
             }
+            $this->prepareSubscriptionButtons();
 
+            return "";
+
+
+        } catch (\Throwable $th) {
+            \Log::error("خطا در خرید اشتراک: " . $th->getMessage());
+             $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+             return "";
+        }
+    }
+
+
+    public function buySubscriptionByLocationAction($chatId, $location)
+    {
+        try {
+            $this->chatId = $chatId;
+            $this->botUser = $this->botUser->getUserByAccountID($chatId);
+            $this->addNewBotLog('subscription', 'وارد بخش خرید اشتراک بر اساس لوکیشن شد.', 'show');
+            $text = $this->customTextCtrl->getText('action.buy_subscription_by_location.location');
+            $panelId = $this->panelCntrl->get_pannel_id_by_location($location);
+
+            $prCatCntrl = new ProductCategoryController();
+            $prCat = $prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
+
+            $this->prepareSubscriptionButtons($prCat);
+
+            return "";
+
+        } catch (\Throwable $th) {
+            \Log::error("خطا در انتخاب لوکیشن: " . $th->getMessage());
+            $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
+    }
+    public function prepareSubscriptionButtons()
+    {
             $text = $this->customTextCtrl->getText('action.buy_subscription.select_package');
             $prCat = $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
             $opr = [];
@@ -80,45 +119,16 @@ class SubscriptionProcessController extends Controller
                     $buttonText => "buySubscription-" . strval($value->id)
                 ];
             }
-
-            \Log::info('Button structure: ' . json_encode($opr));
-            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
-            return true;
+            $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
+            return "";
 
 
-        } catch (\Throwable $th) {
-            \Log::error("خطا در خرید اشتراک: " . $th->getMessage());
-             $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
-             return false;
-        }
-    }
-
-    public function buySubscriptionByLocationAction($chatId, $location)
-    {
-        try {
-            $text = $this->customTextCtrl->getText('action.buy_subscription_by_location.location');
-            $panelId = $this->panelCntrl->get_pannel_id_by_location($location);
-
-            $prCatCntrl = new ProductCategoryController();
-            $prCat = $prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
-
-            $opr = $this->prepareSubscriptionButtons($prCat);
-
-            $this->telegramService->sendMessageWithKeyboard($chatId, $text, $opr);
-            return true;
-
-        } catch (\Throwable $th) {
-            \Log::error("خطا در انتخاب لوکیشن: " . $th->getMessage());
-            $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
-            return false;
-        }
     }
 
     public function buySubscriptionAction($chatId, $subscriptionId)
     {
         try {
             $this->chatId = $chatId;
-            $prCat = new ProductCategoryController();
             $this->selectedPrCat = $this->selectedPrCat->getProdctCategorByID($subscriptionId);
             // check if selectedPrCat is null
             if ($this->selectedPrCat == null) {
@@ -173,8 +183,7 @@ class SubscriptionProcessController extends Controller
             $resualt = false;
 
             if ($pannel->type == 'hiddify') {
-                $generalCntrl = new GeneralController();
-                $resualt= $generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat,$pannel,$volume,$day,$this->chatId,$productID);
+                $resualt= $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat,$pannel,$volume,$day,$this->chatId,$productID);
             } elseif ($pannel->type == 'marzban') {
                 // create marzban user
                 return " پنل مارزبان";
@@ -188,7 +197,7 @@ class SubscriptionProcessController extends Controller
                     $request->type = 'toman';
                     $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
                 $this->addNewBotLog('subscription', 'خرید اشتراک با موفقیت انجام شد.', 'show');
-                return $this->customTextCtrl->getText('action.process.success_buy');
+                return "";
             }else{
                 $this->addNewBotLog('subscription', 'خرید اشتراک با شکست مواجه شد.', 'show');
                 return $this->customTextCtrl->getText('action.process.failed_buy');

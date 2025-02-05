@@ -102,7 +102,7 @@ class TelegramWebhookController extends Controller
         if ($menuItem) {
             $response =  $this->processMenuCommand($menuItem);
             // if response == true or false or null, don't return anything
-            if ($response == true || $response == false || $response == null) {
+            if ($response == true || $response == false || $response == null || $response == 1 || $response == 0) {
                 return "";
             }
             return $response;
@@ -430,7 +430,7 @@ class TelegramWebhookController extends Controller
         $action = $actionList[0];
         $response = match ($action) {
             'buySubscription' => $this->subscriptionProcessCtrl->buySubscriptionAction($chatId, $actionList[1]),
-            'action_2' => $this->handleAction2($chatId),
+            'buySubscriptionByLocation' => $this->subscriptionProcessCtrl->buySubscriptionByLocationAction($chatId, $actionList[1]),
             'action_3' => $this->handleAction3($chatId),
             'action_4' => $this->handleAction4($chatId),
             default => $this->customTextCtrl->getText('error.action.not_found')
