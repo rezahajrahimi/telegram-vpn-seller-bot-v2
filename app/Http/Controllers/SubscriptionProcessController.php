@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Services\TelegramService;
-use App\Http\Controllers\CustomTextController;
+
 // add BotUser model
 use App\Models\BotUser;
 use App\Models\ProductCategory;
@@ -25,7 +25,7 @@ class SubscriptionProcessController extends Controller
     private AdvanceSettingLookupController $advancedSettingCntrl;
     private GeneralController $generalCntrl;
     private LogController $logCtrl;
-
+    private TransactionSettingController $trSettingCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService = $telegramService;
@@ -39,6 +39,7 @@ class SubscriptionProcessController extends Controller
         $this->logCtrl = new LogController();
         $this->botUser = new BotUser();
         $this->selectedPrCat = new ProductCategory();
+        $this->trSettingCntrl = new TransactionSettingController();
     }
 
     public function buySubscriptionMenu($chatId)
@@ -108,21 +109,53 @@ class SubscriptionProcessController extends Controller
     }
     public function prepareSubscriptionButtons()
     {
-            $text = $this->customTextCtrl->getText('action.buy_subscription.select_package');
-            $prCat = $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
-            $opr = [];
-
+        $text = $this->customTextCtrl->getText('action.buy_subscription.select_package');
+        $prCat = $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
+        $opr = [];
+        $dollarTransaction = $this->trSettingCntrl->getDollorTransactionSetting();
+        $showOneRowConfig = $this->advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
+        if($showOneRowConfig) {
             foreach ($prCat as $key => $value) {
                 // هر دکمه به صورت یک ردیف جداگانه
-                $buttonText = "$value->category_name - $value->price_in_dollar$ - $value->price تومان";
+                if($dollarTransaction == true){
+                    $buttonText = "$value->category_name - $value->price_in_dollar$ - $value->price تومان";
+                }                
+                else{
+                    $buttonText = "$value->category_name - $value->price تومان";
+                }                                   
                 $opr[] = [
                     $buttonText => "buySubscription-" . strval($value->id)
-                ];
+                ];                    
             }
-            $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
-            return "";
-
-
+        } else {
+            if($dollarTransaction == true){
+                $opr[] = [
+                    'قیمت(دلار)' => '0',
+                    'قیمت(تومان)' => '0',
+                    'بسته' => '0',                                           
+                ];
+                foreach ($prCat as $key => $value) {
+                    $opr[] = [
+                        "$value->price_in_dollar" => "buySubscription-" . strval($value->id),
+                        "$value->price" => "buySubscription-" . strval($value->id),
+                        "$value->category_name" => "buySubscription-" . strval($value->id),                                            
+                    ];
+                }
+            } else {
+                $opr[] = [
+                    'قیمت(تومان)' => '0',
+                    'بسته' => '0',                       
+                ];
+                foreach ($prCat as $key => $value) {
+                    $opr[] = [
+                        "$value->price" => "buySubscription-" . strval($value->id),
+                        "$value->category_name" => "buySubscription-" . strval($value->id),                        
+                    ];
+                }
+            }
+        }
+        $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
+        return "";
     }
 
     public function buySubscriptionAction($chatId, $subscriptionId)
@@ -148,7 +181,6 @@ class SubscriptionProcessController extends Controller
             } else {
                 return $this->customTextCtrl->getText('action.process.insufficient_balance');
             }
-
 
         } catch (\Throwable $th) {
             \Log::error("خطا در خرید بسته: " . $th->getMessage());
