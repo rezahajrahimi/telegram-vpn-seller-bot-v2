@@ -237,6 +237,11 @@ class GeneralController extends Controller
                 $req->day = $day;
 
                 $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
+                if($newUUID == false){
+
+                    return false;
+                }
+                \Log::info("newUUID => $newUUID");
                 // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
 
                 $userLink = $pannel->user_link;

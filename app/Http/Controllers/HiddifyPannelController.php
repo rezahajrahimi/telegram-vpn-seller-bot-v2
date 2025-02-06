@@ -189,10 +189,16 @@ class HiddifyPannelController extends Controller
             'comment' => "$comment",
         ];
         $data = $this->sendPostRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/', $params);
-        if ($data != false) {
-            return $uuid;
+        // decode data
+        // check data have not error and 401 response
+
+        if (is_array($data) ) {
+            if (isset($data['uuid'])) {
+                return $uuid;
+            }
+        } else {
+            return false;
         }
-        return $data;
     }
     public function addUserToHiddifyPanelOldApi(Request $request)
     {
@@ -564,14 +570,13 @@ class HiddifyPannelController extends Controller
         $url = $url . $requestAPi;
 
         $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->post($url, $params);
-
+        \Log::info(["subsequentResponse => {$subsequentResponse->getBody()}"]);
         if ($subsequentResponse->getStatusCode() == 200) {
             $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
             if ($checkIsHtmlPage !== false) {
                 return response()->json(false, 401);
             }
             // dd($subsequentResponse);
-            \Log::info("message => {$subsequentResponse->getBody()}");
             return json_decode($subsequentResponse->getBody(), true);
         }
         return response()->json(false, 401);
