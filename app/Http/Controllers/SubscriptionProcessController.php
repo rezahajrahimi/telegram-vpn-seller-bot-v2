@@ -64,8 +64,8 @@ class SubscriptionProcessController extends Controller
                 foreach ($panels as $key => $value) {
                      $buttonText = $value;
                      $opr[] = [
-                    $buttonText => "buySubscriptionByLocation-" . $value
-                ];
+                                 $buttonText => "buySubscriptionByLocation-" . $value
+                        ];
                 }
 
                   $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
@@ -119,37 +119,37 @@ class SubscriptionProcessController extends Controller
                 // هر دکمه به صورت یک ردیف جداگانه
                 if($dollarTransaction == true){
                     $buttonText = "$value->category_name - $value->price_in_dollar$ - $value->price تومان";
-                }                
+                }
                 else{
                     $buttonText = "$value->category_name - $value->price تومان";
-                }                                   
+                }
                 $opr[] = [
                     $buttonText => "buySubscription-" . strval($value->id)
-                ];                    
+                ];
             }
         } else {
             if($dollarTransaction == true){
                 $opr[] = [
                     'قیمت(دلار)' => '0',
                     'قیمت(تومان)' => '0',
-                    'بسته' => '0',                                           
+                    'بسته' => '0',
                 ];
                 foreach ($prCat as $key => $value) {
                     $opr[] = [
                         "$value->price_in_dollar" => "buySubscription-" . strval($value->id),
                         "$value->price" => "buySubscription-" . strval($value->id),
-                        "$value->category_name" => "buySubscription-" . strval($value->id),                                            
+                        "$value->category_name" => "buySubscription-" . strval($value->id),
                     ];
                 }
             } else {
                 $opr[] = [
                     'قیمت(تومان)' => '0',
-                    'بسته' => '0',                       
+                    'بسته' => '0',
                 ];
                 foreach ($prCat as $key => $value) {
                     $opr[] = [
                         "$value->price" => "buySubscription-" . strval($value->id),
-                        "$value->category_name" => "buySubscription-" . strval($value->id),                        
+                        "$value->category_name" => "buySubscription-" . strval($value->id),
                     ];
                 }
             }
@@ -228,6 +228,9 @@ class SubscriptionProcessController extends Controller
                     $request->ballance = $productPrice;
                     $request->type = 'toman';
                     $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+                // send useful
+                $this->generalCntrl->send_using_subscription_manual_message($this->chatId);
+
                 $this->addNewBotLog('subscription', 'خرید اشتراک با موفقیت انجام شد.', 'show');
                 return "";
             }else{

@@ -11,15 +11,12 @@ use App\Models\Product;
 use App\Models\Pannel;
 use App\Models\User;
 use App\Models\AgentPermisson;
+use App\Models\MainMenuItem;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Hekmatinasser\Verta\Verta;
 use App\Http\Controllers\CustomTextController;
 use App\Services\TelegramService;
-use App\Http\Controllers\AccountBallanceController;
-use App\Http\Controllers\ReferralWalletController;
-use App\Http\Controllers\ProductCategoryController;
-use App\Http\Controllers\PannelController;
 use App\Services\TelegramMessageFormatter;
 
 
@@ -32,6 +29,8 @@ class GeneralController extends Controller
     private ReferralWalletController $referralCntrl;
     private ProductCategoryController $prCatCntrl;
     private PannelController $panelCntrl;
+    private MainMenuItemController $menuItemCntrl;
+    private MainMenuItem $mainMenuItem;
     public function __construct()
     {
         $this->customTextCtrl = new CustomTextController();
@@ -40,6 +39,8 @@ class GeneralController extends Controller
         $this->referralCntrl = new ReferralWalletController();
         $this->prCatCntrl = new ProductCategoryController();
         $this->panelCntrl = new PannelController();
+        $this->menuItemCntrl = new MainMenuItemController();
+        $this->mainMenuItem = new MainMenuItem();
     }
     public function getDashboardAnalytics()
     {
@@ -280,5 +281,28 @@ class GeneralController extends Controller
             return false;
         }
 
+    }
+    public function send_using_subscription_manual_message($chat_id){
+        $opr = [];
+
+        // check faq is active in menu
+        $faqItemAliasName = $this->mainMenuItem->getAliasNameByName('آموزش استفاده و سوالات متداول');
+        $faqItem = $this->mainMenuItem->isActiveByAliasName($faqItemAliasName);
+        if($faqItem == true || $faqItem == 1){
+            $opr[] = [
+                $faqItemAliasName => "help-faqs",
+            ];
+
+        }
+        $appDownloadItemAliasName = $this->mainMenuItem->getAliasNameByName('دانلود برنامه');
+        $appDownloadItem = $this->mainMenuItem->isActiveByAliasName($appDownloadItemAliasName);
+        if($appDownloadItem == true || $appDownloadItem == 1){
+            $opr[] = [
+                $appDownloadItemAliasName => "help-appDownload",
+            ];
+        }
+
+        $text = $this->customTextCtrl->getText('action.help.using_subscription');
+        $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
     }
 }

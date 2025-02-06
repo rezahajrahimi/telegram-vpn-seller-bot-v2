@@ -60,6 +60,7 @@ class CustomTextController extends Controller
                 ['key' => 'action.buy_subscription_by_location', 'default_text' => 'خرید اشتراک بر اساس مکان', 'custom_text' => null],
                 ['key' => 'action.buy_subscription_by_location.location', 'default_text' => 'مکان سرور را انتخاب کنید.', 'custom_text' => null],
                 ['key' => 'action.buy_subscription.select_package', 'default_text' => 'بسته خود را انتخاب کنید.', 'custom_text' => null],
+                ['key' => 'action.help.using_subscription', 'default_text' => 'به کمک نیاز داری؟ یک گزینه را انتخاب بکن', 'custom_text' => null],
                 ['key' => 'action.subscription.hiddify', 'default_text' => json_encode([
                     ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
                     ['type' => 'newline'],
