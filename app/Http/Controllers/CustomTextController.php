@@ -1,9 +1,7 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\CustomText;
-use Illuminate\Http\Request;
 
 class CustomTextController extends Controller
 {
@@ -21,10 +19,10 @@ class CustomTextController extends Controller
             // delete all the data
             CustomText::truncate();
         }
-            // check if the table is empty
+        // check if the table is empty
         if (CustomText::count() == 0) {
-                $data = [
-                    ['key' => 'action.welcome.message', 'default_text' => json_encode([
+            $data = [
+                ['key' => 'action.welcome.message', 'default_text' => json_encode([
                     ['type' => 'bold', 'text' => "سلام {name} {lastName}! به ربات ما خوش آمدید. 👋"],
                     ['type' => 'newline'],
                     ['type' => 'newline'],
@@ -53,7 +51,33 @@ class CustomTextController extends Controller
                 ['key' => 'action.process.on_progress', 'default_text' => 'در حال پردازش...', 'custom_text' => null],
                 ['key' => 'action.process.success', 'default_text' => 'عملیات با موفقیت انجام شد', 'custom_text' => null],
                 ['key' => 'action.process.failed', 'default_text' => 'عملیات با شکست مواجه شد', 'custom_text' => null],
-                ['key' => 'action.process.insufficient_balance', 'default_text' => 'موجودی کافی نیست', 'custom_text' => null],
+                ['key' => 'action.process.insufficient_balance', 'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "موجودی شما کم تر از قیمت بسته انتخابی می باشد. لطفا حساب خود را شارژ بفرمایید. "],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "موجودی شما:"],
+                    ['type' => 'text', 'text' => "{user_balance_in_toman}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "قیمت بسته:"],
+                    ['type' => 'text', 'text' => "{product_price_in_toman}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "میزان مبلغ مورد نیاز برای شارژ حساب:"],
+                    ['type' => 'text', 'text' => "{difference_in_toman}"],
+
+                ]), 'custom_text' => null],
+                ['key' => 'action.process.insufficient_balance_with_dollar', 'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "موجودی شما کم تر از قیمت بسته انتخابی می باشد. لطفا حساب خود را شارژ بفرمایید. "],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "موجودی شما:"],
+                    ['type' => 'text', 'text' => "{user_balance_in_toman} - {user_balance_in_dollar}"],
+
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "قیمت بسته: {product_price_in_toman}"],
+                       ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "میزان مبلغ مورد نیاز برای شارژ حساب:"],
+                    ['type' => 'text', 'text' => "{diffrence_in_toman} - {diffrence_in_dollar}"],
+
+                ]), 'custom_text' => null],
+
                 ['key' => 'action.process.success_buy', 'default_text' => 'اشتراک با موفقیت خریداری شد', 'custom_text' => null],
                 ['key' => 'action.process.failed_buy', 'default_text' => 'خرید اشتراک با شکست مواجه شد', 'custom_text' => null],
                 ['key' => 'action.buy_subscription', 'default_text' => 'خرید اشتراک', 'custom_text' => null],
@@ -79,12 +103,11 @@ class CustomTextController extends Controller
                 ['key' => 'error.action.not_found', 'default_text' => 'عملیات نامعتبر است', 'custom_text' => null],
                 ['key' => 'error.command.not_found', 'default_text' => 'دستور نامعتبر است. برای مشاهده لیست دستورات از /help استفاده کنید.', 'custom_text' => null],
 
-
             ];
-                CustomText::insert($data);
+            CustomText::insert($data);
 
-                \Log::info('CustomText table seeded successfully');
-                return true;
+            \Log::info('CustomText table seeded successfully');
+            return true;
         }
 
     }

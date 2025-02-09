@@ -3,6 +3,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\CustomTextController;
 use App\Models\MainMenuItem;
+use App\Models\ProductCategory;
+use App\Models\TransactionSetting;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
@@ -19,6 +21,8 @@ class GeneralController extends Controller
     private PannelController $panelCntrl;
     private MainMenuItemController $menuItemCntrl;
     private MainMenuItem $mainMenuItem;
+    private ProductCategory $productCategory;
+    private TransactionSetting $trSetting;
     public function __construct()
     {
         $this->customTextCtrl  = new CustomTextController();
@@ -29,6 +33,8 @@ class GeneralController extends Controller
         $this->panelCntrl      = new PannelController();
         $this->menuItemCntrl   = new MainMenuItemController();
         $this->mainMenuItem    = new MainMenuItem();
+        $this->productCategory = new ProductCategory();
+        $this->trSetting       = new TransactionSetting();
     }
     public function getDashboardAnalytics()
     {
@@ -244,8 +250,7 @@ class GeneralController extends Controller
             $userPannelLink       = "$userLink/{$newUUID}/#{$req->accountId}";
 
             $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-            \Log::info("image => $image");
-            $text = $this->customTextCtrl->getText('action.subscription.hiddify', [
+            $text  = $this->customTextCtrl->getText('action.subscription.hiddify', [
                 'panel_link'           => $userPannelLink,
                 'userSubscriptionLInk' => $userSubscriptionLInk,
             ]);
@@ -292,10 +297,72 @@ class GeneralController extends Controller
         $text = $this->customTextCtrl->getText('action.help.using_subscription');
         $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
     }
-    public function send_insufficient_balance_message($chat_id)
+    public function send_insufficient_balance_message($chat_id, $productCategoryID)
     {
-        $text = $this->customTextCtrl->getText('action.process.insufficient_balance');
-        $this->telegramService->sendMessage($chat_id, $text);
+        try {
+            $productCategory = $this->productCategory->find($productCategoryID);
+            if ($productCategory == null) {
+                return;
+            }
+
+            $user_ballance          = $this->accBlCtrl->getLoggedUserBallancce($chat_id);
+            $user_ballance_in_toman = $user_ballance->ballance;
+            $user_ballance_in_toman = number_format($user_ballance_in_toman, 0, ',', '.');
+            $user_ballance_in_toman = $user_ballance_in_toman . ' تومان';
+            $productPriceInToman    = $productCategory->price;
+            // calculate the diffrence between user_ballance and productPriceInToman
+            $diffrence           = $productPriceInToman - $user_ballance->ballance;
+            $diffrence           = number_format($diffrence, 0, ',', '.');
+            $diffrence           = $diffrence . ' تومان';
+            $productPriceInToman = number_format($productPriceInToman, 0, ',', '.');
+            $productPriceInToman = $productPriceInToman . ' تومان';
+
+            $dollarTransaction = $this->trSetting->getDollarTransactionSetting();
+            $text              = '';
+            if ($dollarTransaction == true) {
+                $productPriceInDollar    = $productPriceInToman / 10;
+                $productPriceInDollar    = number_format($productPriceInDollar, 2, ',', '.');
+                $productPriceInDollar    = $productPriceInDollar . ' دلار';
+                $user_ballance_in_dollar = $user_ballance->account_ballance_in_dollar;
+                $diffrence_in_dollar     = $productPriceInDollar - $user_ballance_in_dollar;
+                $user_ballance_in_dollar = number_format($user_ballance_in_dollar, 2, ',', '.');
+                $user_ballance_in_dollar = $user_ballance_in_dollar . ' دلار';
+                $diffrence_in_dollar     = number_format($diffrence_in_dollar, 2, ',', '.');
+                $diffrence_in_dollar     = $diffrence_in_dollar . ' دلار';
+
+                $text = $this->customTextCtrl->getText('action.process.insufficient_balance_with_dollar', [
+                    'product_category_name'   => $productCategory->name,
+                    'product_price_in_toman'  => $productPriceInToman,
+                    'product_price_in_dollar' => $productPriceInDollar,
+                    'user_balance_in_toman'   => $user_ballance_in_toman,
+                    'user_balance_in_dollar'  => $user_ballance_in_dollar,
+                    'difference_in_toman'      => $diffrence,
+                    'diffrence_in_dollar'     => $diffrence_in_dollar,
+                ]);
+                $formatter = new TelegramMessageFormatter($this->telegramService);
+                $text      = $formatter->addFormattedText('', $text)->getMessage();
+
+            } else {
+                $text = $this->customTextCtrl->getText('action.process.insufficient_balance', [
+                    'product_category_name'  => $productCategory->name,
+                    'product_price_in_toman' => $productPriceInToman,
+                    'user_balance_in_toman'  => $user_ballance_in_toman,
+                    'difference_in_toman'    => $diffrence,
+                ]);
+            }
+            if (is_array($text)) {
+                $formatter = new TelegramMessageFormatter($this->telegramService);
+                $text      = $formatter->addFormattedText('', $text)->getMessage();
+            } else {
+                $text = $text;
+                \Log::info('text', ['text' => $text]);
+            }
+
+            return $this->telegramService->sendMessage($chat_id, $text);
+        } catch (\Throwable $th) {
+            \Log::info("error on send_insufficient_balance_message-> $th");
+            return false;
+        }
     }
     public function send_add_ballance_option_message($chat_id)
     {

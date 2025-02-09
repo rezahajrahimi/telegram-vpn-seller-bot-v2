@@ -250,14 +250,19 @@ class AccountBallanceController extends Controller
         }
     }
     /// Agent Functions
-    public function getLoggedUserBallancce()
+    public function getLoggedUserBallancce($account_id = null)
     {
         try {
-            $userId = auth('sanctum')->user()->account_id;
+            $userId = null;
+            if ($account_id == null) {
+                $userId = auth('sanctum')->user()->account_id;
+            } else {
+                $userId = $account_id;
+            }
             $data = AccountBallance::where('account_id', $userId)->first();
             if (!$data) {
                 $newAcc = new AccountBallance();
-                $newAcc->account_id = auth('sanctum')->user()->account_id;
+                $newAcc->account_id = $userId;
                 $newAcc->account_ballance_in_dollar = 0;
                 $newAcc->ballance = 0;
                 $newAcc->save();
