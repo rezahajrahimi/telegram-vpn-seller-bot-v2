@@ -443,7 +443,9 @@ class TelegramWebhookController extends Controller
             false
         );
 
-        $this->telegramService->sendMessage($chatId, $response);
+        if ($response != "" || $response != null) {
+            $this->telegramService->sendMessage($chatId, $response);
+        }
         return response()->json(['status' => 'success']);
     }
 
