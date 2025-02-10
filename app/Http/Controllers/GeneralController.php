@@ -20,21 +20,29 @@ class GeneralController extends Controller
     private ProductCategoryController $prCatCntrl;
     private PannelController $panelCntrl;
     private MainMenuItemController $menuItemCntrl;
+    private PaymentTypeController $pymntCntrl;
+    private CryptoPaymentController $cryptoPymentCntrl;
+    private TransactionController $trCntrl;
+    private BillController $billCntrl;
     private MainMenuItem $mainMenuItem;
     private ProductCategory $productCategory;
     private TransactionSetting $trSetting;
     public function __construct()
     {
-        $this->customTextCtrl  = new CustomTextController();
-        $this->telegramService = new TelegramService();
-        $this->accBlCtrl       = new AccountBallanceController();
-        $this->referralCntrl   = new ReferralWalletController();
-        $this->prCatCntrl      = new ProductCategoryController();
-        $this->panelCntrl      = new PannelController();
-        $this->menuItemCntrl   = new MainMenuItemController();
-        $this->mainMenuItem    = new MainMenuItem();
-        $this->productCategory = new ProductCategory();
-        $this->trSetting       = new TransactionSetting();
+        $this->customTextCtrl    = new CustomTextController();
+        $this->telegramService   = new TelegramService();
+        $this->accBlCtrl         = new AccountBallanceController();
+        $this->referralCntrl     = new ReferralWalletController();
+        $this->prCatCntrl        = new ProductCategoryController();
+        $this->panelCntrl        = new PannelController();
+        $this->menuItemCntrl     = new MainMenuItemController();
+        $this->pymntCntrl        = new PaymentTypeController();
+        $this->cryptoPymentCntrl = new CryptoPaymentController();
+        $this->trCntrl           = new TransactionController();
+        $this->billCntrl         = new BillController();
+        $this->mainMenuItem      = new MainMenuItem();
+        $this->productCategory   = new ProductCategory();
+        $this->trSetting         = new TransactionSetting();
     }
     public function getDashboardAnalytics()
     {
@@ -311,20 +319,21 @@ class GeneralController extends Controller
             $user_ballance_in_toman = $user_ballance_in_toman . ' تومان';
             $productPriceInToman    = $productCategory->price;
             // calculate the diffrence between user_ballance and productPriceInToman
-            $diffrence           = $productPriceInToman - $user_ballance->ballance;
-            $diffrence           = number_format($diffrence, 0, ',', '.');
-            $diffrence           = $diffrence . ' تومان';
-            $productPriceInToman = number_format($productPriceInToman, 0, ',', '.');
-            $productPriceInToman = $productPriceInToman . ' تومان';
+            $mainDiffrenceInToman = $diffrence = $productPriceInToman - $user_ballance->ballance;
+            $diffrence            = number_format($diffrence, 0, ',', '.');
+            $diffrence            = $diffrence . ' تومان';
+            $productPriceInToman  = number_format($productPriceInToman, 0, ',', '.');
+            $productPriceInToman  = $productPriceInToman . ' تومان';
+            $mainDiffrenceInDollar = $diffrence_in_dollar  = 0.00;
 
             $dollarTransaction = $this->trSetting->getDollarTransactionSetting();
             $text              = '';
-            if ($dollarTransaction == true) {
+            if ($dollarTransaction == true || $dollarTransaction == 1) {
                 $productPriceInDollar    = $productPriceInToman / 10;
                 $productPriceInDollar    = number_format($productPriceInDollar, 2, ',', '.');
                 $productPriceInDollar    = $productPriceInDollar . ' دلار';
                 $user_ballance_in_dollar = $user_ballance->account_ballance_in_dollar;
-                $diffrence_in_dollar     = $productPriceInDollar - $user_ballance_in_dollar;
+               $mainDiffrenceInDollar = $diffrence_in_dollar     = $productPriceInDollar - $user_ballance_in_dollar;
                 $user_ballance_in_dollar = number_format($user_ballance_in_dollar, 2, ',', '.');
                 $user_ballance_in_dollar = $user_ballance_in_dollar . ' دلار';
                 $diffrence_in_dollar     = number_format($diffrence_in_dollar, 2, ',', '.');
@@ -336,7 +345,7 @@ class GeneralController extends Controller
                     'product_price_in_dollar' => $productPriceInDollar,
                     'user_balance_in_toman'   => $user_ballance_in_toman,
                     'user_balance_in_dollar'  => $user_ballance_in_dollar,
-                    'difference_in_toman'      => $diffrence,
+                    'difference_in_toman'     => $diffrence,
                     'diffrence_in_dollar'     => $diffrence_in_dollar,
                 ]);
                 $formatter = new TelegramMessageFormatter($this->telegramService);
@@ -358,18 +367,52 @@ class GeneralController extends Controller
                 \Log::info('text', ['text' => $text]);
             }
 
-            return $this->telegramService->sendMessage($chat_id, $text);
+            $this->telegramService->sendMessage($chat_id, $text);
+            $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar);
+            return true;
         } catch (\Throwable $th) {
             \Log::info("error on send_insufficient_balance_message-> $th");
             return false;
         }
     }
-    public function send_add_ballance_option_message($chat_id)
+    public function send_add_ballance_option_message($chat_id, $estimatedPrice, $estimatedPriceInDollar)
     {
-        $opr   = [];
-        $opr[] = [
-            "ثبت حساب کاربری" => "addAccountBalance",
-        ];
+        $opr                 = [];
+        $request             = new Request();
+        $request->account_id = $chat_id;
+        $request->amount     = $estimatedPrice;
+        $bill                = $this->billCntrl->createNewBill($request);
+        $hasZarinPal         = $this->pymntCntrl->getZarinpalStatus();
+        if ($hasZarinPal == true || $hasZarinPal == 1) {
+            $trRequest             = new Request();
+            $trRequest->invoiceID  = $bill->bill_id;
+            $trRequest->account_id = $chat_id;
+            $trRequest->amount     = $estimatedPrice;
+            $paymentLink           = $this->trCntrl->add_order($trRequest);
+            $opr[]                 = [
+                "پرداخت آنلاین $estimatedPrice تومان" => $paymentLink,
+            ];
+        }
+        $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
+        if ($hasDollarPay == true || $hasDollarPay == 1) {
+            $bill                  = $this->billCntrl->createNewBillInDollar($request);
+            $openLink              = $this->cryptoPymentCntrl->getNowPaymentsLink();
+            $trCryptoCntrl         = new TransactionCryptoController();
+            $trRequest             = new Request();
+            $trRequest->invoiceID  = $bill->bill_id;
+            $trRequest->account_id = $chat_id;
+            $trRequest->amount     = $amount;
+            $paymentLink           = $this->trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
+            $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
+            $opr[]                 = [
+                "پرداخت آنلاین $estimatedPrice دلار" => $nowpaymentLink,
+            ];
+        }
+        if (count($opr) > 0) {
+            $text = $this->customTextCtrl->getText('action.process.add_online_balance');
+            $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
+        }
+
         $text = $this->customTextCtrl->getText('action.help.add_ballance');
         $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
     }

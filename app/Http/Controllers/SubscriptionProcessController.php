@@ -174,7 +174,7 @@ class SubscriptionProcessController extends Controller
                 // return $this->customTextCtrl->getText('action.process.success_buy');
             } else {
                 $this->generalCntrl->send_insufficient_balance_message($this->chatId, $this->selectedPrCat->id);
-                return $this->generalCntrl->send_add_ballance_option_message($this->chatId);
+                return "";
             }
 
         } catch (\Throwable $th) {
@@ -196,7 +196,6 @@ class SubscriptionProcessController extends Controller
 
             if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
                 $this->generalCntrl->send_insufficient_balance_message($this->chatId, $this->selectedPrCat->id);
-                $this->generalCntrl->send_add_ballance_option_message($this->chatId);
                 return "";
             }
 

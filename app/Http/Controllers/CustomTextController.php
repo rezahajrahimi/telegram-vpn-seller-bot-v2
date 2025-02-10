@@ -77,6 +77,7 @@ class CustomTextController extends Controller
                     ['type' => 'text', 'text' => "{diffrence_in_toman} - {diffrence_in_dollar}"],
 
                 ]), 'custom_text' => null],
+                ['key' => 'action.process.add_online_balance', 'default_text' => 'افزایش موجودی کیف پول خود را با انتخاب یکی از گزینه های زیر انجام دهید.', 'custom_text' => null],
 
                 ['key' => 'action.process.success_buy', 'default_text' => 'اشتراک با موفقیت خریداری شد', 'custom_text' => null],
                 ['key' => 'action.process.failed_buy', 'default_text' => 'خرید اشتراک با شکست مواجه شد', 'custom_text' => null],
