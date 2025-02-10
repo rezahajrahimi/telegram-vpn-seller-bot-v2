@@ -390,7 +390,8 @@ class GeneralController extends Controller
             $trRequest->amount     = $estimatedPrice;
             $paymentLink           = $this->trCntrl->add_order($trRequest);
             $opr[]                 = [
-                "پرداخت آنلاین $estimatedPrice تومان" => $paymentLink,
+                'text' => "پرداخت آنلاین $estimatedPrice تومان",
+                'url' => $paymentLink,
             ];
         }
         $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
@@ -405,15 +406,23 @@ class GeneralController extends Controller
             $paymentLink           = $this->trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
             $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
             $opr[]                 = [
-                "پرداخت آنلاین $estimatedPrice دلار" => $nowpaymentLink,
+                'text' => "پرداخت آنلاین $estimatedPrice دلار",
+                'url' => $nowpaymentLink,
             ];
         }
         if (count($opr) > 0) {
             $text = $this->customTextCtrl->getText('action.process.add_online_balance');
-            $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
+            $this->telegramService->sendMessageWithLinkButtons($chat_id, $text, $opr);
+
         }
+        $opr = [];
+        // add offline payment option
+        $opr[] = [
+            'text' => "پرداخت آفلاین",
+            'url' => "https://t.me/testpowerpsbot?start=offline_payment",
+        ];
 
         $text = $this->customTextCtrl->getText('action.help.add_ballance');
-        $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
+        $this->telegramService->sendMessageWithLinkButtons($chat_id, $text, $opr);
     }
 }

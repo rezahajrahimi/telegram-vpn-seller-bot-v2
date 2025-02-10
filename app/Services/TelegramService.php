@@ -412,4 +412,37 @@ class TelegramService
 
         return json_decode($response, true) ?? [];
     }
+
+    /**
+     * Send message with multiple buttons
+     *
+     * @param string $chatId Telegram chat ID
+     * @param string $text Message text
+     * @param array $buttonsList Array of buttons [ ['text' => 'Button Text', 'url' => 'Button URL'] ]
+     * @return array
+     */
+    public function sendMessageWithLinkButtons(string $chatId, string $text, array $buttonsList): array
+    {
+        $buttons = [];
+        foreach ($buttonsList as $button) {
+            $buttons[] = [
+                [
+                    'text' => $button['text'],
+                    'url' => trim($button['url'])
+                ]
+            ];
+        }
+
+        $response = $this->makeRequest('sendMessage', [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'reply_markup' => json_encode([
+                'inline_keyboard' => $buttons
+            ])
+        ]);
+
+
+        \Log::info("sendMessageWithButtons response=> " . json_encode($response));
+        return $response;
+    }
 }
