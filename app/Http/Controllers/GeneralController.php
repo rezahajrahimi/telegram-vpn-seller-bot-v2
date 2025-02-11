@@ -21,6 +21,7 @@ class GeneralController extends Controller
     private PannelController $panelCntrl;
     private MainMenuItemController $menuItemCntrl;
     private PaymentTypeController $pymntCntrl;
+    private PaymentMenuItemController $pymMenCntrl;
     private CryptoPaymentController $cryptoPymentCntrl;
     private TransactionController $trCntrl;
     private BillController $billCntrl;
@@ -37,6 +38,7 @@ class GeneralController extends Controller
         $this->panelCntrl        = new PannelController();
         $this->menuItemCntrl     = new MainMenuItemController();
         $this->pymntCntrl        = new PaymentTypeController();
+        $this->pymMenCntrl       = new PaymentMenuItemController();
         $this->cryptoPymentCntrl = new CryptoPaymentController();
         $this->trCntrl           = new TransactionController();
         $this->billCntrl         = new BillController();
@@ -319,12 +321,12 @@ class GeneralController extends Controller
             $user_ballance_in_toman = $user_ballance_in_toman . ' تومان';
             $productPriceInToman    = $productCategory->price;
             // calculate the diffrence between user_ballance and productPriceInToman
-            $mainDiffrenceInToman = $diffrence = $productPriceInToman - $user_ballance->ballance;
-            $diffrence            = number_format($diffrence, 0, ',', '.');
-            $diffrence            = $diffrence . ' تومان';
-            $productPriceInToman  = number_format($productPriceInToman, 0, ',', '.');
-            $productPriceInToman  = $productPriceInToman . ' تومان';
-            $mainDiffrenceInDollar = $diffrence_in_dollar  = 0.00;
+            $mainDiffrenceInToman  = $diffrence  = $productPriceInToman - $user_ballance->ballance;
+            $diffrence             = number_format($diffrence, 0, ',', '.');
+            $diffrence             = $diffrence . ' تومان';
+            $productPriceInToman   = number_format($productPriceInToman, 0, ',', '.');
+            $productPriceInToman   = $productPriceInToman . ' تومان';
+            $mainDiffrenceInDollar = $diffrence_in_dollar = 0.00;
 
             $dollarTransaction = $this->trSetting->getDollarTransactionSetting();
             $text              = '';
@@ -333,7 +335,7 @@ class GeneralController extends Controller
                 $productPriceInDollar    = number_format($productPriceInDollar, 2, ',', '.');
                 $productPriceInDollar    = $productPriceInDollar . ' دلار';
                 $user_ballance_in_dollar = $user_ballance->account_ballance_in_dollar;
-               $mainDiffrenceInDollar = $diffrence_in_dollar     = $productPriceInDollar - $user_ballance_in_dollar;
+                $mainDiffrenceInDollar   = $diffrence_in_dollar   = $productPriceInDollar - $user_ballance_in_dollar;
                 $user_ballance_in_dollar = number_format($user_ballance_in_dollar, 2, ',', '.');
                 $user_ballance_in_dollar = $user_ballance_in_dollar . ' دلار';
                 $diffrence_in_dollar     = number_format($diffrence_in_dollar, 2, ',', '.');
@@ -389,40 +391,64 @@ class GeneralController extends Controller
             $trRequest->account_id = $chat_id;
             $trRequest->amount     = $estimatedPrice;
             $paymentLink           = $this->trCntrl->add_order($trRequest);
-            $opr[]                 = [
+            // format $estimatedPrice to 0 decimal
+            $estimatedPrice = number_format($estimatedPrice, 0, ',', '.');
+
+            $opr[] = [
                 'text' => "پرداخت آنلاین $estimatedPrice تومان",
-                'url' => $paymentLink,
+                'url'  => $paymentLink,
             ];
         }
         $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
         if ($hasDollarPay == true || $hasDollarPay == 1) {
+
             $bill                  = $this->billCntrl->createNewBillInDollar($request);
             $openLink              = $this->cryptoPymentCntrl->getNowPaymentsLink();
             $trCryptoCntrl         = new TransactionCryptoController();
             $trRequest             = new Request();
             $trRequest->invoiceID  = $bill->bill_id;
             $trRequest->account_id = $chat_id;
-            $trRequest->amount     = $amount;
+            $trRequest->amount     = $estimatedPriceInDollar;
             $paymentLink           = $this->trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
             $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
-            $opr[]                 = [
-                'text' => "پرداخت آنلاین $estimatedPrice دلار",
-                'url' => $nowpaymentLink,
+            // format $estimatedPrice to 0 decimal
+            $estimatedPriceInDollar = number_format($estimatedPriceInDollar, 0, ',', '.');
+            $opr[]                  = [
+                'text' => "پرداخت $estimatedPriceInDollar دلار با رمزارز",
+                'url'  => $nowpaymentLink,
             ];
         }
         if (count($opr) > 0) {
             $text = $this->customTextCtrl->getText('action.process.add_online_balance');
             $this->telegramService->sendMessageWithLinkButtons($chat_id, $text, $opr);
-
         }
+
+// send offline item
         $opr = [];
-        // add offline payment option
-        $opr[] = [
-            'text' => "پرداخت آفلاین",
-            'url' => "https://t.me/testpowerpsbot?start=offline_payment",
-        ];
+
+        $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
+        if ($offlinePayment != null) {
+            if ($hasZarinPal == true || $hasZarinPal == 1 || $this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
+                $text = 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.';
+            } else {
+                $mainMenu = $this->pymMenCntrl->getPaymentTypeMainMenuTitle();
+                $text     = $mainMenu->alias_name;
+            }
+
+            $opr = [];
+
+            foreach ($offlinePayment as $key => $value) {
+                $opr[] = [
+                    "$value->name" => "subAccountBalance-$value->id ",
+                ];
+            }
+
+            // $result = app('telegram_bot')->commandMessage($opr, $chat_id, $text);
+        }
 
         $text = $this->customTextCtrl->getText('action.help.add_ballance');
-        $this->telegramService->sendMessageWithLinkButtons($chat_id, $text, $opr);
+        $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
+        return true;
+
     }
 }

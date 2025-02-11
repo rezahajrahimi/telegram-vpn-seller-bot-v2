@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "19988e6584429bf17b1119fbce00b725",
+    "content-hash": "8ceeadedc0a013c312b7073bc8756ca3",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -327,6 +327,70 @@
                 }
             ],
             "time": "2024-07-16T11:13:48+00:00"
+        },
+        {
+            "name": "cryptomkt/cryptomkt-curl-php",
+            "version": "0.1.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/cryptomkt/cryptomkt-curl-php.git",
+                "reference": "59c2670749c168d24832f1e86c5ad165b3770e19"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/cryptomkt/cryptomkt-curl-php/zipball/59c2670749c168d24832f1e86c5ad165b3770e19",
+                "reference": "59c2670749c168d24832f1e86c5ad165b3770e19",
+                "shasum": ""
+            },
+            "require": {
+                "ext-curl": "*",
+                "ext-mbstring": "*",
+                "php": ">=5.3"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "0.1-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Cryptomkt\\": "src/Cryptomkt/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "CryptoMarket Development Team",
+                    "email": "support@cryptomkt.com",
+                    "homepage": "https://soporte.cryptomkt.com/"
+                }
+            ],
+            "description": "CryptoMarket Curl PHP makes it easy integrate with CryptoMarket APIs.",
+            "homepage": "https://github.com/cryptomkt/cryptomkt-curl-php",
+            "keywords": [
+                "Stellar",
+                "altcoins",
+                "bitcoin",
+                "class",
+                "cryptocompra",
+                "cryptocurrencies",
+                "cryptomarket",
+                "curl",
+                "ethereum",
+                "lumen",
+                "payment",
+                "php"
+            ],
+            "support": {
+                "email": "support@cryptomkt.com",
+                "issues": "https://github.com/cryptomkt/cryptomkt-curl-php/issues",
+                "source": "https://github.com/cryptomkt/cryptomkt-curl-php"
+            },
+            "time": "2018-08-17T19:31:24+00:00"
         },
         {
             "name": "dasprid/enum",
