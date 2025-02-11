@@ -201,7 +201,7 @@ class PaymentTypeController extends Controller
             return false;
         }
     }
-    public function getPaymentTypeNyName($name)
+    public function get_payment_type_by_name($name)
     {
         $data = PaymentType::where('name', $name)->first();
         if ($data != null) {
@@ -210,7 +210,7 @@ class PaymentTypeController extends Controller
             return null;
         }
     }
-    public function getPaymentTypeNyID($id)
+    public function get_payment_type_by_id($id)
     {
         $data = PaymentType::find($id);
         if ($data != null) {

@@ -961,7 +961,7 @@ class TelegramController extends Controller
             app('telegram_bot')->sendMessage($pymentMenuCntrl->getResponseOfSelectedOfflineMenu(), $this->chat_id, null, 'MarkDown');
 
             $name = $this->userCommandArr[1];
-            $selectedPayment = $pymCntrl->getPaymentTypeNyName($this->userCommandArr[1]);
+            $selectedPayment = $pymCntrl->get_payment_type_by_name($this->userCommandArr[1]);
             $merchent_id = $selectedPayment->merchant_id;
             $retrun_text = "<code>{$merchent_id}</code>";
             $result = app('telegram_bot')->sendMessage($retrun_text, $this->chat_id, null, 'HTML');

@@ -424,7 +424,7 @@ class GeneralController extends Controller
             $this->telegramService->sendMessageWithLinkButtons($chat_id, $text, $opr);
         }
 
-// send offline item
+        // send offline item
         $opr = [];
 
         $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
@@ -439,14 +439,12 @@ class GeneralController extends Controller
 
             foreach ($offlinePayment as $key => $value) {
                 $opr[] = [
-                    "$value->name" => "subAccountBalance-$value->id ",
+                    "$value->name" => "offlineGateway-$value->id ",
                 ];
             }
 
-            // $result = app('telegram_bot')->commandMessage($opr, $chat_id, $text);
         }
 
-        // $text = $this->customTextCtrl->getText('action.help.add_ballance');
         $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
         return true;
 

@@ -23,6 +23,7 @@ class SubscriptionProcessController extends Controller
     private GeneralController $generalCntrl;
     private LogController $logCtrl;
     private TransactionSettingController $trSettingCntrl;
+    private PaymentTypeController $pymntCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService      = $telegramService;
@@ -37,6 +38,7 @@ class SubscriptionProcessController extends Controller
         $this->botUser              = new BotUser();
         $this->selectedPrCat        = new ProductCategory();
         $this->trSettingCntrl       = new TransactionSettingController();
+        $this->pymntCntrl           = new PaymentTypeController();
     }
 
     public function buySubscriptionMenu($chatId)
@@ -238,6 +240,31 @@ class SubscriptionProcessController extends Controller
             return $this->customTextCtrl->getText('action.process.failed_buy');
         }
 
+    }
+    public function handle_offline_add_balance($chatId, $offlinePaymentID)
+    {
+        $offlinePayment = $this->pymntCntrl->get_payment_type_by_id($offlinePaymentID);
+        if ($offlinePayment == null) {
+            return $this->customTextCtrl->getText('error.payment_type_not_found');
+        }
+        $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option.image');
+        $opr = [];
+        $opr[] = [
+            "$offlinePayment->name" => "offlineGateway-$offlinePayment->id ",
+        ];
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        $buttons = [[['text' => 'ارسال تصویر رسید', 'request_photo' => true]]];
+        $this->telegramService->sendMessage($chatId, 'لطفاً تصویر رسید خود را به اشتراک بگذارید:', [
+            'reply_markup' => json_encode([
+                'keyboard'          => $buttons,
+                'resize_keyboard'   => true,
+                'one_time_keyboard' => true,
+            ]),
+        ]);
+
+        // request
+        return "";
     }
 
     private function addNewBotLog($type, $message, $event)
