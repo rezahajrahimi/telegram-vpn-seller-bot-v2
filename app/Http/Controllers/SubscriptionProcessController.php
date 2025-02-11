@@ -248,11 +248,12 @@ class SubscriptionProcessController extends Controller
             return $this->customTextCtrl->getText('error.payment_type_not_found');
         }
         $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option.image');
-        $opr = [];
-        $opr[] = [
-            "$offlinePayment->name" => "offlineGateway-$offlinePayment->id ",
-        ];
-        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        $copyable = "$offlinePayment->merchant_id";
+        // send text with copyable text
+        $this->telegramService->sendMessage($chatId, $text . "\n\n" . "<code>$copyable</code>", [
+            'parse_mode' => 'HTML',
+        ]);
 
         $buttons = [[['text' => 'ارسال تصویر رسید', 'request_photo' => true]]];
         $this->telegramService->sendMessage($chatId, 'لطفاً تصویر رسید خود را به اشتراک بگذارید:', [
