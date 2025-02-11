@@ -395,7 +395,7 @@ class GeneralController extends Controller
             $estimatedPrice = number_format($estimatedPrice, 0, ',', '.');
 
             $opr[] = [
-                'text' => "پرداخت آنلاین $estimatedPrice تومان",
+                'text' => $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal') . " $estimatedPrice تومان",
                 'url'  => $paymentLink,
             ];
         }
@@ -414,7 +414,7 @@ class GeneralController extends Controller
             // format $estimatedPrice to 0 decimal
             $estimatedPriceInDollar = number_format($estimatedPriceInDollar, 0, ',', '.');
             $opr[]                  = [
-                'text' => "پرداخت $estimatedPriceInDollar دلار با رمزارز",
+                'text' => $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment') . " $estimatedPriceInDollar دلار",
                 'url'  => $nowpaymentLink,
             ];
         }
@@ -429,10 +429,9 @@ class GeneralController extends Controller
         $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
         if ($offlinePayment != null) {
             if ($hasZarinPal == true || $hasZarinPal == 1 || $this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
-                $text = 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.';
+                $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option_and_online_balance');
             } else {
-                $mainMenu = $this->pymMenCntrl->getPaymentTypeMainMenuTitle();
-                $text     = $mainMenu->alias_name;
+                $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
             }
 
             $opr = [];
@@ -446,7 +445,7 @@ class GeneralController extends Controller
             // $result = app('telegram_bot')->commandMessage($opr, $chat_id, $text);
         }
 
-        $text = $this->customTextCtrl->getText('action.help.add_ballance');
+        // $text = $this->customTextCtrl->getText('action.help.add_ballance');
         $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
         return true;
 
