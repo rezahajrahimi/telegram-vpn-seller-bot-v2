@@ -53,9 +53,6 @@ Route::get('/cancelpay', function () {
 });
 
 // crytomous
-Route::post('/cryptomus/webhook', [CryptomusController::class, 'handleWebhook']);
-
-Route::post('/cryptomus/payment', [CryptomusController::class, 'createPayment']); // added this line
 
 // run command by url
 Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);

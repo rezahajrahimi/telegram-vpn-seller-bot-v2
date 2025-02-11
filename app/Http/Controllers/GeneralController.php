@@ -23,6 +23,7 @@ class GeneralController extends Controller
     private PaymentTypeController $pymntCntrl;
     private PaymentMenuItemController $pymMenCntrl;
     private CryptoPaymentController $cryptoPymentCntrl;
+    private CryptomusController $cryptomusCntrl;
     private TransactionController $trCntrl;
     private BillController $billCntrl;
     private MainMenuItem $mainMenuItem;
@@ -40,6 +41,7 @@ class GeneralController extends Controller
         $this->pymntCntrl        = new PaymentTypeController();
         $this->pymMenCntrl       = new PaymentMenuItemController();
         $this->cryptoPymentCntrl = new CryptoPaymentController();
+        $this->cryptomusCntrl    = new CryptomusController();
         $this->trCntrl           = new TransactionController();
         $this->billCntrl         = new BillController();
         $this->mainMenuItem      = new MainMenuItem();
@@ -399,6 +401,7 @@ class GeneralController extends Controller
                 'url'  => $paymentLink,
             ];
         }
+
         $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
         if ($hasDollarPay == true || $hasDollarPay == 1) {
 
