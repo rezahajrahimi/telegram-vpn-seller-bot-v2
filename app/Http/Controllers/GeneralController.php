@@ -30,6 +30,7 @@ class GeneralController extends Controller
     private ProductCategory $productCategory;
     private TransactionSetting $trSetting;
     private ChannelLockMenuItemController $channelLockMenuItemCntrl;
+    private CronJobController $cronJobCntrl;
     public function __construct()
     {
         $this->customTextCtrl    = new CustomTextController();
@@ -47,6 +48,8 @@ class GeneralController extends Controller
         $this->mainMenuItem      = new MainMenuItem();
         $this->productCategory   = new ProductCategory();
         $this->trSetting         = new TransactionSetting();
+        $this->channelLockMenuItemCntrl = new ChannelLockMenuItemController();
+        $this->cronJobCntrl      = new CronJobController();
     }
     public function boot_seeding_data()
     {
@@ -60,7 +63,9 @@ class GeneralController extends Controller
         // add default menu items
         $this->menuItemCntrl->seed();
         // add default channel lock menu items
-$this->channelLockMenuItemCntrl->seed();
+        $this->channelLockMenuItemCntrl->seed();
+        // add default cron jobs
+        $this->cronJobCntrl->seed();
 
         // add default payment types
         $this->pymntCntrl->seed();

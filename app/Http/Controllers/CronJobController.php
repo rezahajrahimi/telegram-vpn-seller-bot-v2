@@ -20,14 +20,10 @@ use Illuminate\Http\Request;
 
 class CronJobController extends Controller
 {
-    public function get_all_cron_jobs()
+    public function seed()
     {
-        try {
-            $cronJobs = CronJob::all();
-            if ($cronJobs->count() > 0) {
-                return response()->json($cronJobs);
-            }
-            // create neccessery cron jobs
+        if (CronJob::all()->isEmpty()) {
+              // create neccessery cron jobs
             $expiredAccountsCronJob = new CronJob();
             $expiredAccountsCronJob->name = 'Expired';
             $expiredAccountsCronJob->frequency = '10m';
@@ -52,6 +48,18 @@ class CronJobController extends Controller
             $createDailyBackupCronJob->is_active = true;
             $createDailyBackupCronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
             $createDailyBackupCronJob->save();
+            return true;
+        }
+        return false;
+    }
+    public function get_all_cron_jobs()
+    {
+        try {
+            $cronJobs = CronJob::all();
+            if ($cronJobs->count() > 0) {
+                return response()->json($cronJobs);
+            }
+            $this->seed();
             $cronJobs = CronJob::all();
             return response()->json($cronJobs);
         } catch (\Throwable $th) {
