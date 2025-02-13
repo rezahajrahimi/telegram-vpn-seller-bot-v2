@@ -31,6 +31,7 @@ class GeneralController extends Controller
     private TransactionSetting $trSetting;
     private ChannelLockMenuItemController $channelLockMenuItemCntrl;
     private CronJobController $cronJobCntrl;
+    private GiftCardMenuItemController $giftCardMenuItemCntrl;
     public function __construct()
     {
         $this->customTextCtrl    = new CustomTextController();
@@ -50,6 +51,7 @@ class GeneralController extends Controller
         $this->trSetting         = new TransactionSetting();
         $this->channelLockMenuItemCntrl = new ChannelLockMenuItemController();
         $this->cronJobCntrl      = new CronJobController();
+        $this->giftCardMenuItemCntrl = new GiftCardMenuItemController();
     }
     public function boot_seeding_data()
     {
@@ -66,7 +68,10 @@ class GeneralController extends Controller
         $this->channelLockMenuItemCntrl->seed();
         // add default cron jobs
         $this->cronJobCntrl->seed();
-
+        // add default crypto payment
+        $this->cryptoPymentCntrl->createNowPaymentData();
+        // add default gift card menu items
+        $this->giftCardMenuItemCntrl->seed();
         // add default payment types
         $this->pymntCntrl->seed();
         // add default payment menu items
