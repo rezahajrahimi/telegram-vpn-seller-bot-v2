@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\BotUser;
 use App\Models\ProductCategory;
 use App\Models\UserState;
+use App\Services\TelegramMessageFormatter;
 
 // add BotUser model
 use App\Services\TelegramService;
@@ -249,36 +250,37 @@ class SubscriptionProcessController extends Controller
             if ($offlinePayment == null) {
                 return $this->customTextCtrl->getText('error.payment_type_not_found');
             }
+            $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option.image', ['merchant_id' => $offlinePayment->merchant_id]);
+            //fromat text with formatter service
+                $formatter = new TelegramMessageFormatter($this->telegramService);
+            $text      = $formatter->addFormattedText('', $text)->getMessage();
+            $this->telegramService->sendMessage($chatId, $text);
+            // // ذخیره حالت کاربر
+            // UserState::updateOrCreate(
+            //     ['chat_id' => $chatId],
+            //     [
+            //         'state' => 'waiting_payment_receipt',
+            //         'data' => [
+            //             'payment_type_id' => $offlinePaymentID
+            //         ]
+            //     ]
+            // );
 
-            // ذخیره حالت کاربر
-            UserState::updateOrCreate(
-                ['chat_id' => $chatId],
-                [
-                    'state' => 'waiting_payment_receipt',
-                    'data' => [
-                        'payment_type_id' => $offlinePaymentID
-                    ]
-                ]
-            );
+            // $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option.image');
+            // $buttons = [
+            //     [
+            //         ['text' => 'لغو', 'callback_data' => 'cancel_payment'],
+            //     ]
+            // ];
 
-            $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option.image');
-            $buttons = [
-                [
-                    ['text' => 'لغو', 'callback_data' => 'cancel_payment'],
-                ]
-            ];
+            // $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $buttons);
 
-            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $buttons);
+            // $replyMarkup = [
+            //     'keyboard' => [[['text' => 'ارسال تصویر رسید', 'request_photo' => true]]],
+            //     'resize_keyboard' => true,
+            //     'one_time_keyboard' => true
+            // ];
 
-            $replyMarkup = [
-                'keyboard' => [[['text' => 'ارسال تصویر رسید', 'request_photo' => true]]],
-                'resize_keyboard' => true,
-                'one_time_keyboard' => true
-            ];
-
-            $this->telegramService->sendMessage($chatId, 'لطفاً تصویر رسید خود را به اشتراک بگذارید:', [
-                'reply_markup' => json_encode($replyMarkup)
-            ]);
 
             return "";
         } catch (\Throwable $th) {

@@ -72,7 +72,7 @@ class CustomTextController extends Controller
 
                     ['type' => 'newline'],
                     ['type' => 'bold', 'text' => "قیمت بسته: {product_price_in_toman}"],
-                       ['type' => 'newline'],
+                    ['type' => 'newline'],
                     ['type' => 'text', 'text' => "میزان مبلغ مورد نیاز برای شارژ حساب:"],
                     ['type' => 'text', 'text' => "{diffrence_in_toman} - {diffrence_in_dollar}"],
 
@@ -83,8 +83,12 @@ class CustomTextController extends Controller
                 ['key' => 'action.process.add_online_balance.dollarpay.nowpayment', 'default_text' => 'پرداخت آنلاین با رمزارز', 'custom_text' => null],
                 ['key' => 'action.process.add_offline_balance_option_and_online_balance', 'default_text' => 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.', 'custom_text' => null],
                 ['key' => 'action.process.add_offline_balance_option', 'default_text' => 'پرداخت آفلاین', 'custom_text' => null],
-                ['key' => 'action.process.add_offline_balance_option.image', 'default_text' => 'لطفا مبلغ را واریز کنید و رسید پرداختی را ارسال کنید.', 'custom_text' => null],
-
+                ['key' => 'action.process.add_offline_balance_option.image', 'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "لطفا مبلغ را به این شماره کارت واریز کنید و رسید پرداختی را ارسال کنید. "],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "شماره کارت:"],
+                    ['type' => 'text', 'text' => "{merchant_id}"],
+                ]), 'custom_text' => null],
 
                 ['key' => 'action.process.success_buy', 'default_text' => 'اشتراک با موفقیت خریداری شد', 'custom_text' => null],
                 ['key' => 'action.process.failed_buy', 'default_text' => 'خرید اشتراک با شکست مواجه شد', 'custom_text' => null],
