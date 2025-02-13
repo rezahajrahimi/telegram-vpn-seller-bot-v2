@@ -5,6 +5,7 @@ use App\Http\Controllers\CustomTextController;
 use App\Models\MainMenuItem;
 use App\Models\ProductCategory;
 use App\Models\TransactionSetting;
+use App\Models\User;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
@@ -28,6 +29,7 @@ class GeneralController extends Controller
     private MainMenuItem $mainMenuItem;
     private ProductCategory $productCategory;
     private TransactionSetting $trSetting;
+    private ChannelLockMenuItemController $channelLockMenuItemCntrl;
     public function __construct()
     {
         $this->customTextCtrl    = new CustomTextController();
@@ -45,6 +47,33 @@ class GeneralController extends Controller
         $this->mainMenuItem      = new MainMenuItem();
         $this->productCategory   = new ProductCategory();
         $this->trSetting         = new TransactionSetting();
+    }
+    public function boot_seeding_data()
+    {
+        // checl if for admin user is exist or not
+        $admin = User::where('role', 'admin')->first();
+        if ($admin == null) {
+            // create admin user by authcontroller
+            $authCntrl = new AuthController();
+            $authCntrl->createFirstAdminUser();
+        }
+        // add default menu items
+        $this->menuItemCntrl->seed();
+        // add default channel lock menu items
+$this->channelLockMenuItemCntrl->seed();
+
+        // add default payment types
+        $this->pymntCntrl->seed();
+        // add default payment menu items
+        $this->pymMenCntrl->seed();
+        // add default custom texts
+        $this->customTextCtrl->seed();
+        // add default transaction settings
+        $this->trSetting->seed();
+        // add default product categories
+        $this->prCatCntrl->seed();
+
+
     }
     public function getDashboardAnalytics()
     {

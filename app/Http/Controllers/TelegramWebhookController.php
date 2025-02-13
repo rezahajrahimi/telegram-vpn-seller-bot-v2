@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Cache;
 use App\Services\TelegramMessageFormatter;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\SubscriptionProcessController;
+use App\Models\User;
+
 class TelegramWebhookController extends Controller
 {
     private TelegramService $telegramService;
@@ -27,6 +29,10 @@ class TelegramWebhookController extends Controller
     public function handle(Request $request)
     {
         try {
+            // handle the first time bit start
+          if ($this->is_first_time_bot_start_event()) {
+            return response()->json(['status' => 'success']);
+          }
             $update = $request->all();
 
             // پردازش callback queries (دکمه‌های اینلاین)
@@ -589,5 +595,17 @@ class TelegramWebhookController extends Controller
         $logCtrl = new LogController();
         $logCtrl->addNewLog($type, $message, $this->getCurrentChatId(), $this->getCurrentChatUserName(), $event);
         return true;
+    }
+    private function is_first_time_bot_start_event()
+    {
+       // check if the bot is started for the first time
+       // check we have a user with admin id or not
+       $admin = User::where('role','admin')->first();
+       if ($admin == null) {
+        // send message in telegram to first you have to login in webapp and broken other process
+         $this->telegramService->sendMessage($this->getCurrentChatId(),"برای شروع ربات ابتدا می بایست وارد وب اپلیکیشن شوید و تنظیمات ربات را انجام بدهید");
+         return true;
+       }
+       return false;
     }
 }
