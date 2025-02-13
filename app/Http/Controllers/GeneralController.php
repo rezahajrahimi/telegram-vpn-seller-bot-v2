@@ -57,13 +57,7 @@ class GeneralController extends Controller
     }
     public function boot_seeding_data()
     {
-        // checl if for admin user is exist or not
-        $admin = User::where('role', 'admin')->first();
-        if ($admin == null) {
-            // create admin user by authcontroller
-            $authCntrl = new AuthController();
-            $authCntrl->createFirstAdminUser();
-        }
+
         // add default menu items
         $this->menuItemCntrl->seed();
         // add default channel lock menu items

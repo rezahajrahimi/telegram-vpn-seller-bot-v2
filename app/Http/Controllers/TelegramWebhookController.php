@@ -1,16 +1,15 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use App\Services\TelegramService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Cache;
-use App\Services\TelegramMessageFormatter;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Models\User;
+use App\Services\TelegramMessageFormatter;
+use App\Services\TelegramService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class TelegramWebhookController extends Controller
 {
@@ -20,19 +19,19 @@ class TelegramWebhookController extends Controller
     private TransactionController $transactionCntrl;
     public function __construct(TelegramService $telegramService)
     {
-        $this->telegramService = $telegramService;
-        $this->customTextCtrl = new CustomTextController();
+        $this->telegramService         = $telegramService;
+        $this->customTextCtrl          = new CustomTextController();
         $this->subscriptionProcessCtrl = new SubscriptionProcessController($this->telegramService);
-        $this->transactionCntrl = new TransactionController($this->telegramService);
+        $this->transactionCntrl        = new TransactionController($this->telegramService);
     }
 
     public function handle(Request $request)
     {
         try {
             // handle the first time bit start
-          if ($this->is_first_time_bot_start_event()) {
-            return response()->json(['status' => 'success']);
-          }
+            if ($this->is_first_time_bot_start_event()) {
+                return response()->json(['status' => 'success']);
+            }
             $update = $request->all();
 
             // پردازش callback queries (دکمه‌های اینلاین)
@@ -41,7 +40,7 @@ class TelegramWebhookController extends Controller
             }
 
             $message = $update['message'] ?? null;
-            if (!$message) {
+            if (! $message) {
                 return response()->json(['status' => 'success']);
             }
 
@@ -49,13 +48,9 @@ class TelegramWebhookController extends Controller
 
             // check the chatId is exist in users on account_id
             $isChannelMember = $this->checkChannelLock();
-            if (!$isChannelMember) {
+            if (! $isChannelMember) {
                 return response()->json(['status' => 'success']);
             }
-
-
-
-
 
             // نمایش وضعیت تایپ کردن
             $this->telegramService->sendChatAction($chatId, 'typing');
@@ -101,19 +96,15 @@ class TelegramWebhookController extends Controller
         $text = $message['text'];
         ///
 
-
-
-
-
         // پردازش دستورات
         if (str_starts_with($text, '/')) {
             return $this->processCommand($text);
         }
         // check if text is a menu item
         $menuItemCtrl = new MainMenuItemController();
-        $menuItem = $menuItemCtrl->getMenuItemByAliasName($text);
+        $menuItem     = $menuItemCtrl->getMenuItemByAliasName($text);
         if ($menuItem) {
-            $response =  $this->processMenuCommand($menuItem);
+            $response = $this->processMenuCommand($menuItem);
             // if response == true or false or null, don't return anything
             if ($response == true || $response == false || $response == null || $response == 1 || $response == 0) {
                 return "";
@@ -128,68 +119,68 @@ class TelegramWebhookController extends Controller
         $this->addNewBotLog('menu', "وارد منوی {$menuItem->name} ربات شد.", 'show');
         $chatId = $this->getCurrentChatId();
         switch ($menuItem->name) {
-                case 'خرید اشتراک':
-                   return $this->subscriptionProcessCtrl->buySubscriptionMenu($chatId);
-                    break;
-                // case 'اطلاعات حساب':
-                //     return $this->accountDetails();
-                //     break;
-                // case 'سابقه خرید':
-                //     return $this->buyHistory();
-                //     break;
-                // case 'پشتیبانی':
-                //     return $this->supports();
-                //     break;
-                // case 'آموزش استفاده و سوالات متداول':
-                //     return $this->faqs();
-                //     break;
-                // case 'دانلود برنامه':
-                //     return $this->appDownload();
-                //     break;
-                // case 'گیفت کارت':
-                //     return $this->giftCard();
-                //     break;
-                // case 'اکانت آزمایشی':
-                //     return $this->testAccount();
-                //     break;
-                // case 'webapp':
-                //     return $this->subWebapp();
-                //     break;
-                // case 'کسب درآمد':
-                //     return $this->referral();
-                //     break;
-                // case 'خرید گیفت کارت':
-                //     return $this->buyGiftCard();
-                //     break;
+            case 'خرید اشتراک':
+                return $this->subscriptionProcessCtrl->buySubscriptionMenu($chatId);
+                break;
+            // case 'اطلاعات حساب':
+            //     return $this->accountDetails();
+            //     break;
+            // case 'سابقه خرید':
+            //     return $this->buyHistory();
+            //     break;
+            // case 'پشتیبانی':
+            //     return $this->supports();
+            //     break;
+            // case 'آموزش استفاده و سوالات متداول':
+            //     return $this->faqs();
+            //     break;
+            // case 'دانلود برنامه':
+            //     return $this->appDownload();
+            //     break;
+            // case 'گیفت کارت':
+            //     return $this->giftCard();
+            //     break;
+            // case 'اکانت آزمایشی':
+            //     return $this->testAccount();
+            //     break;
+            // case 'webapp':
+            //     return $this->subWebapp();
+            //     break;
+            // case 'کسب درآمد':
+            //     return $this->referral();
+            //     break;
+            // case 'خرید گیفت کارت':
+            //     return $this->buyGiftCard();
+            //     break;
 
-                default:
-                    return $this->customTextCtrl->getText('error.menu.not_found');
-                    break;
-            }
+            default:
+                return $this->customTextCtrl->getText('error.menu.not_found');
+                break;
+        }
         return $this->customTextCtrl->getText('error.menu.not_found');
     }
 
     private function processPhotoMessage(array $message): string
     {
         try {
-            $photos = $message['photo'];
-            $photo = end($photos); // بزرگترین سایز عکس
-            $fileId = $photo['file_id'];
+            $photos  = $message['photo'];
+            $photo   = end($photos); // بزرگترین سایز عکس
+            $fileId  = $photo['file_id'];
             $caption = $message['caption'] ?? '';
-            $chatId = $message['chat']['id'];
+            $chatId  = $message['chat']['id'];
 
             // دریافت اطلاعات فایل از تلگرام
             $fileInfo = $this->telegramService->getFile($fileId);
-            if (!isset($fileInfo['result']['file_path'])) {
+            if (! isset($fileInfo['result']['file_path'])) {
                 \Log::error("خطا در دریافت اطلاعات فایل از تلگرام: " . json_encode($fileInfo));
                 return "با پشتیبان ربات تماس بگیرید ،خطا در دریافت تصویر";
             }
 
-            $request = new Request();
+            $request                 = new Request();
             $request->transaction_id = $this->transactionCntrl->addUserTranaction($chatId, 0, '000', 0);
-            $request->img_src = $fileInfo['result']['file_path']; // ارسال file_path به جای file_id
-            $request->account_id = $chatId;
-            $request->user_text = $caption ?? 'بدون متن';
+            $request->img_src        = $fileInfo['result']['file_path']; // ارسال file_path به جای file_id
+            $request->account_id     = $chatId;
+            $request->user_text      = $caption ?? 'بدون متن';
 
             $imageTrCntrl = new TransactionImageController();
             $imageTrCntrl->saveNewTransactionImage($request);
@@ -206,7 +197,7 @@ class TelegramWebhookController extends Controller
     private function processDocumentMessage(array $message): string
     {
         $document = $message['document'];
-        $fileId = $document['file_id'];
+        $fileId   = $document['file_id'];
         $fileName = $document['file_name'] ?? 'بدون نام';
         $mimeType = $document['mime_type'] ?? 'نامشخص';
 
@@ -215,8 +206,8 @@ class TelegramWebhookController extends Controller
 
     private function processLocationMessage(array $message): string
     {
-        $location = $message['location'];
-        $latitude = $location['latitude'];
+        $location  = $message['location'];
+        $latitude  = $location['latitude'];
         $longitude = $location['longitude'];
 
         return "موقعیت مکانی شما در مختصات {$latitude}, {$longitude} دریافت شد.";
@@ -224,8 +215,8 @@ class TelegramWebhookController extends Controller
 
     private function processVoiceMessage(array $message): string
     {
-        $voice = $message['voice'];
-        $fileId = $voice['file_id'];
+        $voice    = $message['voice'];
+        $fileId   = $voice['file_id'];
         $duration = $voice['duration'];
 
         // ذخیره فایل صوتی
@@ -240,10 +231,10 @@ class TelegramWebhookController extends Controller
 
     private function processVideoMessage(array $message): string
     {
-        $video = $message['video'];
-        $fileId = $video['file_id'];
+        $video    = $message['video'];
+        $fileId   = $video['file_id'];
         $duration = $video['duration'];
-        $caption = $message['caption'] ?? '';
+        $caption  = $message['caption'] ?? '';
 
         // ذخیره ویدیو
         $fileInfo = $this->telegramService->getFile($fileId);
@@ -258,24 +249,23 @@ class TelegramWebhookController extends Controller
 
     private function processContactMessage(array $message): string
     {
-        $contact = $message['contact'];
+        $contact     = $message['contact'];
         $phoneNumber = $contact['phone_number'];
-        $firstName = $contact['first_name'];
-        $lastName = $contact['last_name'] ?? '';
+        $firstName   = $contact['first_name'];
+        $lastName    = $contact['last_name'] ?? '';
 
         return "اطلاعات تماس دریافت شد:\nنام: {$firstName} {$lastName}\nشماره تماس: {$phoneNumber}";
     }
 
     private function processCommand(string $text): string
     {
-        $parts = explode(' ', $text);
+        $parts   = explode(' ', $text);
         $command = $parts[0];
-        $ref = $parts[1] ?? null;
+        $ref     = $parts[1] ?? null;
         $ref != null ? $this->handleReferralCommand($text) : null;
         if ($ref != null) {
             $command = '/start';
         }
-
 
         $response = match ($command) {
             '/start' => $this->handleStartCommand($text),
@@ -290,18 +280,18 @@ class TelegramWebhookController extends Controller
     {
         try {
 
-            $chatId = $this->getCurrentChatId();
+            $chatId          = $this->getCurrentChatId();
             $channelLockCtrl = new ChannelLockController();
-            $channels = $channelLockCtrl->getAllActiveChannelLock();
-            $opr = [];
+            $channels        = $channelLockCtrl->getAllActiveChannelLock();
+            $opr             = [];
             if ($channels->count() > 0) {
                 foreach ($channels as $channel => $value) {
                     $isChannelMember = $this->telegramService->checkChatIdIsChannelMember($chatId, $value->channel_id);
-                    if (!$isChannelMember) {
+                    if (! $isChannelMember) {
                         array_push($opr, [
                             [
                                 'text' => "$value->channel_id",
-                                'url' => "https://t.me/$value->channel_id",
+                                'url'  => "https://t.me/$value->channel_id",
                             ],
                         ]);
                     }
@@ -324,51 +314,51 @@ class TelegramWebhookController extends Controller
         }
     }
 
-    private function handleStartCommand(String $message,): string
+    private function handleStartCommand(String $message, ): string
     {
         try {
-            $chatId = $this->getCurrentChatId();
-            $firstName = $this->getCurrentChatFirstName();
-            $lastName = $this->getCurrentChatLastName();
-            $userName = $this->getCurrentChatUserName();
+            $chatId            = $this->getCurrentChatId();
+            $firstName         = $this->getCurrentChatFirstName();
+            $lastName          = $this->getCurrentChatLastName();
+            $userName          = $this->getCurrentChatUserName();
             $referralLogsCntrl = new ReferralLogsController();
-            $botUserCtrl = new BotUserController();
+            $botUserCtrl       = new BotUserController();
 
             $botUserCtrl->hasRegistred($chatId, $userName, $firstName, $lastName);
 
             $welcomeFormats = $this->customTextCtrl->getText('action.welcome.message', [
-                'name' => $firstName,
+                'name'     => $firstName,
                 'lastName' => $lastName,
-                'website' => 'https://powerps.ir'
+                'website'  => 'https://powerps.ir',
             ]);
 
             $formatter = new TelegramMessageFormatter($this->telegramService);
-            $message = $formatter
+            $message   = $formatter
                 ->addFormattedText('', $welcomeFormats)
                 ->getMessage();
 
-        $menu = new MainMenuItemController();
-        $menuItem = $menu->getAllActivatedMainMenuItems();
-        $opr = [];
+            $menu     = new MainMenuItemController();
+            $menuItem = $menu->getAllActivatedMainMenuItems();
+            $opr      = [];
 
-        if ($menuItem[0]->name == 'خرید اشتراک') {
-            array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
-            $menuItem = $menuItem->slice(1);
-        }
-
-        $countOfMenuItem = count($menuItem);
-        for ($i = 0; $i < $countOfMenuItem; $i += 2) {
-            $pair = $menuItem->slice($i, 2);
-            $row = [];
-
-            foreach ($pair as $item) {
-                $row[] = [
-                    'text' => $item->alias_name,
-                    'callback_data' => "main-{$item->id}"
-                ];
+            if ($menuItem[0]->name == 'خرید اشتراک') {
+                array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
+                $menuItem = $menuItem->slice(1);
             }
 
-                if (!empty($row)) {
+            $countOfMenuItem = count($menuItem);
+            for ($i = 0; $i < $countOfMenuItem; $i += 2) {
+                $pair = $menuItem->slice($i, 2);
+                $row  = [];
+
+                foreach ($pair as $item) {
+                    $row[] = [
+                        'text'          => $item->alias_name,
+                        'callback_data' => "main-{$item->id}",
+                    ];
+                }
+
+                if (! empty($row)) {
                     $opr[] = $row;
                 }
             }
@@ -394,16 +384,16 @@ class TelegramWebhookController extends Controller
     public function handleReferralCommand($text): string
     {
         try {
-            $parts = explode('=', $text);
-            $command_path = $parts[0];
-            $ref = $parts[1] ?? null;
-            $command = strtolower(explode(' ', $text)[0]);
-            $chatId = $this->getCurrentChatId();
-            $firstName = $this->getCurrentChatFirstName();
-            $lastName = $this->getCurrentChatLastName();
-            $userName = $this->getCurrentChatUserName();
+            $parts             = explode('=', $text);
+            $command_path      = $parts[0];
+            $ref               = $parts[1] ?? null;
+            $command           = strtolower(explode(' ', $text)[0]);
+            $chatId            = $this->getCurrentChatId();
+            $firstName         = $this->getCurrentChatFirstName();
+            $lastName          = $this->getCurrentChatLastName();
+            $userName          = $this->getCurrentChatUserName();
             $referralLogsCntrl = new ReferralLogsController();
-            $botUserCtrl = new BotUserController();
+            $botUserCtrl       = new BotUserController();
 
             $result = $botUserCtrl->hasRegistred($chatId, $userName, $firstName, $lastName);
             if ($result == 1) {
@@ -423,7 +413,7 @@ class TelegramWebhookController extends Controller
         $buttons = [
             ['ارسال موقعیت مکانی' => 'send_location', 'ارسال شماره تماس' => 'send_contact'],
             ['آپلود فایل' => 'upload_file', 'ارسال عکس' => 'send_photo'],
-            ['راهنما' => 'help', 'بازگشت' => 'back']
+            ['راهنما' => 'help', 'بازگشت' => 'back'],
         ];
 
         $this->telegramService->sendMessageWithInlineKeyboard(
@@ -437,31 +427,29 @@ class TelegramWebhookController extends Controller
 
     private function handleCallbackQuery(array $callbackQuery): \Illuminate\Http\JsonResponse
     {
-        $chatId = $callbackQuery['from']['id'];
-        $data = $callbackQuery['data'];
+        $chatId          = $callbackQuery['from']['id'];
+        $data            = $callbackQuery['data'];
         $callbackQueryId = $callbackQuery['id'];
         ///
 
-    //    // برای دکمه لغو
-    //     if (isset($callbackQuery['data']) && $callbackQuery['data'] === 'cancel_payment') {
-    //         $chatId = $callbackQuery['message']['chat']['id'];
-    //         UserState::where('chat_id', $chatId)->delete();
-    //         $this->telegramService->sendMessage($chatId, 'عملیات لغو شد.', [
-    //             'reply_markup' => json_encode([
-    //                 'remove_keyboard' => true,
-    //             ]),
-    //         ]);
-    //         $this->handleStartCommand($chatId);
-    //     }
-
-
+        //    // برای دکمه لغو
+        //     if (isset($callbackQuery['data']) && $callbackQuery['data'] === 'cancel_payment') {
+        //         $chatId = $callbackQuery['message']['chat']['id'];
+        //         UserState::where('chat_id', $chatId)->delete();
+        //         $this->telegramService->sendMessage($chatId, 'عملیات لغو شد.', [
+        //             'reply_markup' => json_encode([
+        //                 'remove_keyboard' => true,
+        //             ]),
+        //         ]);
+        //         $this->handleStartCommand($chatId);
+        //     }
 
         //
         \Log::info('Callback query data: ' . json_encode($data));
         // explode the data to get the action
         $actionList = explode('-', $data);
 
-        $action = $actionList[0];
+        $action   = $actionList[0];
         $response = match ($action) {
             'buySubscription' => $this->subscriptionProcessCtrl->buySubscriptionAction($chatId, $actionList[1]),
             'buySubscriptionByLocation' => $this->subscriptionProcessCtrl->buySubscriptionByLocationAction($chatId, $actionList[1]),
@@ -501,10 +489,10 @@ class TelegramWebhookController extends Controller
         $buttons = [[['text' => 'ارسال شماره تماس', 'request_contact' => true]]];
         $this->telegramService->sendMessage($chatId, 'لطفاً شماره تماس خود را به اشتراک بگذارید:', [
             'reply_markup' => json_encode([
-                'keyboard' => $buttons,
-                'resize_keyboard' => true,
-                'one_time_keyboard' => true
-            ])
+                'keyboard'          => $buttons,
+                'resize_keyboard'   => true,
+                'one_time_keyboard' => true,
+            ]),
         ]);
 
         return '';
@@ -516,10 +504,10 @@ class TelegramWebhookController extends Controller
         $buttons = [[['text' => 'ارسال موقعیت مکانی', 'request_location' => true]]];
         $this->telegramService->sendMessage($chatId, 'لطفاً موقعیت مکانی خود را به اشتراک بگذارید:', [
             'reply_markup' => json_encode([
-                'keyboard' => $buttons,
-                'resize_keyboard' => true,
-                'one_time_keyboard' => true
-            ])
+                'keyboard'          => $buttons,
+                'resize_keyboard'   => true,
+                'one_time_keyboard' => true,
+            ]),
         ]);
 
         return '';
@@ -582,8 +570,7 @@ class TelegramWebhookController extends Controller
 
         $admin_id = $settingCtrl->getAdminId();
         if ($messageType == 'image') {
-           $resualt = $this->telegramService->sendPhoto($admin_id, $image_url, $text);
-
+            $resualt = $this->telegramService->sendPhoto($admin_id, $image_url, $text);
 
             return response()->json($resualt, 200);
         } else {
@@ -598,14 +585,16 @@ class TelegramWebhookController extends Controller
     }
     private function is_first_time_bot_start_event()
     {
-       // check if the bot is started for the first time
-       // check we have a user with admin id or not
-       $admin = User::where('role','admin')->first();
-       if ($admin == null) {
-        // send message in telegram to first you have to login in webapp and broken other process
-         $this->telegramService->sendMessage($this->getCurrentChatId(),"برای شروع ربات ابتدا می بایست وارد وب اپلیکیشن شوید و تنظیمات ربات را انجام بدهید");
-         return true;
-       }
-       return false;
+        // check if the bot is started for the first time
+        // check we have a user with admin id or not
+        $admin = User::where('role', 'admin')->first();
+        if ($admin == null) {
+            // send message in telegram to first you have to login in webapp and broken other process
+            $this->telegramService->sendMessage($this->getCurrentChatId(), "برای شروع ربات ابتدا می بایست وارد وب اپلیکیشن شوید و تنظیمات ربات را انجام بدهید");
+            $authCtrl = new AuthController();
+            $authCtrl->createFirstAdminUser();
+            return true;
+        }
+        return false;
     }
 }

@@ -10,9 +10,15 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
+use App\Http\Controllers\GeneralController;
 
 class AuthController extends Controller
 {
+    private SettingController $settingCntrl;
+    public function __construct()
+    {
+        $this->generalCntrl = new GeneralController();
+    }
     public function getHostName()
     {
 
@@ -68,6 +74,7 @@ class AuthController extends Controller
                 'password' => Hash::make('admin123456'),
             ]);
         }
+        $this->generalCntrl->boot_seeding_data();
         return $admin;
     }
     public function register(Request $request)
