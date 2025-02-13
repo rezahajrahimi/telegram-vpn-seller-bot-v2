@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BotUser;
 use App\Models\ProductCategory;
+use App\Models\UserState;
 
 // add BotUser model
 use App\Services\TelegramService;
@@ -243,29 +244,95 @@ class SubscriptionProcessController extends Controller
     }
     public function handle_offline_add_balance($chatId, $offlinePaymentID)
     {
-        $offlinePayment = $this->pymntCntrl->get_payment_type_by_id($offlinePaymentID);
-        if ($offlinePayment == null) {
-            return $this->customTextCtrl->getText('error.payment_type_not_found');
+        try {
+            $offlinePayment = $this->pymntCntrl->get_payment_type_by_id($offlinePaymentID);
+            if ($offlinePayment == null) {
+                return $this->customTextCtrl->getText('error.payment_type_not_found');
+            }
+
+            // ذخیره حالت کاربر
+            UserState::updateOrCreate(
+                ['chat_id' => $chatId],
+                [
+                    'state' => 'waiting_payment_receipt',
+                    'data' => [
+                        'payment_type_id' => $offlinePaymentID
+                    ]
+                ]
+            );
+
+            $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option.image');
+            $buttons = [
+                [
+                    ['text' => 'لغو', 'callback_data' => 'cancel_payment'],
+                ]
+            ];
+
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $buttons);
+
+            $replyMarkup = [
+                'keyboard' => [[['text' => 'ارسال تصویر رسید', 'request_photo' => true]]],
+                'resize_keyboard' => true,
+                'one_time_keyboard' => true
+            ];
+
+            $this->telegramService->sendMessage($chatId, 'لطفاً تصویر رسید خود را به اشتراک بگذارید:', [
+                'reply_markup' => json_encode($replyMarkup)
+            ]);
+
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error("خطا در درخواست تصویر رسید: " . $th->getMessage());
+            return $this->customTextCtrl->getText('error.server_error');
         }
-        $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option.image');
+    }
 
-        $copyable = "$offlinePayment->merchant_id";
-        // send text with copyable text
-        $this->telegramService->sendMessage($chatId, $text . "\n\n" . "<code>$copyable</code>", [
-            'parse_mode' => 'HTML',
-        ]);
+    public function processOfflinePaymentImage($chatId, $photo)
+    {
+        try {
+            // بررسی حالت کاربر
+            $userState = UserState::where('chat_id', $chatId)
+                ->where('state', 'waiting_payment_receipt')
+                ->first();
 
-        $buttons = [[['text' => 'ارسال تصویر رسید', 'request_photo' => true]]];
-        $this->telegramService->sendMessage($chatId, 'لطفاً تصویر رسید خود را به اشتراک بگذارید:', [
-            'reply_markup' => json_encode([
-                'keyboard'          => $buttons,
-                'resize_keyboard'   => true,
-                'one_time_keyboard' => true,
-            ]),
-        ]);
+            if (!$userState) {
+                $this->telegramService->sendMessage($chatId, 'لطفاً ابتدا از منوی پرداخت آفلاین اقدام کنید.');
+                return "";
+            }
 
-        // request
-        return "";
+            $paymentTypeId = $userState->data['payment_type_id'];
+            $photoSize = end($photo);
+            $fileId = $photoSize['file_id'];
+
+            // ذخیره اطلاعات پرداخت در دیتابیس
+            $this->addNewBotLog('payment', 'تصویر رسید پرداخت آفلاین ارسال شد', 'upload');
+
+            // پاک کردن حالت کاربر
+            $userState->delete();
+
+            // ارسال پیام تایید به کاربر
+            $this->telegramService->sendMessage($chatId, 'تصویر رسید شما با موفقیت دریافت شد و در حال بررسی است.');
+
+            // ارسال به ادمین
+            $adminChatId = env('TELEGRAM_ADMIN_ID');
+            if ($adminChatId) {
+                $this->botUser = $this->botUser->getUserByAccountID($chatId);
+                $adminMessage = "رسید پرداخت جدید:\nکاربر: {$this->botUser->username}\nChat ID: {$chatId}\nنوع پرداخت: {$paymentTypeId}";
+                $this->telegramService->sendPhoto($adminChatId, $fileId, $adminMessage);
+            }
+
+            // برگشت به منوی اصلی
+            $this->telegramService->sendMessage($chatId, 'لطفاً منتظر تایید ادمین بمانید.', [
+                'reply_markup' => json_encode([
+                    'remove_keyboard' => true
+                ])
+            ]);
+
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error("خطا در پردازش تصویر رسید: " . $th->getMessage());
+            return $this->customTextCtrl->getText('error.upload_failed');
+        }
     }
 
     private function addNewBotLog($type, $message, $event)

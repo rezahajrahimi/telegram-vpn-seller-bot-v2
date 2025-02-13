@@ -59,7 +59,7 @@ class TransactionImageController extends Controller
             $img_src = $request->img_src;
 
             // Get the image contents
-            $imageContents = $telegramService->downloadFile($img_src);
+            $imageContents = $telegramService->downloadImageFile($img_src);
 
             // Define the image path and name
             $imagePath = 'images/';
@@ -69,8 +69,16 @@ class TransactionImageController extends Controller
             // save image path in $path
             $path = $imagePath . $imageName;
             try {
+                // check if the image path is writable
+                if (is_writable($imagePath)) {
+                    Storage::disk('public')->put($imagePath . $imageName, $imageContents);
+                } else {
+                    // add permission to the image path
+                    chmod($imagePath, 0777);
+                    Storage::disk('public')->put($imagePath . $imageName, $imageContents);
+                }
 
-                Storage::disk('public')->put($imagePath . $imageName, $imageContents);
+
 
             } catch (\Throwable $th) {
                 \Log::info("saveNewTransactionImage:  $th");

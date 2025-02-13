@@ -15,11 +15,13 @@ class TelegramWebhookController extends Controller
     private TelegramService $telegramService;
     private CustomTextController $customTextCtrl;
     private SubscriptionProcessController $subscriptionProcessCtrl;
+    private TransactionController $transactionCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService = $telegramService;
         $this->customTextCtrl = new CustomTextController();
         $this->subscriptionProcessCtrl = new SubscriptionProcessController($this->telegramService);
+        $this->transactionCntrl = new TransactionController($this->telegramService);
     }
 
     public function handle(Request $request)
@@ -91,6 +93,11 @@ class TelegramWebhookController extends Controller
     private function processTextMessage(array $message): string
     {
         $text = $message['text'];
+        ///
+
+
+
+
 
         // پردازش دستورات
         if (str_starts_with($text, '/')) {
@@ -159,29 +166,33 @@ class TelegramWebhookController extends Controller
     private function processPhotoMessage(array $message): string
     {
         try {
-
             $photos = $message['photo'];
             $photo = end($photos); // بزرگترین سایز عکس
             $fileId = $photo['file_id'];
             $caption = $message['caption'] ?? '';
             $chatId = $message['chat']['id'];
-            // در اینجا می‌توانید عکس را ذخیره یا پردازش کنید
-            $transactionCntrl = new TransactionController();
-            $imageTrCntrl = new TransactionImageController();
-            \Log::info("fileId1111: $fileId");
-            $transactionID = $transactionCntrl->addUserTranaction($chatId, 0, '000', 0);
-            \Log::info("transactionID: $transactionID");
+
+            // دریافت اطلاعات فایل از تلگرام
+            $fileInfo = $this->telegramService->getFile($fileId);
+            if (!isset($fileInfo['result']['file_path'])) {
+                \Log::error("خطا در دریافت اطلاعات فایل از تلگرام: " . json_encode($fileInfo));
+                return "با پشتیبان ربات تماس بگیرید ،خطا در دریافت تصویر";
+            }
+
             $request = new Request();
-            $request->transaction_id = $transactionID;
-            $request->img_src = $fileId;
+            $request->transaction_id = $this->transactionCntrl->addUserTranaction($chatId, 0, '000', 0);
+            $request->img_src = $fileInfo['result']['file_path']; // ارسال file_path به جای file_id
             $request->account_id = $chatId;
             $request->user_text = $caption ?? 'بدون متن';
 
+            $imageTrCntrl = new TransactionImageController();
             $imageTrCntrl->saveNewTransactionImage($request);
+
             $message = "کاربر {$chatId} یک عکس ارسال کرد ";
             $this->sendMessageToAdmin($chatId, $fileId, $message, 'image');
-            return "عکس شما با موفقیت ذخیره شد.";
+            return "";
         } catch (\Throwable $th) {
+            \Log::error("خطا در پردازش تصویر: " . $th->getMessage());
             return "با پشتیبان ربات تماس بگیرید ،خطا در دریافت تصویر";
         }
     }
@@ -423,6 +434,23 @@ class TelegramWebhookController extends Controller
         $chatId = $callbackQuery['from']['id'];
         $data = $callbackQuery['data'];
         $callbackQueryId = $callbackQuery['id'];
+        ///
+
+    //    // برای دکمه لغو
+    //     if (isset($callbackQuery['data']) && $callbackQuery['data'] === 'cancel_payment') {
+    //         $chatId = $callbackQuery['message']['chat']['id'];
+    //         UserState::where('chat_id', $chatId)->delete();
+    //         $this->telegramService->sendMessage($chatId, 'عملیات لغو شد.', [
+    //             'reply_markup' => json_encode([
+    //                 'remove_keyboard' => true,
+    //             ]),
+    //         ]);
+    //         $this->handleStartCommand($chatId);
+    //     }
+
+
+
+        //
         \Log::info('Callback query data: ' . json_encode($data));
         // explode the data to get the action
         $actionList = explode('-', $data);
@@ -448,7 +476,12 @@ class TelegramWebhookController extends Controller
         }
         return response()->json(['status' => 'success']);
     }
+    private function handleCancelPayment(string $chatId): string
+    {
 
+        $this->telegramService->sendMessage($chatId, 'پرداخت با موفقیت لغو شد.');
+        return '';
+    }
     private function handleAction1(string $chatId): string
     {
         // مثال درخواست اطلاعات از کاربر
@@ -543,9 +576,10 @@ class TelegramWebhookController extends Controller
 
         $admin_id = $settingCtrl->getAdminId();
         if ($messageType == 'image') {
-            $result = $this->telegramService->imageMessage($image_url, $admin_id, $text);
+           $resualt = $this->telegramService->sendPhoto($admin_id, $image_url, $text);
 
-            return response()->json($result, 200);
+
+            return response()->json($resualt, 200);
         } else {
             $result = $this->telegramService->sendMessage($admin_id, $text);
         }

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Http;
+
 class TelegramService
 {
     private string $baseUrl;
@@ -10,7 +12,15 @@ class TelegramService
     public function __construct()
     {
         $this->baseUrl = 'https://api.telegram.org/';
-        $this->botToken = config('services.telegram.bot_token');
+        $token = config('services.telegram.bot_token');
+
+        // تمیز کردن توکن
+        $token = preg_replace('/bot:?bot/i', 'bot', $token);
+        if (!str_starts_with($token, 'bot')) {
+            $token = 'bot' . $token;
+        }
+
+        $this->botToken = $token;
     }
 
     public function sendMessage(string $chatId, string $text, array $options = []): array
@@ -217,7 +227,6 @@ class TelegramService
             unlink($photoPath);
         }
 
-        \Log::info('sendPhoto', ['result' => $result]);
         return $result;
     }
 
@@ -287,7 +296,11 @@ class TelegramService
         $url = "https://api.telegram.org/file/bot{$this->botToken}/{$filePath}";
         return file_get_contents($url);
     }
-
+  public function downloadImageFile($file_path) {
+    $url = "https://api.telegram.org/file/" . $this->botToken . "/" . $file_path;
+    // $url = "https://api.telegram.org/file/bot" . $this->botToken . "/" . $file_path;
+    return file_get_contents($url);
+}
     public function sendVoice(string $chatId, string $voice, string $caption = '', array $options = []): array
     {
         return $this->makeRequest('sendVoice', array_merge([
