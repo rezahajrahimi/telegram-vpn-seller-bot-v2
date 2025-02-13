@@ -25,6 +25,7 @@ class GeneralController extends Controller
     private PaymentMenuItemController $pymMenCntrl;
     private CryptoPaymentController $cryptoPymentCntrl;
     private TransactionController $trCntrl;
+    private TransactionSettingController $trSettingCntrl;
     private BillController $billCntrl;
     private MainMenuItem $mainMenuItem;
     private ProductCategory $productCategory;
@@ -50,6 +51,7 @@ class GeneralController extends Controller
         $this->mainMenuItem      = new MainMenuItem();
         $this->productCategory   = new ProductCategory();
         $this->trSetting         = new TransactionSetting();
+        $this->trSettingCntrl    = new TransactionSettingController();
         $this->channelLockMenuItemCntrl = new ChannelLockMenuItemController();
         $this->cronJobCntrl      = new CronJobController();
         $this->giftCardMenuItemCntrl = new GiftCardMenuItemController();
@@ -77,7 +79,7 @@ class GeneralController extends Controller
         // add default custom texts
         $this->customTextCtrl->seed();
         // add default transaction settings
-        $this->trSetting->seed();
+        $this->trSettingCntrl->seed();
 
 
     }

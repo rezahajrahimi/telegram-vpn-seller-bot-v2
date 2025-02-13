@@ -1,29 +1,38 @@
 <?php
-
 namespace App\Http\Controllers;
-use App\Models\PaymentMenuItem;
 
+use App\Models\PaymentMenuItem;
 use Illuminate\Http\Request;
 
 class PaymentMenuItemController extends Controller
 {
+    public function seed()
+    {
+        if (PaymentMenuItem::all()->isEmpty()) {
+            $payment             = new PaymentMenuItem();
+            $payment->name       = 'main';
+            $payment->alias_name = 'گزینه پرداخت را انتخاب کنید.';
+            $payment->level      = 1;
+            $payment->save();
+            $response             = new PaymentMenuItem();
+            $response->name       = 'response';
+            $response->alias_name = 'لطفا مبلغ را به شماره زیر واریز کنید و تصویر رسید را در ربات ارسال کنید.';
+            $response->level      = 2;
+            $response->save();
+
+            return true;
+        }
+        return false;
+    }
     public function getPaymentTypeMainMenuTitle()
     {
         $data = PaymentMenuItem::where('name', 'main')->first();
         if ($data != null) {
             return $data;
         } else {
-            $payment = new PaymentMenuItem();
-            $payment->name = 'main';
-            $payment->alias_name = 'گزینه پرداخت را انتخاب کنید.';
-            $payment->level = 1;
-            $payment->save();
-            $response = new PaymentMenuItem();
-            $response->name = 'response';
-            $response->alias_name = 'لطفا مبلغ را به شماره زیر واریز کنید و تصویر رسید را در ربات ارسال کنید.';
-            $response->level = 2;
-            $response->save();
-            return $payment;
+            $this->seed();
+            $data = PaymentMenuItem::where('name', 'main')->first();
+            return $data;
         }
     }
     public function getPaymentTypeMainMenuAliasText()
@@ -32,17 +41,9 @@ class PaymentMenuItemController extends Controller
         if ($data != null) {
             return $data->alias_name;
         } else {
-            $payment = new PaymentMenuItem();
-            $payment->name = 'main';
-            $payment->alias_name = 'گزینه پرداخت را انتخاب کنید.';
-            $payment->level = 1;
-            $payment->save();
-            $response = new PaymentMenuItem();
-            $response->name = 'response';
-            $response->alias_name = 'لطفا مبلغ را به شماره زیر واریز کنید و تصویر رسید را در ربات ارسال کنید.';
-            $response->level = 2;
-            $response->save();
-            return $payment->alias_name;
+            $this->seed();
+            $data = PaymentMenuItem::where('name', 'main')->first();
+            return $data->alias_name;
         }
     }
     public function getAllPaymentTypeMenues()
@@ -50,7 +51,7 @@ class PaymentMenuItemController extends Controller
         $data = PaymentMenuItem::first();
         // \Log::info($data);
 
-        if ($data!= null ) {
+        if ($data != null) {
             $data = PaymentMenuItem::all();
 
             return $data;
@@ -67,17 +68,9 @@ class PaymentMenuItemController extends Controller
         if ($data != null) {
             return $data->alias_name;
         } else {
-            $payment = new PaymentMenuItem();
-            $payment->name = 'main';
-            $payment->alias_name = 'گزینه پرداخت را انتخاب کنید.';
-            $payment->level = 1;
-            $payment->save();
-            $response = new PaymentMenuItem();
-            $response->name = 'response';
-            $response->alias_name = 'لطفا مبلغ را به شماره زیر واریز کنید و تصویر رسید را در ربات ارسال کنید.';
-            $response->level = 2;
-            $response->save();
-            return $response->alias_name;
+            $this->seed();
+            $data = PaymentMenuItem::where('name', 'reponse')->first();
+            return $data->alias_name;
         }
     }
 

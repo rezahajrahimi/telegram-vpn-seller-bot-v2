@@ -11,7 +11,7 @@ class CustomTextController extends Controller
     {
         $this->customText = new CustomText();
     }
-    private function seed()
+    public function seed()
     {
         \Log::info('Seeding CustomText table');
         // check if we are on local

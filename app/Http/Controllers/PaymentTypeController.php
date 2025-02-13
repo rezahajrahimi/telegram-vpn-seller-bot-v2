@@ -9,6 +9,27 @@ use Illuminate\Http\Request;
 
 class PaymentTypeController extends Controller
 {
+    public function seed(){
+        $data = PaymentType::all();
+        if($data->count() == 0){
+            $data = new PaymentType();
+            $data->name = 'زرین پال';
+            $data->type = 'online';
+            $data->merchant_id = env('ZARINPAL_MERCHANT_ID') ?? 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+            $data->save();
+            $data = new PaymentType();
+            $data->name = 'نوپیمنت';
+            $data->type = 'online';
+            $data->merchant_id = env('NOWPAYMENT_MERCHANT_ID') ?? 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxx';
+            $data->save();
+            $data = new PaymentType();
+            $data->name = 'کارت به کارت';
+            $data->type = 'offline';
+            $data->merchant_id = '0000-0000-0000-0000';
+            $data->save();
+        }
+
+    }
     public function getPaymentTypes()
     {
         return PaymentType::all();
@@ -69,6 +90,7 @@ class PaymentTypeController extends Controller
         if ($data != null) {
             return $data;
         } else {
+            $this->seed();
             return null;
         }
     }
@@ -78,11 +100,7 @@ class PaymentTypeController extends Controller
         if ($data != null) {
             return $data;
         } else {
-            $data = new PaymentType();
-            $data->name = 'زرین پال';
-            $data->type = 'online';
-            $data->merchant_id = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
-            $data->save();
+            $this->seed();
             return $data;
         }
     }
@@ -105,11 +123,7 @@ class PaymentTypeController extends Controller
         if ($data != null) {
             return $data->merchant_id;
         } else {
-            $data = new PaymentType();
-            $data->name = 'زرین پال';
-            $data->type = 'online';
-            $data->merchant_id = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
-            $data->save();
+            $this->seed();
             return $data->merchant_id;
         }
     }
@@ -119,11 +133,7 @@ class PaymentTypeController extends Controller
         if ($data != null) {
             return $data->id;
         } else {
-            $data = new PaymentType();
-            $data->name = 'زرین پال';
-            $data->type = 'online';
-            $data->merchant_id = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
-            $data->save();
+            $this->seed();
             return $data->id;
         }
     }
