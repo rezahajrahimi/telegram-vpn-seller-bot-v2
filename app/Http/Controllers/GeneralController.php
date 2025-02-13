@@ -84,8 +84,6 @@ class GeneralController extends Controller
         $this->customTextCtrl->seed();
         // add default transaction settings
         $this->trSetting->seed();
-        // add default product categories
-        $this->prCatCntrl->seed();
 
 
     }
