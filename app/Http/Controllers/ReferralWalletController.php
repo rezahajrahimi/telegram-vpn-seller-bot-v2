@@ -50,6 +50,9 @@ class ReferralWalletController extends Controller
                 return false;
             }
             $wallet = ReferralWallet::where('referral_user_id', $user->id)->first();
+            if ($wallet == null) {
+                return false;
+            }
             if ($wallet->amount >= $amount) {
                 return true;
             }

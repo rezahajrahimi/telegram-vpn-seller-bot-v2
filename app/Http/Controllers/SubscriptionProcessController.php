@@ -217,7 +217,10 @@ class SubscriptionProcessController extends Controller
                 $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $productID);
             } elseif ($pannel->type == 'marzban') {
                 // create marzban user
-                return " پنل مارزبان";
+                return " پنل مرزبان";
+            } elseif ($pannel->type == 'sanaei') {
+                // create sanaei user
+                return " پنل سنائی";
             }
 
             if ($resualt == true) {
