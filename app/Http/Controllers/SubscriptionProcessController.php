@@ -426,22 +426,30 @@ class SubscriptionProcessController extends Controller
     public function subBuyHistory($chatId, $historyId)
     {
         try {
-            $this->chatId  = $chatId;
+            $this->chatId = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
-            $history       = $this->product->getProductByID($historyId);
-            $this->selectedPrCat = $this->selectedPrCat->getProdctCategorByID($history->product_categories_id);
-            $pannel    = $this->panelCntrl->getPannelById($this->selectedPrCat->pannel_id);
 
-            $text          = $this->customTextCtrl->getText('action.buy_history.title');
-            $this->addNewBotLog('subscription', 'وارد سابقه خردید با ایدی ' . $historyId . ' شد.', 'show');
-            // log panel as array
-            \Log::info(["pannel" => $pannel]);
-            if ($history == null) {
-            \Log::info("aaaaaaaaaaaaaaaa");
+            // ابتدا رکورد تاریخچه را از دیتابیس دریافت کنید
+            $product = Product::find($historyId);
+            if ($product == null) {
+                return $this->customTextCtrl->getText('error.history_not_found');
+            }
+
+            if ($product != null) {
+                // convert $historyId->product_categories_id to int
+                $prCatId = (int) $product->product_categories_id;
+                $prCat = $this->selectedPrCat->getProdctCategorByID($prCatId);
+                $pannel              = $this->panelCntrl->getPannelById($prCat->pannel_id);
+
+                $text = $this->customTextCtrl->getText('action.buy_history.title');
+                $this->addNewBotLog('subscription', 'وارد سابقه خردید با ایدی ' . $product->remark . ' شد.', 'show');
+                // log panel as array
+
+                \Log::info("aaaaaaaaaaaaaaaa");
                 // check panel name is hiddify
                 if ($pannel->type == 'hiddify') {
                     \Log::info($pannel->type);
-                    $text      = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $history->remark, 'category_name' => $productCategory->name]);
+                    $text      = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $product->remark, 'category_name' => $prCat->category_name]);
                     $formatter = new TelegramMessageFormatter($this->telegramService);
                     $text      = $formatter->addFormattedText('', $text)->getMessage();
 
