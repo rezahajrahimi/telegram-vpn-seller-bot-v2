@@ -274,8 +274,10 @@ class SubscriptionProcessController extends Controller
                         $this->hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
                         // delete product from database
                         $prCntrl = new ProductController();
-                        $prCntrl->delete_product_by_uuid($uuid);
-                        $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل و دیتابیس', 'show');
+                        $res = $prCntrl->delete_product_by_uuid($uuid);
+                        if ($res) {
+                            $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل و دیتابیس', 'show');
+                        }
 
                     }
                     return $this->customTextCtrl->getText('action.process.failed_buy');
