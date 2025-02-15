@@ -225,11 +225,18 @@ class SubscriptionProcessController extends Controller
 
             if ($resualt == true) {
                 // decrease user balance
+
                 $request           = new Request();
                 $request->userID   = $this->chatId;
                 $request->ballance = $productPrice;
                 $request->type     = 'toman';
-                $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+                $ballance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+                if ($ballance == false) {
+                    // remove subscription
+                    //  $this->selectedPrCat->delete();
+                    //
+                    return $this->customTextCtrl->getText('action.process.failed_buy');
+                }
                 // send useful
                 $this->generalCntrl->send_using_subscription_manual_message($this->chatId);
 
