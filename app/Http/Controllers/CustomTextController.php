@@ -69,12 +69,11 @@ class CustomTextController extends Controller
                     ['type' => 'newline'],
                     ['type' => 'bold', 'text' => "موجودی شما:"],
                     ['type' => 'text', 'text' => "{user_balance_in_toman} - {user_balance_in_dollar}"],
-
                     ['type' => 'newline'],
                     ['type' => 'bold', 'text' => "قیمت بسته: {product_price_in_toman}"],
                     ['type' => 'newline'],
                     ['type' => 'text', 'text' => "میزان مبلغ مورد نیاز برای شارژ حساب:"],
-                    ['type' => 'text', 'text' => "{diffrence_in_toman} - {diffrence_in_dollar}"],
+                    ['type' => 'text', 'text' => "{difference_in_toman} - {difference_in_dollar}"],
 
                 ]), 'custom_text' => null],
                 ['key' => 'action.process.add_online_balance', 'default_text' => 'افزایش موجودی کیف پول خود را با انتخاب یکی از گزینه های زیر انجام دهید.', 'custom_text' => null],

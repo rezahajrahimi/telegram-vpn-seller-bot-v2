@@ -251,6 +251,7 @@ class SubscriptionProcessController extends Controller
                         // add to log
                         $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول همکاری به مقدار ' . $this->selectedPrCat->price . ' تومان', 'show');
                     } else {
+                        // TODO: remove created product from database and panel
                         return $this->customTextCtrl->getText('action.process.failed_buy');
                     }
                 }

@@ -66,7 +66,13 @@ class ReferralWalletController extends Controller
     {
         try {
             $user = User::where('account_id', $account_id)->first();
+            if($user == null){
+                return false;
+            }
             $wallet = ReferralWallet::where('referral_user_id', $user->id)->first();
+            if($wallet == null){
+                return false;
+            }
             $wallet->amount =$wallet->amount - (float)$amount;
             $wallet->update();
             return true;

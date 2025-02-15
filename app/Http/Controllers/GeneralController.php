@@ -368,11 +368,11 @@ class GeneralController extends Controller
             $dollarTransaction = $this->trSetting->getDollarTransactionSetting();
             $text              = '';
             if ($dollarTransaction == true || $dollarTransaction == 1) {
-                $productPriceInDollar    = $productPriceInToman / 10;
-                $productPriceInDollar    = number_format($productPriceInDollar, 2, ',', '.');
-                $productPriceInDollar    = $productPriceInDollar . ' دلار';
+                $productPriceInDollar    = $productCategory->price_in_dollar;
                 $user_ballance_in_dollar = $user_ballance->account_ballance_in_dollar;
                 $mainDiffrenceInDollar   = $diffrence_in_dollar   = $productPriceInDollar - $user_ballance_in_dollar;
+                $productPriceInDollar    = number_format($productPriceInDollar, 2, ',', '.');
+                $productPriceInDollar    = $productPriceInDollar . ' دلار';
                 $user_ballance_in_dollar = number_format($user_ballance_in_dollar, 2, ',', '.');
                 $user_ballance_in_dollar = $user_ballance_in_dollar . ' دلار';
                 $diffrence_in_dollar     = number_format($diffrence_in_dollar, 2, ',', '.');
@@ -384,8 +384,8 @@ class GeneralController extends Controller
                     'product_price_in_dollar' => $productPriceInDollar,
                     'user_balance_in_toman'   => $user_ballance_in_toman,
                     'user_balance_in_dollar'  => $user_ballance_in_dollar,
-                    'difference_in_toman'     => $diffrence,
-                    'diffrence_in_dollar'     => $diffrence_in_dollar,
+                    'difference_in_toman'    => $diffrence,
+                    'difference_in_dollar'     => $diffrence_in_dollar,
                 ]);
                 $formatter = new TelegramMessageFormatter($this->telegramService);
                 $text      = $formatter->addFormattedText('', $text)->getMessage();
@@ -441,13 +441,15 @@ class GeneralController extends Controller
         if ($hasDollarPay == true || $hasDollarPay == 1) {
 
             $bill                  = $this->billCntrl->createNewBillInDollar($request);
-            $openLink              = $this->cryptoPymentCntrl->getNowPaymentsLink();
+            // todo: create getNowPaymentsLink method in CryptoPaymentController
+            $openLink              = "https://nowpayments.io/payment/?iid=5096100130";
+            // $openLink              = $this->cryptoPymentCntrl->getNowPaymentsLink();
             $trCryptoCntrl         = new TransactionCryptoController();
             $trRequest             = new Request();
             $trRequest->invoiceID  = $bill->bill_id;
             $trRequest->account_id = $chat_id;
             $trRequest->amount     = $estimatedPriceInDollar;
-            $paymentLink           = $this->trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
+            $paymentLink           = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
             $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
             // format $estimatedPrice to 0 decimal
             $estimatedPriceInDollar = number_format($estimatedPriceInDollar, 0, ',', '.');

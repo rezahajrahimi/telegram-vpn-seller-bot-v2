@@ -3,6 +3,12 @@ namespace App\Http\Controllers;
 
 use App\Models\AccountBallance;
 use App\Models\BotUser;
+use App\Models\User;
+use App\Models\AgentPermisson;
+use App\Http\Controllers\AgentPermissonController;
+use App\Http\Controllers\LogController;
+use App\Http\Controllers\TransactionSettingController;
+
 use Illuminate\Http\Request;
 
 class AccountBallanceController extends Controller
@@ -116,12 +122,32 @@ class AccountBallanceController extends Controller
     public function decreaseUserAccuntBalanceByUserID(Request $request)
     {
         try {
-            $user = BotUser::where('id', $request->userID)->first();
+            $user                      = BotUser::where('id', $request->userID)->first();
+            $is_admin                  = false;
+            $is_agent                  = false;
+            $minus_ballance_permission = false;
             if ($user == null) {
                 $user = BotUser::where('account_id', $request->userID)->first();
                 if ($user == null) {
                     return false;
                 }
+            }
+            $user_role = User::where('account_id', $request->userID)->first();
+            if ($user_role != null) {
+                if ($user_role->role == 'admin') {
+                    $is_admin = true;
+                }
+                if ($user_role->role == 'agent') {
+                    $is_agent         = true;
+                    $agent_permission = AgentPermisson::where('account_id', $request->userID)->first();
+                    if ($agent_permission != null) {
+                        if ($agent_permission->minus_ballance == 1 || $agent_permission->minus_ballance == true) {
+                            $minus_ballance_permission = true;
+                        }
+                    }
+                }
+            } else {
+                return false;
             }
 
             $userAccountID = $user->account_id;
@@ -133,11 +159,15 @@ class AccountBallanceController extends Controller
             }
 
             if ($type == 'toman') {
-                $accBallance->ballance -= $ballance;
-                $accBallance->update();
-                $logCtrl = new LogController();
-                $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
-                return $accBallance->ballance;
+                if ($is_admin || $minus_ballance_permission) {
+                    $accBallance->ballance -= $ballance;
+                    $accBallance->update();
+                    $logCtrl = new LogController();
+                    $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
+                    return $accBallance->ballance;
+                } else {
+                    return false;
+                }
             } elseif ($type == 'dollar') {
                 $accBallance->account_ballance_in_dollar -= doubleval($ballance);
                 $accBallance->update();
