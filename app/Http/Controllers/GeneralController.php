@@ -284,7 +284,6 @@ class GeneralController extends Controller
 
                 return false;
             }
-            \Log::info("newUUID => $newUUID");
             // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
 
             $userLink = $pannel->user_link;
@@ -315,7 +314,7 @@ class GeneralController extends Controller
             $request->remark                = "$chat_id-$productID";
             $prCntrl                        = new ProductController();
             $prCntrl->addAutomatedProductDetails($request);
-            return true;
+            return $newUUID;
         } catch (\Throwable $th) {
             \Log::info("error on new_hiddify_config_telegram_text-> $th");
             return false;

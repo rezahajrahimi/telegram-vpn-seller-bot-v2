@@ -26,6 +26,7 @@ class SubscriptionProcessController extends Controller
     private LogController $logCtrl;
     private TransactionSettingController $trSettingCntrl;
     private PaymentTypeController $pymntCntrl;
+    private HiddifyPannelController $hiddifyPannelCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService      = $telegramService;
@@ -41,6 +42,7 @@ class SubscriptionProcessController extends Controller
         $this->selectedPrCat        = new ProductCategory();
         $this->trSettingCntrl       = new TransactionSettingController();
         $this->pymntCntrl           = new PaymentTypeController();
+        $this->hiddifyPannelCntrl   = new HiddifyPannelController();
     }
 
     public function buySubscriptionMenu($chatId)
@@ -261,12 +263,21 @@ class SubscriptionProcessController extends Controller
                 return " پنل سنائی";
             }
 
-            if ($resualt == true) {
+            if ($resualt !== false && $resualt !== null) {
                 // پردازش پرداخت
                 $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
 
                 if (!$paymentSuccess) {
-                    // TODO: remove created product from database and panel
+                    if ($pannel->type == 'hiddify') {
+                        // remove created product from database and panel
+                        $uuid = $resualt;
+                        $this->hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
+                        // delete product from database
+                        $prCntrl = new ProductController();
+                        $prCntrl->delete_product_by_uuid($uuid);
+                        $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل و دیتابیس', 'show');
+
+                    }
                     return $this->customTextCtrl->getText('action.process.failed_buy');
                 }
 
