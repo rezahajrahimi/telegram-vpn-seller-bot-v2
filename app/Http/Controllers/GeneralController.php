@@ -321,7 +321,7 @@ class GeneralController extends Controller
         }
 
     }
-    public function send_using_subscription_manual_message($chat_id)
+    public function send_using_subscription_manual_message($chat_id,$recharge = null , $productID = null)
     {
         $opr = [];
         // check faq is active in menu
@@ -337,6 +337,11 @@ class GeneralController extends Controller
         if ($appDownloadItem == true || $appDownloadItem == 1) {
             $opr[] = [
                 $appDownloadItemAliasName => "help-appDownload",
+            ];
+        }
+        if($recharge != null){
+            $opr[] = [
+                "شارژ مجدد" => "recharge-{$productID}",
             ];
         }
 

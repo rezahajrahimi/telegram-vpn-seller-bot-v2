@@ -447,7 +447,6 @@ class SubscriptionProcessController extends Controller
                 if ($pannel->type == 'hiddify') {
                     \Log::info($pannel->type);
                     $userLink = $pannel->user_link;
-// check $pannel->user_link ended with "/" if be remove it
                     if (substr($userLink, -1) == '/') {
                         $userLink = substr($userLink, 0, -1);
                     }
@@ -463,6 +462,7 @@ class SubscriptionProcessController extends Controller
                     $text      = $formatter->addFormattedText('', $text)->getMessage();
 
                     $this->telegramService->sendPhotoFile($chatId, $image, $text);
+                    $this->generalCntrl->send_using_subscription_manual_message($chatId,true, $product->id);
                     return "";
 
                 }
