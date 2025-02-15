@@ -426,7 +426,7 @@ class SubscriptionProcessController extends Controller
     public function subBuyHistory($chatId, $historyId)
     {
         try {
-            $this->chatId = $chatId;
+            $this->chatId  = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
 
             // ابتدا رکورد تاریخچه را از دیتابیس دریافت کنید
@@ -438,22 +438,31 @@ class SubscriptionProcessController extends Controller
             if ($product != null) {
                 // convert $historyId->product_categories_id to int
                 $prCatId = (int) $product->product_categories_id;
-                $prCat = $this->selectedPrCat->getProdctCategorByID($prCatId);
-                $pannel              = $this->panelCntrl->getPannelById($prCat->pannel_id);
+                $prCat   = $this->selectedPrCat->getProdctCategorByID($prCatId);
+                $pannel  = $this->panelCntrl->getPannelById($prCat->pannel_id);
 
                 $text = $this->customTextCtrl->getText('action.buy_history.title');
-                $this->addNewBotLog('subscription', 'وارد سابقه خردید با ایدی ' . $product->remark . ' شد.', 'show');
-                // log panel as array
-
-                \Log::info("aaaaaaaaaaaaaaaa");
+                $this->addNewBotLog('subscription', 'وارد سابقه خرید با ایدی ' . $product->remark . ' شد.', 'show');
                 // check panel name is hiddify
                 if ($pannel->type == 'hiddify') {
                     \Log::info($pannel->type);
-                    $text      = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $product->remark, 'category_name' => $prCat->category_name]);
+                    $userLink = $pannel->user_link;
+// check $pannel->user_link ended with "/" if be remove it
+                    if (substr($userLink, -1) == '/') {
+                        $userLink = substr($userLink, 0, -1);
+                    }
+
+                    $hiddifcCntrl         = new HiddifyPannelController();
+                    $userPannelLink       = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $product->panel_link);
+                    $userSubscriptionLInk = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $product->subscription_link);
+                    $pnlCntrl             = new PannelController();
+                    $image                = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+
+                    $text      = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $product->remark, 'category_name' => $prCat->category_name, 'panel_link' => $userPannelLink, 'subscription_link' => $userSubscriptionLInk]);
                     $formatter = new TelegramMessageFormatter($this->telegramService);
                     $text      = $formatter->addFormattedText('', $text)->getMessage();
 
-                    $this->telegramService->sendMessage($chatId, $text);
+                    $this->telegramService->sendPhotoFile($chatId, $image, $text);
                     return "";
 
                 }

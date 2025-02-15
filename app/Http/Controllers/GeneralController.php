@@ -298,7 +298,7 @@ class GeneralController extends Controller
             $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
             $text  = $this->customTextCtrl->getText('action.subscription.hiddify', [
                 'panel_link'           => $userPannelLink,
-                'userSubscriptionLInk' => $userSubscriptionLInk,
+                'subscription_link' => $userSubscriptionLInk,
             ]);
             $formatter = new TelegramMessageFormatter($this->telegramService);
             $text      = $formatter->addFormattedText('', $text)->getMessage();
