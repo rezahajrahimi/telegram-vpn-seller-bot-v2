@@ -125,9 +125,9 @@ class TelegramWebhookController extends Controller
             // case 'اطلاعات حساب':
             //     return $this->accountDetails();
             //     break;
-            // case 'سابقه خرید':
-            //     return $this->buyHistory();
-            //     break;
+            case 'سابقه خرید':
+                return $this->subscriptionProcessCtrl->buyHistory($chatId);
+                break;
             // case 'پشتیبانی':
             //     return $this->supports();
             //     break;
@@ -454,7 +454,7 @@ class TelegramWebhookController extends Controller
             'buySubscription' => $this->subscriptionProcessCtrl->buySubscriptionAction($chatId, $actionList[1]),
             'buySubscriptionByLocation' => $this->subscriptionProcessCtrl->buySubscriptionByLocationAction($chatId, $actionList[1]),
             'offlineGateway' => $this->subscriptionProcessCtrl->handle_offline_add_balance($chatId, $actionList[1]),
-            'action_4' => $this->handleAction4($chatId),
+            'buyHistory' => $this->subscriptionProcessCtrl->subBuyHistory($chatId, $actionList[1]),
             default => $this->customTextCtrl->getText('error.action.not_found')
         };
 

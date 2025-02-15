@@ -16,6 +16,10 @@ class ProductCategory extends Model
     {
         return ProductCategory::find($id);
     }
+    public function getProdctCategorByIDWithPannel($id)
+    {
+        return ProductCategory::find($id)->with('pannel');
+    }
     /**
      * Get the user that owns the ProductCategory
      *
