@@ -225,17 +225,34 @@ class SubscriptionProcessController extends Controller
 
             if ($resualt == true) {
                 // decrease user balance
-
+                $ballance          = false;
                 $request           = new Request();
                 $request->userID   = $this->chatId;
                 $request->ballance = $productPrice;
                 $request->type     = 'toman';
-                $ballance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+                $ballance          = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+                // add to log
+                $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPrice . ' تومان', 'show');
                 if ($ballance == false) {
-                    // remove subscription
-                    //  $this->selectedPrCat->delete();
-                    //
-                    return $this->customTextCtrl->getText('action.process.failed_buy');
+                    $dollarTransaction = $this->trSettingCntrl->getDollorTransactionSetting();
+                    // check for dollar payment
+                    if ($dollarTransaction == true) {
+                        // decrease ref ballance
+                        $request->ballance = $this->selectedPrCat->price_in_dollar;
+                        $request->type     = 'dollar';
+                        $ballance          = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+                        // add to log
+                        $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPriceInDollar . ' دلار', 'show');
+                    } elseif ($hasRefballance == true) {
+                        // decrease ref ballance
+                        $request->ballance = $this->selectedPrCat->price;
+                        $request->type     = 'toman';
+                        $ballance          = $this->referralCntrl->dec_user_ref_wallet_ballance($this->chatId, $this->selectedPrCat->price);
+                        // add to log
+                        $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول همکاری به مقدار ' . $this->selectedPrCat->price . ' تومان', 'show');
+                    } else {
+                        return $this->customTextCtrl->getText('action.process.failed_buy');
+                    }
                 }
                 // send useful
                 $this->generalCntrl->send_using_subscription_manual_message($this->chatId);
@@ -262,7 +279,7 @@ class SubscriptionProcessController extends Controller
             }
             $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option.image', ['merchant_id' => $offlinePayment->merchant_id]);
             //fromat text with formatter service
-                $formatter = new TelegramMessageFormatter($this->telegramService);
+            $formatter = new TelegramMessageFormatter($this->telegramService);
             $text      = $formatter->addFormattedText('', $text)->getMessage();
             $this->telegramService->sendMessage($chatId, $text);
             // // ذخیره حالت کاربر
@@ -291,7 +308,6 @@ class SubscriptionProcessController extends Controller
             //     'one_time_keyboard' => true
             // ];
 
-
             return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در درخواست تصویر رسید: " . $th->getMessage());
@@ -307,14 +323,14 @@ class SubscriptionProcessController extends Controller
                 ->where('state', 'waiting_payment_receipt')
                 ->first();
 
-            if (!$userState) {
+            if (! $userState) {
                 $this->telegramService->sendMessage($chatId, 'لطفاً ابتدا از منوی پرداخت آفلاین اقدام کنید.');
                 return "";
             }
 
             $paymentTypeId = $userState->data['payment_type_id'];
-            $photoSize = end($photo);
-            $fileId = $photoSize['file_id'];
+            $photoSize     = end($photo);
+            $fileId        = $photoSize['file_id'];
 
             // ذخیره اطلاعات پرداخت در دیتابیس
             $this->addNewBotLog('payment', 'تصویر رسید پرداخت آفلاین ارسال شد', 'upload');
@@ -329,15 +345,15 @@ class SubscriptionProcessController extends Controller
             $adminChatId = env('TELEGRAM_ADMIN_ID');
             if ($adminChatId) {
                 $this->botUser = $this->botUser->getUserByAccountID($chatId);
-                $adminMessage = "رسید پرداخت جدید:\nکاربر: {$this->botUser->username}\nChat ID: {$chatId}\nنوع پرداخت: {$paymentTypeId}";
+                $adminMessage  = "رسید پرداخت جدید:\nکاربر: {$this->botUser->username}\nChat ID: {$chatId}\nنوع پرداخت: {$paymentTypeId}";
                 $this->telegramService->sendPhoto($adminChatId, $fileId, $adminMessage);
             }
 
             // برگشت به منوی اصلی
             $this->telegramService->sendMessage($chatId, 'لطفاً منتظر تایید ادمین بمانید.', [
                 'reply_markup' => json_encode([
-                    'remove_keyboard' => true
-                ])
+                    'remove_keyboard' => true,
+                ]),
             ]);
 
             return "";

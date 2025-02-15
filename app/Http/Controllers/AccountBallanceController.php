@@ -120,7 +120,6 @@ class AccountBallanceController extends Controller
             if ($user == null) {
                 $user = BotUser::where('account_id', $request->userID)->first();
                 if ($user == null) {
-                    \Log::info("user not found");
                     return false;
                 }
             }
