@@ -117,7 +117,7 @@ class CustomTextController extends Controller
                     ['type' => 'text', 'text' => 'نام: {name}'],
                     ['type' => 'newline'],
                     ['type' => 'text', 'text' => 'بسته: {category_name}'],
-                                        ['type' => 'newline'],
+                    ['type' => 'newline'],
                     ['type' => 'bold', 'text' => "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:"],
                     ['type' => 'link', 'text' => "لینک پنل", 'url' => "{panel_link}"],
                     ['type' => 'newline'],
@@ -127,11 +127,13 @@ class CustomTextController extends Controller
                     ['type' => 'newline'],
                     ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
                 ]), 'custom_text' => null],
+                ['key' => 'action.recharge.success', 'default_text' => 'بسته با موفقیت شارژ شد.', 'custom_text' => null],
 
                 ['key' => 'error.server_error', 'default_text' => 'خطایی رخ داده است', 'custom_text' => null],
                 ['key' => 'error.menu.not_found', 'default_text' => 'گزینه ای یافت نشد', 'custom_text' => null],
                 ['key' => 'error.action.not_found', 'default_text' => 'عملیات نامعتبر است', 'custom_text' => null],
                 ['key' => 'error.command.not_found', 'default_text' => 'دستور نامعتبر است. برای مشاهده لیست دستورات از /help استفاده کنید.', 'custom_text' => null],
+                ['key' => 'error.product_not_rechargeable', 'default_text' => 'این بسته قابلیت شارژ ندارد', 'custom_text' => null],
 
             ];
             CustomText::insert($data);

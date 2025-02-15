@@ -10,7 +10,9 @@ use App\Services\TelegramMessageFormatter;
 // add BotUser model
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Collection;
+use Illuminate\Support\Carbon;
+use Hekmatinasser\Verta\Verta;
 class SubscriptionProcessController extends Controller
 {
     private $chatId;
@@ -445,7 +447,6 @@ class SubscriptionProcessController extends Controller
                 $this->addNewBotLog('subscription', 'وارد سابقه خرید با ایدی ' . $product->remark . ' شد.', 'show');
                 // check panel name is hiddify
                 if ($pannel->type == 'hiddify') {
-                    \Log::info($pannel->type);
                     $userLink = $pannel->user_link;
                     if (substr($userLink, -1) == '/') {
                         $userLink = substr($userLink, 0, -1);
@@ -462,7 +463,7 @@ class SubscriptionProcessController extends Controller
                     $text      = $formatter->addFormattedText('', $text)->getMessage();
 
                     $this->telegramService->sendPhotoFile($chatId, $image, $text);
-                    $this->generalCntrl->send_using_subscription_manual_message($chatId,true, $product->id);
+                    $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
                     return "";
 
                 }
@@ -471,6 +472,83 @@ class SubscriptionProcessController extends Controller
             return $history;
         } catch (\Throwable $th) {
             \Log::error("خطا در سابقه خرید: " . $th->getMessage());
+            return $this->customTextCtrl->getText('error.server_error');
+        }
+    }
+    public function recharge($chatId, $productID)
+    {
+        try {
+            $this->chatId  = $chatId;
+            $this->botUser = $this->botUser->getUserByAccountID($chatId);
+            $this->addNewBotLog('subscription', 'وارد بخش شارژ مجدد شد.', 'show');
+            // check product is exist
+            $product = Product::find($productID);
+            if ($product == null) {
+                return $this->customTextCtrl->getText('error.product_not_found');
+            }
+            // get product category
+            $prCat = $this->selectedPrCat->getProdctCategorByID($product->product_categories_id);
+            if ($prCat == null) {
+                return $this->customTextCtrl->getText('error.product_category_not_found');
+            }
+            // chcek product cat is rechargeable or not
+            if ($prCat->rechargable == false || $prCat->rechargable == 0) {
+                $text    = $this->customTextCtrl->getText('error.product_not_rechargeable');
+                $resualt = app('telegram_bot')->sendMessage($text, $this->chatId, null, 'MarkDown');
+                return $resualt;
+            }
+            // check selectedPrCat is اکانت آزمایشی or not
+            if ($prCat->category_name == 'اکانت آزمایشی' || $prCat->is_active == false || $prCat->is_active == 0) {
+                $text    = $this->customTextCtrl->getText('error.product_not_rechargeable');
+                $resualt = app('telegram_bot')->sendMessage($text, $this->chatId, null, 'MarkDown');
+                return $resualt;
+            }
+            // get product price & price in dollar
+            $productPrice         = $prCat->price;
+            $productPriceInDollar = $prCat->price_in_dollar;
+            // check user has balance or has ref ballance
+            $hasBallance    = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
+            $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $productPrice);
+            if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
+                $this->generalCntrl->send_insufficient_balance_message($this->chatId, $this->selectedPrCat->id);
+                return "";
+            }
+            // get pannel
+            $pannel = $this->panelCntrl->getPannelById($prCat->pannel_id);
+            if ($pannel == null) {
+                return $this->customTextCtrl->getText('error.pannel_not_found');
+            }
+            // check pannel type is hiddify
+            if ($pannel->type == 'hiddify') {
+                $hiddifcCntrl = new HiddifyPannelController();
+                $uuid         = $hiddifcCntrl->extractUUID($product->subscription_link);
+                $day          = $prCat->expire_day;
+                $volume       = $prCat->volume;
+
+                $req           = new Request();
+                $req->pannelID = $pannel->id;
+                $req->name     = $product->remark;
+                $req->uuid     = $uuid;
+                $req->vol      = $volume;
+                $req->day      = $day;
+                $req->comment  = "شارژ مجدد در " . Verta::now();
+
+                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
+                if ($updateRemark->getStatusCode() == 200) {
+                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+
+                    $text    = $this->customTextCtrl->getText('action.recharge.success');
+                    $resualt = app('telegram_bot')->sendMessage($text, $this->chatId, null, 'MarkDown');
+                    $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
+                    return "";
+                }
+                \Log::info(["message"=>$updateRemark]);
+                return "خطا";
+            }
+
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error("خطا در شارژ مجدد: " . $th->getMessage());
             return $this->customTextCtrl->getText('error.server_error');
         }
     }

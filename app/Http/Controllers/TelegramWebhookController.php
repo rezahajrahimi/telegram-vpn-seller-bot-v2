@@ -455,6 +455,7 @@ class TelegramWebhookController extends Controller
             'buySubscriptionByLocation' => $this->subscriptionProcessCtrl->buySubscriptionByLocationAction($chatId, $actionList[1]),
             'offlineGateway' => $this->subscriptionProcessCtrl->handle_offline_add_balance($chatId, $actionList[1]),
             'buyHistory' => $this->subscriptionProcessCtrl->subBuyHistory($chatId, $actionList[1]),
+            'recharge' => $this->subscriptionProcessCtrl->recharge($chatId, $actionList[1]),
             default => $this->customTextCtrl->getText('error.action.not_found')
         };
 
