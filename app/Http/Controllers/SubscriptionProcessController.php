@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BotUser;
+use App\Models\Pannel;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\UserState;
@@ -13,8 +14,6 @@ use Hekmatinasser\Verta\Verta;
 use Illuminate\Http\Request;
 // add cache
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Storage;
-
 
 class SubscriptionProcessController extends Controller
 {
@@ -564,8 +563,7 @@ class SubscriptionProcessController extends Controller
     public function remark($chatId, $productID)
     {
         try {
-            $this->handleActionRemark($chatId);
-            $this->setAwaitingReply($chatId, 'remark_reply');
+            $this->handleActionRemark($chatId, $productID);
             return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در تغییر نام بسته: " . $th->getMessage());
@@ -574,26 +572,59 @@ class SubscriptionProcessController extends Controller
     }
     public function remarkReply($chatId, $prID)
     {
-        \Log::info("remarkReply sssss => $prID");
         try {
             $this->chatId = $chatId;
-            $this->clearAwaitingReply($chatId);
+            $user_state   = UserState::where('chat_id', $chatId)->latest()->first();
+            $product      = Product::where('id', $user_state->data)
+                ->with('product_category_and_panel')
+                ->first();
+            if ($product == null) {
+                \Log::error("خطا در تغییر نام بسته: " . $prID . " - " . $chatId);
+                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+                return "";
+            }
 
+            $pannel        = Pannel::find($product->product_category_and_panel->pannel_id);
+            $hiddifcCntrl  = new HiddifyPannelController();
+            $uuid          = $hiddifcCntrl->extractUUID($product->subscription_link);
+            $req           = new Request();
+            $req->pannelID = $pannel->id;
+            $req->name     = $prID;
+            $req->uuid     = $uuid;
+            $req->comment  = "تغییر نام بسته در " . Verta::now();
+
+            $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelApi($req);
+            if ($updateRemark !== false) {
+                $product->remark = $prID;
+                $product->update();
+                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.success'));
+                $this->addNewBotLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', 'show');
+                return "";
+            }
+            \Log::error("خطا در تغییر نام بسته: getStatusCode => " . $updateRemark->getStatusCode());
+
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در تغییر نام بسته: " . $th->getMessage());
-            return $this->customTextCtrl->getText('error.server_error');
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
         }
     }
-    private function handleActionRemark(string $chatId): string
+    private function handleActionRemark(string $chatId, int $productID): string
     {
-        // مثال درخواست اطلاعات از کاربر
-        $this->setAwaitingReply($chatId, 'remark_reply');
-         $this->telegramService->forceReply($chatId, "لطفاً نام جدید بسته را وارد کنید:");
-         return "";
+        $this->setAwaitingReply($chatId, 'remark_reply', $productID);
+        $this->telegramService->forceReply($chatId, $this->customTextCtrl->getText('action.remark.title'));
+        return "";
     }
-    public function setAwaitingReply(string $chatId, string $type): void
+    public function setAwaitingReply(string $chatId, string $type, int $id): void
     {
+        $user_state          = new UserState();
+        $user_state->chat_id = $chatId;
+        $user_state->state   = 'remark_reply';
+        $user_state->data    = $id;
+        $user_state->save();
+
         // می‌توانید از کش یا دیتابیس استفاده کنید
         Cache::put("awaiting_reply_{$chatId}", $type, now()->addMinutes(5));
     }
@@ -607,10 +638,13 @@ class SubscriptionProcessController extends Controller
         return Cache::get("awaiting_reply_{$chatId}");
     }
 
-    private function clearAwaitingReply(string $chatId): void
+    private function clearAwaitingReply(string $chatId, string $text): void
     {
         Cache::forget("awaiting_reply_{$chatId}");
-        $this->generalCntrl->return_main_menu_items($this->chatId, 'درخواست شما ثبت شد.');
+        // delete last user state where chat_id == $chatId
+        $user_state = UserState::where('chat_id', $chatId)->latest()->first();
+        $user_state->delete();
+        $this->generalCntrl->return_main_menu_items($this->chatId, $text);
     }
 
     private function addNewBotLog($type, $message, $event)
