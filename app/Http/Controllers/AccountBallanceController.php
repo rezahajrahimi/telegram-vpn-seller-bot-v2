@@ -25,9 +25,9 @@ class AccountBallanceController extends Controller
                 return false;
             }
             // check user is admin
-            // if ($user->role == 'admin') {
-            //     return true;
-            // }
+            if ($user->role == 'admin') {
+                return true;
+            }
             // check agent
             if ($user->role == 'agent') {
                 $agentPremissionCntrl = new AgentPermissonController();
