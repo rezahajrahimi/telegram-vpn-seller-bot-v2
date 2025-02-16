@@ -342,7 +342,6 @@ class GeneralController extends Controller
             ];
         }
         if($recharge != null){
-            // todo: add recharge item to opr
             $opr[] = [
                 "شارژ مجدد" => "recharge-{$productID}",
             ];
@@ -360,7 +359,9 @@ class GeneralController extends Controller
     {
         try {
             $productCategory = $this->productCategory->find($productCategoryID);
+
             if ($productCategory == null) {
+                \Log::info("productCategory is null in send_insufficient_balance_message , productCategoryID: $productCategoryID");
                 return;
             }
 
@@ -415,9 +416,7 @@ class GeneralController extends Controller
                 $text      = $formatter->addFormattedText('', $text)->getMessage();
             } else {
                 $text = $text;
-                \Log::info('text', ['text' => $text]);
             }
-
             $this->telegramService->sendMessage($chat_id, $text);
             $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar);
             return true;

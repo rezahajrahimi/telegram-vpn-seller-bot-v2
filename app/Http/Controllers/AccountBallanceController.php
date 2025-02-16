@@ -1,50 +1,68 @@
 <?php
 namespace App\Http\Controllers;
 
-use App\Models\AccountBallance;
-use App\Models\BotUser;
-use App\Models\User;
-use App\Models\AgentPermisson;
 use App\Http\Controllers\AgentPermissonController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\TransactionSettingController;
-
+use App\Models\AccountBallance;
+use App\Models\AgentPermisson;
+use App\Models\BotUser;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class AccountBallanceController extends Controller
 {
     public function checkUserHasBalance($userID, $price, $parice_in_dollar)
     {
-        // for test account
-        if ($price == 0 && $parice_in_dollar == 0) {
-            return true;
-        }
-
-        // check agent
-
-        $agentPremissionCntrl = new AgentPermissonController();
-        $agentPr              = $agentPremissionCntrl->getUserPremission();
-        if ($agentPr != null) {
-            if ($agentPr->minus_ballance === 1 || $agentPr->minus_ballance === true) {
-
+        try {
+            // for test account
+            if ($price == 0 && $parice_in_dollar == 0) {
                 return true;
             }
-        }
-
-        // common product categorey check
-        $data = AccountBallance::where('account_id', $userID)->first();
-
-        if ($data != null) {
-            if ($data->ballance >= $price) {
-                return true;
-            } elseif ($data->account_ballance_in_dollar >= $parice_in_dollar) {
-                if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1 && $parice_in_dollar > 0) {
-                    return true;
-                }
+            // get user
+            $user = User::where('account_id', $userID)->first();
+            if ($user == null) {
                 return false;
             }
-            return false;
-        } else {
+            // check user is admin
+            // if ($user->role == 'admin') {
+            //     return true;
+            // }
+            // check agent
+            if ($user->role == 'agent') {
+                $agentPremissionCntrl = new AgentPermissonController();
+                $agentPr              = $agentPremissionCntrl->getUserPremission();
+                if ($agentPr != null) {
+                    if ($agentPr->minus_ballance === 1 || $agentPr->minus_ballance === true) {
+
+                        return true;
+                    }
+                }
+            }
+
+            // common product categorey check
+            $data = AccountBallance::where('account_id', $userID)->first();
+
+            if ($data != null) {
+                if ($data->ballance >= $price) {
+                    return true;
+                } elseif ($data->account_ballance_in_dollar >= $parice_in_dollar) {
+                    if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1 && $parice_in_dollar > 0) {
+                        return true;
+                    }
+                    return false;
+                }
+                return false;
+            } else {
+                $newAcc                             = new AccountBallance();
+                $newAcc->account_id                 = $userID;
+                $newAcc->ballance                   = 0;
+                $newAcc->account_ballance_in_dollar = 0;
+                $newAcc->save();
+                return false;
+            }
+        } catch (\Throwable $th) {
+            \Log::info("message $th");
             return false;
         }
     }
@@ -54,6 +72,12 @@ class AccountBallanceController extends Controller
         if ($data != null) {
             return $data->ballance;
         } else {
+            $newAcc                             = new AccountBallance();
+            $newAcc->account_id                 = $userID;
+            $newAcc->ballance                   = 0;
+            $newAcc->account_ballance_in_dollar = 0;
+            $newAcc->save();
+
             return 0;
         }
     }
@@ -63,6 +87,12 @@ class AccountBallanceController extends Controller
         if ($data != null) {
             return $data->account_ballance_in_dollar;
         } else {
+            $newAcc                             = new AccountBallance();
+            $newAcc->account_id                 = $userID;
+            $newAcc->ballance                   = 0;
+            $newAcc->account_ballance_in_dollar = 0;
+            $newAcc->save();
+
             return 0;
         }
     }

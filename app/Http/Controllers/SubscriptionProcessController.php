@@ -9,10 +9,9 @@ use App\Services\TelegramMessageFormatter;
 
 // add BotUser model
 use App\Services\TelegramService;
-use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Carbon;
 use Hekmatinasser\Verta\Verta;
+use Illuminate\Http\Request;
+
 class SubscriptionProcessController extends Controller
 {
     private $chatId;
@@ -491,6 +490,7 @@ class SubscriptionProcessController extends Controller
             if ($prCat == null) {
                 return $this->customTextCtrl->getText('error.product_category_not_found');
             }
+
             // chcek product cat is rechargeable or not
             if ($prCat->rechargable == false || $prCat->rechargable == 0) {
                 $text    = $this->customTextCtrl->getText('error.product_not_rechargeable');
@@ -510,8 +510,8 @@ class SubscriptionProcessController extends Controller
             $hasBallance    = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
             $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $productPrice);
             if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
-                $this->generalCntrl->send_insufficient_balance_message($this->chatId, $this->selectedPrCat->id);
-                return "";
+                $resualt = $this->generalCntrl->send_insufficient_balance_message($this->chatId, $prCat->id);
+                return '';
             }
             // get pannel
             $pannel = $this->panelCntrl->getPannelById($prCat->pannel_id);
@@ -542,8 +542,7 @@ class SubscriptionProcessController extends Controller
                     $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
                     return "";
                 }
-                \Log::info(["message"=>$updateRemark]);
-                return "خطا";
+                return $this->customTextCtrl->getText('error.server_error');
             }
 
             return "";

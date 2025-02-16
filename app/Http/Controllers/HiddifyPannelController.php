@@ -321,6 +321,7 @@ class HiddifyPannelController extends Controller
     }
     public function rechargeUserOfHiddifyPanelApi(Request $request)
     {
+        \Log::info("rechargeUserOfHiddifyPanelApi => 1111111");
         $pannelID = $request->pannelID;
         $pannel = Pannel::find($pannelID);
         $vol = $request->vol;
@@ -494,7 +495,6 @@ class HiddifyPannelController extends Controller
         }
         $url = $url . '/' . $requestAPi;
         $secretValue = $pannel->secret_code;
-        \Log::info("sendGetRequestToHiddifyPannel => {$url}");
         $subsequentResponse = Http::withHeaders([
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
@@ -597,7 +597,7 @@ class HiddifyPannelController extends Controller
         }
         $url = $url . $requestAPi;
         $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->patch($url, $params);
-
+        \Log::info("sendPatchRequestToHiddifyPannel => {$subsequentResponse->getBody()}");
         return $subsequentResponse;
     }
 }
