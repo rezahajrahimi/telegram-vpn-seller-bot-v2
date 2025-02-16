@@ -153,7 +153,7 @@ class HiddifyPannelController extends Controller
 
         $adminUUID = $pannel->admin_url;
 
-        $data = $this->sendGetRequestToHiddifyPannel($pannelID, "$adminUUID/api/v2/user/");
+        $data = $this->sendGetRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/");
         return $data;
     }
     public function getHiddifyPanelUserByPannelID($pannelID, $userUUID)
@@ -488,9 +488,13 @@ class HiddifyPannelController extends Controller
     public function sendGetRequestToHiddifyPannel($pannelID, $requestAPi)
     {
         $pannel = Pannel::find($pannelID);
-        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $requestAPi);
+        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, "");
+        if (str_starts_with($requestAPi, '/')) {
+            $requestAPi = ltrim($requestAPi, '/');
+        }
+        $url = $url . '/' . $requestAPi;
         $secretValue = $pannel->secret_code;
-
+        \Log::info("sendGetRequestToHiddifyPannel => {$url}");
         $subsequentResponse = Http::withHeaders([
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
