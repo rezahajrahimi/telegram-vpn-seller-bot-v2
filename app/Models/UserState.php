@@ -11,4 +11,9 @@ class UserState extends Model
     protected $casts = [
         'data' => 'array'
     ];
+
+    public function getUserStateByChatId($chatId)
+    {
+        return self::where('chat_id', $chatId)->first();
+    }
 }

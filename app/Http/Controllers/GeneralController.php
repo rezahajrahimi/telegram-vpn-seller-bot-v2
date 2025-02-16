@@ -5,7 +5,6 @@ use App\Http\Controllers\CustomTextController;
 use App\Models\MainMenuItem;
 use App\Models\ProductCategory;
 use App\Models\TransactionSetting;
-use App\Models\User;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
@@ -36,26 +35,26 @@ class GeneralController extends Controller
     private SettingController $settingCntrl;
     public function __construct()
     {
-        $this->customTextCtrl    = new CustomTextController();
-        $this->telegramService   = new TelegramService();
-        $this->accBlCtrl         = new AccountBallanceController();
-        $this->referralCntrl     = new ReferralWalletController();
-        $this->prCatCntrl        = new ProductCategoryController();
-        $this->panelCntrl        = new PannelController();
-        $this->menuItemCntrl     = new MainMenuItemController();
-        $this->pymntCntrl        = new PaymentTypeController();
-        $this->pymMenCntrl       = new PaymentMenuItemController();
-        $this->cryptoPymentCntrl = new CryptoPaymentController();
-        $this->trCntrl           = new TransactionController();
-        $this->billCntrl         = new BillController();
-        $this->mainMenuItem      = new MainMenuItem();
-        $this->productCategory   = new ProductCategory();
-        $this->trSetting         = new TransactionSetting();
-        $this->trSettingCntrl    = new TransactionSettingController();
+        $this->customTextCtrl           = new CustomTextController();
+        $this->telegramService          = new TelegramService();
+        $this->accBlCtrl                = new AccountBallanceController();
+        $this->referralCntrl            = new ReferralWalletController();
+        $this->prCatCntrl               = new ProductCategoryController();
+        $this->panelCntrl               = new PannelController();
+        $this->menuItemCntrl            = new MainMenuItemController();
+        $this->pymntCntrl               = new PaymentTypeController();
+        $this->pymMenCntrl              = new PaymentMenuItemController();
+        $this->cryptoPymentCntrl        = new CryptoPaymentController();
+        $this->trCntrl                  = new TransactionController();
+        $this->billCntrl                = new BillController();
+        $this->mainMenuItem             = new MainMenuItem();
+        $this->productCategory          = new ProductCategory();
+        $this->trSetting                = new TransactionSetting();
+        $this->trSettingCntrl           = new TransactionSettingController();
         $this->channelLockMenuItemCntrl = new ChannelLockMenuItemController();
-        $this->cronJobCntrl      = new CronJobController();
-        $this->giftCardMenuItemCntrl = new GiftCardMenuItemController();
-        $this->settingCntrl          = new SettingController();
+        $this->cronJobCntrl             = new CronJobController();
+        $this->giftCardMenuItemCntrl    = new GiftCardMenuItemController();
+        $this->settingCntrl             = new SettingController();
     }
     public function boot_seeding_data()
     {
@@ -80,7 +79,6 @@ class GeneralController extends Controller
         $this->customTextCtrl->seed();
         // add default transaction settings
         $this->trSettingCntrl->seed();
-
 
     }
     public function getDashboardAnalytics()
@@ -216,6 +214,42 @@ class GeneralController extends Controller
             }
         }
     }
+    public function return_main_menu_items($chat_id,$message)
+    {
+        $menu     = new MainMenuItemController();
+        $menuItem = $menu->getAllActivatedMainMenuItems();
+        $opr      = [];
+
+        if ($menuItem[0]->name == 'خرید اشتراک') {
+            array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
+            $menuItem = $menuItem->slice(1);
+        }
+
+        $countOfMenuItem = count($menuItem);
+        for ($i = 0; $i < $countOfMenuItem; $i += 2) {
+            $pair = $menuItem->slice($i, 2);
+            $row  = [];
+
+            foreach ($pair as $item) {
+                $row[] = [
+                    'text'          => $item->alias_name,
+                    'callback_data' => "main-{$item->id}",
+                ];
+            }
+
+            if (! empty($row)) {
+                $opr[] = $row;
+            }
+        }
+
+// $settingCtrl = new SettingController();
+// $this->message = $settingCtrl->getWelcomeMessage();
+
+        $result = $this->telegramService->sendMessageWithKeyboard($chat_id, $message, $opr);
+
+        return '';
+
+    }
     public function return_exist_hiddify_config_telegram_text($selectedProduct, $selectedProductCategory, $pannel, $chat_id)
     {
         $hiddifcCntrl         = new HiddifyPannelController();
@@ -297,7 +331,7 @@ class GeneralController extends Controller
 
             $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
             $text  = $this->customTextCtrl->getText('action.subscription.hiddify', [
-                'panel_link'           => $userPannelLink,
+                'panel_link'        => $userPannelLink,
                 'subscription_link' => $userSubscriptionLInk,
             ]);
             $formatter = new TelegramMessageFormatter($this->telegramService);
@@ -321,7 +355,7 @@ class GeneralController extends Controller
         }
 
     }
-    public function send_using_subscription_manual_message($chat_id,$recharge = null , $productID = null)
+    public function send_using_subscription_manual_message($chat_id, $recharge = null, $productID = null)
     {
         $opr = [];
         // check faq is active in menu
@@ -341,7 +375,7 @@ class GeneralController extends Controller
                 $appDownloadItemAliasName => "help-appDownload",
             ];
         }
-        if($recharge != null){
+        if ($recharge != null) {
             $opr[] = [
                 "شارژ مجدد" => "recharge-{$productID}",
             ];
@@ -397,8 +431,8 @@ class GeneralController extends Controller
                     'product_price_in_dollar' => $productPriceInDollar,
                     'user_balance_in_toman'   => $user_ballance_in_toman,
                     'user_balance_in_dollar'  => $user_ballance_in_dollar,
-                    'difference_in_toman'    => $diffrence,
-                    'difference_in_dollar'     => $diffrence_in_dollar,
+                    'difference_in_toman'     => $diffrence,
+                    'difference_in_dollar'    => $diffrence_in_dollar,
                 ]);
                 $formatter = new TelegramMessageFormatter($this->telegramService);
                 $text      = $formatter->addFormattedText('', $text)->getMessage();
@@ -451,9 +485,9 @@ class GeneralController extends Controller
         $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
         if ($hasDollarPay == true || $hasDollarPay == 1) {
 
-            $bill                  = $this->billCntrl->createNewBillInDollar($request);
+            $bill = $this->billCntrl->createNewBillInDollar($request);
             // todo: create getNowPaymentsLink method in CryptoPaymentController
-            $openLink              = "https://nowpayments.io/payment/?iid=5096100130";
+            $openLink = "https://nowpayments.io/payment/?iid=5096100130";
             // $openLink              = $this->cryptoPymentCntrl->getNowPaymentsLink();
             $trCryptoCntrl         = new TransactionCryptoController();
             $trRequest             = new Request();

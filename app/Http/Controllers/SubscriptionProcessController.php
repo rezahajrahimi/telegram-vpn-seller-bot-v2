@@ -11,6 +11,10 @@ use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 use Hekmatinasser\Verta\Verta;
 use Illuminate\Http\Request;
+// add cache
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
+
 
 class SubscriptionProcessController extends Controller
 {
@@ -557,6 +561,57 @@ class SubscriptionProcessController extends Controller
             return $this->customTextCtrl->getText('error.server_error');
         }
     }
+    public function remark($chatId, $productID)
+    {
+        try {
+            $this->handleActionRemark($chatId);
+            $this->setAwaitingReply($chatId, 'remark_reply');
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error("خطا در تغییر نام بسته: " . $th->getMessage());
+            return $this->customTextCtrl->getText('error.server_error');
+        }
+    }
+    public function remarkReply($chatId, $prID)
+    {
+        \Log::info("remarkReply sssss => $prID");
+        try {
+            $this->chatId = $chatId;
+            $this->clearAwaitingReply($chatId);
+
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error("خطا در تغییر نام بسته: " . $th->getMessage());
+            return $this->customTextCtrl->getText('error.server_error');
+        }
+    }
+    private function handleActionRemark(string $chatId): string
+    {
+        // مثال درخواست اطلاعات از کاربر
+        $this->setAwaitingReply($chatId, 'remark_reply');
+         $this->telegramService->forceReply($chatId, "لطفاً نام جدید بسته را وارد کنید:");
+         return "";
+    }
+    public function setAwaitingReply(string $chatId, string $type): void
+    {
+        // می‌توانید از کش یا دیتابیس استفاده کنید
+        Cache::put("awaiting_reply_{$chatId}", $type, now()->addMinutes(5));
+    }
+    private function awaitingReply(string $chatId): bool
+    {
+        return Cache::has("awaiting_reply_{$chatId}");
+    }
+
+    private function getAwaitingReplyType(string $chatId): ?string
+    {
+        return Cache::get("awaiting_reply_{$chatId}");
+    }
+
+    private function clearAwaitingReply(string $chatId): void
+    {
+        Cache::forget("awaiting_reply_{$chatId}");
+        $this->generalCntrl->return_main_menu_items($this->chatId, 'درخواست شما ثبت شد.');
+    }
 
     private function addNewBotLog($type, $message, $event)
     {
@@ -564,6 +619,5 @@ class SubscriptionProcessController extends Controller
         $logCtrl->addNewLog($type, $message, $this->chatId, $this->botUser->username, $event);
         return true;
     }
-
     // سایر متدهای کمکی مورد نیاز...
 }

@@ -17,12 +17,14 @@ class TelegramWebhookController extends Controller
     private CustomTextController $customTextCtrl;
     private SubscriptionProcessController $subscriptionProcessCtrl;
     private TransactionController $transactionCntrl;
+    private GeneralController $generalCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService         = $telegramService;
         $this->customTextCtrl          = new CustomTextController();
         $this->subscriptionProcessCtrl = new SubscriptionProcessController($this->telegramService);
         $this->transactionCntrl        = new TransactionController($this->telegramService);
+        $this->generalCntrl            = new GeneralController();
     }
 
     public function handle(Request $request)
@@ -336,40 +338,9 @@ class TelegramWebhookController extends Controller
             $message   = $formatter
                 ->addFormattedText('', $welcomeFormats)
                 ->getMessage();
-
-            $menu     = new MainMenuItemController();
-            $menuItem = $menu->getAllActivatedMainMenuItems();
-            $opr      = [];
-
-            if ($menuItem[0]->name == 'خرید اشتراک') {
-                array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
-                $menuItem = $menuItem->slice(1);
-            }
-
-            $countOfMenuItem = count($menuItem);
-            for ($i = 0; $i < $countOfMenuItem; $i += 2) {
-                $pair = $menuItem->slice($i, 2);
-                $row  = [];
-
-                foreach ($pair as $item) {
-                    $row[] = [
-                        'text'          => $item->alias_name,
-                        'callback_data' => "main-{$item->id}",
-                    ];
-                }
-
-                if (! empty($row)) {
-                    $opr[] = $row;
-                }
-            }
-
-            // $settingCtrl = new SettingController();
-            // $this->message = $settingCtrl->getWelcomeMessage();
-
-            $result = $this->telegramService->sendMessageWithKeyboard($chatId, $message, $opr);
-            \Log::info("result: " . json_encode($result));
-
+            $this->generalCntrl->return_main_menu_items($chatId,$message);
             return '';
+           
         } catch (\Throwable $th) {
             \Log::error("خطا در پردازش handleStartCommand: " . $th->getMessage());
             return $this->customTextCtrl->getText('error.server_error');
@@ -445,6 +416,9 @@ class TelegramWebhookController extends Controller
         //     }
 
         //
+        // checl is force replay
+        $this->handleAwaitingReply($chatId, $data);
+
         \Log::info('Callback query data: ' . json_encode($data));
         // explode the data to get the action
         $actionList = explode('-', $data);
@@ -456,6 +430,7 @@ class TelegramWebhookController extends Controller
             'offlineGateway' => $this->subscriptionProcessCtrl->handle_offline_add_balance($chatId, $actionList[1]),
             'buyHistory' => $this->subscriptionProcessCtrl->subBuyHistory($chatId, $actionList[1]),
             'recharge' => $this->subscriptionProcessCtrl->recharge($chatId, $actionList[1]),
+            'remark' => $this->subscriptionProcessCtrl->remark($chatId, $actionList[1]),
             default => $this->customTextCtrl->getText('error.action.not_found')
         };
 
@@ -466,7 +441,8 @@ class TelegramWebhookController extends Controller
             false
         );
 
-        if ($response != "" || $response != null) {
+
+        if ($response != "" || $response != null || $response != " ") {
             $this->telegramService->sendMessage($chatId, $response);
         }
         return response()->json(['status' => 'success']);
@@ -483,6 +459,7 @@ class TelegramWebhookController extends Controller
         $this->setAwaitingReply($chatId, 'action_1_reply');
         return $this->telegramService->forceReply($chatId, "لطفاً نام خود را وارد کنید:");
     }
+    
 
     private function handleAction2(string $chatId): string
     {
@@ -520,8 +497,12 @@ class TelegramWebhookController extends Controller
 
         switch ($awaitingType) {
             case 'action_1_reply':
-                $this->telegramService->sendMessage($chatId, "نام شما با موفقیت ثبت شد: {$text}");
+                $this->telegramService->sendMessage($chatId, "نام شما با موفقیت ثبت شد");
                 $this->clearAwaitingReply($chatId);
+                break;
+            case 'remark_reply':
+                $this->subscriptionProcessCtrl->remarkReply($chatId, $text);
+                // $this->clearAwaitingReply($chatId);
                 break;
                 // سایر موارد...
         }

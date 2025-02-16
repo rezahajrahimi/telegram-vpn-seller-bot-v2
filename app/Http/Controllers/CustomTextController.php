@@ -128,6 +128,7 @@ class CustomTextController extends Controller
                     ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
                 ]), 'custom_text' => null],
                 ['key' => 'action.recharge.success', 'default_text' => 'بسته با موفقیت شارژ شد.', 'custom_text' => null],
+                ['key' => 'action.remark.title', 'default_text' => 'لطفاً نام جدید بسته خود را وارد کنید:', 'custom_text' => null],
 
                 ['key' => 'error.server_error', 'default_text' => 'خطایی رخ داده است', 'custom_text' => null],
                 ['key' => 'error.menu.not_found', 'default_text' => 'گزینه ای یافت نشد', 'custom_text' => null],
