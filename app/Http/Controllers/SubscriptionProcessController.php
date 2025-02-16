@@ -198,40 +198,48 @@ class SubscriptionProcessController extends Controller
 
     private function processPayment($productPrice, $productPriceInDollar, $hasRefballance)
     {
-        $request           = new Request();
-        $request->userID   = $this->chatId;
-        $request->ballance = $productPrice;
-        $request->type     = 'toman';
+        try {
+            $request           = new Request();
+            $request->userID   = $this->chatId;
+            $request->ballance = $productPrice;
+            $request->type     = 'toman';
 
-        // تلاش برای کسر از کیف پول تومانی
-        $balance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
-        if ($balance) {
-            $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPrice . ' تومان', 'show');
-            return true;
-        }
-
-        // بررسی پرداخت دلاری
-        $dollarTransaction = $this->trSettingCntrl->getDollorTransactionSetting();
-        if ($dollarTransaction) {
-            $request->ballance = $productPriceInDollar;
-            $request->type     = 'dollar';
-            $balance           = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+            // تلاش برای کسر از کیف پول تومانی
+            $balance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+            \Log::info("aaaaaa");
             if ($balance) {
-                $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPriceInDollar . ' دلار', 'show');
+                $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPrice . ' تومان', 'show');
                 return true;
             }
-        }
 
-        // بررسی کیف پول ارجاع
-        if ($hasRefballance) {
-            $balance = $this->referralCntrl->dec_user_ref_wallet_ballance($this->chatId, $productPrice);
-            if ($balance) {
-                $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول همکاری به مقدار ' . $productPrice . ' تومان', 'show');
-                return true;
+            // بررسی پرداخت دلاری
+            $dollarTransaction = $this->trSettingCntrl->getDollorTransactionSetting();
+            \Log::info("bbbbbb");
+            if ($dollarTransaction) {
+                $request->ballance = $productPriceInDollar;
+                $request->type     = 'dollar';
+                $balance           = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+                if ($balance) {
+                    $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPriceInDollar . ' دلار', 'show');
+                    return true;
+                }
             }
-        }
 
-        return false;
+            // بررسی کیف پول ارجاع
+            \Log::info("ccccc");
+            if ($hasRefballance) {
+                $balance = $this->referralCntrl->dec_user_ref_wallet_ballance($this->chatId, $productPrice);
+                if ($balance) {
+                    $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول همکاری به مقدار ' . $productPrice . ' تومان', 'show');
+                    return true;
+                }
+            }
+            \Log::info("dddddd");
+            return false;
+        } catch (\Throwable $th) {
+            \Log::error("خطا در پرداخت: " . $th->getMessage());
+            return false;
+        }
     }
 
     private function processSubscriptionPurchase()
@@ -269,35 +277,33 @@ class SubscriptionProcessController extends Controller
                 // create sanaei user
                 return " پنل سنائی";
             }
-
-            if ($resualt !== false && $resualt !== null) {
-                // پردازش پرداخت
-                $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
-
-                if (! $paymentSuccess) {
-                    if ($pannel->type == 'hiddify') {
-                        // remove created product from database and panel
-                        $uuid = $resualt;
-                        $this->hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
-                        // delete product from database
-                        $prCntrl = new ProductController();
-                        $res     = $prCntrl->delete_product_by_uuid($uuid);
-                        if ($res) {
-                            $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل و دیتابیس', 'show');
-                        }
-
-                    }
-                    return $this->customTextCtrl->getText('action.process.failed_buy');
-                }
-
-                // send useful
-                $this->generalCntrl->send_using_subscription_manual_message($this->chatId);
-                $this->addNewBotLog('subscription', 'خرید اشتراک با موفقیت انجام شد.', 'show');
-                return "";
-            } else {
+            if ($resualt == false || $resualt == null) {
                 $this->addNewBotLog('subscription', 'خرید اشتراک با شکست مواجه شد.', 'show');
                 return $this->customTextCtrl->getText('action.process.failed_buy');
             }
+            // پردازش پرداخت
+            $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+            \Log::info("paymentSuccess => $paymentSuccess");
+            if (! $paymentSuccess) {
+                if ($pannel->type == 'hiddify') {
+                    // remove created product from database and panel
+                    $uuid = $resualt;
+                    $this->hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
+                    // delete product from database
+                    $prCntrl = new ProductController();
+                    $res     = $prCntrl->delete_product_by_uuid($uuid);
+                    if ($res) {
+                        $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل و دیتابیس', 'show');
+                    }
+
+                }
+                return $this->customTextCtrl->getText('action.process.failed_buy');
+            }
+
+            // send useful
+            $this->generalCntrl->send_using_subscription_manual_message($this->chatId);
+            $this->addNewBotLog('subscription', 'خرید اشتراک با موفقیت انجام شد.', 'show');
+            return "";
 
         } catch (\Throwable $th) {
             \Log::error("خطا در خرید بسته: " . $th->getMessage());

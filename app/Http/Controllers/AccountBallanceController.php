@@ -189,22 +189,41 @@ class AccountBallanceController extends Controller
             }
 
             if ($type == 'toman') {
-                if ($is_admin || $minus_ballance_permission) {
+                if ($ballance <= $accBallance->ballance) {
                     $accBallance->ballance -= $ballance;
                     $accBallance->update();
                     $logCtrl = new LogController();
                     $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
                     return $accBallance->ballance;
                 } else {
+                    if ($is_admin || $minus_ballance_permission) {
+                        $accBallance->ballance -= $ballance;
+                        $accBallance->update();
+                        $logCtrl = new LogController();
+                        $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
+                        return $accBallance->ballance;
+                    }
                     return false;
                 }
             } elseif ($type == 'dollar') {
-                $accBallance->account_ballance_in_dollar -= doubleval($ballance);
-                $accBallance->update();
-                $logCtrl = new LogController();
-                $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
-                return $accBallance->account_ballance_in_dollar;
+                if ($ballance <= $accBallance->account_ballance_in_dollar) {
+                    $accBallance->account_ballance_in_dollar -= doubleval($ballance);
+                    $accBallance->update();
+                    $logCtrl = new LogController();
+                    $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
+                    return $accBallance->account_ballance_in_dollar;
+                } else {
+                    if ($is_admin || $minus_ballance_permission) {
+                        $accBallance->account_ballance_in_dollar -= doubleval($ballance);
+                        $accBallance->update();
+                        $logCtrl = new LogController();
+                        $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
+                        return $accBallance->account_ballance_in_dollar;
+                    }
+                    return false;
+                }
             }
+            return false;
         } catch (\Throwable $th) {
             \Log::info("message $th");
             return response()->json(null, 500);
