@@ -280,9 +280,12 @@ class HiddifyPannelController extends Controller
 
         $uuid = $request->uuid;
         $name = $request->name ?? '';
+        $comment = $request->comment ?? '';
+
         $params = [
             'uuid' => "$uuid",
             'name' => "$name",
+            'comment' => "$comment",
         ];
         $data = $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
 
