@@ -188,7 +188,6 @@ class TelegramService
             ])
         ]);
         // log response as a array
-        \Log::info("sendMessageWithInlineKeyboard response=> " . json_encode($response));
         return $response;
     }
 
@@ -455,7 +454,6 @@ class TelegramService
         ]);
 
 
-        \Log::info("sendMessageWithButtons response=> " . json_encode($response));
         return $response;
     }
 }

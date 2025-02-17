@@ -377,11 +377,11 @@ class GeneralController extends Controller
         }
         if ($recharge != null) {
             $opr[] = [
-                "شارژ مجدد" => "recharge-{$productID}",
+                $this->customTextCtrl->getText('action.history.buttun.recharge') => "recharge-{$productID}",
             ];
             // todo: add remark item to opr
             $opr[] = [
-                "تغییر نام بسته" => "remark-{$productID}",
+                $this->customTextCtrl->getText('action.history.buttun.remark') => "remark-{$productID}",
             ];
 
         }

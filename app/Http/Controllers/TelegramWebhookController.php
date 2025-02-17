@@ -404,21 +404,6 @@ class TelegramWebhookController extends Controller
         $chatId          = $callbackQuery['from']['id'];
         $data            = $callbackQuery['data'];
         $callbackQueryId = $callbackQuery['id'];
-        ///
-
-        //    // برای دکمه لغو
-        //     if (isset($callbackQuery['data']) && $callbackQuery['data'] === 'cancel_payment') {
-        //         $chatId = $callbackQuery['message']['chat']['id'];
-        //         UserState::where('chat_id', $chatId)->delete();
-        //         $this->telegramService->sendMessage($chatId, 'عملیات لغو شد.', [
-        //             'reply_markup' => json_encode([
-        //                 'remove_keyboard' => true,
-        //             ]),
-        //         ]);
-        //         $this->handleStartCommand($chatId);
-        //     }
-
-        //
         // checl is force replay
         $this->handleAwaitingReply($chatId, $data);
 
