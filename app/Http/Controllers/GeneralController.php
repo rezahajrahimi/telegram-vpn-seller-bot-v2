@@ -361,7 +361,6 @@ class GeneralController extends Controller
         // check faq is active in menu
         $faqItemAliasName = $this->mainMenuItem->getAliasNameByName('آموزش استفاده و سوالات متداول');
         $faqItem          = $this->mainMenuItem->isActiveByAliasName($faqItemAliasName);
-        // todo: add faq item to opr
         if ($faqItem == true || $faqItem == 1) {
             $opr[] = [
                 $faqItemAliasName => "help-faqs",
@@ -369,7 +368,6 @@ class GeneralController extends Controller
         }
         $appDownloadItemAliasName = $this->mainMenuItem->getAliasNameByName('دانلود برنامه');
         $appDownloadItem          = $this->mainMenuItem->isActiveByAliasName($appDownloadItemAliasName);
-        // todo: add app download item to opr
         if ($appDownloadItem == true || $appDownloadItem == 1) {
             $opr[] = [
                 $appDownloadItemAliasName => "help-appDownload",
@@ -379,7 +377,6 @@ class GeneralController extends Controller
             $opr[] = [
                 $this->customTextCtrl->getText('action.history.buttun.recharge') => "recharge-{$productID}",
             ];
-            // todo: add remark item to opr
             $opr[] = [
                 $this->customTextCtrl->getText('action.history.buttun.remark') => "remark-{$productID}",
             ];

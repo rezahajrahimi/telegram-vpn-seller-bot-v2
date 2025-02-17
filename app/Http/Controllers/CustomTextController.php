@@ -146,8 +146,11 @@ class CustomTextController extends Controller
                     ['type' => 'text', 'text' => 'موجودی کیف همکاری: {referral_balance}'],
 
                 ]), 'custom_text' => null],
+                ['key' => 'action.account.additional_options', 'default_text' => 'گزینه های اضافه', 'custom_text' => null],
+                ['key' => 'action.account.additional_options.transactions', 'default_text' => 'تراکنش ها', 'custom_text' => null],
+                ['key' => 'action.account.additional_options.sub_accounts', 'default_text' => 'زیر مجموعه ها', 'custom_text' => null],
+                ['key' => 'action.account.additional_options.add_balance', 'default_text' => 'افزایش موجودی', 'custom_text' => null],
 
-                ['key' => 'action.recharge.success', 'default_text' => 'بسته با موفقیت شارژ شد.', 'custom_text' => null],
                 ['key' => 'action.remark.title', 'default_text' => 'لطفا نام جدید بسته خود را وارد کنید یا عبارت "لغو" را ارسال کنید:', 'custom_text' => null],
                 ['key' => 'action.remark.success', 'default_text' => 'نام بسته با موفقیت تغییر کرد.', 'custom_text' => null],
                 ['key' => 'action.remark.cancel', 'default_text' => 'تغییر نام بسته لغو شد.', 'custom_text' => null],

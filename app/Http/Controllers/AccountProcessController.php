@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\BotUser;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
+use App\Models\BotLog;
 // add cache
 
 // add BotUser model
@@ -19,6 +20,8 @@ class AccountProcessController extends Controller
     private ReferralWalletController $referralWalletCtrl;
     private AccountBallanceController $accBlCtrl;
     private BotUser $botUser;
+    private LogController $logCtrl;
+    private $chatId;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService         = $telegramService;
@@ -29,9 +32,11 @@ class AccountProcessController extends Controller
         $this->referralWalletCtrl      = new ReferralWalletController();
         $this->accBlCtrl               = new AccountBallanceController();
         $this->botUser                 = new BotUser();
+        $this->logCtrl                 = new LogController();
     }
     public function accountDetails($chatId)
     {
+        $this->chatId = $chatId;
         $botUser = BotUser::where('account_id', $chatId)->first();
         if ($botUser == null) {
             return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.user_not_found'));
@@ -63,6 +68,33 @@ class AccountProcessController extends Controller
         //     return $transaction->toArray();
         // });
 
-        return $this->generalCntrl->return_main_menu_items($chatId, $text);
+
+         $this->generalCntrl->return_main_menu_items($chatId, $text);
+         $this->show_additional_options($chatId);
+         $this->addNewBotLog('account', 'وارد بخش جزئیات حساب شد.', 'show');
+         return "";
     }
+    private function show_additional_options($chatId)
+    {
+        $opr = [];
+        $opr[] = [
+            $this->customTextCtrl->getText('action.account.additional_options.transactions') => "account-transactions",
+        ];
+        $opr[] = [
+            $this->customTextCtrl->getText('action.account.additional_options.sub_accounts') => "account-subaccounts",
+        ];
+        $opr[] = [
+            $this->customTextCtrl->getText('action.account.additional_options.add_balance') => "account-addbalance",
+        ];
+        $text = $this->customTextCtrl->getText('action.account.additional_options');
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        return "";
+    }
+      private function addNewBotLog($type, $message, $event)
+    {
+        $logCtrl = new LogController();
+        $this->logCtrl->addNewLog($type, $message, $this->chatId, $this->botUser->username, $event);
+        return true;
+    }
+
 }
