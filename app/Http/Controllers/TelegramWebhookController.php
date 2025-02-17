@@ -113,6 +113,9 @@ class TelegramWebhookController extends Controller
             }
             return $response;
         }
+        // return main menu items
+        $chatId = $this->getCurrentChatId();
+        $this->generalCntrl->return_main_menu_items($chatId, $text);
 
         return "پیام متنی شما دریافت شد: " . $text;
     }
@@ -340,7 +343,7 @@ class TelegramWebhookController extends Controller
                 ->getMessage();
             $this->generalCntrl->return_main_menu_items($chatId,$message);
             return '';
-           
+
         } catch (\Throwable $th) {
             \Log::error("خطا در پردازش handleStartCommand: " . $th->getMessage());
             return $this->customTextCtrl->getText('error.server_error');
@@ -459,7 +462,7 @@ class TelegramWebhookController extends Controller
         $this->setAwaitingReply($chatId, 'action_1_reply');
         return $this->telegramService->forceReply($chatId, "لطفاً نام خود را وارد کنید:");
     }
-    
+
 
     private function handleAction2(string $chatId): string
     {

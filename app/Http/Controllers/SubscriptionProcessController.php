@@ -573,13 +573,18 @@ class SubscriptionProcessController extends Controller
     public function remarkReply($chatId, $prID)
     {
         try {
+            if ($prID == null || trim($prID) == 'لغو' || trim($prID) == 'cancel') {
+                \Log::info("2222222222222: " . $prID . " - " . $chatId);
+                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.cancel'));
+                return "";
+            }
             $this->chatId = $chatId;
             $user_state   = UserState::where('chat_id', $chatId)->latest()->first();
             $product      = Product::where('id', $user_state->data)
                 ->with('product_category_and_panel')
                 ->first();
             if ($product == null) {
-                \Log::error("خطا در تغییر نام بسته: " . $prID . " - " . $chatId);
+                \Log::error("خطا در تغییر نام بسته111: " . $prID . " - " . $chatId);
                 $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
                 return "";
             }
@@ -601,12 +606,12 @@ class SubscriptionProcessController extends Controller
                 $this->addNewBotLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', 'show');
                 return "";
             }
-            \Log::error("خطا در تغییر نام بسته: getStatusCode => " . $updateRemark->getStatusCode());
+            \Log::error("22خطا در تغییر نام بسته: getStatusCode => " . $updateRemark->getStatusCode());
 
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         } catch (\Throwable $th) {
-            \Log::error("خطا در تغییر نام بسته: " . $th->getMessage());
+            \Log::error("33خطا در تغییر نام بسته: " . $th->getMessage());
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }
@@ -640,11 +645,18 @@ class SubscriptionProcessController extends Controller
 
     private function clearAwaitingReply(string $chatId, string $text): void
     {
-        Cache::forget("awaiting_reply_{$chatId}");
-        // delete last user state where chat_id == $chatId
-        $user_state = UserState::where('chat_id', $chatId)->latest()->first();
-        $user_state->delete();
-        $this->generalCntrl->return_main_menu_items($this->chatId, $text);
+        try {
+            \Log::info("clearAwaitingReply: " . $chatId . " - " . $text);
+            Cache::forget("awaiting_reply_{$chatId}");
+            // delete last user state where chat_id == $chatId
+            $user_state = UserState::where('chat_id', $chatId)->latest()->first();
+            if ($user_state != null) {
+            $user_state->delete();
+            }
+            $this->generalCntrl->return_main_menu_items($chatId, $text);
+        } catch (\Throwable $th) {
+            \Log::error("خطا در پاک کردن حالت کاربر: " . $th->getMessage());
+        }
     }
 
     private function addNewBotLog($type, $message, $event)
