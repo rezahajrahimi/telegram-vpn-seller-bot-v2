@@ -574,7 +574,6 @@ class SubscriptionProcessController extends Controller
     {
         try {
             if ($prID == null || trim($prID) == 'لغو' || trim($prID) == 'cancel') {
-                \Log::info("2222222222222: " . $prID . " - " . $chatId);
                 $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.cancel'));
                 return "";
             }
@@ -584,7 +583,6 @@ class SubscriptionProcessController extends Controller
                 ->with('product_category_and_panel')
                 ->first();
             if ($product == null) {
-                \Log::error("خطا در تغییر نام بسته111: " . $prID . " - " . $chatId);
                 $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
                 return "";
             }
@@ -606,12 +604,10 @@ class SubscriptionProcessController extends Controller
                 $this->addNewBotLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', 'show');
                 return "";
             }
-            \Log::error("22خطا در تغییر نام بسته: getStatusCode => " . $updateRemark->getStatusCode());
-
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         } catch (\Throwable $th) {
-            \Log::error("33خطا در تغییر نام بسته: " . $th->getMessage());
+            \Log::error("خطا در تغییر نام بسته: " . $th->getMessage());
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }

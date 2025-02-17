@@ -424,6 +424,7 @@ class TelegramWebhookController extends Controller
             'remark' => $this->subscriptionProcessCtrl->remark($chatId, $actionList[1]),
             'accountTransactions' => $this->accountProcessCtrl->accountTransactions($chatId),
             'accountSubAccounts' => $this->accountProcessCtrl->accountSubAccounts($chatId),
+            'accountAddBalance' => $this->accountProcessCtrl->accountAddBalance($chatId, $actionList),
             default => $this->customTextCtrl->getText('error.action.not_found')
         };
 
