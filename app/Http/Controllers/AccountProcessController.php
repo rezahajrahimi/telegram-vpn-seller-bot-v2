@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BotUser;
 use App\Models\Transaction;
+use App\Models\ReferralLogs;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 
@@ -74,7 +75,7 @@ class AccountProcessController extends Controller
             $this->customTextCtrl->getText('action.account.additional_options.transactions') => "accountTransactions",
         ];
         $opr[] = [
-            $this->customTextCtrl->getText('action.account.additional_options.sub_accounts') => "account-subaccounts",
+            $this->customTextCtrl->getText('action.account.additional_options.sub_accounts') => "accountSubAccounts",
         ];
         $opr[] = [
             $this->customTextCtrl->getText('action.account.additional_options.add_balance') => "account-addbalance",
@@ -85,6 +86,7 @@ class AccountProcessController extends Controller
     }
     public function accountTransactions($chatId)
     {
+        // todo check on production
         $this->chatId = $chatId;
         // $this->show_additional_options($chatId);
         $this->addNewBotLog('account', 'وارد بخش سابقه تراکنش‌ها شد.', 'show');
@@ -103,6 +105,26 @@ class AccountProcessController extends Controller
             }
         } else {
             $text = $this->customTextCtrl->getText('action.account.transactions.no_transactions');
+        }
+        $this->telegramService->sendMessage($chatId, $text);
+        return "";
+    }
+    public function accountSubAccounts($chatId)
+    {
+        $this->chatId = $chatId;
+        $this->addNewBotLog('account', 'وارد بخش زیر مجموعه ها شد.', 'show');
+        $botUser = BotUser::where('account_id', $chatId)->first();
+        if ($botUser == null) {
+            return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.server_error'));
+        }
+        $subAccounts = ReferralLogs::where('referral_user_id', $botUser->id)->get();
+        $text = $this->customTextCtrl->getText('action.account.sub_accounts.title');
+        if ($subAccounts->count() > 0) {
+            foreach ($subAccounts as $subAccount) {
+                $text .= $subAccount->getReferralLogsText();
+            }
+        } else {
+            $text = $this->customTextCtrl->getText('action.account.sub_accounts.no_sub_accounts');
         }
         $this->telegramService->sendMessage($chatId, $text);
         return "";

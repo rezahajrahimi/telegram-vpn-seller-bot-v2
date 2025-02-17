@@ -152,7 +152,8 @@ class CustomTextController extends Controller
                 ['key' => 'action.account.additional_options.add_balance', 'default_text' => 'افزایش موجودی', 'custom_text' => null],
                 ['key' => 'action.account.transactions.title', 'default_text' => 'سابقه تراکنش ها', 'custom_text' => null],
                 ['key' => 'action.account.transactions.no_transactions', 'default_text' => 'شما هیچ تراکنشی ندارید', 'custom_text' => null],
-
+                ['key' => 'action.account.sub_accounts.title', 'default_text' => 'سابقه زیر مجموعه ها', 'custom_text' => null],
+                ['key' => 'action.account.sub_accounts.no_sub_accounts', 'default_text' => 'شما هیچ زیر مجموعه ای ندارید', 'custom_text' => null],
                 ['key' => 'action.remark.title', 'default_text' => 'لطفا نام جدید بسته خود را وارد کنید یا عبارت "لغو" را ارسال کنید:', 'custom_text' => null],
                 ['key' => 'action.remark.success', 'default_text' => 'نام بسته با موفقیت تغییر کرد.', 'custom_text' => null],
                 ['key' => 'action.remark.cancel', 'default_text' => 'تغییر نام بسته لغو شد.', 'custom_text' => null],

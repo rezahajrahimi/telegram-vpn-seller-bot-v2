@@ -17,6 +17,10 @@ class ReferralLogs extends Model
         'transaction_id',
         'amount',
     ];
+    public function getReferralLogsText()
+    {
+        return $this->referral_user->username . " - " . $this->amount . " - " . $this->created_at;
+    }
     public function getCreatedAtAttribute($value)
     {
         return verta(verta($value))->formatDifference();
