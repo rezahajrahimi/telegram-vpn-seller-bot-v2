@@ -452,7 +452,7 @@ class TelegramService
                 'inline_keyboard' => $buttons
             ])
         ]);
-
+        \Log::info(["sendMessageWithLinkButtons" => $response]);
 
         return $response;
     }

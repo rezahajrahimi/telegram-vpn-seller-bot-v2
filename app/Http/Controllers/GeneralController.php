@@ -473,19 +473,20 @@ class GeneralController extends Controller
             // format $estimatedPrice to 0 decimal
             $estimatedPrice = number_format($estimatedPrice, 0, ',', '.');
 
-            $opr[] = [
+            $newOpr = [
                 'text' => $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal') . " $estimatedPrice تومان",
                 'url'  => $paymentLink,
             ];
+            array_push($opr, $newOpr);
         }
 
         $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
         if ($hasDollarPay == true || $hasDollarPay == 1) {
 
             $bill = $this->billCntrl->createNewBillInDollar($request);
-            // todo: create getNowPaymentsLink method in CryptoPaymentController
-            $openLink = "https://nowpayments.io/payment/?iid=5096100130";
-            // $openLink              = $this->cryptoPymentCntrl->getNowPaymentsLink();
+
+            $openLink              = $this->pymntCntrl->getNowPaymentsLink();
+
             $trCryptoCntrl         = new TransactionCryptoController();
             $trRequest             = new Request();
             $trRequest->invoiceID  = $bill->bill_id;
@@ -495,10 +496,11 @@ class GeneralController extends Controller
             $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
             // format $estimatedPrice to 0 decimal
             $estimatedPriceInDollar = number_format($estimatedPriceInDollar, 0, ',', '.');
-            $opr[]                  = [
+            $newOpr                 = [
                 'text' => $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment') . " $estimatedPriceInDollar دلار",
                 'url'  => $nowpaymentLink,
             ];
+            array_push($opr, $newOpr);
         }
         if (count($opr) > 0) {
             $text = $this->customTextCtrl->getText('action.process.add_online_balance');
@@ -510,7 +512,7 @@ class GeneralController extends Controller
 
         $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
         if ($offlinePayment != null) {
-            if ($hasZarinPal == true || $hasZarinPal == 1 || $this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
+            if ($hasZarinPal == true || $hasZarinPal == 1 || $hasDollarPay == true || $hasDollarPay == 1) {
                 $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option_and_online_balance');
             } else {
                 $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');

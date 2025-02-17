@@ -111,6 +111,7 @@ class AccountProcessController extends Controller
     }
     public function accountSubAccounts($chatId)
     {
+        // todo check on production
         $this->chatId = $chatId;
         $this->addNewBotLog('account', 'وارد بخش زیر مجموعه ها شد.', 'show');
         $botUser = BotUser::where('account_id', $chatId)->first();

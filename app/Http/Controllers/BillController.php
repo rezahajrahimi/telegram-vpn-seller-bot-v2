@@ -57,8 +57,6 @@ class BillController extends Controller
     public function getBillAmountDollarByBillId($billId)
     {
         $data = Bill::where('bill_id', $billId)->first();
-        \Log::info("billllllll dolllaaaaaaar $data->amount_dollar");
-
         if ($data != null) {
             return $data->amount_dollar;
         } else {
