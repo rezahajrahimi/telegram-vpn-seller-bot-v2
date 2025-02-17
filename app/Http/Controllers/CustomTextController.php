@@ -130,6 +130,23 @@ class CustomTextController extends Controller
                 ['key' => 'action.history.buttun.recharge', 'default_text' => 'تمدید بسته', 'custom_text' => null],
                 ['key' => 'action.history.buttun.remark', 'default_text' => 'تغییر نام بسته', 'custom_text' => null],
 
+                ['key' => 'action.account.details', 'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => 'اطلاعات حساب شما:'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'نام کاربری: {username}'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'نام: {name} {last_name}'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'آیدی عددی: {account_id}'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'موجودی کیف پول: {balance}'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'موجودی دلاری: {balance_in_dollar}'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'موجودی کیف همکاری: {referral_balance}'],
+
+                ]), 'custom_text' => null],
+
                 ['key' => 'action.recharge.success', 'default_text' => 'بسته با موفقیت شارژ شد.', 'custom_text' => null],
                 ['key' => 'action.remark.title', 'default_text' => 'لطفا نام جدید بسته خود را وارد کنید یا عبارت "لغو" را ارسال کنید:', 'custom_text' => null],
                 ['key' => 'action.remark.success', 'default_text' => 'نام بسته با موفقیت تغییر کرد.', 'custom_text' => null],

@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\SubscriptionProcessController;
+use App\Http\Controllers\AccountProcessController;
 use App\Models\User;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
@@ -18,6 +19,7 @@ class TelegramWebhookController extends Controller
     private SubscriptionProcessController $subscriptionProcessCtrl;
     private TransactionController $transactionCntrl;
     private GeneralController $generalCntrl;
+    private AccountProcessController $accountProcessCtrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService         = $telegramService;
@@ -25,6 +27,7 @@ class TelegramWebhookController extends Controller
         $this->subscriptionProcessCtrl = new SubscriptionProcessController($this->telegramService);
         $this->transactionCntrl        = new TransactionController($this->telegramService);
         $this->generalCntrl            = new GeneralController();
+        $this->accountProcessCtrl      = new AccountProcessController($this->telegramService);
     }
 
     public function handle(Request $request)
@@ -127,9 +130,9 @@ class TelegramWebhookController extends Controller
             case 'خرید اشتراک':
                 return $this->subscriptionProcessCtrl->buySubscriptionMenu($chatId);
                 break;
-            // case 'اطلاعات حساب':
-            //     return $this->accountDetails();
-            //     break;
+            case 'اطلاعات حساب':
+                return $this->accountProcessCtrl->accountDetails($chatId);
+                break;
             case 'سابقه خرید':
                 return $this->subscriptionProcessCtrl->buyHistory($chatId);
                 break;
