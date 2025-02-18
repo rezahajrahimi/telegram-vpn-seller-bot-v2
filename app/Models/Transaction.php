@@ -12,7 +12,7 @@ class Transaction extends Model
     protected $fillable = ['account_id','username','payment_type_id','amount','confirmed','recipe_number','amount_dollar'];
     public function getTransactionText()
     {
-        return $this->payment_types->name . " - " . $this->amount . " - " . $this->created_at;
+        return $this->payment_types->name . " - " . $this->amount . " - " . $this->created_at . " - " . ($this->confirmed ? "تایید شده" : "تایید نشده");
     }
     public function getCreatedAtAttribute($value)
     {

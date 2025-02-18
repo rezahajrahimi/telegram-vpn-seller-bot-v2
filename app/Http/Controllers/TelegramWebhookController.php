@@ -424,7 +424,12 @@ class TelegramWebhookController extends Controller
             'remark' => $this->subscriptionProcessCtrl->remark($chatId, $actionList[1]),
             'accountTransactions' => $this->accountProcessCtrl->accountTransactions($chatId),
             'accountSubAccounts' => $this->accountProcessCtrl->accountSubAccounts($chatId),
-            'accountAddBalance' => $this->accountProcessCtrl->accountAddBalance($chatId, $actionList),
+            'accountAddBalance' => $this->accountProcessCtrl->accountAddBalance($chatId),
+            'accountSubAccountsZarinpal' => $this->accountProcessCtrl->handleActionAddBalanceZarinpal($chatId),
+            'accountSubAccountsNowpayment' => $this->accountProcessCtrl->handleActionAddBalanceNowpayments($chatId),
+            'addBalanceReply' => $this->accountProcessCtrl->addBalanceReply($chatId, $actionList[1]),
+
+
             default => $this->customTextCtrl->getText('error.action.not_found')
         };
 
@@ -496,6 +501,10 @@ class TelegramWebhookController extends Controller
                 break;
             case 'remark_reply':
                 $this->subscriptionProcessCtrl->remarkReply($chatId, $text);
+                // $this->clearAwaitingReply($chatId);
+                break;
+            case 'add_balance_reply':
+                $this->accountProcessCtrl->addBalanceReply($chatId, $text);
                 // $this->clearAwaitingReply($chatId);
                 break;
                 // سایر موارد...
