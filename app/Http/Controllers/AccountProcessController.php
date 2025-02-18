@@ -40,7 +40,7 @@ class AccountProcessController extends Controller
         $this->botUser                 = new BotUser();
         $this->logCtrl                 = new LogController();
         $this->trSetting               = new TransactionSettingController();
-        $this->pymntCntrl             = new PaymentController();
+        $this->pymntCntrl             = new PaymentTypeController();
         $this->pymMenCntrl              = new PaymentMenuItemController();
         $this->trCntrl              = new TransactionController();
     }
