@@ -420,7 +420,12 @@ class SubscriptionProcessController extends Controller
                     $history->remark . ' | ' . $history->product_category->category_name => 'buyHistory-' . $history->id,
                 ];
             }
-            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+            if (count($opr) > 0) {
+                $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+            } else {
+                $text = $this->customTextCtrl->getText('action.buy_history.no_history');
+                $this->telegramService->sendMessage($chatId, $text);
+            }
             return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در سابقه خرید: " . $th->getMessage());
