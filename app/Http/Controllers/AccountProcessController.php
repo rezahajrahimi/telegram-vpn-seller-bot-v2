@@ -235,13 +235,18 @@ class AccountProcessController extends Controller
         $paymentType = $user_state->data;
         if ($paymentType == 'zarinpal') {
             // zarinpal => create a new invoice with amount
-            
+            $opr = [];
+            $link =  $this->generalCntrl->createZarinpalPaymentLink($chatId, $text);
+            array_push($opr, $link);
+            $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invoice'), $opr);
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
             return "";
         } elseif($paymentType == "nowpayments") {
-            \Log::info("nooooowpayment paaaaaaaallllll = $text");
-            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
+            $opr = [];
+            $link =  $this->generalCntrl->createNowPaymentsLink($chatId, $text);
+            array_push($opr, $link);
 
+            $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.nowpayments.reply.invoice'), $opr);
             return "";
 
 

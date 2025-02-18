@@ -459,49 +459,18 @@ class GeneralController extends Controller
     public function send_add_ballance_option_message($chat_id, $estimatedPrice, $estimatedPriceInDollar)
     {
         $opr                 = [];
-        $request             = new Request();
-        $request->account_id = $chat_id;
-        $request->amount     = $estimatedPrice;
-        $bill                = $this->billCntrl->createNewBill($request);
         $hasZarinPal         = $this->pymntCntrl->getZarinpalStatus();
         if ($hasZarinPal == true || $hasZarinPal == 1) {
-            $trRequest             = new Request();
-            $trRequest->invoiceID  = $bill->bill_id;
-            $trRequest->account_id = $chat_id;
-            $trRequest->amount     = $estimatedPrice;
-            $paymentLink           = $this->trCntrl->add_order($trRequest);
-            // format $estimatedPrice to 0 decimal
-            $estimatedPrice = number_format($estimatedPrice, 0, ',', '.');
-
-            $newOpr = [
-                'text' => $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal') . " $estimatedPrice تومان",
-                'url'  => $paymentLink,
-            ];
+            $newOpr = $this->createZarinpalPaymentLink($chat_id, $estimatedPrice);
             array_push($opr, $newOpr);
         }
 
         $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
         if ($hasDollarPay == true || $hasDollarPay == 1) {
-
-            $bill = $this->billCntrl->createNewBillInDollar($request);
-
-            $openLink              = $this->pymntCntrl->getNowPaymentsLink();
-
-            $trCryptoCntrl         = new TransactionCryptoController();
-            $trRequest             = new Request();
-            $trRequest->invoiceID  = $bill->bill_id;
-            $trRequest->account_id = $chat_id;
-            $trRequest->amount     = $estimatedPriceInDollar;
-            $paymentLink           = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
-            $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
-            // format $estimatedPrice to 0 decimal
-            $estimatedPriceInDollar = number_format($estimatedPriceInDollar, 0, ',', '.');
-            $newOpr                 = [
-                'text' => $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment') . " $estimatedPriceInDollar دلار",
-                'url'  => $nowpaymentLink,
-            ];
+            $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
             array_push($opr, $newOpr);
         }
+
         if (count($opr) > 0) {
             $text = $this->customTextCtrl->getText('action.process.add_online_balance');
             $this->telegramService->sendMessageWithLinkButtons($chat_id, $text, $opr);
@@ -531,5 +500,51 @@ class GeneralController extends Controller
         $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
         return true;
 
+    }
+    public function createZarinpalPaymentLink($chat_id, $estimatedPrice) 
+    {
+        $request = new Request();
+        $request->account_id = $chat_id;
+        $request->amount = $estimatedPrice;
+        $bill = $this->billCntrl->createNewBill($request);
+
+        $trRequest = new Request();
+        $trRequest->invoiceID = $bill->bill_id;
+        $trRequest->account_id = $chat_id;
+        $trRequest->amount = $estimatedPrice;
+        $paymentLink = $this->trCntrl->add_order($trRequest);
+        
+        // format $estimatedPrice to 0 decimal
+        $formattedPrice = number_format($estimatedPrice, 0, ',', '.');
+        
+        return [
+            'text' => $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal') . " $formattedPrice تومان",
+            'url' => $paymentLink
+        ];
+    }
+    public function createNowPaymentsLink($chat_id, $estimatedPriceInDollar) 
+    {
+        $request = new Request();
+        $request->account_id = $chat_id;
+        $request->amount = $estimatedPriceInDollar;
+        $bill = $this->billCntrl->createNewBillInDollar($request);
+
+        $openLink = $this->pymntCntrl->getNowPaymentsLink();
+
+        $trCryptoCntrl = new TransactionCryptoController();
+        $trRequest = new Request();
+        $trRequest->invoiceID = $bill->bill_id;
+        $trRequest->account_id = $chat_id;
+        $trRequest->amount = $estimatedPriceInDollar;
+        $paymentLink = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
+        $nowpaymentLink = $this->get_nowpayment_payment_link_from_html($paymentLink);
+        
+        // format $estimatedPrice to 0 decimal
+        $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
+        
+        return [
+            'text' => $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment') . " $formattedPrice دلار",
+            'url' => $nowpaymentLink
+        ];
     }
 }
