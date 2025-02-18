@@ -209,7 +209,6 @@ class SubscriptionProcessController extends Controller
 
             // تلاش برای کسر از کیف پول تومانی
             $balance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
-            \Log::info("aaaaaa");
             if ($balance) {
                 $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPrice . ' تومان', 'show');
                 return true;
@@ -217,7 +216,6 @@ class SubscriptionProcessController extends Controller
 
             // بررسی پرداخت دلاری
             $dollarTransaction = $this->trSettingCntrl->getDollorTransactionSetting();
-            \Log::info("bbbbbb");
             if ($dollarTransaction) {
                 $request->ballance = $productPriceInDollar;
                 $request->type     = 'dollar';
@@ -229,7 +227,6 @@ class SubscriptionProcessController extends Controller
             }
 
             // بررسی کیف پول ارجاع
-            \Log::info("ccccc");
             if ($hasRefballance) {
                 $balance = $this->referralCntrl->dec_user_ref_wallet_ballance($this->chatId, $productPrice);
                 if ($balance) {
@@ -237,7 +234,6 @@ class SubscriptionProcessController extends Controller
                     return true;
                 }
             }
-            \Log::info("dddddd");
             return false;
         } catch (\Throwable $th) {
             \Log::error("خطا در پرداخت: " . $th->getMessage());
@@ -268,7 +264,6 @@ class SubscriptionProcessController extends Controller
             $day       = $this->selectedPrCat->expire_day;
             $volume    = $this->selectedPrCat->volume;
             $productID = $this->selectedPrCat->id;
-            $productID += 1;
             $resualt = false;
 
             if ($pannel->type == 'hiddify') {
@@ -286,7 +281,6 @@ class SubscriptionProcessController extends Controller
             }
             // پردازش پرداخت
             $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
-            \Log::info("paymentSuccess => $paymentSuccess");
             if (! $paymentSuccess) {
                 if ($pannel->type == 'hiddify') {
                     // remove created product from database and panel

@@ -185,6 +185,15 @@ class AccountBallanceController extends Controller
             $type          = $request->type;
             $accBallance   = AccountBallance::where('account_id', $userAccountID)->first();
             if ($accBallance == null) {
+                $newAcc                             = new AccountBallance();
+                $newAcc->account_id                 = $request->userID;
+                $newAcc->ballance                   = 0;
+                $newAcc->account_ballance_in_dollar = 0;
+                $newAcc->save();
+                if ($is_admin) {
+                    return true;
+                }
+
                 return false;
             }
 

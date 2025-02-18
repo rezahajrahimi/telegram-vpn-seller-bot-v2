@@ -143,8 +143,8 @@ class AccountProcessController extends Controller
         $this->chatId = $chatId;
         $this->addNewBotLog('account', 'وارد بخش افزایش اعتبار حساب شد.', 'show');
         \Log::info("message: accountAddBalance");
-
-        if ($actionList == null) {
+            // check if actionList is array
+        if (is_array($actionList)) {
             \Log::info("message: bbbbbbbbbbb");
 
             $this->return_payment_options();
@@ -207,7 +207,7 @@ class AccountProcessController extends Controller
             return true;
 
         } catch (\Throwable $th) {
-            \Log::error("33خطا در تغییر نام بسته: " . $th->getMessage());
+            \Log::error("return_payment_options: " . $th->getMessage());
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }
