@@ -237,7 +237,7 @@ class AccountProcessController extends Controller
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.reply.cancel'));
             return "";
         }
-            $user_state   = UserState::where('chat_id', $chatId)->latest()->first();
+        $user_state   = UserState::where('chat_id', $chatId)->latest()->first();
         $paymentType = $user_state->data;
         if ($paymentType == 'zarinpal') {
             // zarinpal => create a new invoice with amount

@@ -20,6 +20,7 @@ class TelegramWebhookController extends Controller
     private TransactionController $transactionCntrl;
     private GeneralController $generalCntrl;
     private AccountProcessController $accountProcessCtrl;
+    private AuthController $authCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService         = $telegramService;
@@ -28,6 +29,7 @@ class TelegramWebhookController extends Controller
         $this->transactionCntrl        = new TransactionController($this->telegramService);
         $this->generalCntrl            = new GeneralController();
         $this->accountProcessCtrl      = new AccountProcessController($this->telegramService);
+        $this->authCntrl               = new AuthController();
     }
 
     public function handle(Request $request)
@@ -151,9 +153,9 @@ class TelegramWebhookController extends Controller
             // case 'اکانت آزمایشی':
             //     return $this->testAccount();
             //     break;
-            // case 'webapp':
-            //     return $this->subWebapp();
-            //     break;
+            case 'webapp':
+                return $this->authCntrl->generate_auto_login_link(new Request(['account_id' => $chatId]));
+                break;
             // case 'کسب درآمد':
             //     return $this->referral();
             //     break;

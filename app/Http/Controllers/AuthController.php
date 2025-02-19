@@ -7,13 +7,15 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
-
+use App\Services\TelegramService;
 class AuthController extends Controller
 {
-    private SettingController $settingCntrl;
+    private GeneralController $generalCntrl;
+    private TelegramService $telegramService;
     public function __construct()
     {
         $this->generalCntrl = new GeneralController();
+        $this->telegramService = new TelegramService();
     }
     public function getHostName()
     {
@@ -185,30 +187,18 @@ class AuthController extends Controller
         $user_id       = $user->account_id;
         $mainMenuCntrl = new MainMenuItemController();
         $menuAliasName = $mainMenuCntrl->getMenuAliasNameByName('webapp');
-        // $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $result = app('telegram_bot')->sendMessage('لینک ورود به پنل:', $user_id, null, 'MarkDown');
-
-        $text   = "<code>{$frontUrl}</code>";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
-        $text   = "username:\n\r";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text   = "<code>{$user_id}</code>";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
-        $text   = 'password:';
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text   = "<code>{$user_password}</code>";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
-
+        $text = "لینک ورود به پنل: \n\r <code>{$frontUrl}/#/login/{$user_id}/{$user_password}</code> \n\r username: \n\r <code>{$user_id}</code> \n\r password: \n\r <code>{$user_password}</code>";
+        $this->telegramService->sendMessage($user_id, $text);
         $text = "ورود سریع به پنل ⬇️\n\r";
 
-        $opr = [];
-        array_push($opr, [
+        $opr = [
             [
                 'text' => "$menuAliasName",
                 'url'  => "$frontUrl/#/login/$user_id/{$user_password}",
             ],
-        ]);
-        $result = app('telegram_bot')->inlineKeyboardButton($text, $opr, $user_id, '');
+        ];
+        
+        $this->telegramService->sendMessageWithLinkButtons($user_id, $text, $opr);
 
         return response()->json(true);
     }
