@@ -166,6 +166,23 @@ class CustomTextController extends Controller
                 ['key' => 'action.remark.title', 'default_text' => 'لطفا نام جدید بسته خود را وارد کنید یا عبارت "لغو" را ارسال کنید:', 'custom_text' => null],
                 ['key' => 'action.remark.success', 'default_text' => 'نام بسته با موفقیت تغییر کرد.', 'custom_text' => null],
                 ['key' => 'action.remark.cancel', 'default_text' => 'تغییر نام بسته لغو شد.', 'custom_text' => null],
+                ['key' => 'action.web.generate_auto_login_link', 'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "لینک ورود به پنل: "],
+                    ['type' => 'link', 'text' => "لینک", 'url' => "{link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "نام کاربری:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{username}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "رمز عبور:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{password}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "با این اطلاعات می توانید وارد پنل شوید."],
+                ]), 'custom_text' => null],
+                ['key' => 'action.web.auto_login_link', 'default_text' => "لینک ورود سریع به پنل: ", 'custom_text' => null],
+
+
                 ['key' => 'error.server_error', 'default_text' => 'خطایی رخ داده است', 'custom_text' => null],
                 ['key' => 'error.menu.not_found', 'default_text' => 'گزینه ای یافت نشد', 'custom_text' => null],
                 ['key' => 'error.action.not_found', 'default_text' => 'عملیات نامعتبر است', 'custom_text' => null],
@@ -193,9 +210,6 @@ class CustomTextController extends Controller
             // await for seeding
             sleep(1);
             $text = $this->customText->getText($key);
-            if (json_validate($text)) {
-                return json_decode($text, true);
-            }
             return "not found => $text";
         }
     }

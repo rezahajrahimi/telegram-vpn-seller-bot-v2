@@ -8,14 +8,18 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use App\Services\TelegramService;
+use App\Http\Controllers\CustomTextController;
+use App\Services\TelegramMessageFormatter;
 class AuthController extends Controller
 {
     private GeneralController $generalCntrl;
     private TelegramService $telegramService;
+    private CustomTextController $customText;
     public function __construct()
     {
         $this->generalCntrl = new GeneralController();
         $this->telegramService = new TelegramService();
+        $this->customText = new CustomTextController();
     }
     public function getHostName()
     {
@@ -166,16 +170,13 @@ class AuthController extends Controller
     }
     public function generate_auto_login_link(Request $request)
     {
-        // $request->validate([
-        //     'account_id' => 'required|min:8',
-        // ]);
-        $user = User::where('account_id', $request->account_id)->first();
-        if (! $user) {
-            return response()->json(false);
+        try {
+            $user = User::where('account_id', $request->account_id)->first();
+            if (! $user) {
+                return response()->json(false);
         }
 
         $frontUrl = env('FRONT_URL');
-        // check if $frontUrl ended with "/" remove it
 
         if (str_ends_with($frontUrl, '/')) {
             $frontUrl = substr($frontUrl, 0, -1);
@@ -187,19 +188,27 @@ class AuthController extends Controller
         $user_id       = $user->account_id;
         $mainMenuCntrl = new MainMenuItemController();
         $menuAliasName = $mainMenuCntrl->getMenuAliasNameByName('webapp');
-        $text = "لینک ورود به پنل: \n\r <code>{$frontUrl}/#/login/{$user_id}/{$user_password}</code> \n\r username: \n\r <code>{$user_id}</code> \n\r password: \n\r <code>{$user_password}</code>";
-        $this->telegramService->sendMessage($user_id, $text);
-        $text = "ورود سریع به پنل ⬇️\n\r";
+        $text = $this->customText->getText('action.web.generate_auto_login_link', ['link' => $frontUrl, 'username' => $user_id, 'password' => $user_password]);
+        $formatter = new TelegramMessageFormatter($this->telegramService);
+        $message   = $formatter->addFormattedText('', $text)->getMessage();
 
-        $opr = [
+        $this->telegramService->sendMessage($user_id, $message);
+        $text = $this->customText->getText('action.web.auto_login_link');   
+        $link = "{$frontUrl}/#/login/{$user_id}/{$user_password}";
+
+         $opr = [
             [
-                'text' => "$menuAliasName",
-                'url'  => "$frontUrl/#/login/$user_id/{$user_password}",
-            ],
-        ];
-        
-        $this->telegramService->sendMessageWithLinkButtons($user_id, $text, $opr);
+                    'text' => "$menuAliasName",
+                    'url'  => "$link",
+                ],
+            ];
 
-        return response()->json(true);
+            $this->telegramService->sendMessageWithLinkButtons($user_id, $text, $opr);
+
+            return response()->json(true);
+        } catch (\Exception $e) {
+            \Log::error($e);
+            return response()->json(false);
+        }
     }
 }
