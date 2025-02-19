@@ -11,5 +11,10 @@ class TransactionSetting extends Model
     protected $fillable = ['dollar_transaction'];
     protected $guarded = ['id'];
     protected $visible = ['dollar_transaction'];
+    public function getDollarTransactionSetting()
+    {
+        $data = TransactionSetting::first();
+        return $data->dollar_transaction;
+    }
 
 }

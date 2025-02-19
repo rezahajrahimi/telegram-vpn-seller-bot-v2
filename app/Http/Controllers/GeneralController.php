@@ -1,45 +1,108 @@
 <?php
-
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Symfony\Component\DomCrawler\Crawler;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
-use App\Models\AgentProduct;
+use App\Http\Controllers\CustomTextController;
+use App\Models\MainMenuItem;
 use App\Models\ProductCategory;
-use App\Models\Product;
-use App\Models\Pannel;
-use App\Models\User;
-use App\Models\AgentPermisson;
-use Illuminate\Support\Collection;
+use App\Models\TransactionSetting;
+use App\Services\TelegramMessageFormatter;
+use App\Services\TelegramService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Hekmatinasser\Verta\Verta;
-
+use Symfony\Component\DomCrawler\Crawler;
 
 class GeneralController extends Controller
 {
+    private CustomTextController $customTextCtrl;
+    private TelegramService $telegramService;
+    private AccountBallanceController $accBlCtrl;
+    private ReferralWalletController $referralCntrl;
+    private ProductCategoryController $prCatCntrl;
+    private PannelController $panelCntrl;
+    private MainMenuItemController $menuItemCntrl;
+    private PaymentTypeController $pymntCntrl;
+    private PaymentMenuItemController $pymMenCntrl;
+    private CryptoPaymentController $cryptoPymentCntrl;
+    private TransactionController $trCntrl;
+    private TransactionSettingController $trSettingCntrl;
+    private BillController $billCntrl;
+    private MainMenuItem $mainMenuItem;
+    private ProductCategory $productCategory;
+    private TransactionSetting $trSetting;
+    private ChannelLockMenuItemController $channelLockMenuItemCntrl;
+    private CronJobController $cronJobCntrl;
+    private GiftCardMenuItemController $giftCardMenuItemCntrl;
+    private SettingController $settingCntrl;
+    public function __construct()
+    {
+        $this->customTextCtrl           = new CustomTextController();
+        $this->telegramService          = new TelegramService();
+        $this->accBlCtrl                = new AccountBallanceController();
+        $this->referralCntrl            = new ReferralWalletController();
+        $this->prCatCntrl               = new ProductCategoryController();
+        $this->panelCntrl               = new PannelController();
+        $this->menuItemCntrl            = new MainMenuItemController();
+        $this->pymntCntrl               = new PaymentTypeController();
+        $this->pymMenCntrl              = new PaymentMenuItemController();
+        $this->cryptoPymentCntrl        = new CryptoPaymentController();
+        $this->trCntrl                  = new TransactionController();
+        $this->billCntrl                = new BillController();
+        $this->mainMenuItem             = new MainMenuItem();
+        $this->productCategory          = new ProductCategory();
+        $this->trSetting                = new TransactionSetting();
+        $this->trSettingCntrl           = new TransactionSettingController();
+        $this->channelLockMenuItemCntrl = new ChannelLockMenuItemController();
+        $this->cronJobCntrl             = new CronJobController();
+        $this->giftCardMenuItemCntrl    = new GiftCardMenuItemController();
+        $this->settingCntrl             = new SettingController();
+    }
+    public function boot_seeding_data()
+    {
+
+        // add default menu items
+        $this->menuItemCntrl->seed();
+        // add default channel lock menu items
+        $this->channelLockMenuItemCntrl->seed();
+        // add default cron jobs
+        $this->cronJobCntrl->seed();
+        // add default crypto payment
+        $this->cryptoPymentCntrl->createNowPaymentData();
+        // add default gift card menu items
+        $this->giftCardMenuItemCntrl->seed();
+        // add default setting
+        $this->settingCntrl->seed();
+        // add default payment types
+        $this->pymntCntrl->seed();
+        // add default payment menu items
+        $this->pymMenCntrl->seed();
+        // add default custom texts
+        $this->customTextCtrl->seed();
+        // add default transaction settings
+        $this->trSettingCntrl->seed();
+
+    }
     public function getDashboardAnalytics()
     {
         try {
-            $botUsetCntrl = new BotUserController();
-            $getLast10Users = $botUsetCntrl->getLast10Users();
-            $logCntrl = new LogController();
-            $getTop20Log = $logCntrl->getAllLogs(20);
-            $transactionCntrl = new TransactionController();
+            $botUsetCntrl               = new BotUserController();
+            $getLast10Users             = $botUsetCntrl->getLast10Users();
+            $logCntrl                   = new LogController();
+            $getTop20Log                = $logCntrl->getAllLogs(20);
+            $transactionCntrl           = new TransactionController();
             $last10ConfirmedTransaction = $transactionCntrl->getConfirmedTransactions(10);
-            $unConfirmedTransaction = $transactionCntrl->getUnConfirmedTransactions(1000);
-            $productCatCntrl = new ProductCategoryController();
-            $mostSelledProductCategory = $productCatCntrl->mostSelledProductCategory(10);
-            $prCntrl = new ProductController();
-            $last10ProductSelled = $prCntrl->getLastProductSelled(10);
+            $unConfirmedTransaction     = $transactionCntrl->getUnConfirmedTransactions(1000);
+            $productCatCntrl            = new ProductCategoryController();
+            $mostSelledProductCategory  = $productCatCntrl->mostSelledProductCategory(10);
+            $prCntrl                    = new ProductController();
+            $last10ProductSelled        = $prCntrl->getLastProductSelled(10);
             return response()->json(
                 [
-                    'Last10User' => $getLast10Users,
-                    'Last20Logs' => $getTop20Log,
+                    'Last10User'                 => $getLast10Users,
+                    'Last20Logs'                 => $getTop20Log,
                     'Last10ConfirmedTransaction' => $last10ConfirmedTransaction,
-                    'UnConfirmedTransaction' => $unConfirmedTransaction,
-                    'MostSelledProductCategory' => $mostSelledProductCategory,
-                    'last10ProductSelled' => $last10ProductSelled,
+                    'UnConfirmedTransaction'     => $unConfirmedTransaction,
+                    'MostSelledProductCategory'  => $mostSelledProductCategory,
+                    'last10ProductSelled'        => $last10ProductSelled,
                 ],
                 200,
             );
@@ -51,19 +114,19 @@ class GeneralController extends Controller
     public function getAgentDashboardAnalytics()
     {
         try {
-            $accCntrl = new AccountBallanceController();
-            $accBallance = $accCntrl->getLoggedUserBallancce();
+            $accCntrl     = new AccountBallanceController();
+            $accBallance  = $accCntrl->getLoggedUserBallancce();
             $agentPrCntrl = new AgentProductController();
-            $products = $agentPrCntrl->getProductsOfLoggedAgent();
+            $products     = $agentPrCntrl->getProductsOfLoggedAgent();
             // $boughtProducts =  $agentPrCntrl->getAgentSelledProducts(10);
-            $logCntrl = new LogController();
+            $logCntrl    = new LogController();
             $getTop20Log = $logCntrl->getAllLogsOfLoggedAgent(20);
             return response()->json(
                 [
                     'accBallance' => $accBallance,
-                    'products' => $products,
+                    'products'    => $products,
                     // 'boughtProducts' => $boughtProducts,
-                    'Last20Logs' => $getTop20Log,
+                    'Last20Logs'  => $getTop20Log,
                 ],
                 200,
             );
@@ -75,9 +138,9 @@ class GeneralController extends Controller
     public function getAgentPaymentWays()
     {
         try {
-            $pymntCntrl = new PaymentTypeController();
-            $pymentType = $pymntCntrl->getAllActivePaymentTypesWithZarinpalMerchentIDFilter();
-            $cryptoPymentCntrl = new CryptoPaymentController();
+            $pymntCntrl           = new PaymentTypeController();
+            $pymentType           = $pymntCntrl->getAllActivePaymentTypesWithZarinpalMerchentIDFilter();
+            $cryptoPymentCntrl    = new CryptoPaymentController();
             $cryptiPymentIsActive = $cryptoPymentCntrl->getNowPaymentsStatus();
             return response()->json(['active_payment' => $pymentType, 'crypto_payment_status' => $cryptiPymentIsActive], 200);
         } catch (\Throwable $th) {
@@ -89,20 +152,20 @@ class GeneralController extends Controller
     public function getUserDashboardAnalytics()
     {
         try {
-            $accCntrl = new AccountBallanceController();
+            $accCntrl    = new AccountBallanceController();
             $accBallance = $accCntrl->getLoggedUserBallancce();
-            $prCatCntrl = new ProductCategoryController();
+            $prCatCntrl  = new ProductCategoryController();
 
             $products = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
             // $boughtProducts =  $agentPrCntrl->getAgentSelledProducts(10);
-            $logCntrl = new LogController();
+            $logCntrl    = new LogController();
             $getTop20Log = $logCntrl->getAllLogsOfLoggedAgent(20);
             return response()->json(
                 [
                     'accBallance' => $accBallance,
-                    'products' => $products,
+                    'products'    => $products,
                     // 'boughtProducts' => $boughtProducts,
-                    'Last20Logs' => $getTop20Log,
+                    'Last20Logs'  => $getTop20Log,
                 ],
                 200,
             );
@@ -151,16 +214,52 @@ class GeneralController extends Controller
             }
         }
     }
+    public function return_main_menu_items($chat_id,$message)
+    {
+        $menu     = new MainMenuItemController();
+        $menuItem = $menu->getAllActivatedMainMenuItems();
+        $opr      = [];
+
+        if ($menuItem[0]->name == 'خرید اشتراک') {
+            array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
+            $menuItem = $menuItem->slice(1);
+        }
+
+        $countOfMenuItem = count($menuItem);
+        for ($i = 0; $i < $countOfMenuItem; $i += 2) {
+            $pair = $menuItem->slice($i, 2);
+            $row  = [];
+
+            foreach ($pair as $item) {
+                $row[] = [
+                    'text'          => $item->alias_name,
+                    'callback_data' => "main-{$item->id}",
+                ];
+            }
+
+            if (! empty($row)) {
+                $opr[] = $row;
+            }
+        }
+
+// $settingCtrl = new SettingController();
+// $this->message = $settingCtrl->getWelcomeMessage();
+
+        $result = $this->telegramService->sendMessageWithKeyboard($chat_id, $message, $opr);
+
+        return '';
+
+    }
     public function return_exist_hiddify_config_telegram_text($selectedProduct, $selectedProductCategory, $pannel, $chat_id)
     {
-        $hiddifcCntrl = new HiddifyPannelController();
-        $pnlCntrl = new PannelController();
-        $userPannelLink = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $selectedProduct->panel_link);
+        $hiddifcCntrl         = new HiddifyPannelController();
+        $pnlCntrl             = new PannelController();
+        $userPannelLink       = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $selectedProduct->panel_link);
         $userSubscriptionLInk = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $selectedProduct->subscription_link);
-        $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-        $text = '';
-        $agentCntrl = new AgentProductController();
-        $configStatus = $agentCntrl->getBoughtProductsStatusFromServerById($selectedProduct->id);
+        $image                = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+        $text                 = '';
+        $agentCntrl           = new AgentProductController();
+        $configStatus         = $agentCntrl->getBoughtProductsStatusFromServerById($selectedProduct->id);
 
         // روش 1: بررسی نوع داده
         if (is_string($configStatus)) {
@@ -172,21 +271,21 @@ class GeneralController extends Controller
 
         if ($configStatus != null) {
             $enableText = $configStatus['enable'] == true ? 'فعال' : 'غیر فعال';
-            $text = "📦 وضعیت بسته: {$enableText} \r\n";
-            $usageGB = $configStatus['current_usage_GB'];
-            $usageGB = round($usageGB, 2);
-            $limitGB = $configStatus['usage_limit_GB'];
+            $text       = "📦 وضعیت بسته: {$enableText} \r\n";
+            $usageGB    = $configStatus['current_usage_GB'];
+            $usageGB    = round($usageGB, 2);
+            $limitGB    = $configStatus['usage_limit_GB'];
             $text .= "📊 میزان حجم مصرف شده:  {$usageGB}GB از {$limitGB}GB \r\n";
 
-            $startDate = $configStatus['start_date'];
-            $startDate = Carbon::parse($startDate);
+            $startDate    = $configStatus['start_date'];
+            $startDate    = Carbon::parse($startDate);
             $package_days = $configStatus['package_days'];
             $package_days = intval($package_days);
-            $expireDate = Carbon::parse($startDate);
+            $expireDate   = Carbon::parse($startDate);
             $expireDate->addDays($package_days);
 
             $expireDate = $expireDate->toJalali()->format('Y.m.d');
-            $startDate = $startDate->toJalali()->format('Y.m.d');
+            $startDate  = $startDate->toJalali()->format('Y.m.d');
 
             $text .= "🗓️ تاریخ شروع: {$startDate} \r\n";
             $text .= "⏳ تاریخ انقضا: {$expireDate} \r\n";
@@ -197,56 +296,255 @@ class GeneralController extends Controller
         if ($selectedProductCategory->show_subscription_link == 1) {
             $text .= "🔗 لینک سابسکریپشن: \r\n{$userSubscriptionLInk} \r\n";
         }
-         app('telegram_bot')->sendMessage($text, $chat_id, null, 'MarkDown');
+        app('telegram_bot')->sendMessage($text, $chat_id, null, 'MarkDown');
 
         $text = "ℹ️ همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
         return app('telegram_bot')->imageMessageByLink($image, $chat_id, $text);
     }
-    public function new_hiddify_config_telegram_text($selectedPrCat,$pannel ,$volume,$day,$chat_id,$productID){
-                $hiddifcCntrl = new HiddifyPannelController();
-                $pnlCntrl = new PannelController();
+    public function new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $chat_id, $productID)
+    {
+        try {
+            $hiddifcCntrl = new HiddifyPannelController();
+            $pnlCntrl     = new PannelController();
 
-                 $req = new Request();
-                $req->accountId = "$chat_id-$productID";
-                $req->pannelID = $selectedPrCat->pannel_id;
-                $req->vol = $volume;
-                $req->day = $day;
+            $req            = new Request();
+            $req->accountId = "$chat_id-$productID";
+            $req->pannelID  = $selectedPrCat->pannel_id;
+            $req->vol       = $volume;
+            $req->day       = $day;
 
-                $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
-                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
+            $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
+            if ($newUUID == false) {
 
-                $userLink = $pannel->user_link;
-                // check $pannel->user_link ended with "/" if be remove it
-                if (substr($userLink, -1) == '/') {
-                    $userLink = substr($userLink, 0, -1);
-                }
+                return false;
+            }
+            // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
 
-                $userSubscriptionLInk = "$userLink/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                $userPannelLink = "$userLink/{$newUUID}/#{$req->accountId}";
+            $userLink = $pannel->user_link;
+            // check $pannel->user_link ended with "/" if be remove it
+            if (substr($userLink, -1) == '/') {
+                $userLink = substr($userLink, 0, -1);
+            }
 
-                $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-                $text = '';
-                $text .= "خرید شما با موفقیت انجام شد\r\n";
-                if ($selectedPrCat->show_pannel_link == 1) {
-                    $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:\r\n{$userPannelLink}\r\n";
-                }
-                $text .= "لینک سابسکریپشن:\r\n{$userSubscriptionLInk}\r\n";
-                app('telegram_bot')->sendMessage($text, $chat_id, null, 'MarkDown');
+            $userSubscriptionLInk = "$userLink/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            $userPannelLink       = "$userLink/{$newUUID}/#{$req->accountId}";
 
-                $text = "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید.\r\n";
+            $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+            $text  = $this->customTextCtrl->getText('action.subscription.hiddify', [
+                'panel_link'        => $userPannelLink,
+                'subscription_link' => $userSubscriptionLInk,
+            ]);
+            $formatter = new TelegramMessageFormatter($this->telegramService);
+            $text      = $formatter->addFormattedText('', $text)->getMessage();
+            // save as dectivate product, So we can use it in future when user want to recharge it;
+            $resualt = $this->telegramService->sendPhotoFile($chat_id, $image, $text);
 
-                $resualt = app('telegram_bot')->imageMessageByLink($image, $chat_id, $text);
-                // save as dectivate product, So we can use it in future when user want to recharge it;
-                $request = new Request();
-                $request->account_id = $chat_id;
-                $request->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                $request->product_categories_id = $selectedPrCat->id;
-                $request->panel_link = "/{$newUUID}/#{$req->accountId}";
-                $request->configs = '';
-                $request->remark = "$chat_id-$productID";
-                $prCntrl = new ProductController();
-                $prCntrl->addAutomatedProductDetails($request);
-                return $resualt;
+            $request                        = new Request();
+            $request->account_id            = $chat_id;
+            $request->subscription_link     = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            $request->product_categories_id = $selectedPrCat->id;
+            $request->panel_link            = "/{$newUUID}/#{$req->accountId}";
+            $request->configs               = '';
+            $request->remark                = "$chat_id-$productID";
+            $prCntrl                        = new ProductController();
+            $prCntrl->addAutomatedProductDetails($request);
+            return $newUUID;
+        } catch (\Throwable $th) {
+            \Log::info("error on new_hiddify_config_telegram_text-> $th");
+            return false;
+        }
 
+    }
+    public function send_using_subscription_manual_message($chat_id, $recharge = null, $productID = null)
+    {
+        $opr = [];
+        // check faq is active in menu
+        $faqItemAliasName = $this->mainMenuItem->getAliasNameByName('آموزش استفاده و سوالات متداول');
+        $faqItem          = $this->mainMenuItem->isActiveByAliasName($faqItemAliasName);
+        if ($faqItem == true || $faqItem == 1) {
+            $opr[] = [
+                $faqItemAliasName => "help-faqs",
+            ];
+        }
+        $appDownloadItemAliasName = $this->mainMenuItem->getAliasNameByName('دانلود برنامه');
+        $appDownloadItem          = $this->mainMenuItem->isActiveByAliasName($appDownloadItemAliasName);
+        if ($appDownloadItem == true || $appDownloadItem == 1) {
+            $opr[] = [
+                $appDownloadItemAliasName => "help-appDownload",
+            ];
+        }
+        if ($recharge != null) {
+            $opr[] = [
+                $this->customTextCtrl->getText('action.history.buttun.recharge') => "recharge-{$productID}",
+            ];
+            $opr[] = [
+                $this->customTextCtrl->getText('action.history.buttun.remark') => "remark-{$productID}",
+            ];
+
+        }
+
+        $text = $this->customTextCtrl->getText('action.help.using_subscription');
+        $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
+    }
+    public function send_insufficient_balance_message($chat_id, $productCategoryID)
+    {
+        try {
+            $productCategory = $this->productCategory->find($productCategoryID);
+
+            if ($productCategory == null) {
+                \Log::info("productCategory is null in send_insufficient_balance_message , productCategoryID: $productCategoryID");
+                return;
+            }
+
+            $user_ballance          = $this->accBlCtrl->getLoggedUserBallancce($chat_id);
+            $user_ballance_in_toman = $user_ballance->ballance;
+            $user_ballance_in_toman = number_format($user_ballance_in_toman, 0, ',', '.');
+            $user_ballance_in_toman = $user_ballance_in_toman . ' تومان';
+            $productPriceInToman    = $productCategory->price;
+            // calculate the diffrence between user_ballance and productPriceInToman
+            $mainDiffrenceInToman  = $diffrence  = $productPriceInToman - $user_ballance->ballance;
+            $diffrence             = number_format($diffrence, 0, ',', '.');
+            $diffrence             = $diffrence . ' تومان';
+            $productPriceInToman   = number_format($productPriceInToman, 0, ',', '.');
+            $productPriceInToman   = $productPriceInToman . ' تومان';
+            $mainDiffrenceInDollar = $diffrence_in_dollar = 0.00;
+
+            $dollarTransaction = $this->trSetting->getDollarTransactionSetting();
+            $text              = '';
+            if ($dollarTransaction == true || $dollarTransaction == 1) {
+                $productPriceInDollar    = $productCategory->price_in_dollar;
+                $user_ballance_in_dollar = $user_ballance->account_ballance_in_dollar;
+                $mainDiffrenceInDollar   = $diffrence_in_dollar   = $productPriceInDollar - $user_ballance_in_dollar;
+                $productPriceInDollar    = number_format($productPriceInDollar, 2, ',', '.');
+                $productPriceInDollar    = $productPriceInDollar . ' دلار';
+                $user_ballance_in_dollar = number_format($user_ballance_in_dollar, 2, ',', '.');
+                $user_ballance_in_dollar = $user_ballance_in_dollar . ' دلار';
+                $diffrence_in_dollar     = number_format($diffrence_in_dollar, 2, ',', '.');
+                $diffrence_in_dollar     = $diffrence_in_dollar . ' دلار';
+
+                $text = $this->customTextCtrl->getText('action.process.insufficient_balance_with_dollar', [
+                    'product_category_name'   => $productCategory->name,
+                    'product_price_in_toman'  => $productPriceInToman,
+                    'product_price_in_dollar' => $productPriceInDollar,
+                    'user_balance_in_toman'   => $user_ballance_in_toman,
+                    'user_balance_in_dollar'  => $user_ballance_in_dollar,
+                    'difference_in_toman'     => $diffrence,
+                    'difference_in_dollar'    => $diffrence_in_dollar,
+                ]);
+                $formatter = new TelegramMessageFormatter($this->telegramService);
+                $text      = $formatter->addFormattedText('', $text)->getMessage();
+
+            } else {
+                $text = $this->customTextCtrl->getText('action.process.insufficient_balance', [
+                    'product_category_name'  => $productCategory->name,
+                    'product_price_in_toman' => $productPriceInToman,
+                    'user_balance_in_toman'  => $user_ballance_in_toman,
+                    'difference_in_toman'    => $diffrence,
+                ]);
+            }
+            if (is_array($text)) {
+                $formatter = new TelegramMessageFormatter($this->telegramService);
+                $text      = $formatter->addFormattedText('', $text)->getMessage();
+            } else {
+                $text = $text;
+            }
+            $this->telegramService->sendMessage($chat_id, $text);
+            $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar);
+            return true;
+        } catch (\Throwable $th) {
+            \Log::info("error on send_insufficient_balance_message-> $th");
+            return false;
+        }
+    }
+    public function send_add_ballance_option_message($chat_id, $estimatedPrice, $estimatedPriceInDollar)
+    {
+        $opr                 = [];
+        $hasZarinPal         = $this->pymntCntrl->getZarinpalStatus();
+        if ($hasZarinPal == true || $hasZarinPal == 1) {
+            $newOpr = $this->createZarinpalPaymentLink($chat_id, $estimatedPrice);
+            array_push($opr, $newOpr);
+        }
+
+        $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
+        if ($hasDollarPay == true || $hasDollarPay == 1) {
+            $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
+            array_push($opr, $newOpr);
+        }
+
+        if (count($opr) > 0) {
+            $text = $this->customTextCtrl->getText('action.process.add_online_balance');
+            $this->telegramService->sendMessageWithLinkButtons($chat_id, $text, $opr);
+        }
+
+        // send offline item
+        $opr = [];
+
+        $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
+        if ($offlinePayment != null) {
+            if ($hasZarinPal == true || $hasZarinPal == 1 || $hasDollarPay == true || $hasDollarPay == 1) {
+                $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option_and_online_balance');
+            } else {
+                $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
+            }
+
+            $opr = [];
+
+            foreach ($offlinePayment as $key => $value) {
+                $opr[] = [
+                    "$value->name" => "offlineGateway-$value->id ",
+                ];
+            }
+
+        }
+
+        $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
+        return true;
+
+    }
+    public function createZarinpalPaymentLink($chat_id, $estimatedPrice) 
+    {
+        $request = new Request();
+        $request->account_id = $chat_id;
+        $request->amount = $estimatedPrice;
+        $bill = $this->billCntrl->createNewBill($request);
+
+        $trRequest = new Request();
+        $trRequest->invoiceID = $bill->bill_id;
+        $trRequest->account_id = $chat_id;
+        $trRequest->amount = $estimatedPrice;
+        $paymentLink = $this->trCntrl->add_order($trRequest);
+        
+        // format $estimatedPrice to 0 decimal
+        $formattedPrice = number_format($estimatedPrice, 0, ',', '.');
+        
+        return [
+            'text' => $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal') . " $formattedPrice تومان",
+            'url' => $paymentLink
+        ];
+    }
+    public function createNowPaymentsLink($chat_id, $estimatedPriceInDollar) 
+    {
+        $request = new Request();
+        $request->account_id = $chat_id;
+        $request->amount = $estimatedPriceInDollar;
+        $bill = $this->billCntrl->createNewBillInDollar($request);
+
+        $openLink = $this->pymntCntrl->getNowPaymentsLink();
+
+        $trCryptoCntrl = new TransactionCryptoController();
+        $trRequest = new Request();
+        $trRequest->invoiceID = $bill->bill_id;
+        $trRequest->account_id = $chat_id;
+        $trRequest->amount = $estimatedPriceInDollar;
+        $paymentLink = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
+        $nowpaymentLink = $this->get_nowpayment_payment_link_from_html($paymentLink);
+        
+        // format $estimatedPrice to 0 decimal
+        $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
+        
+        return [
+            'text' => $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment') . " $formattedPrice دلار",
+            'url' => $nowpaymentLink
+        ];
     }
 }

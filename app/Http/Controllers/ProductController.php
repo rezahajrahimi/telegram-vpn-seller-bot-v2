@@ -146,6 +146,22 @@ class ProductController extends Controller
             return response()->json(false, 500);
         }
     }
+    public function delete_product_by_uuid($uuid)
+    {
+        try {
+            $subscriptionLink = "/{$uuid}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            $data = Product::where('subscription_link', $subscriptionLink)->first();
+            if ($data != null) {
+                $data->delete();
+            return response()->json(true, 200);
+        } else {
+            return response()->json(false, 401);
+        }
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+            return response()->json(false, 500);
+        }
+    }
     public function deleteProductByProductID($id)
     {
         try {

@@ -34,6 +34,9 @@ class TransactionCryptoController extends Controller
         $this->amount_dollar = $bill->getBillAmountDollarByBillId($request->invoiceID);
         $this->account_id = $request->account_id;
         if ($this->amount_dollar != null) {
+
+            // set nowpayments env
+
             // Create new invoice.
             $cryptoPaymentCntrl = new CryptoPaymentController();
             $npwPaymentCntrl = new NowPaymentsController();

@@ -6,6 +6,20 @@ use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
+    public function seed()
+    {
+        if (Setting::all()->isEmpty()) {
+            $setting = new Setting();
+            $setting->bot_name = 'powerPsBot';
+            $setting->admin_id = env('TELEGRAM_ADMIN_ID');
+            $setting->bot_token = env('TELEGRAM_BOT_TOKEN');
+            $setting->welcome_message = 'به ربات  [@powerPsBot] خوش آمدید.';
+            $setting->panel_address = env('APP_URL');
+            $setting->save();
+            return true;
+        }
+        return false;
+    }
     public function getWelcomeMessage()
     {
         return Setting::All()->first()->welcome_message;
@@ -24,14 +38,8 @@ class SettingController extends Controller
         if ($setting != null) {
             return $setting;
         } else {
-            $setting = new Setting();
-            $setting->bot_name = 'powerPsBot';
-            $setting->admin_id = env('TELEGRAM_ADMIN_ID');
-            $setting->bot_token = env('TELEGRAM_BOT_TOKEN');
-            $setting->welcome_message = 'به ربات  [@powerPsBot] خوش آمدید.';
-            $setting->panel_address = env('APP_URL');
-            $setting->save();
-            return $setting;
+            $this->seed();
+            return $this->getBotSetting();
         }
     }
     public function updateBotSetting(Request $request)
@@ -43,6 +51,13 @@ class SettingController extends Controller
         $data->welcome_message = $request->welcome_message;
         $data->panel_address = $request->panel_address;
         if ($data->update()) {
+            // change in .env
+            $env = new DotenvEditor();
+            $env->changeEnv([
+                'TELEGRAM_BOT_TOKEN' => $request->bot_token,
+                'TELEGRAM_ADMIN_ID' => $request->admin_id,
+                'APP_URL' => $request->panel_address,
+            ]);
             return true;
         } else {
             return false;

@@ -11,6 +11,19 @@ class BotUser extends Model
     use HasFactory;
     protected $guarded = ['id'];
     protected $fillable = ['account_id', 'username', 'first_name', 'last_name'];
+
+    // get user by account_id
+    public function getUserByAccountID($accountId)
+    {
+        return $this->where('account_id', $accountId)->first();
+    }
+
+    public function getUserNameByAccountID($accountId)
+    {
+        return $this->where('account_id', $accountId)->first()->username;
+    }
+
+
     public function getCreatedAtAttribute($value)
     {
         return verta(verta($value))->formatDifference();

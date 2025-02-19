@@ -39,14 +39,20 @@ class ReferralWalletController extends Controller
             return $wallet->amount;
         } catch (\Throwable $th) {
             \Log::info("Throwable get_amount_of_ref_wallet_by_account_id: $th");
-            return response()->json(null, 500);
+            return null;
         }
     }
     public function check_user_has_ref_wallet_ballance($account_id, $amount)
     {
         try {
             $user = User::where('account_id', $account_id)->first();
+            if($user == null){
+                return false;
+            }
             $wallet = ReferralWallet::where('referral_user_id', $user->id)->first();
+            if ($wallet == null) {
+                return false;
+            }
             if ($wallet->amount >= $amount) {
                 return true;
             }
@@ -60,7 +66,13 @@ class ReferralWalletController extends Controller
     {
         try {
             $user = User::where('account_id', $account_id)->first();
+            if($user == null){
+                return false;
+            }
             $wallet = ReferralWallet::where('referral_user_id', $user->id)->first();
+            if($wallet == null){
+                return false;
+            }
             $wallet->amount =$wallet->amount - (float)$amount;
             $wallet->update();
             return true;

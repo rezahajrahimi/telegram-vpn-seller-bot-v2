@@ -7,12 +7,11 @@ use Illuminate\Http\Request;
 
 class MainMenuItemController extends Controller
 {
-    public function getAllMainMenuItems()
+    public function seed()
     {
-        $data = MainMenuItem::all();
         // check if data was empty create new menu
-        if ($data->isEmpty()) {
-            $menu1 = new MainMenuItem();
+        if (MainMenuItem::all()->isEmpty()) {
+             $menu1 = new MainMenuItem();
             $menu1->name = 'خرید اشتراک';
             $menu1->alias_name = 'خرید اشتراک';
             $menu1->is_active = true;
@@ -81,6 +80,15 @@ class MainMenuItemController extends Controller
             $menu10->is_active = true;
             $menu10->position = 10;
             $menu10->save();
+        }
+        return true;
+    }
+    public function getAllMainMenuItems()
+    {
+        $data = MainMenuItem::all();
+        // check if data was empty create new menu
+        if ($data->isEmpty()) {
+            $this->seed();
         }
         $newData = MainMenuItem::all();
 

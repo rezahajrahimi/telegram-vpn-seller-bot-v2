@@ -12,6 +12,15 @@ class Product extends Model
     protected $guarded = ['id', 'product_categories_id', 'account_id'];
     protected $fillable = ['product_categories_id', 'configs', 'subscription_link', 'panel_link', 'isActive', 'account_id', 'remark','deactive_by_admin'];
 
+
+    public function getProductByID($id)
+    {
+        return Product::find($id);
+    }
+    public function getProdouctPanelByID($id)
+    {
+        return Product::find($id)->product_category_and_panel;
+    }
     /**
      * Get the user that owns the Product
      *

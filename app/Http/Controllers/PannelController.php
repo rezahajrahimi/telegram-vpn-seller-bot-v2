@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\File;
 
 class PannelController extends Controller
 {
@@ -443,14 +445,51 @@ class PannelController extends Controller
 
     public function generateQrMOC($str)
     {
-        $image = QrCode::format('png')->size(250)->backgroundColor(255, 255, 255)->color(0, 0, 255)->margin(1)->generate($str);
+        $fileName = 'qr_' . time() . '_' . rand(1000, 9999) . '.png';
 
-        $path = public_path() . '/images/' . 'aa.png';
-        if (file_exists($path)) {
-            unlink($path);
+        $qrImage = QrCode::format('png')
+            ->size(250)
+            ->backgroundColor(255, 255, 255)
+            ->color(0, 0, 255)
+            ->margin(1)
+            ->generate($str);
+
+        // تبدیل خروجی QR به تصویر GD
+        $qr = imagecreatefromstring($qrImage);
+
+        // ایجاد تصویر جدید با اندازه بزرگتر برای پس‌زمینه
+        $finalImage = imagecreatetruecolor(300, 300);
+
+        // ایجاد رنگ پس‌زمینه (در اینجا آبی روشن)
+        $bgColor = imagecolorallocate($finalImage, 200, 230, 255);
+
+        // پر کردن پس‌زمینه
+        imagefill($finalImage, 0, 0, $bgColor);
+
+        // کپی کردن QR در مرکز تصویر نهایی
+        imagecopy($finalImage, $qr, 25, 25, 0, 0, 250, 250);
+
+        $directory = public_path('images/qrcodes');
+        if (!File::exists($directory)) {
+            File::makeDirectory($directory, 0755, true);
         }
 
-        $res = file_put_contents($path, $image);
+        $path = $directory . '/' . $fileName;
+        if (File::exists($path)) {
+            File::delete($path);
+        }
+
+        // ذخیره تصویر نهایی
+        $result = imagepng($finalImage, $path);
+
+        // آزاد کردن حافظه
+        imagedestroy($qr);
+        imagedestroy($finalImage);
+
+        if (!$result) {
+            return false;
+        }
+
         return $path;
     }
     public function createMarzbanUser($accountId, $day, $vol, $pannelID)

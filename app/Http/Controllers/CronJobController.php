@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\BotUser;
 use App\Models\User;
+use App\Models\Setting;
 use App\Services\TelegramService;
 
 use Illuminate\Support\Carbon;
@@ -19,14 +20,10 @@ use Illuminate\Http\Request;
 
 class CronJobController extends Controller
 {
-    public function get_all_cron_jobs()
+    public function seed()
     {
-        try {
-            $cronJobs = CronJob::all();
-            if ($cronJobs->count() > 0) {
-                return response()->json($cronJobs);
-            }
-            // create neccessery cron jobs
+        if (CronJob::all()->isEmpty()) {
+              // create neccessery cron jobs
             $expiredAccountsCronJob = new CronJob();
             $expiredAccountsCronJob->name = 'Expired';
             $expiredAccountsCronJob->frequency = '10m';
@@ -51,6 +48,18 @@ class CronJobController extends Controller
             $createDailyBackupCronJob->is_active = true;
             $createDailyBackupCronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
             $createDailyBackupCronJob->save();
+            return true;
+        }
+        return false;
+    }
+    public function get_all_cron_jobs()
+    {
+        try {
+            $cronJobs = CronJob::all();
+            if ($cronJobs->count() > 0) {
+                return response()->json($cronJobs);
+            }
+            $this->seed();
             $cronJobs = CronJob::all();
             return response()->json($cronJobs);
         } catch (\Throwable $th) {
@@ -423,37 +432,23 @@ class CronJobController extends Controller
             return false;
         }
         $backupCtrl = new BackupController();
-        $backupResponse = $backupCtrl->createBackup();
-        $backup = json_decode($backupResponse->getContent(), true);
-
-        if (!isset($backup['url'])) {
+        $backupFile = $backupCtrl->createBackupAndReturnZipFile();
+        if (!isset($backupFile)) {
             return false;
         }
         // log backup file as a array
-        $backupFile = $backup['url'];
-        // set download url in backup file according to the current domain
-        $currentDomain = request()->getHttpHost();
-        $backupFile = str_replace('http://localhost', 'https://'.$currentDomain, $backupFile);
-
-        //compress backup file to a zip file
-
-        // $backupFile = str_replace('http://localhost:8005', 'https://c9d6-2a12-5940-4449-00-2.ngrok-free.app', $backupFile);
         $admin = User::where('role', 'admin')->first();
         $admin_id = $admin->account_id;
 
         $currentDate = now()->toJalali()->format('Y/m/d');
         $currentDate = Verta::parse($currentDate)->format('Y-m-d');
         $text = "نسخه پشتیبان $currentDate";
-        $text .= "\n\n";
-        $text .= "<code>$backupFile</code>";
-        // $telegramService = new TelegramService();
-        // $result = $telegramService->sendDocument($admin_id, $backupFile, $text);
-        $result = app('telegram_bot')->sendMessage($text, $admin_id, null, 'HTML');
-
-        return $result;
+        $telegramService = new TelegramService();
+        $result = $telegramService->sendDocumentFile($admin_id, $backupFile, $text);
+        return "done";
         } catch (\Throwable $th) {
             \Log::error($th->getMessage());
-            return false;
+            return "error";
         }
     }
     public function create_cron_job_for_create_daily_backup()

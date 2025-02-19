@@ -10,6 +10,10 @@ class Transaction extends Model
     use HasFactory;
     protected $guarded = ['id','account_id','payment_type_id'];
     protected $fillable = ['account_id','username','payment_type_id','amount','confirmed','recipe_number','amount_dollar'];
+    public function getTransactionText()
+    {
+        return $this->payment_types->name . " - " . $this->amount . " - " . $this->created_at . " - " . ($this->confirmed ? "تایید شده" : "تایید نشده");
+    }
     public function getCreatedAtAttribute($value)
     {
         return verta(verta($value))->formatDifference();

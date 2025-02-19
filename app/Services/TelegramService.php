@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Http;
+
 class TelegramService
 {
     private string $baseUrl;
@@ -10,7 +12,15 @@ class TelegramService
     public function __construct()
     {
         $this->baseUrl = 'https://api.telegram.org/';
-        $this->botToken = config('services.telegram.bot_token');
+        $token = config('services.telegram.bot_token');
+
+        // تمیز کردن توکن
+        $token = preg_replace('/bot:?bot/i', 'bot', $token);
+        if (!str_starts_with($token, 'bot')) {
+            $token = 'bot' . $token;
+        }
+
+        $this->botToken = $token;
     }
 
     public function sendMessage(string $chatId, string $text, array $options = []): array
@@ -172,11 +182,13 @@ class TelegramService
 
     public function sendMessageWithInlineKeyboard(string $chatId, string $text, array $buttons): array
     {
-        return $this->sendMessage($chatId, $text, [
+        $response =  $this->sendMessage($chatId, $text, [
             'reply_markup' => json_encode([
                 'inline_keyboard' => $this->formatInlineKeyboardButtons($buttons)
             ])
         ]);
+        // log response as a array
+        return $response;
     }
 
     public function removeKeyboard(string $chatId, string $text): array
@@ -190,11 +202,36 @@ class TelegramService
 
     public function forceReply(string $chatId, string $text): array
     {
+                $buttons = [[['text' => 'لغو', 'callback_data' => 'cancel']]];
+
         return $this->sendMessage($chatId, $text, [
             'reply_markup' => json_encode([
-                'force_reply' => true
+                'force_reply' => true,
+                'selective' => true,
+                'input_field_placeholder' => $text,
+                'keyboard' => $buttons
             ])
         ]);
+    }
+
+    public function sendPhotoFile(string $chatId, string $photoPath, string $caption = '', array $options = []): array
+    {
+        // ایجاد CURLFile از فایل تصویر
+        $photo = new \CURLFile($photoPath);
+
+        $result = $this->makeRequestFile('sendPhoto', array_merge([
+            'chat_id' => $chatId,
+            'photo' => $photo,
+            'caption' => $caption,
+            'parse_mode' => 'HTML'
+        ], $options));
+
+        // پاک کردن فایل موقت بعد از ارسال
+        if (file_exists($photoPath)) {
+            unlink($photoPath);
+        }
+
+        return $result;
     }
 
     public function sendPhoto(string $chatId, string $photo, string $caption = '', array $options = []): array
@@ -207,10 +244,28 @@ class TelegramService
         ], $options));
     }
 
+
     public function sendDocument(string $chatId, string $document, string $caption = '', array $options = []): array
     {
         try {
             $result = $this->makeRequest('sendDocument', array_merge([
+                'chat_id' => $chatId,
+                'document' => $document,
+                'caption' => $caption,
+                'parse_mode' => 'HTML'
+        ], $options));
+        // \Log::info("sendDocument result=> $result");
+        return $result;
+        } catch (\Throwable $th) {
+            \Log::error($th->getMessage());
+            return [];
+        }
+    }
+    public function sendDocumentFile(string $chatId, string $document, string $caption = '', array $options = []): array
+    {
+        try {
+            $document = new \CURLFile($document);
+            $result = $this->makeRequestFile('sendDocument', array_merge([
                 'chat_id' => $chatId,
                 'document' => $document,
                 'caption' => $caption,
@@ -245,7 +300,11 @@ class TelegramService
         $url = "https://api.telegram.org/file/bot{$this->botToken}/{$filePath}";
         return file_get_contents($url);
     }
-
+  public function downloadImageFile($file_path) {
+    $url = "https://api.telegram.org/file/" . $this->botToken . "/" . $file_path;
+    // $url = "https://api.telegram.org/file/bot" . $this->botToken . "/" . $file_path;
+    return file_get_contents($url);
+}
     public function sendVoice(string $chatId, string $voice, string $caption = '', array $options = []): array
     {
         return $this->makeRequest('sendVoice', array_merge([
@@ -346,5 +405,58 @@ class TelegramService
         }
 
         return json_decode($response, true) ?? [];
+    }
+
+    private function makeRequestFile(string $method, array $params = []): array
+    {
+        $url = $this->baseUrl . $this->botToken . '/' . $method;
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
+        // برای ارسال فایل نیازی به تنظیم Content-Type نیست
+        // CURL به صورت خودکار Content-Type: multipart/form-data را تنظیم می‌کند
+
+        $response = curl_exec($ch);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            throw new \Exception('خطا در ارتباط با تلگرام: ' . $error);
+        }
+
+        return json_decode($response, true) ?? [];
+    }
+
+    /**
+     * Send message with multiple buttons
+     *
+     * @param string $chatId Telegram chat ID
+     * @param string $text Message text
+     * @param array $buttonsList Array of buttons [ ['text' => 'Button Text', 'url' => 'Button URL'] ]
+     * @return array
+     */
+    public function sendMessageWithLinkButtons(string $chatId, string $text, array $buttonsList): array
+    {
+        $buttons = [];
+        foreach ($buttonsList as $button) {
+            $buttons[] = [
+                [
+                    'text' => $button['text'],
+                    'url' => trim($button['url'])
+                ]
+            ];
+        }
+
+        $response = $this->makeRequest('sendMessage', [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'reply_markup' => json_encode([
+                'inline_keyboard' => $buttons
+            ])
+        ]);
+        return $response;
     }
 }

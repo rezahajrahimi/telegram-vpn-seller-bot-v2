@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TransactionCryptoController;
 use App\Http\Controllers\ExecuteArtisanCommandController;
+use App\Http\Controllers\CryptomusController; // added this line
 use Illuminate\Http\Request;
 
 /*
@@ -51,7 +52,7 @@ Route::get('/cancelpay', function () {
     return "پرداخت شما لغو شد.";
 });
 
-
+// crytomous
 
 // run command by url
 Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);

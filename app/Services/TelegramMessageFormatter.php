@@ -116,6 +116,40 @@ class TelegramMessageFormatter
     }
 
     /**
+     * افزودن متن از CustomText با فرمت‌های مختلف
+     *
+     * @param string $text متن اصلی
+     * @param array $formats آرایه‌ای از فرمت‌ها و متن‌ها
+     * @return self
+     */
+    public function addFormattedText(string $text, array $formats): self
+    {
+        foreach ($formats as $format) {
+            switch ($format['type']) {
+                case 'bold':
+                    $this->addBold($format['text']);
+                    break;
+                case 'italic':
+                    $this->addItalic($format['text']);
+                    break;
+                case 'text':
+                    $this->addText($format['text']);
+                    break;
+                case 'code':
+                    $this->addCode($format['text']);
+                    break;
+                case 'link':
+                    $this->addLink($format['text'], $format['url']);
+                    break;
+                case 'newline':
+                    $this->addNewLine();
+                    break;
+            }
+        }
+        return $this;
+    }
+
+    /**
      * ارسال پیام فرمت‌شده به تلگرام
      *
      * @param string $chatId شناسه چت

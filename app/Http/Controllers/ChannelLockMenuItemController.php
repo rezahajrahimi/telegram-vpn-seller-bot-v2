@@ -7,18 +7,26 @@ use Illuminate\Http\Request;
 
 class ChannelLockMenuItemController extends Controller
 {
+    public function seed()
+    {
+        if (ChannelLockMenuItem::all()->isEmpty()) {
+            $data             = new ChannelLockMenuItem();
+            $data->name       = 'main';
+            $data->alias_name = 'برای شروع، لطفا در کانالهای زیر عضو بشوید.';
+            $data->level      = 1;
+            $data->save();
+            return true;
+        }
+        return false;
+    }
     public function getChannelLockMainMenuTitle()
     {
         $data = ChannelLockMenuItem::where('name', 'main')->first();
         if ($data != null) {
             return $data;
         } else {
-            $data = new ChannelLockMenuItem();
-            $data->name = 'main';
-            $data->alias_name = 'برای شروع، لطفا در کانالهای زیر عضو بشوید.';
-            $data->level = 1;
-            $data->save();
-            return $data;
+            $this->seed();
+            return $this->getChannelLockMainMenuTitle();
         }
     }
     public function getChannelLockMenuText(){
