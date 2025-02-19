@@ -33,6 +33,7 @@ class CustomText extends Model
     }
     public function getDefaultText($key)
     {
+        \Log::info('getDefaultText: ' . $key);
         return $this->where('key', $key)->first()->default_text;
     }
 

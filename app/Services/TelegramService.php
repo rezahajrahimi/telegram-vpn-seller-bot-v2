@@ -202,9 +202,14 @@ class TelegramService
 
     public function forceReply(string $chatId, string $text): array
     {
+                $buttons = [[['text' => 'لغو', 'callback_data' => 'cancel']]];
+
         return $this->sendMessage($chatId, $text, [
             'reply_markup' => json_encode([
-                'force_reply' => true
+                'force_reply' => true,
+                'selective' => true,
+                'input_field_placeholder' => $text,
+                'keyboard' => $buttons
             ])
         ]);
     }
@@ -452,8 +457,6 @@ class TelegramService
                 'inline_keyboard' => $buttons
             ])
         ]);
-        \Log::info(["sendMessageWithLinkButtons" => $response]);
-
         return $response;
     }
 }

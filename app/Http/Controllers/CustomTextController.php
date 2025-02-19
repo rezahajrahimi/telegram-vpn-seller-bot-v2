@@ -43,6 +43,7 @@ class CustomTextController extends Controller
                 ['key' => 'action.start', 'default_text' => 'سلام {name}! به ربات آموزشی خوش آمدید', 'custom_text' => null],
                 ['key' => 'action.help', 'default_text' => 'راهنما', 'custom_text' => null],
                 ['key' => 'action.back', 'default_text' => 'بازگشت', 'custom_text' => null],
+                ['key' => 'action.process.reply.cancel', 'default_text' => 'لغو', 'custom_text' => null],
                 ['key' => 'action.send_location', 'default_text' => 'ارسال موقعیت مکانی', 'custom_text' => null],
                 ['key' => 'action.send_contact', 'default_text' => 'ارسال شماره تماس', 'custom_text' => null],
                 ['key' => 'action.upload_file', 'default_text' => 'آپلود فایل', 'custom_text' => null],
@@ -79,6 +80,7 @@ class CustomTextController extends Controller
                 ['key' => 'action.process.add_online_balance', 'default_text' => 'افزایش موجودی کیف پول خود را با انتخاب یکی از گزینه های زیر انجام دهید.', 'custom_text' => null],
                 ['key' => 'action.process.add_online_balance.zarinpal', 'default_text' => 'پرداخت آنلاین با زرین پال', 'custom_text' => null],
                 ['key' => 'action.process.add_online_balance.zarinpal.reply', 'default_text' => 'مقدار واریزی خود را وارد کنید. (حداقل 10 هزار تومان)', 'custom_text' => null],
+                ['key' => 'action.process.add_online_balance.zarinpal.reply.invalid_amount', 'default_text' => 'لطفا مبلغ را به صورت عددی وارد کنید', 'custom_text' => null],
                 ['key' => 'action.process.add_online_balance.zarinpal.reply.invoice', 'default_text' => 'صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)', 'custom_text' => null],
 
                 ['key' => 'action.process.add_online_balance.nowpayments.reply', 'default_text' => 'مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)', 'custom_text' => null],
@@ -187,9 +189,14 @@ class CustomTextController extends Controller
             }
             return $text;
         } catch (\Throwable $th) {
-            \Log::error('Error getting text: ' . $key . ' ' . $th->getMessage());
             $this->seed();
-            return $this->customText->getDefaultText($key);
+            // await for seeding
+            sleep(1);
+            $text = $this->customText->getText($key);
+            if (json_validate($text)) {
+                return json_decode($text, true);
+            }
+            return "not found => $text";
         }
     }
 

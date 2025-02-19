@@ -227,8 +227,14 @@ class AccountProcessController extends Controller
     }
     public function addBalanceReply(string $chatId, string $text): string
     {
+        try {
+            // check if text is valid int or float
+        if (!is_numeric($text)) {
+                 $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invalid_amount'));
+            return "";
+        }
         if ($text == null || trim($text) == 'لغو' || trim($text) == 'cancel') {
-            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.cancel'));
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.reply.cancel'));
             return "";
         }
             $user_state   = UserState::where('chat_id', $chatId)->latest()->first();
@@ -253,6 +259,11 @@ class AccountProcessController extends Controller
         }
         $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
         return "";
+        } catch (\Throwable $th) {
+            \Log::error(["addBalanceReply: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
     }
 
      public function setAwaitingReply(string $chatId, string $type, string $paymentType): void
