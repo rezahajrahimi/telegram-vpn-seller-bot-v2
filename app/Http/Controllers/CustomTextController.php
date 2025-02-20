@@ -11,6 +11,20 @@ class CustomTextController extends Controller
     {
         $this->customText = new CustomText();
     }
+    public function getAllTexts()
+    {
+        try {
+            $data = CustomText::all();
+            return response()->json($data);
+        } catch (\Throwable $th) {
+            $this->seed();
+            $data = CustomText::all();
+            if (count($data) == 0) {
+                return response()->json(['error' => 'خطایی رخ داده است'], 500);
+            }
+            return response()->json($data);
+        }
+    }
     public function seed()
     {
         \Log::info('Seeding CustomText table');
