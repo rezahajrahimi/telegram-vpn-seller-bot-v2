@@ -179,6 +179,8 @@ class AccountProcessController extends Controller
             }
             if (count($opr) > 0) {
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance');
+                // check if the text is json format
+                \Log::info("text: " . $text);
                 $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
             }
 

@@ -9,7 +9,7 @@ class CustomText extends Model
 {
     use HasFactory;
     protected $table = 'custom_texts';
-    protected $fillable = ['key', 'default_text', 'custom_text'];
+    protected $fillable = ['key', 'default_text', 'custom_text', 'description'];
 
     public function getText($key, $variables = [])
     {
