@@ -352,28 +352,36 @@ class CustomTextController extends Controller
 
     public function setText($key, $text)
     {
-        \Log::info("setText: $key => $text");
-
-        // check if the key is in the database
-        if ($this->customText->where('key', $key)->exists()) {
-            return $this->customText->setText($key, $text);
+        try {
+            // check if the key is in the database
+            if ($this->customText->where('key', $key)->exists()) {
+                return $this->customText->setText($key, $text);
+            }
+            return false;
+        } catch (\Throwable $th) {
+            \Log::info("setText: $key => $text");
+            return false;
         }
-        \Log::info("setText: $key => $text");
-        return false;
     }
     // set test by request
     public function setTest(Request $request)
     {
-        // validate request
-        $validator = Validator::make($request->all(), [
-            'key' => 'required',
-            'text' => 'required',
-        ]);
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()], 422);
+        try {
+            // validate request
+            $validator = Validator::make($request->all(), [
+                'key'  => 'required',
+                'text' => 'required',
+            ]);
+            if ($validator->fails()) {
+                return response()->json(['error' => $validator->errors()], 422);
+            }
+            $key  = $request['key'];
+            $text = $request['text'];
+            $this->setText($key, $text);
+            return response()->json(['message' => 'Text set successfully'], 200);
+        } catch (\Throwable $th) {
+            \Log::info("setTest: $th");
+            return response()->json(['error' => $th->getMessage()], 500);
         }
-        $key = $request['key'];
-        $text = $request['text'];
-        $this->setText($key, $text);
     }
 }
