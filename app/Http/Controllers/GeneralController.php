@@ -577,7 +577,7 @@ class GeneralController extends Controller
     }
     public function getFaqs($chatId)
     {
-        $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId,'show');
+        $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId, 'show');
         $faqCtrl = new FaqController();
         $faqs    = $faqCtrl->getFaqList();
         $opr     = [];
@@ -595,7 +595,7 @@ class GeneralController extends Controller
     }
     public function subFaq($chatId, $selectedFaqID)
     {
-        $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId,'show');
+        $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId, 'show');
         $faqCtrl = new FaqController();
         $faq     = $faqCtrl->getFaqById($selectedFaqID);
         $this->telegramService->sendMessage($chatId, $faq->answer);
@@ -622,7 +622,7 @@ class GeneralController extends Controller
         $appCtrl = new ApplicationController();
         $app     = $appCtrl->getAllActiveAplicationListByOS($selectedOsID);
         // log count of app
-        $opr     = [];
+        $opr = [];
         if ($app != null) {
             foreach ($app as $key => $app) {
                 $opr[] = [
@@ -636,31 +636,55 @@ class GeneralController extends Controller
     }
     public function subAppDownloadApp($chatId, $selectedAppID)
     {
-        $appCtrl = new ApplicationController();
-        $app     = $appCtrl->getActiveAplicationByID($selectedAppID);
-        $name = $app->name;
-        $description = $app->description;
+        $appCtrl       = new ApplicationController();
+        $app           = $appCtrl->getActiveAplicationByID($selectedAppID);
+        $name          = $app->name;
+        $description   = $app->description;
         $download_link = $app->download_link;
         // $file_src = $app->file_src;
-        $how_to_use = $app->how_to_use;
+        $how_to_use   = $app->how_to_use;
         $youtube_link = $app->youtube_link;
-        $text = $this->customTextCtrl->getText('action.help.appDownload.app.name_description', [
-            'name' => $name,
-            'description' => $description,
+        $text         = $this->customTextCtrl->getText('action.help.appDownload.app.name_description', [
+            'name'          => $name,
+            'description'   => $description,
             'download_link' => $download_link,
-            'how_to_use' => $how_to_use,
-            'youtube_link' => $youtube_link,
+            'how_to_use'    => $how_to_use,
+            'youtube_link'  => $youtube_link,
         ]);
-        $formatter = new TelegramMessageFormatter($this->telegramService);  
+        $formatter = new TelegramMessageFormatter($this->telegramService);
         $text      = $formatter->addFormattedText('', $text)->getMessage();
 
         $this->telegramService->sendMessage($chatId, $text);
         return "";
     }
+    public function support($chatId)
+    {
+        $this->addNewBotLog('support', 'نمایش گزینه های پشتیبانی به کاربر.', $chatId, 'show');
+        $supportCtrl = new SupportController();
+        $supports    = $supportCtrl->getSupporstList();
+        $opr         = [];
+        if ($supports != null) {
+            foreach ($supports as $key => $support) {
+                $opr[] = [
+                    $support->question => "support-{$support->id}",
+                ];
+            }
+        }
+        $text = $this->customTextCtrl->getText('action.help.support.title');
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        return "";
+    }
+    public function subSupport($chatId,$supportId){
+        $supportCtrl = new SupportController();
+        $support     = $supportCtrl->getSupportById($supportId);
+        $this->telegramService->sendMessage($chatId, $support->answer);
+        return "";
+
+    }
     private function addNewBotLog($type, $message, $chatId, $opr)
     {
         $logCtrl = new LogController();
-        $logCtrl->addNewLog($type, $message, $chatId,"", $opr);
+        $logCtrl->addNewLog($type, $message, $chatId, "", $opr);
         return true;
     }
 

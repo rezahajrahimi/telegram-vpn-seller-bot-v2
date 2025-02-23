@@ -202,21 +202,12 @@ class CustomTextController extends Controller
                         ['type' => 'text', 'text' => 'دانلود برنامه'],
                     ]), 'custom_text' => null, 'description' => 'متن دانلود برنامه.'],
 
-
-
-
-
                     ['key' => 'action.help.appDownload.os', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'سیستم عامل خود را انتخاب کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن سیستم عامل خود را انتخاب کنید.'],
                     ['key' => 'action.help.appDownload.app', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'برنامه خود را انتخاب کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن برنامه خود را انتخاب کنید.'],
-
-
-
-
-
 
                     ['key' => 'action.help.appDownload.app.name_description', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => "نام برنامه: {name}"],
@@ -235,16 +226,13 @@ class CustomTextController extends Controller
                         ['type' => 'newline'],
                         ['type' => 'text', 'text' => "{youtube_link}"],
                     ]), 'custom_text' => null, 'description' => 'متن نام برنامه: {name} توضیحات برنامه: {description} لینک دانلود: {download_link} لینک آموزش استفاده: {how_to_use} لینک آموزش یوتیوب: {youtube_link}'],
-
-
-
-
-
-
-
-
-
-
+                    ['key' => 'action.help.support', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'پشتیبانی'],
+                    ]), 'custom_text' => null, 'description' => 'متن پشتیبانی'],
+                    ['key' => 'action.help.support.title', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'یکی از گزینه های پشتیبانی زیر را انتخاب کنید.'],
+                    ]), 'custom_text' => null, 'description' => 'متن یکی از گزینه های پشتیبانی زیر را انتخاب کنید.'],
+                    
 
                     ['key' => 'action.subscription.hiddify', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],

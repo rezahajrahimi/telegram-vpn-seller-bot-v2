@@ -139,9 +139,9 @@ class TelegramWebhookController extends Controller
             case 'سابقه خرید':
                 return $this->subscriptionProcessCtrl->buyHistory($chatId);
                 break;
-            // case 'پشتیبانی':
-            //     return $this->supports();
-            //     break;
+            case 'پشتیبانی':
+                return $this->generalCntrl->support($chatId);
+                break;
             case 'آموزش استفاده و سوالات متداول':
                 return $this->generalCntrl->getFaqs($chatId);
                 break;
@@ -444,6 +444,9 @@ class TelegramWebhookController extends Controller
             'appDownload' => $this->generalCntrl->appDownload($chatId),
             'subAppDownloadOs' => $this->generalCntrl->subAppDownloadOs($chatId, $actionList[1]),
             'subAppDownloadApp' => $this->generalCntrl->subAppDownloadApp($chatId, $actionList[1]),
+            'support' => $this->generalCntrl->subSupport($chatId, $actionList[1]),
+
+
 
 
             default => $this->customTextCtrl->getText('error.action.not_found')
