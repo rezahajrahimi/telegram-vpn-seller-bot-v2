@@ -214,7 +214,7 @@ class GeneralController extends Controller
             }
         }
     }
-    public function return_main_menu_items($chat_id,$message)
+    public function return_main_menu_items($chat_id, $message)
     {
         $menu     = new MainMenuItemController();
         $menuItem = $menu->getAllActivatedMainMenuItems();
@@ -478,8 +478,8 @@ class GeneralController extends Controller
     }
     public function send_add_ballance_option_message($chat_id, $estimatedPrice, $estimatedPriceInDollar)
     {
-        $opr                 = [];
-        $hasZarinPal         = $this->pymntCntrl->getZarinpalStatus();
+        $opr         = [];
+        $hasZarinPal = $this->pymntCntrl->getZarinpalStatus();
         if ($hasZarinPal == true || $hasZarinPal == 1) {
             $newOpr = $this->createZarinpalPaymentLink($chat_id, $estimatedPrice);
             array_push($opr, $newOpr);
@@ -529,50 +529,86 @@ class GeneralController extends Controller
         return true;
 
     }
-    public function createZarinpalPaymentLink($chat_id, $estimatedPrice) 
+    public function createZarinpalPaymentLink($chat_id, $estimatedPrice)
     {
-        $request = new Request();
+        $request             = new Request();
         $request->account_id = $chat_id;
-        $request->amount = $estimatedPrice;
-        $bill = $this->billCntrl->createNewBill($request);
+        $request->amount     = $estimatedPrice;
+        $bill                = $this->billCntrl->createNewBill($request);
 
-        $trRequest = new Request();
-        $trRequest->invoiceID = $bill->bill_id;
+        $trRequest             = new Request();
+        $trRequest->invoiceID  = $bill->bill_id;
         $trRequest->account_id = $chat_id;
-        $trRequest->amount = $estimatedPrice;
-        $paymentLink = $this->trCntrl->add_order($trRequest);
-        
+        $trRequest->amount     = $estimatedPrice;
+        $paymentLink           = $this->trCntrl->add_order($trRequest);
+
         // format $estimatedPrice to 0 decimal
         $formattedPrice = number_format($estimatedPrice, 0, ',', '.');
-        
+
         return [
             'text' => $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal') . " $formattedPrice تومان",
-            'url' => $paymentLink
+            'url'  => $paymentLink,
         ];
     }
-    public function createNowPaymentsLink($chat_id, $estimatedPriceInDollar) 
+    public function createNowPaymentsLink($chat_id, $estimatedPriceInDollar)
     {
-        $request = new Request();
+        $request             = new Request();
         $request->account_id = $chat_id;
-        $request->amount = $estimatedPriceInDollar;
-        $bill = $this->billCntrl->createNewBillInDollar($request);
+        $request->amount     = $estimatedPriceInDollar;
+        $bill                = $this->billCntrl->createNewBillInDollar($request);
 
         $openLink = $this->pymntCntrl->getNowPaymentsLink();
 
-        $trCryptoCntrl = new TransactionCryptoController();
-        $trRequest = new Request();
-        $trRequest->invoiceID = $bill->bill_id;
+        $trCryptoCntrl         = new TransactionCryptoController();
+        $trRequest             = new Request();
+        $trRequest->invoiceID  = $bill->bill_id;
         $trRequest->account_id = $chat_id;
-        $trRequest->amount = $estimatedPriceInDollar;
-        $paymentLink = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
-        $nowpaymentLink = $this->get_nowpayment_payment_link_from_html($paymentLink);
-        
+        $trRequest->amount     = $estimatedPriceInDollar;
+        $paymentLink           = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
+        $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
+
         // format $estimatedPrice to 0 decimal
         $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
-        
+
         return [
             'text' => $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment') . " $formattedPrice دلار",
-            'url' => $nowpaymentLink
+            'url'  => $nowpaymentLink,
         ];
+    }
+    public function getFaqs($chatId)
+    {
+        $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId,'show');
+        $faqCtrl = new FaqController();
+        $faqs    = $faqCtrl->getFaqList();
+        $opr     = [];
+        if ($faqs != null) {
+            foreach ($faqs as $key => $faq) {
+                $opr[] = [
+                    $faq->question => "faq-{$faq->id}",
+                ];
+            }
+        }
+        $text = $this->customTextCtrl->getText('action.help.faq');
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+    }
+    public function subFaq($chatId, $selectedFaqID)
+    {
+        $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId,'show');
+        $faqCtrl = new FaqController();
+        $faq     = $faqCtrl->getFaqById($selectedFaqID);
+        $opr     = [];
+        if ($faq != null) {
+            $opr[] = [
+                $faq->question => "faq-{$faq->id}",
+            ];
+        }
+        $text = $this->customTextCtrl->getText('action.help.faq');
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+    }
+    private function addNewBotLog($type, $message, $chatId, $opr)
+    {
+        $logCtrl = new LogController();
+        $logCtrl->addNewLog($type, $message, $chatId,"", $opr);
+        return true;
     }
 }

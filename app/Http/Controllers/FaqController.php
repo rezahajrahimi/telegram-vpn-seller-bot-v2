@@ -56,7 +56,7 @@ class FaqController extends Controller
             return response()->json(false, 401);
         }
     }
-    public function getFacById($id)
+    public function getFaqById($id)
     {
         try {
             $faq = Faq::where('id', $id)->first();

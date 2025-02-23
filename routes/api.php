@@ -192,7 +192,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::post('createNewFac', [FaqController::class, 'createNewFac']);
     Route::post('updateFac', [FaqController::class, 'updateFac']);
     Route::get('deleteFacById/{id}', [FaqController::class, 'deleteFacById']);
-    Route::get('getFacById/{id}', [FaqController::class, 'getFacById']);
+    Route::get('getFaqById/{id}', [FaqController::class, 'getFaqById']);
     Route::get('getFaqList', [FaqController::class, 'getFaqList']);
 
     // channel lock menu

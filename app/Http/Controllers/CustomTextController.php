@@ -304,7 +304,9 @@ class CustomTextController extends Controller
                     ['key' => 'action.web.auto_login_link', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'لینک ورود سریع به پنل: '],
                     ]), 'custom_text' => null, 'description' => 'متن لینک ورود سریع به پنل: '],
-
+                    ['key' => 'action.help.faq', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'سوالات متداول'],
+                    ]), 'custom_text' => null, 'description' => 'متن سوالات متداول'],
                     ['key' => 'error.server_error', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'خطایی رخ داده است'],
                     ]), 'custom_text' => null, 'description' => 'متن خطایی رخ داده است'],

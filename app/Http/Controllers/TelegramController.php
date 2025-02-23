@@ -43,230 +43,230 @@ class TelegramController extends Controller
     public $fileId;
     private $stickyMenuCalled = false;
 
-    public function inbound(Request $request)
-    {
-        $srtyCtrl = new ServiceTypeController();
-        $prcaCtrl = new ProductCategoryController();
-        $prCtrl = new ProductController();
-        $accBlCtrl = new AccountBallanceController();
-        $pymCtrl = new PaymentTypeController();
-        $trnsCtrl = new TransactionController();
-        $ordCtrl = new OrderController();
-        $settingCtrl = new SettingController();
-        $botUserCtrl = new BotUserController();
-        $menuCntrl = new MenuLevelController();
-        $channelLockCtrl = new ChannelLockController();
-        $buySubscriptionLevel = 1;
-        $servicetypeLevel = 2;
-        $productCategoryLevel = 3;
-        // \Log::info($request->all());
-        try {
-            try {
-                if (isset($request->message['photo'])) {
-                    $this->message_id = $request->message['message_id'];
-                    $this->chat_id = $request->message['chat']['id'];
-                    $this->username = $request->message['from']['username'] ?? ' ندارد ';
-                    $this->from_id = $request->message['from']['id'];
-                    $this->first_name = $request->message['from']['first_name'] ?? '';
-                    $this->last_name = $request->message['from']['last_name'] ?? '';
-                    $this->text = $request->message['caption'] ?? '';
+    // public function inbound(Request $request)
+    // {
+    //     $srtyCtrl = new ServiceTypeController();
+    //     $prcaCtrl = new ProductCategoryController();
+    //     $prCtrl = new ProductController();
+    //     $accBlCtrl = new AccountBallanceController();
+    //     $pymCtrl = new PaymentTypeController();
+    //     $trnsCtrl = new TransactionController();
+    //     $ordCtrl = new OrderController();
+    //     $settingCtrl = new SettingController();
+    //     $botUserCtrl = new BotUserController();
+    //     $menuCntrl = new MenuLevelController();
+    //     $channelLockCtrl = new ChannelLockController();
+    //     $buySubscriptionLevel = 1;
+    //     $servicetypeLevel = 2;
+    //     $productCategoryLevel = 3;
+    //     // \Log::info($request->all());
+    //     try {
+    //         try {
+    //             if (isset($request->message['photo'])) {
+    //                 $this->message_id = $request->message['message_id'];
+    //                 $this->chat_id = $request->message['chat']['id'];
+    //                 $this->username = $request->message['from']['username'] ?? ' ندارد ';
+    //                 $this->from_id = $request->message['from']['id'];
+    //                 $this->first_name = $request->message['from']['first_name'] ?? '';
+    //                 $this->last_name = $request->message['from']['last_name'] ?? '';
+    //                 $this->text = $request->message['caption'] ?? '';
 
-                    $text = 'رسید شما دریافت شد، منتظر تایید توسط مدیر باشید.';
-                    $this->fileId = app('telegram_bot')->getImageId($request->message['photo']);
-                    $this->chat_type = 'image';
-                    $result = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+    //                 $text = 'رسید شما دریافت شد، منتظر تایید توسط مدیر باشید.';
+    //                 $this->fileId = app('telegram_bot')->getImageId($request->message['photo']);
+    //                 $this->chat_type = 'image';
+    //                 $result = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
-                    $chId = $this->chat_id;
-                    $this->sendMessageToAdmin($this->chat_id, $this->fileId, "کاربر: $chId یک تصوبر ارسال کرد ", 'image');
-                    $transactionCntrl = new TransactionController();
-                    $imageTrCntrl = new TransactionImageController();
-                    $transactionID = $transactionCntrl->addUserTranaction($this->chat_id, 0, '000', 0);
-                    $request = new Request();
-                    $request->transaction_id = $transactionID;
-                    $request->img_src = $this->fileId;
-                    $request->account_id = $this->chat_id;
-                    $request->user_text = $this->text ?? 'بدون متن';
-                    $request->image_url = app('telegram_bot')->getImageUrlByFileID($this->fileId);
+    //                 $chId = $this->chat_id;
+    //                 $this->sendMessageToAdmin($this->chat_id, $this->fileId, "کاربر: $chId یک تصوبر ارسال کرد ", 'image');
+    //                 $transactionCntrl = new TransactionController();
+    //                 $imageTrCntrl = new TransactionImageController();
+    //                 $transactionID = $transactionCntrl->addUserTranaction($this->chat_id, 0, '000', 0);
+    //                 $request = new Request();
+    //                 $request->transaction_id = $transactionID;
+    //                 $request->img_src = $this->fileId;
+    //                 $request->account_id = $this->chat_id;
+    //                 $request->user_text = $this->text ?? 'بدون متن';
+    //                 $request->image_url = app('telegram_bot')->getImageUrlByFileID($this->fileId);
 
-                    // $imageTrCntrl->addNewTransactionImage($request);
-                    $imageTrCntrl->saveNewTransactionImage($request);
-                    \Log::info('oneeeeee');
-                    return response()->json($result, 200);
-                } elseif (isset($request->message)) {
-                    $this->from_id = $request->message['from']['id'];
-                    $this->text = $request->message['text'];
-                    $this->first_name = $request->message['from']['first_name'];
-                    $this->caption = $request->message['caption'] ?? '';
-                    $this->chat_id = $request->message['chat']['id'] ?? 0;
-                    $this->last_name = $request->message['from']['last_name'] ?? '';
-                    $this->username = $request->message['from']['username'] ?? ' ندارد ';
-                    $this->message_id = $request->message['message_id'];
-                    $this->forward_from_name = $request->message['reply_to_message']['forward_sender_name'] ?? 0;
-                    $this->forward_from_id = $request->message['reply_to_message']['forward_from']['id'] ?? 0;
-                    $this->reply_text = $request->message['reply_to_message']['text'] ?? '0';
-                    $this->chat_type = 'text';
+    //                 // $imageTrCntrl->addNewTransactionImage($request);
+    //                 $imageTrCntrl->saveNewTransactionImage($request);
+    //                 \Log::info('oneeeeee');
+    //                 return response()->json($result, 200);
+    //             } elseif (isset($request->message)) {
+    //                 $this->from_id = $request->message['from']['id'];
+    //                 $this->text = $request->message['text'];
+    //                 $this->first_name = $request->message['from']['first_name'];
+    //                 $this->caption = $request->message['caption'] ?? '';
+    //                 $this->chat_id = $request->message['chat']['id'] ?? 0;
+    //                 $this->last_name = $request->message['from']['last_name'] ?? '';
+    //                 $this->username = $request->message['from']['username'] ?? ' ندارد ';
+    //                 $this->message_id = $request->message['message_id'];
+    //                 $this->forward_from_name = $request->message['reply_to_message']['forward_sender_name'] ?? 0;
+    //                 $this->forward_from_id = $request->message['reply_to_message']['forward_from']['id'] ?? 0;
+    //                 $this->reply_text = $request->message['reply_to_message']['text'] ?? '0';
+    //                 $this->chat_type = 'text';
 
-                    $result = $this->recogniseTextMessage();
+    //                 $result = $this->recogniseTextMessage();
 
-                    \Log::info('two');
-                    return response()->json($result, 200);
-                } elseif (isset($request->callback_query)) {
-                    $this->callbackId = $request->callback_query['id'];
-                    $this->data = $request->callback_query['data'];
-                    $this->text = $request->callback_query['message']['text'];
-                    $this->message_id = $request->callback_query['message']['message_id'];
-                    $this->chat_id = $request->callback_query['message']['chat']['id'];
-                    $this->chat_type = $request->callback_query['message']['chat']['type'];
-                    $this->username = $request->callback_query['from']['username'] ?? ' ندارد ';
-                    $this->from_id = $request->callback_query['from']['id'];
-                    $this->first_name = $request->callback_query['from']['first_name'] ?? '';
-                    $this->last_name = $request->callback_query['from']['last_name'] ?? '';
+    //                 \Log::info('two');
+    //                 return response()->json($result, 200);
+    //             } elseif (isset($request->callback_query)) {
+    //                 $this->callbackId = $request->callback_query['id'];
+    //                 $this->data = $request->callback_query['data'];
+    //                 $this->text = $request->callback_query['message']['text'];
+    //                 $this->message_id = $request->callback_query['message']['message_id'];
+    //                 $this->chat_id = $request->callback_query['message']['chat']['id'];
+    //                 $this->chat_type = $request->callback_query['message']['chat']['type'];
+    //                 $this->username = $request->callback_query['from']['username'] ?? ' ندارد ';
+    //                 $this->from_id = $request->callback_query['from']['id'];
+    //                 $this->first_name = $request->callback_query['from']['first_name'] ?? '';
+    //                 $this->last_name = $request->callback_query['from']['last_name'] ?? '';
 
-                    $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
-                    $this->chat_type = 'callback';
-                    $this->recogniseMessage();
-                    \Log::info('three');
-                    $result = $this->changeMenuLevel();
-                    return response()->json($result, 200);
-                }
-                \Log::info('last else');
-                return $this->stickyMenu();
-            } catch (\Throwable $th) {
-                \Log::info("Throwable:  $th");
+    //                 $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
+    //                 $this->chat_type = 'callback';
+    //                 $this->recogniseMessage();
+    //                 \Log::info('three');
+    //                 $result = $this->changeMenuLevel();
+    //                 return response()->json($result, 200);
+    //             }
+    //             \Log::info('last else');
+    //             return $this->stickyMenu();
+    //         } catch (\Throwable $th) {
+    //             \Log::info("Throwable:  $th");
 
-                if (isset($request->callback_query)) {
-                    $this->callbackId = $request->callback_query['id'];
-                    $this->data = $request->callback_query['data'];
-                    $this->text = $request->callback_query['message']['text'];
-                    $this->message_id = $request->callback_query['message']['message_id'];
-                    $this->chat_id = $request->callback_query['message']['chat']['id'];
-                    $this->chat_type = $request->callback_query['message']['chat']['type'];
-                    $this->username = $request->callback_query['from']['username'] ?? ' ندارد ';
-                    $this->from_id = $request->callback_query['from']['id'];
-                    $this->first_name = $request->callback_query['from']['first_name'] ?? '';
-                    $this->last_name = $request->callback_query['from']['last_name'] ?? '';
+    //             if (isset($request->callback_query)) {
+    //                 $this->callbackId = $request->callback_query['id'];
+    //                 $this->data = $request->callback_query['data'];
+    //                 $this->text = $request->callback_query['message']['text'];
+    //                 $this->message_id = $request->callback_query['message']['message_id'];
+    //                 $this->chat_id = $request->callback_query['message']['chat']['id'];
+    //                 $this->chat_type = $request->callback_query['message']['chat']['type'];
+    //                 $this->username = $request->callback_query['from']['username'] ?? ' ندارد ';
+    //                 $this->from_id = $request->callback_query['from']['id'];
+    //                 $this->first_name = $request->callback_query['from']['first_name'] ?? '';
+    //                 $this->last_name = $request->callback_query['from']['last_name'] ?? '';
 
-                    $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
-                    return $this->recogniseMessage();
-                }
-            }
+    //                 $this->markup = json_decode(json_encode($request->callback_query['message']['reply_markup']['inline_keyboard']), true);
+    //                 return $this->recogniseMessage();
+    //             }
+    //         }
 
-            // if (!cache()->has("chat_id_{$this->from_id}") && $this->currentMenuLevel == 0) {
-            // \Log::info("from_id:  $this->from_id");
+    //         // if (!cache()->has("chat_id_{$this->from_id}") && $this->currentMenuLevel == 0) {
+    //         // \Log::info("from_id:  $this->from_id");
 
-            if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
-                $this->text = $settingCtrl->getWelcomeMessage();
-                $clenedText = $this->prepareText($this->text);
-                cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
-                // app('telegram_bot')->sendMessage($clenedText, $this->chat_id, null, 'MarkDown');
-                $this->stickyMenuCalled = true; // add this line
+    //         if ($botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name) == false) {
+    //             $this->text = $settingCtrl->getWelcomeMessage();
+    //             $clenedText = $this->prepareText($this->text);
+    //             cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
+    //             // app('telegram_bot')->sendMessage($clenedText, $this->chat_id, null, 'MarkDown');
+    //             $this->stickyMenuCalled = true; // add this line
 
-                return $this->stickyMenu($clenedText);
-            } else {
-                //
-                if (!$this->stickyMenuCalled) {
-                    // add this check
-                    $this->stickyMenuCalled = true;
-                    // return $this->stickyMenu();
-                }
-                $channelLock = $this->checkIsChannelsMember($this->from_id);
-                if ($channelLock == true || $channelLock == 1) {
-                    $this->changeMenuLevel();
-                } else {
-                    return $this->channelLockMenu();
-                }
-            }
-        } catch (\Throwable $th) {
-            \Log::info("Throwable:  $th");
-            return $this->stickyMenu();
-        }
-    }
+    //             return $this->stickyMenu($clenedText);
+    //         } else {
+    //             //
+    //             if (!$this->stickyMenuCalled) {
+    //                 // add this check
+    //                 $this->stickyMenuCalled = true;
+    //                 // return $this->stickyMenu();
+    //             }
+    //             $channelLock = $this->checkIsChannelsMember($this->from_id);
+    //             if ($channelLock == true || $channelLock == 1) {
+    //                 $this->changeMenuLevel();
+    //             } else {
+    //                 return $this->channelLockMenu();
+    //             }
+    //         }
+    //     } catch (\Throwable $th) {
+    //         \Log::info("Throwable:  $th");
+    //         return $this->stickyMenu();
+    //     }
+    // }
     // add a nullabe parametr to stickyMenu
-    public function stickyMenu($speceficText = null)
-    {
-        $menu = new MainMenuItemController();
-        $menuItem = $menu->getAllActivatedMainMenuItems();
-        $opr = [];
+    // public function stickyMenu($speceficText = null)
+    // {
+    //     $menu = new MainMenuItemController();
+    //     $menuItem = $menu->getAllActivatedMainMenuItems();
+    //     $opr = [];
 
-        if ($menuItem[0]->name == 'خرید اشتراک') {
-            array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
-            // remove first item from menuItem list because we allreade added it to $opr
-            $menuItem = $menuItem->slice(1);
-        }
-        $countOfMenuItem = count($menuItem);
-        for ($i = 0; $i < $countOfMenuItem; $i += 2) {
-            $pair = $menuItem->slice($i, 2);
-            $index = 1;
+    //     if ($menuItem[0]->name == 'خرید اشتراک') {
+    //         array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
+    //         // remove first item from menuItem list because we allreade added it to $opr
+    //         $menuItem = $menuItem->slice(1);
+    //     }
+    //     $countOfMenuItem = count($menuItem);
+    //     for ($i = 0; $i < $countOfMenuItem; $i += 2) {
+    //         $pair = $menuItem->slice($i, 2);
+    //         $index = 1;
 
-            foreach ($pair as $key => $value) {
-                if ($index % 2 == 1) {
-                    $firstRowIndicator = ['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"];
-                    $index += 1;
-                } elseif ($index % 2 == 0) {
-                    array_push($opr, [$firstRowIndicator, ['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"]]);
-                    $index += 1;
-                    break;
-                }
-            }
-        }
-        // because of if count of menuItem is odd we need to add last row indicator
-        if ($countOfMenuItem % 2 == 1) {
-            $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem - 1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem - 1]->id}"];
-            array_push($opr, [$firstRowIndicator]);
-        }
+    //         foreach ($pair as $key => $value) {
+    //             if ($index % 2 == 1) {
+    //                 $firstRowIndicator = ['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"];
+    //                 $index += 1;
+    //             } elseif ($index % 2 == 0) {
+    //                 array_push($opr, [$firstRowIndicator, ['text' => $value->alias_name, 'callback_data' => "main-{$value->id}"]]);
+    //                 $index += 1;
+    //                 break;
+    //             }
+    //         }
+    //     }
+    //     // because of if count of menuItem is odd we need to add last row indicator
+    //     if ($countOfMenuItem % 2 == 1) {
+    //         $lastRowIndicator = ['text' => $menuItem[$countOfMenuItem - 1]->alias_name, 'callback_data' => "main-{$menuItem[$countOfMenuItem - 1]->id}"];
+    //         array_push($opr, [$firstRowIndicator]);
+    //     }
 
-        if (strpos($this->text, '/start') !== false && cache()->has("chat_id_{$this->from_id}") !== 1 && $this->stickyMenuCalled == false) {
-            \Log::info('/start one');
-            cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
-            $this->stickyMenuCalled = true;
-            $res = app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
-            return $res;
-        } elseif (strpos($this->text, '/start') !== false && $this->stickyMenuCalled == false) {
-            $this->stickyMenuCalled = true;
-            \Log::info('/start two');
-            return app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
-        }
-        $this->setNewLevel($this->buySubscriptionLevel);
+    //     if (strpos($this->text, '/start') !== false && cache()->has("chat_id_{$this->from_id}") !== 1 && $this->stickyMenuCalled == false) {
+    //         \Log::info('/start one');
+    //         cache()->put("chat_id_{$this->from_id}", true, now()->addMinutes(10));
+    //         $this->stickyMenuCalled = true;
+    //         $res = app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
+    //         return $res;
+    //     } elseif (strpos($this->text, '/start') !== false && $this->stickyMenuCalled == false) {
+    //         $this->stickyMenuCalled = true;
+    //         \Log::info('/start two');
+    //         return app('telegram_bot')->buttonMessage('یک گزینه را انتخاب کنید.', $opr, $this->chat_id, $this->message_id);
+    //     }
+    //     $this->setNewLevel($this->buySubscriptionLevel);
 
-        return app('telegram_bot')->buttonMessage($speceficText, $opr, $this->chat_id, $this->message_id);
-    }
-    public function deleteMessage()
-    {
-        try {
-            $result = app('telegram_bot')->deleteMessage($this->chat_id, $this->message_id);
-        } catch (\Throwable $th) {
-            \Log::info("Throwable deleteMessage: $th");
-        }
-    }
-    public function editMessage()
-    {
-        try {
-            $result = app('telegram_bot')->editMessage($this->chat_id, $this->message_id);
-        } catch (\Throwable $th) {
-            \Log::info("Throwable editMessage: $th");
-        }
-    }
-    public function recogniseMessage()
-    {
-        try {
-            if ($this->chat_type == 'image') {
-                $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
+    //     return app('telegram_bot')->buttonMessage($speceficText, $opr, $this->chat_id, $this->message_id);
+    // }
+    // public function deleteMessage()
+    // {
+    //     try {
+    //         $result = app('telegram_bot')->deleteMessage($this->chat_id, $this->message_id);
+    //     } catch (\Throwable $th) {
+    //         \Log::info("Throwable deleteMessage: $th");
+    //     }
+    // }
+    // public function editMessage()
+    // {
+    //     try {
+    //         $result = app('telegram_bot')->editMessage($this->chat_id, $this->message_id);
+    //     } catch (\Throwable $th) {
+    //         \Log::info("Throwable editMessage: $th");
+    //     }
+    // }
+    // public function recogniseMessage()
+    // {
+    //     try {
+    //         if ($this->chat_type == 'image') {
+    //             $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
 
-                return response()->json($result, 200);
-            }
+    //             return response()->json($result, 200);
+    //         }
 
-            $this->userCommandArr = explode('-', $this->data);
+    //         $this->userCommandArr = explode('-', $this->data);
 
-            $command = $this->userCommandArr[0];
+    //         $command = $this->userCommandArr[0];
 
-            return $this->userCommandArr;
-        } catch (\Throwable $th) {
-            $this->userCommandArr = ['start'];
-            \Log::info("Throwable $th");
+    //         return $this->userCommandArr;
+    //     } catch (\Throwable $th) {
+    //         $this->userCommandArr = ['start'];
+    //         \Log::info("Throwable $th");
 
-            return $this->userCommandArr;
-        }
-    }
+    //         return $this->userCommandArr;
+    //     }
+    // }
     public function recogniseTextMessage()
     {
         if (strpos($this->text, '/start') !== false) {
@@ -1370,9 +1370,8 @@ class TelegramController extends Controller
             return response()->json($result, 200);
         }
     }
-    public function faqs()
+    public function faqs($chatId)
     {
-        \Log::info('faqsssssss');
         $this->addNewBotLog('faq', 'نمایش گزینه های سوالات متدوال به کاربر.', 'show');
 
         $faqCtrl = new FaqController();
@@ -1393,12 +1392,7 @@ class TelegramController extends Controller
                     ]);
                 }
             }
-            // array_push($opr, [
-            //     [
-            //         'text' => 'بازگشت به منوی اصلی',
-            //         'callback_data' => '0',
-            //     ],
-            // ]);
+
             $text = 'یک گزینه را انتخاب کنید:';
             $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
             return response()->json($result, 200);

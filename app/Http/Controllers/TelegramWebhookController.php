@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Http\Controllers\AccountProcessController;
+
 use App\Models\User;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
@@ -141,9 +142,9 @@ class TelegramWebhookController extends Controller
             // case 'پشتیبانی':
             //     return $this->supports();
             //     break;
-            // case 'آموزش استفاده و سوالات متداول':
-            //     return $this->faqs();
-            //     break;
+            case 'آموزش استفاده و سوالات متداول':
+                return $this->generalCntrl->getFaqs($chatId);
+                break;
             // case 'دانلود برنامه':
             //     return $this->appDownload();
             //     break;
@@ -430,6 +431,7 @@ class TelegramWebhookController extends Controller
             'accountSubAccountsZarinpal' => $this->accountProcessCtrl->handleActionAddBalanceZarinpal($chatId),
             'accountSubAccountsNowpayment' => $this->accountProcessCtrl->handleActionAddBalanceNowpayments($chatId),
             'addBalanceReply' => $this->accountProcessCtrl->addBalanceReply($chatId, $actionList[1]),
+            'faq' => $this->generalCntrl->subFaq($chatId, $actionList[1]),
 
 
             default => $this->customTextCtrl->getText('error.action.not_found')
