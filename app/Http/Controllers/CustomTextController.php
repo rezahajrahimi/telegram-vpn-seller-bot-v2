@@ -118,43 +118,43 @@ class CustomTextController extends Controller
 
                     ]), 'custom_text' => null, 'description' => 'متن عملیات شکست خورده - پارامترها: {user_balance_in_toman} {user_balance_in_dollar} {product_price_in_toman} {difference_in_toman} {difference_in_dollar}'],
                     ['key' => 'action.process.add_online_balance', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'افزایش موجودی کیف پول خود را با انتخاب یکی از گزینه های زیر انجام دهید.']
+                        ['type' => 'text', 'text' => 'افزایش موجودی کیف پول خود را با انتخاب یکی از گزینه های زیر انجام دهید.'],
                     ]), 'custom_text' => null, 'description' => 'متن افزایش موجودی کیف پول - پارامترها: {website}'],
                     ['key' => 'action.process.add_online_balance.zarinpal', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'پرداخت آنلاین با زرین پال']
+                        ['type' => 'text', 'text' => 'پرداخت آنلاین با زرین پال'],
                     ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین با زرین پال'],
                     ['key' => 'action.process.add_online_balance.zarinpal.reply', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'مقدار واریزی خود را وارد کنید. (حداقل 10 هزار تومان)']
+                        ['type' => 'text', 'text' => 'مقدار واریزی خود را وارد کنید. (حداقل 10 هزار تومان)'],
                     ]), 'custom_text' => null, 'description' => 'متن مقدار واریزی خود را وارد کنید. (حداقل 10 هزار تومان)'],
                     ['key' => 'action.process.add_online_balance.zarinpal.reply.invalid_amount', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'لطفا مبلغ را به صورت عددی وارد کنید']
+                        ['type' => 'text', 'text' => 'لطفا مبلغ را به صورت عددی وارد کنید'],
                     ]), 'custom_text' => null, 'description' => 'متن لطفا مبلغ را به صورت عددی وارد کنید'],
                     ['key' => 'action.process.add_online_balance.zarinpal.reply.invoice', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)']
+                        ['type' => 'text', 'text' => 'صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
                     ]), 'custom_text' => null, 'description' => 'متن صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
 
                     ['key' => 'action.process.add_online_balance.nowpayments.reply', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)']
+                        ['type' => 'text', 'text' => 'مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)'],
                     ]), 'custom_text' => null, 'description' => 'متن مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)'],
-                    
+
                     ['key' => 'action.process.add_online_balance.nowpayments.reply.invoice', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)']
+                        ['type' => 'text', 'text' => 'صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
                     ]), 'custom_text' => null, 'description' => 'متن صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
 
                     ['key' => 'action.process.add_online_balance.dollarpay.zarinpal', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'پرداخت آنلاین با زرین پال']
+                        ['type' => 'text', 'text' => 'پرداخت آنلاین با زرین پال'],
                     ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین با زرین پال'],
-                    
+
                     ['key' => 'action.process.add_online_balance.dollarpay.nowpayment', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'پرداخت آنلاین با رمزارز']
+                        ['type' => 'text', 'text' => 'پرداخت آنلاین با رمزارز'],
                     ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین با رمزارز'],
 
                     ['key' => 'action.process.add_offline_balance_option_and_online_balance', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.']
+                        ['type' => 'text', 'text' => 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.'],
                     ]), 'custom_text' => null, 'description' => 'متن همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.'],
-                    
+
                     ['key' => 'action.process.add_offline_balance_option', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'پرداخت آفلاین']
+                        ['type' => 'text', 'text' => 'پرداخت آفلاین'],
                     ]), 'custom_text' => null, 'description' => 'متن پرداخت آفلاین'],
                     ['key' => 'action.process.add_offline_balance_option.image', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => "لطفا مبلغ را به این شماره کارت واریز کنید و رسید پرداختی را ارسال کنید. "],
@@ -164,37 +164,37 @@ class CustomTextController extends Controller
                     ]), 'custom_text' => null, 'description' => 'متن درخواست واریز به شماره کارت - پارامترها: {merchant_id}'],
 
                     ['key' => 'action.process.success_buy', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'اشتراک با موفقیت خریداری شد']
+                        ['type' => 'text', 'text' => 'اشتراک با موفقیت خریداری شد'],
                     ]), 'custom_text' => null, 'description' => 'متن اشتراک با موفقیت خریداری شد'],
-                    
+
                     ['key' => 'action.process.failed_buy', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'خرید اشتراک با شکست مواجه شد']
+                        ['type' => 'text', 'text' => 'خرید اشتراک با شکست مواجه شد'],
                     ]), 'custom_text' => null, 'description' => 'متن خرید اشتراک با شکست مواجه شد'],
-                    
+
                     ['key' => 'action.buy_subscription', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'خرید اشتراک']
+                        ['type' => 'text', 'text' => 'خرید اشتراک'],
                     ]), 'custom_text' => null, 'description' => 'متن خرید اشتراک'],
-                    
+
                     ['key' => 'action.buy_subscription_by_location', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'خرید اشتراک بر اساس مکان']
+                        ['type' => 'text', 'text' => 'خرید اشتراک بر اساس مکان'],
                     ]), 'custom_text' => null, 'description' => 'متن خرید اشتراک بر اساس مکان'],
-                    
+
                     ['key' => 'action.buy_subscription_by_location.location', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'مکان سرور را انتخاب کنید.']
+                        ['type' => 'text', 'text' => 'مکان سرور را انتخاب کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن مکان سرور را انتخاب کنید.'],
-                    
+
                     ['key' => 'action.buy_subscription.select_package', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'بسته خود را انتخاب کنید.']
+                        ['type' => 'text', 'text' => 'بسته خود را انتخاب کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن بسته خود را انتخاب کنید.'],
-                    
+
                     ['key' => 'action.help.add_ballance', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'لطفا کیف پول خود را با انتخاب یکی از گزینه های زیر شارژ کنید.']
+                        ['type' => 'text', 'text' => 'لطفا کیف پول خود را با انتخاب یکی از گزینه های زیر شارژ کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن لطفا کیف پول خود را با انتخاب یکی از گزینه های زیر شارژ کنید.'],
-                    
+
                     ['key' => 'action.help.using_subscription', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'به کمک نیاز داری؟ یک گزینه را انتخاب بکن']
+                        ['type' => 'text', 'text' => 'به کمک نیاز داری؟ یک گزینه را انتخاب بکن'],
                     ]), 'custom_text' => null, 'description' => 'متن به کمک نیاز داری؟ یک گزینه را انتخاب بکن'],
-                    
+
                     ['key' => 'action.subscription.hiddify', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
                         ['type' => 'newline'],
@@ -208,10 +208,10 @@ class CustomTextController extends Controller
                         ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
                     ]), 'custom_text' => null, 'description' => 'متن خرید شما با موفقیت انجام شد - پارامترها: {panel_link} {subscription_link}'],
                     ['key' => 'action.buy_history.title', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'سابقه خرید']
+                        ['type' => 'text', 'text' => 'سابقه خرید'],
                     ]), 'custom_text' => null, 'description' => 'متن سابقه خرید'],
                     ['key' => 'action.buy_history.no_history', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'شما هیچ سابقه خریدی ندارید']
+                        ['type' => 'text', 'text' => 'شما هیچ سابقه خریدی ندارید'],
                     ]), 'custom_text' => null, 'description' => 'متن شما هیچ سابقه خریدی ندارید'],
                     ['key' => 'action.buy_history.history', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => 'سابقه خرید شما:'],
@@ -230,10 +230,10 @@ class CustomTextController extends Controller
                         ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
                     ]), 'custom_text' => null, 'description' => 'متن سابقه خرید شما: - پارامترها: {name} {category_name} {panel_link} {subscription_link}'],
                     ['key' => 'action.history.buttun.recharge', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'تمدید بسته']
+                        ['type' => 'text', 'text' => 'تمدید بسته'],
                     ]), 'custom_text' => null, 'description' => 'متن تمدید بسته'],
                     ['key' => 'action.history.buttun.remark', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'تغییر نام بسته']
+                        ['type' => 'text', 'text' => 'تغییر نام بسته'],
                     ]), 'custom_text' => null, 'description' => 'متن تغییر نام بسته'],
 
                     ['key' => 'action.account.details', 'default_text' => json_encode([
@@ -253,37 +253,37 @@ class CustomTextController extends Controller
 
                     ]), 'custom_text' => null, 'description' => 'متن اطلاعات حساب شما: - پارامترها: {username} {name} {last_name} {account_id} {balance} {balance_in_dollar} {referral_balance}'],
                     ['key' => 'action.account.additional_options', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'گزینه های اضافه']
+                        ['type' => 'text', 'text' => 'گزینه های اضافه'],
                     ]), 'custom_text' => null, 'description' => 'متن گزینه های اضافه'],
                     ['key' => 'action.account.additional_options.transactions', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'تراکنش ها']
+                        ['type' => 'text', 'text' => 'تراکنش ها'],
                     ]), 'custom_text' => null, 'description' => 'متن تراکنش ها'],
                     ['key' => 'action.account.additional_options.sub_accounts', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'زیر مجموعه ها']
+                        ['type' => 'text', 'text' => 'زیر مجموعه ها'],
                     ]), 'custom_text' => null, 'description' => 'متن زیر مجموعه ها'],
                     ['key' => 'action.account.additional_options.add_balance', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'افزایش موجودی']
+                        ['type' => 'text', 'text' => 'افزایش موجودی'],
                     ]), 'custom_text' => null, 'description' => 'متن افزایش موجودی'],
                     ['key' => 'action.account.transactions.title', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'سابقه تراکنش ها']
+                        ['type' => 'text', 'text' => 'سابقه تراکنش ها'],
                     ]), 'custom_text' => null, 'description' => 'متن سابقه تراکنش ها'],
                     ['key' => 'action.account.transactions.no_transactions', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'شما هیچ تراکنشی ندارید']
+                        ['type' => 'text', 'text' => 'شما هیچ تراکنشی ندارید'],
                     ]), 'custom_text' => null, 'description' => 'متن شما هیچ تراکنشی ندارید'],
                     ['key' => 'action.account.sub_accounts.title', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'سابقه زیر مجموعه ها']
+                        ['type' => 'text', 'text' => 'سابقه زیر مجموعه ها'],
                     ]), 'custom_text' => null, 'description' => 'متن سابقه زیر مجموعه ها'],
                     ['key' => 'action.account.sub_accounts.no_sub_accounts', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'شما هیچ زیر مجموعه ای ندارید']
+                        ['type' => 'text', 'text' => 'شما هیچ زیر مجموعه ای ندارید'],
                     ]), 'custom_text' => null, 'description' => 'متن شما هیچ زیر مجموعه ای ندارید'],
                     ['key' => 'action.remark.title', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'لطفا نام جدید بسته خود را وارد کنید یا عبارت "لغو" را ارسال کنید:']
+                        ['type' => 'text', 'text' => 'لطفا نام جدید بسته خود را وارد کنید یا عبارت "لغو" را ارسال کنید:'],
                     ]), 'custom_text' => null, 'description' => 'متن لطفا نام جدید بسته خود را وارد کنید یا عبارت "لغو" را ارسال کنید:'],
                     ['key' => 'action.remark.success', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'نام بسته با موفقیت تغییر کرد.']
+                        ['type' => 'text', 'text' => 'نام بسته با موفقیت تغییر کرد.'],
                     ]), 'custom_text' => null, 'description' => 'متن نام بسته با موفقیت تغییر کرد.'],
                     ['key' => 'action.remark.cancel', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'تغییر نام بسته لغو شد.']
+                        ['type' => 'text', 'text' => 'تغییر نام بسته لغو شد.'],
                     ]), 'custom_text' => null, 'description' => 'متن لغو تغییر نام بسته'],
                     ['key' => 'action.web.generate_auto_login_link', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => "لینک ورود به پنل: "],
@@ -300,7 +300,7 @@ class CustomTextController extends Controller
                         ['type' => 'text', 'text' => "با این اطلاعات می توانید وارد پنل شوید."],
                     ]), 'custom_text' => null, 'description' => 'متن لینک ورود به پنل: - پارامترها: {link} {username} {password}'],
                     ['key' => 'action.web.auto_login_link', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'لینک ورود سریع به پنل: ']
+                        ['type' => 'text', 'text' => 'لینک ورود سریع به پنل: '],
                     ]), 'custom_text' => null, 'description' => 'متن لینک ورود سریع به پنل: '],
 
                     ['key' => 'error.server_error', 'default_text' => json_encode([

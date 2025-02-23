@@ -164,6 +164,7 @@ class SubscriptionProcessController extends Controller
                 }
             }
         }
+        
         $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
         return "";
     }
