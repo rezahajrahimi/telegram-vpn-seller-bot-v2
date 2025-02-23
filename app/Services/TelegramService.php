@@ -418,7 +418,7 @@ class TelegramService
         }
         return $keyboard;
     }
-    private function formatText(array $text): string
+    public function formatText(array $text): string
     {
         $formatter = new TelegramMessageFormatter($this);
         $text      = $formatter->addFormattedText('', $text)->getMessage();

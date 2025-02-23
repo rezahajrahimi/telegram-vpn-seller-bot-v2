@@ -89,16 +89,32 @@ class AccountProcessController extends Controller
     private function show_additional_options($chatId)
     {
         $opr   = [];
+        $text = $this->customTextCtrl->getText('action.account.additional_options.transactions');
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
         $opr[] = [
-            $this->customTextCtrl->getText('action.account.additional_options.transactions') => "accountTransactions",
+            $text => "accountTransactions",
         ];
+        $text = $this->customTextCtrl->getText('action.account.additional_options.sub_accounts');
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
         $opr[] = [
-            $this->customTextCtrl->getText('action.account.additional_options.sub_accounts') => "accountSubAccounts",
+            $text => "accountSubAccounts",
         ];
+        $text = $this->customTextCtrl->getText('action.account.additional_options.add_balance');
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
         $opr[] = [
-            $this->customTextCtrl->getText('action.account.additional_options.add_balance') => "accountAddBalance",
+            $text => "accountAddBalance",
         ];
         $text = $this->customTextCtrl->getText('action.account.additional_options');
+  
         $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
         return "";
     }
@@ -164,23 +180,34 @@ class AccountProcessController extends Controller
 
             $hasZarinPal = $this->pymntCntrl->getZarinpalStatus();
             if ($hasZarinPal == true || $hasZarinPal == 1) {
+                $text = $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
+
                 $newOpr = [
-                    $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal') => "accountSubAccountsZarinpal",
+                    $text => "accountSubAccountsZarinpal",
                 ];
                 array_push($opr, $newOpr);
             }
 
             $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
             if ($hasDollarPay == true || $hasDollarPay == 1) {
+                $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
                 $newOpr = [
-                    $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment') => "accountSubAccountsNowpayment",
+                    $text => "accountSubAccountsNowpayment",
                 ];
                 array_push($opr, $newOpr);
             }
             if (count($opr) > 0) {
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance');
                 // check if the text is json format
-                \Log::info("text: " . $text);
+                      
                 $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
             }
 
@@ -205,7 +232,7 @@ class AccountProcessController extends Controller
 
             }
             $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
-
+         
             $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
             return true;
 

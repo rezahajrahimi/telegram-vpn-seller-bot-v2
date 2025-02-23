@@ -362,23 +362,43 @@ class GeneralController extends Controller
         $faqItemAliasName = $this->mainMenuItem->getAliasNameByName('آموزش استفاده و سوالات متداول');
         $faqItem          = $this->mainMenuItem->isActiveByAliasName($faqItemAliasName);
         if ($faqItem == true || $faqItem == 1) {
+            $text = $this->customTextCtrl->getText('action.help.faq');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
             $opr[] = [
-                $faqItemAliasName => "help-faqs",
+                $text => "help-faqs",
             ];
         }
         $appDownloadItemAliasName = $this->mainMenuItem->getAliasNameByName('دانلود برنامه');
         $appDownloadItem          = $this->mainMenuItem->isActiveByAliasName($appDownloadItemAliasName);
         if ($appDownloadItem == true || $appDownloadItem == 1) {
+            $text = $this->customTextCtrl->getText('action.help.appDownload');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
             $opr[] = [
-                $appDownloadItemAliasName => "help-appDownload",
+                $text => "help-appDownload",
             ];
         }
         if ($recharge != null) {
+            $text = $this->customTextCtrl->getText('action.history.buttun.recharge');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
             $opr[] = [
-                $this->customTextCtrl->getText('action.history.buttun.recharge') => "recharge-{$productID}",
+                $text => "recharge-{$productID}",
             ];
+            $text = $this->customTextCtrl->getText('action.history.buttun.remark');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
             $opr[] = [
-                $this->customTextCtrl->getText('action.history.buttun.remark') => "remark-{$productID}",
+                $text => "remark-{$productID}",
             ];
 
         }
@@ -483,8 +503,16 @@ class GeneralController extends Controller
         if ($offlinePayment != null) {
             if ($hasZarinPal == true || $hasZarinPal == 1 || $hasDollarPay == true || $hasDollarPay == 1) {
                 $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option_and_online_balance');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
             } else {
                 $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
             }
 
             $opr = [];
