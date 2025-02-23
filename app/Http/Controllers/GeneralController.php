@@ -638,8 +638,24 @@ class GeneralController extends Controller
     {
         $appCtrl = new ApplicationController();
         $app     = $appCtrl->getActiveAplicationByID($selectedAppID);
-        $this->telegramService->sendMessage($chatId, $app->download_link);
-        return "ddddddddddd";
+        $name = $app->name;
+        $description = $app->description;
+        $download_link = $app->download_link;
+        // $file_src = $app->file_src;
+        $how_to_use = $app->how_to_use;
+        $youtube_link = $app->youtube_link;
+        $text = $this->customTextCtrl->getText('action.help.appDownload.app.name_description', [
+            'name' => $name,
+            'description' => $description,
+            'download_link' => $download_link,
+            'how_to_use' => $how_to_use,
+            'youtube_link' => $youtube_link,
+        ]);
+        $formatter = new TelegramMessageFormatter($this->telegramService);  
+        $text      = $formatter->addFormattedText('', $text)->getMessage();
+
+        $this->telegramService->sendMessage($chatId, $text);
+        return "";
     }
     private function addNewBotLog($type, $message, $chatId, $opr)
     {

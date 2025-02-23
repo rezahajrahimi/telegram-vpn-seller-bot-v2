@@ -202,12 +202,49 @@ class CustomTextController extends Controller
                         ['type' => 'text', 'text' => 'دانلود برنامه'],
                     ]), 'custom_text' => null, 'description' => 'متن دانلود برنامه.'],
 
+
+
+
+
                     ['key' => 'action.help.appDownload.os', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'سیستم عامل خود را انتخاب کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن سیستم عامل خود را انتخاب کنید.'],
                     ['key' => 'action.help.appDownload.app', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'برنامه خود را انتخاب کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن برنامه خود را انتخاب کنید.'],
+
+
+
+
+
+
+                    ['key' => 'action.help.appDownload.app.name_description', 'default_text' => json_encode([
+                        ['type' => 'bold', 'text' => "نام برنامه: {name}"],
+                        ['type' => 'newline'],
+                        ['type' => 'bold', 'text' => "توضیحات برنامه: {description}"],
+                        ['type' => 'newline'],
+                        ['type' => 'bold', 'text' => "لینک دانلود:"],
+                        ['type' => 'newline'],
+                        ['type' => 'text', 'text' => "{download_link}"],
+                        ['type' => 'newline'],
+                        ['type' => 'bold', 'text' => "لینک آموزش استفاده:"],
+                        ['type' => 'newline'],
+                        ['type' => 'text', 'text' => "{how_to_use}"],
+                        ['type' => 'newline'],
+                        ['type' => 'bold', 'text' => "لینک آموزش یوتیوب:"],
+                        ['type' => 'newline'],
+                        ['type' => 'text', 'text' => "{youtube_link}"],
+                    ]), 'custom_text' => null, 'description' => 'متن نام برنامه: {name} توضیحات برنامه: {description} لینک دانلود: {download_link} لینک آموزش استفاده: {how_to_use} لینک آموزش یوتیوب: {youtube_link}'],
+
+
+
+
+
+
+
+
+
+
 
                     ['key' => 'action.subscription.hiddify', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
