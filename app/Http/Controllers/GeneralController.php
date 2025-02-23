@@ -590,20 +590,16 @@ class GeneralController extends Controller
         }
         $text = $this->customTextCtrl->getText('action.help.faq');
         $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        return "";
+
     }
     public function subFaq($chatId, $selectedFaqID)
     {
         $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId,'show');
         $faqCtrl = new FaqController();
         $faq     = $faqCtrl->getFaqById($selectedFaqID);
-        $opr     = [];
-        if ($faq != null) {
-            $opr[] = [
-                $faq->question => "faq-{$faq->id}",
-            ];
-        }
-        $text = $this->customTextCtrl->getText('action.help.faq');
-        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        $this->telegramService->sendMessage($chatId, $faq->answer);
+        return "";
     }
     private function addNewBotLog($type, $message, $chatId, $opr)
     {
