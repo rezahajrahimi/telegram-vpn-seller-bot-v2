@@ -335,7 +335,8 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
     // CustomTextController
     Route::get('/get-text/{key}', [CustomTextController::class, 'getText']);
-    Route::post('/set-text/{key}/{text}', [CustomTextController::class, 'setText']);
+    Route::put('/set-text/{key}/{text}', [CustomTextController::class, 'setText']);
+    Route::post('/set-text', [CustomTextController::class, 'setTest']);
     Route::get('/get-all-texts', [CustomTextController::class, 'getAllTexts']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {

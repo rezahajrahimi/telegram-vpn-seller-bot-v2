@@ -2,6 +2,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\CustomText;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class CustomTextController extends Controller
 {
@@ -350,11 +352,28 @@ class CustomTextController extends Controller
 
     public function setText($key, $text)
     {
+        \Log::info("setText: $key => $text");
 
         // check if the key is in the database
         if ($this->customText->where('key', $key)->exists()) {
             return $this->customText->setText($key, $text);
         }
+        \Log::info("setText: $key => $text");
         return false;
+    }
+    // set test by request
+    public function setTest(Request $request)
+    {
+        // validate request
+        $validator = Validator::make($request->all(), [
+            'key' => 'required',
+            'text' => 'required',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()], 422);
+        }
+        $key = $request['key'];
+        $text = $request['text'];
+        $this->setText($key, $text);
     }
 }
