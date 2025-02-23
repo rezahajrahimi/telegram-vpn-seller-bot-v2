@@ -368,7 +368,7 @@ class GeneralController extends Controller
                 $text = $this->telegramService->formatText($text);
             }
             $opr[] = [
-                $text => "help-faqs",
+                $text => "faqs",
             ];
         }
         $appDownloadItemAliasName = $this->mainMenuItem->getAliasNameByName('دانلود برنامه');
@@ -380,7 +380,7 @@ class GeneralController extends Controller
                 $text = $this->telegramService->formatText($text);
             }
             $opr[] = [
-                $text => "help-appDownload",
+                $text => "appDownload",
             ];
         }
         if ($recharge != null) {
@@ -601,10 +601,53 @@ class GeneralController extends Controller
         $this->telegramService->sendMessage($chatId, $faq->answer);
         return "";
     }
+    public function appDownload($chatId)
+    {
+        $appCtrl = new ApplicationController();
+        $oses    = $appCtrl->getApplicationOSes();
+        $opr     = [];
+        if ($oses != null) {
+            foreach ($oses as $key => $os) {
+                \Log::info("os: " . $os->id . " os->os: " . $os->os);
+                $opr[] = [
+                    $os->os => "subAppDownloadOs-{$os->os}",
+                ];
+            }
+        }
+        $text = $this->customTextCtrl->getText('action.help.appDownload.os');
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        return "";
+    }
+    public function subAppDownloadOs($chatId, $selectedOsID)
+    {
+        $appCtrl = new ApplicationController();
+        $app     = $appCtrl->getAllActiveAplicationListByOS($selectedOsID);
+        // log count of app
+        \Log::info("count of app: " . count($app). " selectedOsID: $selectedOsID");
+        $opr     = [];
+        if ($app != null) {
+            foreach ($app as $key => $app) {
+                $opr[] = [
+                    $app->name => "subAppDownloadApp-{$app->id}",
+                ];
+            }
+        }
+        $text = $this->customTextCtrl->getText('action.help.appDownload.app');
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        return "";
+    }
+    public function subAppDownloadApp($chatId, $selectedAppID)
+    {
+        $appCtrl = new ApplicationController();
+        $app     = $appCtrl->getActiveAplicationByID($selectedAppID);
+        $this->telegramService->sendMessage($chatId, $app->download_link);
+        return "ddddddddddd";
+    }
     private function addNewBotLog($type, $message, $chatId, $opr)
     {
         $logCtrl = new LogController();
         $logCtrl->addNewLog($type, $message, $chatId,"", $opr);
         return true;
     }
+
 }

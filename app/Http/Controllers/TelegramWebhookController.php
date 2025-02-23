@@ -145,9 +145,9 @@ class TelegramWebhookController extends Controller
             case 'آموزش استفاده و سوالات متداول':
                 return $this->generalCntrl->getFaqs($chatId);
                 break;
-            // case 'دانلود برنامه':
-            //     return $this->appDownload();
-            //     break;
+            case 'دانلود برنامه':
+                return $this->generalCntrl->appDownload($chatId);
+                break;
             // case 'گیفت کارت':
             //     return $this->giftCard();
             //     break;
@@ -356,9 +356,17 @@ class TelegramWebhookController extends Controller
 
         }
     }
-    public function handleHelpCommand(): string
+    public function handleHelpCommand($action = null): string
     {
-        return "help";
+        if ($action == 'faq') {
+            return $this->generalCntrl->getFaqs($this->getCurrentChatId());
+        }
+        if ($action == 'app') {
+            return $this->generalCntrl->appDownload();
+        }
+        $text = $this->customTextCtrl->getText('action.help.message');
+        $this->generalCntrl->return_main_menu_items($this->getCurrentChatId(), $text);
+        return "";
     }
 
     public function handleReferralCommand($text): string
@@ -431,7 +439,11 @@ class TelegramWebhookController extends Controller
             'accountSubAccountsZarinpal' => $this->accountProcessCtrl->handleActionAddBalanceZarinpal($chatId),
             'accountSubAccountsNowpayment' => $this->accountProcessCtrl->handleActionAddBalanceNowpayments($chatId),
             'addBalanceReply' => $this->accountProcessCtrl->addBalanceReply($chatId, $actionList[1]),
-            'faq' => $this->generalCntrl->subFaq($chatId, $actionList[1]),
+            'help' => $this->handleHelpCommand( $actionList[1]),
+            'faqs' => $this->generalCntrl->subFaq($chatId, $actionList[1]),
+            'appDownload' => $this->generalCntrl->appDownload($chatId),
+            'subAppDownloadOs' => $this->generalCntrl->subAppDownloadOs($chatId, $actionList[1]),
+            'subAppDownloadApp' => $this->generalCntrl->subAppDownloadApp($chatId, $actionList[1]),
 
 
             default => $this->customTextCtrl->getText('error.action.not_found')

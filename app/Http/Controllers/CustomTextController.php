@@ -192,10 +192,18 @@ class CustomTextController extends Controller
                     ['key' => 'action.help.add_ballance', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'لطفا کیف پول خود را با انتخاب یکی از گزینه های زیر شارژ کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن لطفا کیف پول خود را با انتخاب یکی از گزینه های زیر شارژ کنید.'],
-
+                    ['key' => 'action.help.message', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'لطفا یکی از گزینه های زیر را انتخاب کنید.'],
+                    ]), 'custom_text' => null, 'description' => 'متن لطفا یکی از گزینه های زیر را انتخاب کنید.'],
                     ['key' => 'action.help.using_subscription', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'به کمک نیاز داری؟ یک گزینه را انتخاب بکن'],
                     ]), 'custom_text' => null, 'description' => 'متن به کمک نیاز داری؟ یک گزینه را انتخاب بکن'],
+                    ['key' => 'action.help.appDownload.os', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'سیستم عامل خود را انتخاب کنید.'],
+                    ]), 'custom_text' => null, 'description' => 'متن سیستم عامل خود را انتخاب کنید.'],
+                    ['key' => 'action.help.appDownload.app', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'برنامه خود را انتخاب کنید.'],
+                    ]), 'custom_text' => null, 'description' => 'متن برنامه خود را انتخاب کنید.'],
 
                     ['key' => 'action.subscription.hiddify', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
@@ -344,11 +352,12 @@ class CustomTextController extends Controller
             }
             return $text;
         } catch (\Throwable $th) {
+            \Log::info("getText: $key");
             $this->seed();
             // await for seeding
             sleep(1);
             $text = $this->customText->getText($key);
-            return "not found => $text";
+            return $text;
         }
     }
 
