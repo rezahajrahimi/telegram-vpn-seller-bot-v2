@@ -198,6 +198,10 @@ class CustomTextController extends Controller
                     ['key' => 'action.help.using_subscription', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'به کمک نیاز داری؟ یک گزینه را انتخاب بکن'],
                     ]), 'custom_text' => null, 'description' => 'متن به کمک نیاز داری؟ یک گزینه را انتخاب بکن'],
+                    ['key' => 'action.help.appDownload', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'دانلود برنامه'],
+                    ]), 'custom_text' => null, 'description' => 'متن دانلود برنامه.'],
+
                     ['key' => 'action.help.appDownload.os', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'سیستم عامل خود را انتخاب کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن سیستم عامل خود را انتخاب کنید.'],

@@ -608,7 +608,6 @@ class GeneralController extends Controller
         $opr     = [];
         if ($oses != null) {
             foreach ($oses as $key => $os) {
-                \Log::info("os: " . $os->id . " os->os: " . $os->os);
                 $opr[] = [
                     $os->os => "subAppDownloadOs-{$os->os}",
                 ];
@@ -623,7 +622,6 @@ class GeneralController extends Controller
         $appCtrl = new ApplicationController();
         $app     = $appCtrl->getAllActiveAplicationListByOS($selectedOsID);
         // log count of app
-        \Log::info("count of app: " . count($app). " selectedOsID: $selectedOsID");
         $opr     = [];
         if ($app != null) {
             foreach ($app as $key => $app) {
