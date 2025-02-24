@@ -739,9 +739,35 @@ class GeneralController extends Controller
     }
     public function giftCard($chatId)
     {
-        // $text = $this->customTextCtrl->getText('action.help.giftCard');
-        // $this->telegramService->sendMessage($chatId, $text);
-        return "سسس";
+        $text = $this->customTextCtrl->getText('action.help.giftCard');
+        $this->telegramService->sendMessage($chatId, $text);
+        return "";
+    }
+    public function subGiftCard($chatId, $giftCard)
+    {
+        $giftCardCntrl = new GiftCardController();
+        $giftCard      = $giftCardCntrl->getGiftCardByCode($giftCard);
+        if ($giftCard == null) {
+            $text = $this->customTextCtrl->getText('error.giftCard.not_found');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+        $usedGiftCntrl = new UsedGiftCardController();
+        $userUsedItemCount = $usedGiftCntrl->getCountOfUsePerUser($giftCard->id, $chatId);
+        if ($userUsedItemCount >= $giftCard->count_of_use_per_user) {
+            $text = $this->customTextCtrl->getText('error.giftCard.already_used');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+        $reualt = $usedGiftCntrl->addGiftCardToUserAccount($giftCard->id, $chatId, $giftCard);
+        if ($reualt) {
+            $text = $this->customTextCtrl->getText('action.help.giftCard.success');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+        $text = $this->customTextCtrl->getText('error.giftCard.already_used');
+        $this->telegramService->sendMessage($chatId, $text);
+        return "";
     }
     private function addNewBotLog($type, $message, $chatId, $opr)
     {

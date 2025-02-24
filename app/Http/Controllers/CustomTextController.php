@@ -340,6 +340,18 @@ class CustomTextController extends Controller
                     ['key' => 'action.test_account.success', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'اکانت آزمایشی با موفقیت فعال شد.'],
                     ]), 'custom_text' => null, 'description' => 'متن اکانت آزمایشی با موفقیت فعال شد.'],
+                    ['key' => 'action.help.giftCard', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'کد گیفت کارت را وارد کنید.'],
+                    ]), 'custom_text' => null, 'description' => 'متن کد گیفت کارت را وارد کنید.'],
+                    ['key' => 'action.help.giftCard.success', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'کد گیفت کارت با موفقیت اعمال شد.'],
+                    ]), 'custom_text' => null, 'description' => 'متن کد گیفت کارت با موفقیت اعمال شد.'],
+                    ['key' => 'error.giftCard.not_found', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'کد گیفت کارت یافت نشد.'],
+                    ]), 'custom_text' => null, 'description' => 'متن کد گیفت کارت یافت نشد.'],
+                    ['key' => 'error.giftCard.already_used', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'کد گیفت کارت قبلا استفاده شده است.'],
+                    ]), 'custom_text' => null, 'description' => 'متن کد گیفت کارت قبلا استفاده شده است.'],
     
                     ['key' => 'error.test_account.exist', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.'],

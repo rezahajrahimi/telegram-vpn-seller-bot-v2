@@ -446,6 +446,7 @@ class TelegramWebhookController extends Controller
             'subAppDownloadOs' => $this->generalCntrl->subAppDownloadOs($chatId, $actionList[1]),
             'subAppDownloadApp' => $this->generalCntrl->subAppDownloadApp($chatId, $actionList[1]),
             'support' => $this->generalCntrl->subSupport($chatId, $actionList[1]),
+            'giftCard' => $this->generalCntrl->subGiftCard($chatId, $actionList[1]),
 
 
 
