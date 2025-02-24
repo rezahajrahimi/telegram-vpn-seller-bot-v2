@@ -531,29 +531,29 @@ class GeneralController extends Controller
     }
     public function createZarinpalPaymentLink($chat_id, $estimatedPrice)
     {
-        try{
-        $request             = new Request();
-        $request->account_id = $chat_id;
-        $request->amount     = $estimatedPrice;
-        $bill                = $this->billCntrl->createNewBill($request);
+        try {
+            $request             = new Request();
+            $request->account_id = $chat_id;
+            $request->amount     = $estimatedPrice;
+            $bill                = $this->billCntrl->createNewBill($request);
 
-        $trRequest             = new Request();
-        $trRequest->invoiceID  = $bill->bill_id;
-        $trRequest->account_id = $chat_id;
-        $trRequest->amount     = $estimatedPrice;
-        $paymentLink           = $this->trCntrl->add_order($trRequest);
+            $trRequest             = new Request();
+            $trRequest->invoiceID  = $bill->bill_id;
+            $trRequest->account_id = $chat_id;
+            $trRequest->amount     = $estimatedPrice;
+            $paymentLink           = $this->trCntrl->add_order($trRequest);
 
-        // format $estimatedPrice to 0 decimal
-        $formattedPrice = number_format($estimatedPrice, 0, ',', '.');
-        $text = $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal');
-        if (is_array($text)) {
-            // use format text service
-            $text = $this->telegramService->formatText($text);
-        }
+            // format $estimatedPrice to 0 decimal
+            $formattedPrice = number_format($estimatedPrice, 0, ',', '.');
+            $text           = $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
 
-        return [
-            'text' => $text . " $formattedPrice تومان",
-            'url'  => $paymentLink,
+            return [
+                'text' => $text . " $formattedPrice تومان",
+                'url'  => $paymentLink,
             ];
         } catch (\Throwable $th) {
             \Log::error(["createZarinpalPaymentLink: " . $th]);
@@ -563,34 +563,34 @@ class GeneralController extends Controller
     public function createNowPaymentsLink($chat_id, $estimatedPriceInDollar)
     {
         try {
-          
-        $request             = new Request();
-        $request->account_id = $chat_id;
-        $request->amount     = $estimatedPriceInDollar;
-        $bill                = $this->billCntrl->createNewBillInDollar($request);
 
-        $openLink = $this->pymntCntrl->getNowPaymentsLink();
+            $request             = new Request();
+            $request->account_id = $chat_id;
+            $request->amount     = $estimatedPriceInDollar;
+            $bill                = $this->billCntrl->createNewBillInDollar($request);
 
-        $trCryptoCntrl         = new TransactionCryptoController();
-        $trRequest             = new Request();
-        $trRequest->invoiceID  = $bill->bill_id;
-        $trRequest->account_id = $chat_id;
-        $trRequest->amount     = $estimatedPriceInDollar;
-        $paymentLink           = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
-        $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
+            $openLink = $this->pymntCntrl->getNowPaymentsLink();
 
-        // format $estimatedPrice to 0 decimal
-        $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
-        $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
-        if (is_array($text)) {
-            // use format text service
-            $text = $this->telegramService->formatText($text);
-        }
+            $trCryptoCntrl         = new TransactionCryptoController();
+            $trRequest             = new Request();
+            $trRequest->invoiceID  = $bill->bill_id;
+            $trRequest->account_id = $chat_id;
+            $trRequest->amount     = $estimatedPriceInDollar;
+            $paymentLink           = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
+            $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
 
-        return [
-            'text' => $text . " $formattedPrice دلار",
-            'url'  => $nowpaymentLink,
-        ];
+            // format $estimatedPrice to 0 decimal
+            $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
+            $text           = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
+
+            return [
+                'text' => $text . " $formattedPrice دلار",
+                'url'  => $nowpaymentLink,
+            ];
         } catch (\Throwable $th) {
             \Log::error(["createNowPaymentsLink: " . $th]);
             return [];
@@ -712,25 +712,25 @@ class GeneralController extends Controller
         $usedTestAccountCntrl = new UsedTestAccountController();
         $hasAccount           = $usedTestAccountCntrl->newTestAccount($chatId, $testAccount->id);
 
-        // if ($hasAccount == true || $hasAccount == 1) {
-        //     $text = $this->customTextCtrl->getText('error.test_account.exist');
-        //     $this->telegramService->sendMessage($chatId, $text);
-        //     return "";
-        // }
+        if ($hasAccount == true || $hasAccount == 1) {
+            $text = $this->customTextCtrl->getText('error.test_account.exist');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
         $text = $this->customTextCtrl->getText('action.test_account.success');
 
         $this->telegramService->sendMessage($chatId, $text);
         $panelCntrl = new PannelController();
-        $pannel = $panelCntrl->getPannelById($testAccount->pannel_id);
+        $pannel     = $panelCntrl->getPannelById($testAccount->pannel_id);
         // get selected item specefic data
-        $day = $testAccount->expire_day;
+        $day    = $testAccount->expire_day;
         $volume = $testAccount->volume;
 
         if ($pannel->type == 'hiddify') {
 
             // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req);
             $userLink = $pannel->user_link;
-            $text = $this->customTextCtrl->getText('action.test_account.success');
+            $text     = $this->customTextCtrl->getText('action.test_account.success');
             $this->new_hiddify_config_telegram_text($testAccount, $pannel, $volume, $day, $chatId, $testAccount->id);
             $this->send_using_subscription_manual_message($chatId);
         }

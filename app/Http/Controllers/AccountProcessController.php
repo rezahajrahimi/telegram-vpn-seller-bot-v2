@@ -57,27 +57,27 @@ class AccountProcessController extends Controller
             $this->chatId = $chatId;
             $botUser      = BotUser::where('account_id', $chatId)->first();
             if ($botUser == null) {
-            return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.user_not_found'));
-        }
+                return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.user_not_found'));
+            }
 
-        $ballance         = $this->accBlCtrl->getUserAccuntBalance($chatId);
-        $ballanceInDollar = $this->accBlCtrl->getUserAccuntBalanceInDollar($chatId);
-        $referralAmount   = $this->referralWalletCtrl->get_amount_of_ref_wallet_by_account_id($chatId);
-        $ballance         = number_format($ballance, 0, '.', ',');
-        $ballanceInDollar = number_format($ballanceInDollar, 0, '.', ',');
-        $referralAmount   = number_format($referralAmount, 0, '.', ',');
-        $text             = $this->customTextCtrl->getText('action.account.details', [
-            'username'          => $botUser->username,
-            'name'              => $botUser->first_name,
-            'last_name'         => $botUser->last_name,
-            'account_id'        => $botUser->account_id,
-            'balance'           => "$ballance تومان",
-            'balance_in_dollar' => "$ballanceInDollar دلار",
-            'referral_balance'  => "$referralAmount تومان",
-        ]);
+            $ballance         = $this->accBlCtrl->getUserAccuntBalance($chatId);
+            $ballanceInDollar = $this->accBlCtrl->getUserAccuntBalanceInDollar($chatId);
+            $referralAmount   = $this->referralWalletCtrl->get_amount_of_ref_wallet_by_account_id($chatId);
+            $ballance         = number_format($ballance, 0, '.', ',');
+            $ballanceInDollar = number_format($ballanceInDollar, 0, '.', ',');
+            $referralAmount   = number_format($referralAmount, 0, '.', ',');
+            $text             = $this->customTextCtrl->getText('action.account.details', [
+                'username'          => $botUser->username,
+                'name'              => $botUser->first_name,
+                'last_name'         => $botUser->last_name,
+                'account_id'        => $botUser->account_id,
+                'balance'           => "$ballance تومان",
+                'balance_in_dollar' => "$ballanceInDollar دلار",
+                'referral_balance'  => "$referralAmount تومان",
+            ]);
 
-        $formatter = new TelegramMessageFormatter($this->telegramService);
-        $text      = $formatter->addFormattedText('', $text)->getMessage();
+            $formatter = new TelegramMessageFormatter($this->telegramService);
+            $text      = $formatter->addFormattedText('', $text)->getMessage();
 
             $this->generalCntrl->return_main_menu_items($chatId, $text);
             $this->show_additional_options($chatId);
@@ -307,7 +307,13 @@ class AccountProcessController extends Controller
                 $link = $this->generalCntrl->createZarinpalPaymentLink($chatId, $text);
                 array_push($opr, $link);
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invoice'), $opr);
-                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
+
+                $text = $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
+                $this->clearAwaitingReply($chatId, $text);
                 return "";
             } elseif ($paymentType == "nowpayments") {
                 $opr  = [];
@@ -350,10 +356,13 @@ class AccountProcessController extends Controller
     {
         return Cache::get("awaiting_reply_{$chatId}");
     }
-    private function clearAwaitingReply(string $chatId, string $text): void
+    private function clearAwaitingReply(string $chatId, string | array $text): void
     {
         try {
-            \Log::info("clearAwaitingReply: " . $chatId . " - " . $text);
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
             Cache::forget("awaiting_reply_{$chatId}");
             // delete last user state where chat_id == $chatId
             $user_state = UserState::where('chat_id', $chatId)->latest()->first();
