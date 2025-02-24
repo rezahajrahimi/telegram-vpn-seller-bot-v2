@@ -363,7 +363,9 @@ class AccountProcessController extends Controller
                 // use format text service
                 $text = $this->telegramService->formatText($text);
             }
-            Cache::forget("awaiting_reply_{$chatId}");
+            // Cache::forget("awaiting_reply_{$chatId}");
+            // clear all cache
+            Cache::flush();
             // delete last user state where chat_id == $chatId
             $user_state = UserState::where('chat_id', $chatId)->latest()->first();
             if ($user_state != null) {
