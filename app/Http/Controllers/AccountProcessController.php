@@ -53,9 +53,10 @@ class AccountProcessController extends Controller
     }
     public function accountDetails($chatId)
     {
-        $this->chatId = $chatId;
-        $botUser      = BotUser::where('account_id', $chatId)->first();
-        if ($botUser == null) {
+        try {
+            $this->chatId = $chatId;
+            $botUser      = BotUser::where('account_id', $chatId)->first();
+            if ($botUser == null) {
             return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.user_not_found'));
         }
 
@@ -78,10 +79,15 @@ class AccountProcessController extends Controller
         $formatter = new TelegramMessageFormatter($this->telegramService);
         $text      = $formatter->addFormattedText('', $text)->getMessage();
 
-        $this->generalCntrl->return_main_menu_items($chatId, $text);
-        $this->show_additional_options($chatId);
-        $this->addNewBotLog('account', 'وارد بخش جزئیات حساب شد.', 'show');
-        return "";
+            $this->generalCntrl->return_main_menu_items($chatId, $text);
+            $this->show_additional_options($chatId);
+            $this->addNewBotLog('account', 'وارد بخش جزئیات حساب شد.', 'show');
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["accountDetails: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
     }
     private function show_additional_options($chatId)
     {
@@ -176,12 +182,17 @@ class AccountProcessController extends Controller
     }
     public function accountAddBalance($chatId, $actionList = null)
     {
-        $this->chatId = $chatId;
-        $this->addNewBotLog('account', 'وارد بخش افزایش اعتبار حساب شد.', 'show'); // check if actionList is array and have not more than 1  elements
+        try {
+            $this->chatId = $chatId;
+            $this->addNewBotLog('account', 'وارد بخش افزایش اعتبار حساب شد.', 'show'); // check if actionList is array and have not more than 1  elements
 
-        $this->return_payment_options();
-        return "";
-
+            $this->return_payment_options();
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["accountAddBalance: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
     }
     private function return_payment_options()
     {
@@ -254,15 +265,27 @@ class AccountProcessController extends Controller
     }
     public function handleActionAddBalanceZarinpal(string $chatId): string
     {
-        $this->setAwaitingReply($chatId, 'add_balance_reply', 'zarinpal');
-        $this->telegramService->forceReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
-        return "";
+        try {
+            $this->setAwaitingReply($chatId, 'add_balance_reply', 'zarinpal');
+            $this->telegramService->forceReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["handleActionAddBalanceZarinpal: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
     }
     public function handleActionAddBalanceNowpayments(string $chatId): string
     {
-        $this->setAwaitingReply($chatId, 'add_balance_reply', 'nowpayments');
-        $this->telegramService->forceReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.nowpayments.reply'));
-        return "";
+        try {
+            $this->setAwaitingReply($chatId, 'add_balance_reply', 'nowpayments');
+            $this->telegramService->forceReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.nowpayments.reply'));
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["handleActionAddBalanceNowpayments: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
     }
     public function addBalanceReply(string $chatId, string $text): string
     {
@@ -306,14 +329,18 @@ class AccountProcessController extends Controller
 
     public function setAwaitingReply(string $chatId, string $type, string $paymentType): void
     {
-        $user_state          = new UserState();
-        $user_state->chat_id = $chatId;
-        $user_state->state   = 'add_balance_reply';
-        $user_state->data    = $paymentType;
-        $user_state->save();
+        try {
+            $user_state          = new UserState();
+            $user_state->chat_id = $chatId;
+            $user_state->state   = 'add_balance_reply';
+            $user_state->data    = $paymentType;
+            $user_state->save();
 
-        // می‌توانید از کش یا دیتابیس استفاده کنید
-        Cache::put("awaiting_reply_{$chatId}", $type, now()->addMinutes(5));
+            // می‌توانید از کش یا دیتابیس استفاده کنید
+            Cache::put("awaiting_reply_{$chatId}", $type, now()->addMinutes(5));
+        } catch (\Throwable $th) {
+            \Log::error(["setAwaitingReply: " . $th]);
+        }
     }
     private function awaitingReply(string $chatId): bool
     {

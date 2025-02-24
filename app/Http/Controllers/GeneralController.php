@@ -531,6 +531,7 @@ class GeneralController extends Controller
     }
     public function createZarinpalPaymentLink($chat_id, $estimatedPrice)
     {
+        try{
         $request             = new Request();
         $request->account_id = $chat_id;
         $request->amount     = $estimatedPrice;
@@ -544,14 +545,25 @@ class GeneralController extends Controller
 
         // format $estimatedPrice to 0 decimal
         $formattedPrice = number_format($estimatedPrice, 0, ',', '.');
+        $text = $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal');
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
 
         return [
-            'text' => $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal') . " $formattedPrice تومان",
+            'text' => $text . " $formattedPrice تومان",
             'url'  => $paymentLink,
-        ];
+            ];
+        } catch (\Throwable $th) {
+            \Log::error(["createZarinpalPaymentLink: " . $th]);
+            return [];
+        }
     }
     public function createNowPaymentsLink($chat_id, $estimatedPriceInDollar)
     {
+        try {
+          
         $request             = new Request();
         $request->account_id = $chat_id;
         $request->amount     = $estimatedPriceInDollar;
@@ -569,11 +581,20 @@ class GeneralController extends Controller
 
         // format $estimatedPrice to 0 decimal
         $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
+        $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
 
         return [
-            'text' => $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment') . " $formattedPrice دلار",
+            'text' => $text . " $formattedPrice دلار",
             'url'  => $nowpaymentLink,
         ];
+        } catch (\Throwable $th) {
+            \Log::error(["createNowPaymentsLink: " . $th]);
+            return [];
+        }
     }
     public function getFaqs($chatId)
     {
