@@ -358,14 +358,14 @@ class TelegramWebhookController extends Controller
     }
     public function handleHelpCommand($action = null): string
     {
-        if ($action == 'faq') {
+        if ($action == 'faqs') {
             return $this->generalCntrl->getFaqs($this->getCurrentChatId());
         }
-        if ($action == 'app') {
+        if ($action == 'appDownload') {
             return $this->generalCntrl->appDownload();
         }
-        $text = $this->customTextCtrl->getText('action.help.message');
-        $this->generalCntrl->return_main_menu_items($this->getCurrentChatId(), $text);
+        // $text = $this->customTextCtrl->getText('action.help.message');
+        // $this->generalCntrl->return_main_menu_items($this->getCurrentChatId(), $text);
         return "";
     }
 
@@ -439,7 +439,8 @@ class TelegramWebhookController extends Controller
             'accountSubAccountsZarinpal' => $this->accountProcessCtrl->handleActionAddBalanceZarinpal($chatId),
             'accountSubAccountsNowpayment' => $this->accountProcessCtrl->handleActionAddBalanceNowpayments($chatId),
             'addBalanceReply' => $this->accountProcessCtrl->addBalanceReply($chatId, $actionList[1]),
-            'help' => $this->handleHelpCommand( $actionList[1]),
+            'toturial' => $actionList[1] == 'appDownload' ? $this->generalCntrl->appDownload($chatId) : $this->generalCntrl->getFaqs($chatId),
+            'help' => $this->handleHelpCommand(),
             'faq' => $this->generalCntrl->subFaq($chatId, $actionList[1]),
             'appDownload' => $this->generalCntrl->appDownload($chatId),
             'subAppDownloadOs' => $this->generalCntrl->subAppDownloadOs($chatId, $actionList[1]),

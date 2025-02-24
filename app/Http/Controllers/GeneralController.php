@@ -380,7 +380,7 @@ class GeneralController extends Controller
                 $text = $this->telegramService->formatText($text);
             }
             $opr[] = [
-                $text => "help-appDownload",
+                $text => "toturial-appDownload",
             ];
         }
         if ($recharge != null) {
