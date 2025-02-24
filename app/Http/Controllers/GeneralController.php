@@ -368,7 +368,7 @@ class GeneralController extends Controller
                 $text = $this->telegramService->formatText($text);
             }
             $opr[] = [
-                $text => "faqs",
+                $text => "help-faqs",
             ];
         }
         $appDownloadItemAliasName = $this->mainMenuItem->getAliasNameByName('دانلود برنامه');
@@ -380,7 +380,7 @@ class GeneralController extends Controller
                 $text = $this->telegramService->formatText($text);
             }
             $opr[] = [
-                $text => "appDownload",
+                $text => "help-appDownload",
             ];
         }
         if ($recharge != null) {
@@ -674,12 +674,47 @@ class GeneralController extends Controller
         $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
         return "";
     }
-    public function subSupport($chatId,$supportId){
+    public function subSupport($chatId, $supportId)
+    {
         $supportCtrl = new SupportController();
         $support     = $supportCtrl->getSupportById($supportId);
         $this->telegramService->sendMessage($chatId, $support->answer);
         return "";
 
+    }
+    public function testAccount($chatId)
+    {
+        $this->addNewBotLog('test_account', 'تست اکانت آزمایشی به کاربر.', $chatId, 'show');
+        $testAccountCntrl = new TestAccountController();
+        $testAccount      = $testAccountCntrl->getTestAccountDetails();
+
+        $usedTestAccountCntrl = new UsedTestAccountController();
+        $hasAccount           = $usedTestAccountCntrl->newTestAccount($chatId, $testAccount->id);
+
+        // if ($hasAccount == true || $hasAccount == 1) {
+        //     $text = $this->customTextCtrl->getText('error.test_account.exist');
+        //     $this->telegramService->sendMessage($chatId, $text);
+        //     return "";
+        // }
+        $text = $this->customTextCtrl->getText('action.test_account.success');
+
+        $this->telegramService->sendMessage($chatId, $text);
+        $panelCntrl = new PannelController();
+        $pannel = $panelCntrl->getPannelById($testAccount->pannel_id);
+        // get selected item specefic data
+        $day = $testAccount->expire_day;
+        $volume = $testAccount->volume;
+
+        if ($pannel->type == 'hiddify') {
+
+            // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req);
+            $userLink = $pannel->user_link;
+            $text = $this->customTextCtrl->getText('action.test_account.success');
+            $this->new_hiddify_config_telegram_text($testAccount, $pannel, $volume, $day, $chatId, $testAccount->id);
+            $this->send_using_subscription_manual_message($chatId);
+        }
+
+        return "";
     }
     private function addNewBotLog($type, $message, $chatId, $opr)
     {

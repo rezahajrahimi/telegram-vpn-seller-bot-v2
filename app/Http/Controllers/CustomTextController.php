@@ -344,6 +344,14 @@ class CustomTextController extends Controller
                     ['key' => 'action.help.faq', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'سوالات متداول'],
                     ]), 'custom_text' => null, 'description' => 'متن سوالات متداول'],
+                    ['key' => 'action.test_account.success', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'اکانت آزمایشی با موفقیت فعال شد.'],
+                    ]), 'custom_text' => null, 'description' => 'متن اکانت آزمایشی با موفقیت فعال شد.'],
+    
+                    ['key' => 'error.test_account.exist', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.'],
+                    ]), 'custom_text' => null, 'description' => 'متن اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.'],
+
                     ['key' => 'error.server_error', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'خطایی رخ داده است'],
                     ]), 'custom_text' => null, 'description' => 'متن خطایی رخ داده است'],

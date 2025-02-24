@@ -440,7 +440,7 @@ class TelegramWebhookController extends Controller
             'accountSubAccountsNowpayment' => $this->accountProcessCtrl->handleActionAddBalanceNowpayments($chatId),
             'addBalanceReply' => $this->accountProcessCtrl->addBalanceReply($chatId, $actionList[1]),
             'help' => $this->handleHelpCommand( $actionList[1]),
-            'faqs' => $this->generalCntrl->subFaq($chatId, $actionList[1]),
+            'faq' => $this->generalCntrl->subFaq($chatId, $actionList[1]),
             'appDownload' => $this->generalCntrl->appDownload($chatId),
             'subAppDownloadOs' => $this->generalCntrl->subAppDownloadOs($chatId, $actionList[1]),
             'subAppDownloadApp' => $this->generalCntrl->subAppDownloadApp($chatId, $actionList[1]),
