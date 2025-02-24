@@ -225,7 +225,6 @@ class CustomTextController extends Controller
                     ['key' => 'action.help.support.title', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'یکی از گزینه های پشتیبانی زیر را انتخاب کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن یکی از گزینه های پشتیبانی زیر را انتخاب کنید.'],
-                    
 
                     ['key' => 'action.subscription.hiddify', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
@@ -352,7 +351,13 @@ class CustomTextController extends Controller
                     ['key' => 'error.giftCard.already_used', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'کد گیفت کارت قبلا استفاده شده است.'],
                     ]), 'custom_text' => null, 'description' => 'متن کد گیفت کارت قبلا استفاده شده است.'],
-    
+                    ['key' => 'error.giftCard.too_many_attempts', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => "شما به دلیل تلاش‌های ناموفق زیاد به مدت {minutes} دقیقه نمی‌توانید گیفت کارت جدید وارد کنید."],
+                    ]), 'custom_text' => null, 'description' => 'متن جلوگیری برای حدس زدن گیفت کارت ها - پارامترها: {minutes}'],
+                    ['key' => 'error.giftCard.blocked', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'شما به دلیل وارد کردن گیفت کارت نامعتبر بیش از ۳ بار، به مدت یک ساعت نمی‌توانید گیفت کارت جدید وارد کنید.'],
+                    ]), 'custom_text' => null, 'description' => 'متن شما به دلیل وارد کردن گیفت کارت نامعتبر بیش از ۳ بار، به مدت یک ساعت نمی‌توانید گیفت کارت جدید وارد کنید.'],
+
                     ['key' => 'error.test_account.exist', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.'],
                     ]), 'custom_text' => null, 'description' => 'متن اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.'],

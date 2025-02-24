@@ -10,6 +10,7 @@ use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Symfony\Component\DomCrawler\Crawler;
+use Illuminate\Support\Facades\Cache;
 
 class GeneralController extends Controller
 {
@@ -745,30 +746,60 @@ class GeneralController extends Controller
     }
     public function subGiftCard($chatId, $giftCard)
     {
-        // check count of user try 
-        // so we have to add to cache and if user try be more than 3 , sent message that your not allowed to enter giftcard for 1 hour
-        
-
         try {
+            // بررسی محدودیت تلاش کاربر
+            $attemptsCacheKey = "gift_card_attempts_{$chatId}";
+            $blockedCacheKey = "gift_card_blocked_{$chatId}";
+            
+            // بررسی اینکه آیا کاربر مسدود شده است
+            if (Cache::has($blockedCacheKey)) {
+                $blockExpiresIn = now()->diffInMinutes(Cache::get($blockedCacheKey));
+                $text = $this->customTextCtrl->getText('error.giftCard.too_many_attempts', [
+                    'minutes' => $blockExpiresIn
+                ]);
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
+            }
+
+            // افزایش تعداد تلاش‌ها
+            $attempts = Cache::get($attemptsCacheKey, 0) + 1;
+            Cache::put($attemptsCacheKey, $attempts, now()->addHour());
+
             $giftCardCntrl = new GiftCardController();
-            $giftCard      = $giftCardCntrl->getGiftCardByCode($giftCard);
+            $giftCard = $giftCardCntrl->getGiftCardByCode($giftCard);
+            
             if ($giftCard == null) {
-            $text = $this->customTextCtrl->getText('error.giftCard.not_found');
-            $this->telegramService->sendMessage($chatId, $text);
-            return "";
-        }
-        $usedGiftCntrl = new UsedGiftCardController();
-        $userUsedItemCount = $usedGiftCntrl->getCountOfUsePerUser($giftCard->id, $chatId);
-        if ($userUsedItemCount >= $giftCard->count_of_use_per_user) {
-            $text = $this->customTextCtrl->getText('error.giftCard.already_used');
-            $this->telegramService->sendMessage($chatId, $text);
-            return "";
-        }
-        $reualt = $usedGiftCntrl->addGiftCardToUserAccount($giftCard->id, $chatId, $giftCard);
-        if ($reualt) {
-            $text = $this->customTextCtrl->getText('action.help.giftCard.success');
-            $this->telegramService->sendMessage($chatId, $text);
-            return "";
+                // اگر تعداد تلاش‌ها از حد مجاز بیشتر شد
+                if ($attempts >= 3) {
+                    Cache::put($blockedCacheKey, now()->addHour(), now()->addHour());
+                    Cache::forget($attemptsCacheKey);
+                    
+                    $text = $this->customTextCtrl->getText('error.giftCard.blocked');
+                    $this->telegramService->sendMessage($chatId, $text);
+                    return "";
+                }
+                
+                $text = $this->customTextCtrl->getText('error.giftCard.not_found');
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
+            }
+
+            // اگر گیفت کارت معتبر بود، کش را پاک می‌کنیم
+            Cache::forget($attemptsCacheKey);
+            
+            // ادامه منطق موجود
+            $usedGiftCntrl = new UsedGiftCardController();
+            $userUsedItemCount = $usedGiftCntrl->getCountOfUsePerUser($giftCard->id, $chatId);
+            if ($userUsedItemCount >= $giftCard->count_of_use_per_user) {
+                $text = $this->customTextCtrl->getText('error.giftCard.already_used');
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
+            }
+            $reualt = $usedGiftCntrl->addGiftCardToUserAccount($giftCard->id, $chatId, $giftCard);
+            if ($reualt) {
+                $text = $this->customTextCtrl->getText('action.help.giftCard.success');
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
             }
             $text = $this->customTextCtrl->getText('error.giftCard.already_used');
             $this->telegramService->sendMessage($chatId, $text);
