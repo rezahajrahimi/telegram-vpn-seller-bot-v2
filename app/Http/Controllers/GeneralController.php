@@ -745,9 +745,10 @@ class GeneralController extends Controller
     }
     public function subGiftCard($chatId, $giftCard)
     {
-        $giftCardCntrl = new GiftCardController();
-        $giftCard      = $giftCardCntrl->getGiftCardByCode($giftCard);
-        if ($giftCard == null) {
+        try {
+            $giftCardCntrl = new GiftCardController();
+            $giftCard      = $giftCardCntrl->getGiftCardByCode($giftCard);
+            if ($giftCard == null) {
             $text = $this->customTextCtrl->getText('error.giftCard.not_found');
             $this->telegramService->sendMessage($chatId, $text);
             return "";
@@ -764,10 +765,16 @@ class GeneralController extends Controller
             $text = $this->customTextCtrl->getText('action.help.giftCard.success');
             $this->telegramService->sendMessage($chatId, $text);
             return "";
+            }
+            $text = $this->customTextCtrl->getText('error.giftCard.already_used');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["subGiftCard: " . $th]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
         }
-        $text = $this->customTextCtrl->getText('error.giftCard.already_used');
-        $this->telegramService->sendMessage($chatId, $text);
-        return "";
     }
     private function addNewBotLog($type, $message, $chatId, $opr)
     {
