@@ -122,7 +122,11 @@ class TelegramWebhookController extends Controller
         // return main menu items
         $chatId = $this->getCurrentChatId();
         $this->generalCntrl->return_main_menu_items($chatId, $text);
-
+        // check if text is a gift card
+        if (str_starts_with($text, 'giftCard-')) {
+            $this->generalCntrl->subGiftCard($chatId, $text);
+            return "";
+        }
         return "پیام متنی شما دریافت شد: " . $text;
     }
     private function processMenuCommand($menuItem)

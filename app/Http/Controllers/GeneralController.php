@@ -745,6 +745,10 @@ class GeneralController extends Controller
     }
     public function subGiftCard($chatId, $giftCard)
     {
+        // check count of user try 
+        // so we have to add to cache and if user try be more than 3 , sent message that your not allowed to enter giftcard for 1 hour
+        
+
         try {
             $giftCardCntrl = new GiftCardController();
             $giftCard      = $giftCardCntrl->getGiftCardByCode($giftCard);
