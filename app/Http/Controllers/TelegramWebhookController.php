@@ -151,9 +151,9 @@ class TelegramWebhookController extends Controller
             // case 'گیفت کارت':
             //     return $this->giftCard();
             //     break;
-            // case 'اکانت آزمایشی':
-            //     return $this->testAccount();
-            //     break;
+            case 'اکانت آزمایشی':
+                return $this->generalCntrl->testAccount($chatId);
+                break;
             case 'webapp':
                 return $this->authCntrl->generate_auto_login_link(new Request(['account_id' => $chatId]));
                 break;
