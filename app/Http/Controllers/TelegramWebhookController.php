@@ -148,9 +148,9 @@ class TelegramWebhookController extends Controller
             case 'دانلود برنامه':
                 return $this->generalCntrl->appDownload($chatId);
                 break;
-            // case 'گیفت کارت':
-            //     return $this->giftCard();
-            //     break;
+            case 'گیفت کارت':
+                return $this->generalCntrl->giftCard($chatId);
+                break;
             case 'اکانت آزمایشی':
                 return $this->generalCntrl->testAccount($chatId);
                 break;

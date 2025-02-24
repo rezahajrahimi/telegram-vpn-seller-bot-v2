@@ -716,6 +716,12 @@ class GeneralController extends Controller
 
         return "";
     }
+    public function giftCard($chatId)
+    {
+        // $text = $this->customTextCtrl->getText('action.help.giftCard');
+        // $this->telegramService->sendMessage($chatId, $text);
+        return "سسس";
+    }
     private function addNewBotLog($type, $message, $chatId, $opr)
     {
         $logCtrl = new LogController();

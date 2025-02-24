@@ -4,15 +4,12 @@ namespace App\Http\Controllers;
 use App\Models\BotUser;
 use App\Models\ReferralLogs;
 use App\Models\Transaction;
-use App\Models\UserState;
 use App\Models\TransactionSetting;
+use App\Models\UserState;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
-use Hekmatinasser\Verta\Verta;
-use Illuminate\Http\Request;
 // add cache
 use Illuminate\Support\Facades\Cache;
-
 
 // add cache
 
@@ -48,10 +45,10 @@ class AccountProcessController extends Controller
         $this->botUser                 = new BotUser();
         $this->logCtrl                 = new LogController();
         $this->trSettingCntrl          = new TransactionSettingController();
-        $this->pymntCntrl             = new PaymentTypeController();
-        $this->pymMenCntrl              = new PaymentMenuItemController();
-        $this->trCntrl              = new TransactionController();
-                $this->trSetting                = new TransactionSetting();
+        $this->pymntCntrl              = new PaymentTypeController();
+        $this->pymMenCntrl             = new PaymentMenuItemController();
+        $this->trCntrl                 = new TransactionController();
+        $this->trSetting               = new TransactionSetting();
 
     }
     public function accountDetails($chatId)
@@ -88,7 +85,7 @@ class AccountProcessController extends Controller
     }
     private function show_additional_options($chatId)
     {
-        $opr   = [];
+        $opr  = [];
         $text = $this->customTextCtrl->getText('action.account.additional_options.transactions');
         if (is_array($text)) {
             // use format text service
@@ -105,6 +102,7 @@ class AccountProcessController extends Controller
         $opr[] = [
             $text => "accountSubAccounts",
         ];
+
         $text = $this->customTextCtrl->getText('action.account.additional_options.add_balance');
         if (is_array($text)) {
             // use format text service
@@ -114,34 +112,43 @@ class AccountProcessController extends Controller
             $text => "accountAddBalance",
         ];
         $text = $this->customTextCtrl->getText('action.account.additional_options');
-  
+
         $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
         return "";
     }
     public function accountTransactions($chatId)
     {
-        $this->chatId = $chatId;
-        // $this->show_additional_options($chatId);
-        $this->addNewBotLog('account', 'وارد بخش سابقه تراکنش‌ها شد.', 'show');
-        $botUser = BotUser::where('account_id', $chatId)->first();
-        if ($botUser == null) {
-            return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.server_error'));
-        }
-
-        $transactions = Transaction::where('account_id', $botUser->account_id)->get();
-        $transactions = $transactions->sortByDesc('created_at');
-        $transactions = $transactions->take(10);
-        $text         = $this->customTextCtrl->getText('action.account.transactions.title') . "\n";
-        if ($transactions->count() > 0) {
-            foreach ($transactions as $transaction) {
-                
-                $text .=  $transaction->getTransactionText() . "\n";
+        try {
+            $this->chatId = $chatId;
+            // $this->show_additional_options($chatId);
+            $this->addNewBotLog('account', 'وارد بخش سابقه تراکنش‌ها شد.', 'show');
+            $botUser = BotUser::where('account_id', $chatId)->first();
+            if ($botUser == null) {
+                return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.server_error'));
             }
-        } else {
-            $text = $this->customTextCtrl->getText('action.account.transactions.no_transactions');
+
+            $transactions = Transaction::where('account_id', $botUser->account_id)->get();
+            $transactions = $transactions->sortByDesc('created_at');
+            $transactions = $transactions->take(10);
+            $text         = $this->customTextCtrl->getText('action.account.transactions.title');
+            $this->telegramService->sendMessage($chatId, $text);
+            $text = "";
+            if ($transactions->count() > 0) {
+                foreach ($transactions as $transaction) {
+
+                    $text .= $transaction->getTransactionText() . "\n";
+                }
+            } else {
+                $text = $this->customTextCtrl->getText('action.account.transactions.no_transactions');
+            }
+
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["accountTransactions: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
         }
-        $this->telegramService->sendMessage($chatId, $text);
-        return "";
     }
     public function accountSubAccounts($chatId)
     {
@@ -154,6 +161,9 @@ class AccountProcessController extends Controller
         }
         $subAccounts = ReferralLogs::where('referral_user_id', $botUser->id)->get();
         $text        = $this->customTextCtrl->getText('action.account.sub_accounts.title');
+        $this->telegramService->sendMessage($chatId, $text);
+        $text = "";
+
         if ($subAccounts->count() > 0) {
             foreach ($subAccounts as $subAccount) {
                 $text .= $subAccount->getReferralLogsText();
@@ -167,11 +177,11 @@ class AccountProcessController extends Controller
     public function accountAddBalance($chatId, $actionList = null)
     {
         $this->chatId = $chatId;
-        $this->addNewBotLog('account', 'وارد بخش افزایش اعتبار حساب شد.', 'show');        // check if actionList is array and have not more than 1  elements
+        $this->addNewBotLog('account', 'وارد بخش افزایش اعتبار حساب شد.', 'show'); // check if actionList is array and have not more than 1  elements
 
-            $this->return_payment_options();
-            return "";
-   
+        $this->return_payment_options();
+        return "";
+
     }
     private function return_payment_options()
     {
@@ -207,7 +217,7 @@ class AccountProcessController extends Controller
             if (count($opr) > 0) {
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance');
                 // check if the text is json format
-                      
+
                 $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
             }
 
@@ -232,7 +242,7 @@ class AccountProcessController extends Controller
 
             }
             $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
-         
+
             $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
             return true;
 
@@ -258,36 +268,35 @@ class AccountProcessController extends Controller
     {
         try {
             // check if text is valid int or float
-        if (!is_numeric($text)) {
-                 $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invalid_amount'));
-            return "";
-        }
-        if ($text == null || trim($text) == 'لغو' || trim($text) == 'cancel') {
-            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.reply.cancel'));
-            return "";
-        }
-        $user_state   = UserState::where('chat_id', $chatId)->latest()->first();
-        $paymentType = $user_state->data;
-        if ($paymentType == 'zarinpal') {
-            // zarinpal => create a new invoice with amount
-            $opr = [];
-            $link =  $this->generalCntrl->createZarinpalPaymentLink($chatId, $text);
-            array_push($opr, $link);
-            $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invoice'), $opr);
+            if (! is_numeric($text)) {
+                $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invalid_amount'));
+                return "";
+            }
+            if ($text == null || trim($text) == 'لغو' || trim($text) == 'cancel') {
+                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.reply.cancel'));
+                return "";
+            }
+            $user_state  = UserState::where('chat_id', $chatId)->latest()->first();
+            $paymentType = $user_state->data;
+            if ($paymentType == 'zarinpal') {
+                // zarinpal => create a new invoice with amount
+                $opr  = [];
+                $link = $this->generalCntrl->createZarinpalPaymentLink($chatId, $text);
+                array_push($opr, $link);
+                $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invoice'), $opr);
+                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
+                return "";
+            } elseif ($paymentType == "nowpayments") {
+                $opr  = [];
+                $link = $this->generalCntrl->createNowPaymentsLink($chatId, $text);
+                array_push($opr, $link);
+
+                $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.nowpayments.reply.invoice'), $opr);
+                return "";
+
+            }
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
             return "";
-        } elseif($paymentType == "nowpayments") {
-            $opr = [];
-            $link =  $this->generalCntrl->createNowPaymentsLink($chatId, $text);
-            array_push($opr, $link);
-
-            $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.nowpayments.reply.invoice'), $opr);
-            return "";
-
-
-        }
-        $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
-        return "";
         } catch (\Throwable $th) {
             \Log::error(["addBalanceReply: " . $th]);
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
@@ -295,7 +304,7 @@ class AccountProcessController extends Controller
         }
     }
 
-     public function setAwaitingReply(string $chatId, string $type, string $paymentType): void
+    public function setAwaitingReply(string $chatId, string $type, string $paymentType): void
     {
         $user_state          = new UserState();
         $user_state->chat_id = $chatId;
