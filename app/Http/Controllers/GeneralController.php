@@ -368,7 +368,7 @@ class GeneralController extends Controller
                 $text = $this->telegramService->formatText($text);
             }
             $opr[] = [
-                $text => "help-faqs",
+                $text => "toturial-faqs",
             ];
         }
         $appDownloadItemAliasName = $this->mainMenuItem->getAliasNameByName('دانلود برنامه');
