@@ -164,6 +164,9 @@ class CustomTextController extends Controller
                         ['type' => 'text', 'text' => "{merchant_id}"],
                     ]), 'custom_text' => null, 'description' => 'متن درخواست واریز به شماره کارت - پارامترها: {merchant_id}'],
 
+                    ['key' => 'action.account.balance_added', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'کیف پول شما به مبلغ {amount} شارژ شد.'],
+                    ]), 'custom_text' => null, 'description' => 'متن کیف پول شما به مبلغ {amount} شارژ شد.'],
                     ['key' => 'action.process.success_buy', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'اشتراک با موفقیت خریداری شد'],
                     ]), 'custom_text' => null, 'description' => 'متن اشتراک با موفقیت خریداری شد'],
@@ -382,6 +385,10 @@ class CustomTextController extends Controller
                     ['key' => 'error.menu.not_found', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'گزینه ای یافت نشد'],
                     ]), 'custom_text' => null, 'description' => 'متن گزینه ای یافت نشد'],
+                    ['key' => 'error.user_not_found', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'کاربر یافت نشد'],
+                    ]), 'custom_text' => null, 'description' => 'متن کاربر یافت نشد'],
+
                     ['key' => 'error.action.not_found', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'عملیات نامعتبر است'],
                     ]), 'custom_text' => null, 'description' => 'متن عملیات نامعتبر است'],

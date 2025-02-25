@@ -126,6 +126,14 @@ class TelegramWebhookController extends Controller
             $this->generalCntrl->subGiftCard($chatId, $text);
             return "";
         }
+        if (str_starts_with(strtolower($text), 'charge') !== false) {
+            $actionList = explode('-', $text);
+
+            return $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]);
+
+        }
+
+
         return "پیام متنی شما دریافت شد: " . $text;
     }
     private function processMenuCommand($menuItem)

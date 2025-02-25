@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BotUser;
+use App\Models\User;
 use App\Models\ReferralLogs;
 use App\Models\Transaction;
 use App\Models\TransactionSetting;
@@ -354,7 +355,7 @@ class AccountProcessController extends Controller
             }
             
             // افزایش موجودی حساب
-            $this->accBlCtrl->addToUserAccountBalance($user_id, $amount);
+            $this->accBlCtrl->incUserAccuntBalance($user_id,$amount);
             // ثبت لاگ
             $this->addNewBotLog('admin', "شارژ سریع حساب کاربر {$user_id} به مبلغ {$amount} تومان", 'charge');
             
@@ -366,11 +367,11 @@ class AccountProcessController extends Controller
                 'amount' => number_format($amount, 0, '.', ',') . ' تومان'
             ]));
             
-            return true;
+            return "";
         } catch (\Throwable $th) {
             \Log::error(["adminFastCharge: " . $th]);
             $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.server_error'));
-            return false;
+            return "";
         }
     }
 
