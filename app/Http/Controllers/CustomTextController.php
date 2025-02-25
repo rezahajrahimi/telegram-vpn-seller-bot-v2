@@ -357,6 +357,14 @@ class CustomTextController extends Controller
                     ['key' => 'error.giftCard.blocked', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'شما به دلیل وارد کردن گیفت کارت نامعتبر بیش از ۳ بار، به مدت یک ساعت نمی‌توانید گیفت کارت جدید وارد کنید.'],
                     ]), 'custom_text' => null, 'description' => 'متن شما به دلیل وارد کردن گیفت کارت نامعتبر بیش از ۳ بار، به مدت یک ساعت نمی‌توانید گیفت کارت جدید وارد کنید.'],
+                    ['key' => 'action.referral.title', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'کسب درآمد از فروش بسته ها'],
+                    ]), 'custom_text' => null, 'description' => 'متن کسب درآمد از فروش بسته ها'],
+                    ['key' => 'action.referral.text', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'شما می توانید از لینک زیر برای دعوت دوستان خود استفاده کنید: {link}'],
+                        ['type' => 'newline'],
+                        ['type' => 'text', 'text' => 'درصد کسب درآمد شما {percent}% است.'],
+                    ]), 'custom_text' => null, 'description' => 'متن شما می توانید از لینک زیر برای دعوت دوستان خود استفاده کنید: {link} - پارامترها: {link} {percent}'],
 
                     ['key' => 'error.test_account.exist', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.'],

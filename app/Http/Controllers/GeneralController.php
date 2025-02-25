@@ -811,6 +811,53 @@ class GeneralController extends Controller
             return "";
         }
     }
+    public function referral ($chatId) {
+        try {
+            $text = $this->customTextCtrl->getText('action.referral.title');
+            $opr = [];
+            $opr[] = [
+                $text => "referral-{$chatId}",
+            ];
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["referral: " . $th]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+    }
+    public function subReferral ($chatId) {
+        try {
+            $referralSettingCntrl = new ReferralSettingController();
+            $settingCntrl = new SettingController();
+            $botName      = $settingCntrl->get_bot_name();
+            $inviteUrl    = "https://t.me/{$botName}?start={$chatId}";
+
+            // get percent of referral
+            $referralPercent = $referralSettingCntrl->get_referral_setting_referral_percent();
+            // درصد چون اعشار هست و متن هم فارسی، ترتیب نوشتاریش تغییر می کنه برای همین می بایست متنش را بصورت استرینگ و برعکس کنیم
+            // تبدیل به رشته و معکوس کردن درصد برای نمایش صحیح در متن فارسی
+            $referralPercentStr = (string)$referralPercent;
+            $referralPercentStr = strrev($referralPercentStr);
+
+            $text = $this->customTextCtrl->getText('action.referral.text', [
+                'link' => $inviteUrl,
+                'percent' => $referralPercentStr,
+            ]);
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["subReferral: " . $th]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+    }
     private function addNewBotLog($type, $message, $chatId, $opr)
     {
         $logCtrl = new LogController();

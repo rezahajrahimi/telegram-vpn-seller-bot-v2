@@ -161,12 +161,9 @@ class TelegramWebhookController extends Controller
             case 'webapp':
                 return $this->authCntrl->generate_auto_login_link(new Request(['account_id' => $chatId]));
                 break;
-            // case 'کسب درآمد':
-            //     return $this->referral();
-            //     break;
-            // case 'خرید گیفت کارت':
-            //     return $this->buyGiftCard();
-            //     break;
+            case 'کسب درآمد':
+                return $this->generalCntrl->subReferral($chatId);
+                break;
 
             default:
                 return $this->customTextCtrl->getText('error.menu.not_found');
@@ -451,6 +448,7 @@ class TelegramWebhookController extends Controller
             'subAppDownloadApp' => $this->generalCntrl->subAppDownloadApp($chatId, $actionList[1]),
             'support' => $this->generalCntrl->subSupport($chatId, $actionList[1]),
             'giftCard' => $this->generalCntrl->subGiftCard($chatId, $actionList[1]),
+            'referral' => $this->generalCntrl->subReferral($chatId),
 
 
 
