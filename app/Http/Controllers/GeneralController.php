@@ -10,6 +10,7 @@ use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Symfony\Component\DomCrawler\Crawler;
+use Illuminate\Support\Facades\Cache;
 
 class GeneralController extends Controller
 {
@@ -214,7 +215,7 @@ class GeneralController extends Controller
             }
         }
     }
-    public function return_main_menu_items($chat_id,$message)
+    public function return_main_menu_items($chat_id, $message)
     {
         $menu     = new MainMenuItemController();
         $menuItem = $menu->getAllActivatedMainMenuItems();
@@ -362,23 +363,43 @@ class GeneralController extends Controller
         $faqItemAliasName = $this->mainMenuItem->getAliasNameByName('آموزش استفاده و سوالات متداول');
         $faqItem          = $this->mainMenuItem->isActiveByAliasName($faqItemAliasName);
         if ($faqItem == true || $faqItem == 1) {
+            $text = $this->customTextCtrl->getText('action.help.faq');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
             $opr[] = [
-                $faqItemAliasName => "help-faqs",
+                $text => "toturial-faqs",
             ];
         }
         $appDownloadItemAliasName = $this->mainMenuItem->getAliasNameByName('دانلود برنامه');
         $appDownloadItem          = $this->mainMenuItem->isActiveByAliasName($appDownloadItemAliasName);
         if ($appDownloadItem == true || $appDownloadItem == 1) {
+            $text = $this->customTextCtrl->getText('action.help.appDownload');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
             $opr[] = [
-                $appDownloadItemAliasName => "help-appDownload",
+                $text => "toturial-appDownload",
             ];
         }
         if ($recharge != null) {
+            $text = $this->customTextCtrl->getText('action.history.buttun.recharge');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
             $opr[] = [
-                $this->customTextCtrl->getText('action.history.buttun.recharge') => "recharge-{$productID}",
+                $text => "recharge-{$productID}",
             ];
+            $text = $this->customTextCtrl->getText('action.history.buttun.remark');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
             $opr[] = [
-                $this->customTextCtrl->getText('action.history.buttun.remark') => "remark-{$productID}",
+                $text => "remark-{$productID}",
             ];
 
         }
@@ -458,8 +479,8 @@ class GeneralController extends Controller
     }
     public function send_add_ballance_option_message($chat_id, $estimatedPrice, $estimatedPriceInDollar)
     {
-        $opr                 = [];
-        $hasZarinPal         = $this->pymntCntrl->getZarinpalStatus();
+        $opr         = [];
+        $hasZarinPal = $this->pymntCntrl->getZarinpalStatus();
         if ($hasZarinPal == true || $hasZarinPal == 1) {
             $newOpr = $this->createZarinpalPaymentLink($chat_id, $estimatedPrice);
             array_push($opr, $newOpr);
@@ -483,8 +504,16 @@ class GeneralController extends Controller
         if ($offlinePayment != null) {
             if ($hasZarinPal == true || $hasZarinPal == 1 || $hasDollarPay == true || $hasDollarPay == 1) {
                 $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option_and_online_balance');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
             } else {
                 $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
             }
 
             $opr = [];
@@ -501,50 +530,339 @@ class GeneralController extends Controller
         return true;
 
     }
-    public function createZarinpalPaymentLink($chat_id, $estimatedPrice) 
+    public function createZarinpalPaymentLink($chat_id, $estimatedPrice)
     {
-        $request = new Request();
-        $request->account_id = $chat_id;
-        $request->amount = $estimatedPrice;
-        $bill = $this->billCntrl->createNewBill($request);
+        try {
+            $request             = new Request();
+            $request->account_id = $chat_id;
+            $request->amount     = $estimatedPrice;
+            $bill                = $this->billCntrl->createNewBill($request);
 
-        $trRequest = new Request();
-        $trRequest->invoiceID = $bill->bill_id;
-        $trRequest->account_id = $chat_id;
-        $trRequest->amount = $estimatedPrice;
-        $paymentLink = $this->trCntrl->add_order($trRequest);
-        
-        // format $estimatedPrice to 0 decimal
-        $formattedPrice = number_format($estimatedPrice, 0, ',', '.');
-        
-        return [
-            'text' => $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal') . " $formattedPrice تومان",
-            'url' => $paymentLink
-        ];
+            $trRequest             = new Request();
+            $trRequest->invoiceID  = $bill->bill_id;
+            $trRequest->account_id = $chat_id;
+            $trRequest->amount     = $estimatedPrice;
+            $paymentLink           = $this->trCntrl->add_order($trRequest);
+
+            // format $estimatedPrice to 0 decimal
+            $formattedPrice = number_format($estimatedPrice, 0, ',', '.');
+            $text           = $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
+
+            return [
+                'text' => $text . " $formattedPrice تومان",
+                'url'  => $paymentLink,
+            ];
+        } catch (\Throwable $th) {
+            \Log::error(["createZarinpalPaymentLink: " . $th]);
+            return [];
+        }
     }
-    public function createNowPaymentsLink($chat_id, $estimatedPriceInDollar) 
+    public function createNowPaymentsLink($chat_id, $estimatedPriceInDollar)
     {
-        $request = new Request();
-        $request->account_id = $chat_id;
-        $request->amount = $estimatedPriceInDollar;
-        $bill = $this->billCntrl->createNewBillInDollar($request);
+        try {
 
-        $openLink = $this->pymntCntrl->getNowPaymentsLink();
+            $request             = new Request();
+            $request->account_id = $chat_id;
+            $request->amount     = $estimatedPriceInDollar;
+            $bill                = $this->billCntrl->createNewBillInDollar($request);
 
-        $trCryptoCntrl = new TransactionCryptoController();
-        $trRequest = new Request();
-        $trRequest->invoiceID = $bill->bill_id;
-        $trRequest->account_id = $chat_id;
-        $trRequest->amount = $estimatedPriceInDollar;
-        $paymentLink = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
-        $nowpaymentLink = $this->get_nowpayment_payment_link_from_html($paymentLink);
-        
-        // format $estimatedPrice to 0 decimal
-        $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
-        
-        return [
-            'text' => $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment') . " $formattedPrice دلار",
-            'url' => $nowpaymentLink
-        ];
+            $openLink = $this->pymntCntrl->getNowPaymentsLink();
+
+            $trCryptoCntrl         = new TransactionCryptoController();
+            $trRequest             = new Request();
+            $trRequest->invoiceID  = $bill->bill_id;
+            $trRequest->account_id = $chat_id;
+            $trRequest->amount     = $estimatedPriceInDollar;
+            $paymentLink           = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
+            $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
+
+            // format $estimatedPrice to 0 decimal
+            $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
+            $text           = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
+
+            return [
+                'text' => $text . " $formattedPrice دلار",
+                'url'  => $nowpaymentLink,
+            ];
+        } catch (\Throwable $th) {
+            \Log::error(["createNowPaymentsLink: " . $th]);
+            return [];
+        }
     }
+    public function getFaqs($chatId)
+    {
+        $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId, 'show');
+        $faqCtrl = new FaqController();
+        $faqs    = $faqCtrl->getFaqList();
+        $opr     = [];
+        if ($faqs != null) {
+            foreach ($faqs as $key => $faq) {
+                $opr[] = [
+                    $faq->question => "faq-{$faq->id}",
+                ];
+            }
+        }
+        $text = $this->customTextCtrl->getText('action.help.faq');
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        return "";
+
+    }
+    public function subFaq($chatId, $selectedFaqID)
+    {
+        $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId, 'show');
+        $faqCtrl = new FaqController();
+        $faq     = $faqCtrl->getFaqById($selectedFaqID);
+        $this->telegramService->sendMessage($chatId, $faq->answer);
+        return "";
+    }
+    public function appDownload($chatId)
+    {
+        $appCtrl = new ApplicationController();
+        $oses    = $appCtrl->getApplicationOSes();
+        $opr     = [];
+        if ($oses != null) {
+            foreach ($oses as $key => $os) {
+                $opr[] = [
+                    $os->os => "subAppDownloadOs-{$os->os}",
+                ];
+            }
+        }
+        $text = $this->customTextCtrl->getText('action.help.appDownload.os');
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        return "";
+    }
+    public function subAppDownloadOs($chatId, $selectedOsID)
+    {
+        $appCtrl = new ApplicationController();
+        $app     = $appCtrl->getAllActiveAplicationListByOS($selectedOsID);
+        // log count of app
+        $opr = [];
+        if ($app != null) {
+            foreach ($app as $key => $app) {
+                $opr[] = [
+                    $app->name => "subAppDownloadApp-{$app->id}",
+                ];
+            }
+        }
+        $text = $this->customTextCtrl->getText('action.help.appDownload.app');
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        return "";
+    }
+    public function subAppDownloadApp($chatId, $selectedAppID)
+    {
+        $appCtrl       = new ApplicationController();
+        $app           = $appCtrl->getActiveAplicationByID($selectedAppID);
+        $name          = $app->name;
+        $description   = $app->description;
+        $download_link = $app->download_link;
+        // $file_src = $app->file_src;
+        $how_to_use   = $app->how_to_use;
+        $youtube_link = $app->youtube_link;
+        $text         = $this->customTextCtrl->getText('action.help.appDownload.app.name_description', [
+            'name'          => $name,
+            'description'   => $description,
+            'download_link' => $download_link,
+            'how_to_use'    => $how_to_use,
+            'youtube_link'  => $youtube_link,
+        ]);
+        $formatter = new TelegramMessageFormatter($this->telegramService);
+        $text      = $formatter->addFormattedText('', $text)->getMessage();
+
+        $this->telegramService->sendMessage($chatId, $text);
+        return "";
+    }
+    public function support($chatId)
+    {
+        $this->addNewBotLog('support', 'نمایش گزینه های پشتیبانی به کاربر.', $chatId, 'show');
+        $supportCtrl = new SupportController();
+        $supports    = $supportCtrl->getSupporstList();
+        $opr         = [];
+        if ($supports != null) {
+            foreach ($supports as $key => $support) {
+                $opr[] = [
+                    $support->question => "support-{$support->id}",
+                ];
+            }
+        }
+        $text = $this->customTextCtrl->getText('action.help.support.title');
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        return "";
+    }
+    public function subSupport($chatId, $supportId)
+    {
+        $supportCtrl = new SupportController();
+        $support     = $supportCtrl->getSupportById($supportId);
+        $this->telegramService->sendMessage($chatId, $support->answer);
+        return "";
+
+    }
+    public function testAccount($chatId)
+    {
+        $this->addNewBotLog('test_account', 'تست اکانت آزمایشی به کاربر.', $chatId, 'show');
+        $testAccountCntrl = new TestAccountController();
+        $testAccount      = $testAccountCntrl->getTestAccountDetails();
+
+        $usedTestAccountCntrl = new UsedTestAccountController();
+        $hasAccount           = $usedTestAccountCntrl->newTestAccount($chatId, $testAccount->id);
+
+        if ($hasAccount == true || $hasAccount == 1) {
+            $text = $this->customTextCtrl->getText('error.test_account.exist');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+        $text = $this->customTextCtrl->getText('action.test_account.success');
+
+        $this->telegramService->sendMessage($chatId, $text);
+        $panelCntrl = new PannelController();
+        $pannel     = $panelCntrl->getPannelById($testAccount->pannel_id);
+        // get selected item specefic data
+        $day    = $testAccount->expire_day;
+        $volume = $testAccount->volume;
+
+        if ($pannel->type == 'hiddify') {
+
+            // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req);
+            $userLink = $pannel->user_link;
+            $text     = $this->customTextCtrl->getText('action.test_account.success');
+            $this->new_hiddify_config_telegram_text($testAccount, $pannel, $volume, $day, $chatId, $testAccount->id);
+            $this->send_using_subscription_manual_message($chatId);
+        }
+
+        return "";
+    }
+    public function giftCard($chatId)
+    {
+        $text = $this->customTextCtrl->getText('action.help.giftCard');
+        $this->telegramService->sendMessage($chatId, $text);
+        return "";
+    }
+    public function subGiftCard($chatId, $giftCard)
+    {
+        try {
+            // بررسی محدودیت تلاش کاربر
+            $attemptsCacheKey = "gift_card_attempts_{$chatId}";
+            $blockedCacheKey = "gift_card_blocked_{$chatId}";
+            
+            // بررسی اینکه آیا کاربر مسدود شده است
+            if (Cache::has($blockedCacheKey)) {
+                $blockExpiresIn = now()->diffInMinutes(Cache::get($blockedCacheKey));
+                $text = $this->customTextCtrl->getText('error.giftCard.too_many_attempts', [
+                    'minutes' => $blockExpiresIn
+                ]);
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
+            }
+
+            // افزایش تعداد تلاش‌ها
+            $attempts = Cache::get($attemptsCacheKey, 0) + 1;
+            Cache::put($attemptsCacheKey, $attempts, now()->addHour());
+
+            $giftCardCntrl = new GiftCardController();
+            $giftCard = $giftCardCntrl->getGiftCardByCode($giftCard);
+            
+            if ($giftCard == null) {
+                // اگر تعداد تلاش‌ها از حد مجاز بیشتر شد
+                if ($attempts >= 3) {
+                    Cache::put($blockedCacheKey, now()->addHour(), now()->addHour());
+                    Cache::forget($attemptsCacheKey);
+                    
+                    $text = $this->customTextCtrl->getText('error.giftCard.blocked');
+                    $this->telegramService->sendMessage($chatId, $text);
+                    return "";
+                }
+                
+                $text = $this->customTextCtrl->getText('error.giftCard.not_found');
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
+            }
+
+            // اگر گیفت کارت معتبر بود، کش را پاک می‌کنیم
+            Cache::forget($attemptsCacheKey);
+            
+            // ادامه منطق موجود
+            $usedGiftCntrl = new UsedGiftCardController();
+            $userUsedItemCount = $usedGiftCntrl->getCountOfUsePerUser($giftCard->id, $chatId);
+            if ($userUsedItemCount >= $giftCard->count_of_use_per_user) {
+                $text = $this->customTextCtrl->getText('error.giftCard.already_used');
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
+            }
+            $reualt = $usedGiftCntrl->addGiftCardToUserAccount($giftCard->id, $chatId, $giftCard);
+            if ($reualt) {
+                $text = $this->customTextCtrl->getText('action.help.giftCard.success');
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
+            }
+            $text = $this->customTextCtrl->getText('error.giftCard.already_used');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["subGiftCard: " . $th]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+    }
+    public function referral ($chatId) {
+        try {
+            $text = $this->customTextCtrl->getText('action.referral.title');
+            $opr = [];
+            $opr[] = [
+                $text => "referral-{$chatId}",
+            ];
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["referral: " . $th]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+    }
+    public function subReferral ($chatId) {
+        try {
+            $referralSettingCntrl = new ReferralSettingController();
+            $settingCntrl = new SettingController();
+            $botName      = $settingCntrl->get_bot_name();
+            $inviteUrl    = "https://t.me/{$botName}?start={$chatId}";
+
+            // get percent of referral
+            $referralPercent = $referralSettingCntrl->get_referral_setting_referral_percent();
+            // درصد چون اعشار هست و متن هم فارسی، ترتیب نوشتاریش تغییر می کنه برای همین می بایست متنش را بصورت استرینگ و برعکس کنیم
+            // تبدیل به رشته و معکوس کردن درصد برای نمایش صحیح در متن فارسی
+            $referralPercentStr = (string)$referralPercent;
+            $referralPercentStr = strrev($referralPercentStr);
+
+            $text = $this->customTextCtrl->getText('action.referral.text', [
+                'link' => $inviteUrl,
+                'percent' => $referralPercentStr,
+            ]);
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["subReferral: " . $th]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+    }
+    private function addNewBotLog($type, $message, $chatId, $opr)
+    {
+        $logCtrl = new LogController();
+        $logCtrl->addNewLog($type, $message, $chatId, "", $opr);
+        return true;
+    }
+
 }

@@ -164,6 +164,7 @@ class SubscriptionProcessController extends Controller
                 }
             }
         }
+
         $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
         return "";
     }
@@ -264,7 +265,7 @@ class SubscriptionProcessController extends Controller
             $day       = $this->selectedPrCat->expire_day;
             $volume    = $this->selectedPrCat->volume;
             $productID = $this->selectedPrCat->id;
-            $resualt = false;
+            $resualt   = false;
 
             if ($pannel->type == 'hiddify') {
                 $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $productID);
@@ -638,15 +639,15 @@ class SubscriptionProcessController extends Controller
         return Cache::get("awaiting_reply_{$chatId}");
     }
 
-    private function clearAwaitingReply(string $chatId, string $text): void
+    private function clearAwaitingReply(string $chatId, string | array $text): void
     {
         try {
-            \Log::info("clearAwaitingReply: " . $chatId . " - " . $text);
+            $text = $this->telegramService->formatText($text);
             Cache::forget("awaiting_reply_{$chatId}");
             // delete last user state where chat_id == $chatId
             $user_state = UserState::where('chat_id', $chatId)->latest()->first();
             if ($user_state != null) {
-            $user_state->delete();
+                $user_state->delete();
             }
             $this->generalCntrl->return_main_menu_items($chatId, $text);
         } catch (\Throwable $th) {

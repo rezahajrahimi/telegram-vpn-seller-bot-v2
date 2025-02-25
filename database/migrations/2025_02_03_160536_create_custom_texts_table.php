@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('key')->unique();
             $table->text('default_text');
             $table->text('custom_text')->nullable();
+            $table->text('description')->nullable();
             $table->timestamps();
             $table->softDeletes();
             // index

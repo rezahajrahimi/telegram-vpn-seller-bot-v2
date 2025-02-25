@@ -68,7 +68,9 @@ class ApplicationController extends Controller
     public function getActiveAplicationByID($id)
     {
         try {
-            $application = Application::findOrFail($id);
+            $application = Application::where('is_active', true)
+                ->where('id', $id)
+                ->first();
             return $application;
         } catch (\Throwable $th) {
             \Log::info("Throwable $th");
