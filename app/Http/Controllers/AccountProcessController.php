@@ -332,6 +332,47 @@ class AccountProcessController extends Controller
             return "";
         }
     }
+    public function adminFastCharge($chat_id, $amount, $user_id){
+        try {
+            $this->chatId = $chat_id;
+            $user = User::where('account_id', $chat_id)->first();
+            if ($user == null) {
+                return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.user_not_found'));
+            }
+            if ($user->role != 'admin') {
+                return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.user_not_found'));
+            }
+            // بررسی معتبر بودن مقدار
+            if (!is_numeric($amount) || $amount <= 0) {
+                return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.invalid_amount'));
+            }
+            
+            // پیدا کردن کاربر
+            $botUser = BotUser::where('account_id', $user_id)->first();
+            if ($botUser == null) {
+                return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.user_not_found'));
+            }
+            
+            // افزایش موجودی حساب
+            $this->accBlCtrl->addToUserAccountBalance($user_id, $amount);
+            // ثبت لاگ
+            $this->addNewBotLog('admin', "شارژ سریع حساب کاربر {$user_id} به مبلغ {$amount} تومان", 'charge');
+            
+            // ارسال پیام موفقیت به ادمین
+            $this->telegramService->sendMessage($chat_id, "حساب کاربر {$user_id} با موفقیت به مبلغ {$amount} تومان شارژ شد.");
+            
+            // ارسال پیام به کاربر
+            $this->telegramService->sendMessage($user_id, $this->customTextCtrl->getText('action.account.balance_added', [
+                'amount' => number_format($amount, 0, '.', ',') . ' تومان'
+            ]));
+            
+            return true;
+        } catch (\Throwable $th) {
+            \Log::error(["adminFastCharge: " . $th]);
+            $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.server_error'));
+            return false;
+        }
+    }
 
     public function setAwaitingReply(string $chatId, string $type, string $paymentType): void
     {

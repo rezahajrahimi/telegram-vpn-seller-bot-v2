@@ -1,10 +1,9 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\AccountProcessController;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\SubscriptionProcessController;
-use App\Http\Controllers\AccountProcessController;
-
 use App\Models\User;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
@@ -184,8 +183,9 @@ class TelegramWebhookController extends Controller
             // دریافت اطلاعات فایل از تلگرام
             $fileInfo = $this->telegramService->getFile($fileId);
             if (! isset($fileInfo['result']['file_path'])) {
-                \Log::error("خطا در دریافت اطلاعات فایل از تلگرام: " . json_encode($fileInfo));
-                return "با پشتیبان ربات تماس بگیرید ،خطا در دریافت تصویر";
+                $text = $this->customTextCtrl->getText('action.server_error');
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
             }
 
             $request                 = new Request();
@@ -196,9 +196,13 @@ class TelegramWebhookController extends Controller
 
             $imageTrCntrl = new TransactionImageController();
             $imageTrCntrl->saveNewTransactionImage($request);
-
-            $message = "کاربر {$chatId} یک عکس ارسال کرد ";
+            \Log::info("processPhotoMessage received 44");
             $this->sendMessageToAdmin($chatId, $fileId, $message, 'image');
+            // tell user that image is received
+            $text = $this->customTextCtrl->getText('action.send_photo.success', [
+                'name' => $this->getCurrentChatFirstName(),
+            ]);
+            $this->telegramService->sendMessage($chatId, $text);
             return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در پردازش تصویر: " . $th->getMessage());
@@ -348,7 +352,7 @@ class TelegramWebhookController extends Controller
             $message   = $formatter
                 ->addFormattedText('', $welcomeFormats)
                 ->getMessage();
-            $this->generalCntrl->return_main_menu_items($chatId,$message);
+            $this->generalCntrl->return_main_menu_items($chatId, $message);
             return '';
 
         } catch (\Throwable $th) {
@@ -449,9 +453,7 @@ class TelegramWebhookController extends Controller
             'support' => $this->generalCntrl->subSupport($chatId, $actionList[1]),
             'giftCard' => $this->generalCntrl->subGiftCard($chatId, $actionList[1]),
             'referral' => $this->generalCntrl->subReferral($chatId),
-
-
-
+            'charge' => $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]),
 
             default => $this->customTextCtrl->getText('error.action.not_found')
         };
@@ -462,7 +464,6 @@ class TelegramWebhookController extends Controller
             $this->customTextCtrl->getText('action.process.on_progress'),
             false
         );
-
 
         if ($response != "" || $response != null || $response != " ") {
             $this->telegramService->sendMessage($chatId, $response);
@@ -481,7 +482,6 @@ class TelegramWebhookController extends Controller
         $this->setAwaitingReply($chatId, 'action_1_reply');
         return $this->telegramService->forceReply($chatId, "لطفاً نام خود را وارد کنید:");
     }
-
 
     private function handleAction2(string $chatId): string
     {
@@ -574,15 +574,30 @@ class TelegramWebhookController extends Controller
     }
     public function sendMessageToAdmin($chat_id, $image_url, $text, $messageType)
     {
-        $settingCtrl = new SettingController();
+        try {
+            $settingCtrl = new SettingController();
 
-        $admin_id = $settingCtrl->getAdminId();
-        if ($messageType == 'image') {
-            $resualt = $this->telegramService->sendPhoto($admin_id, $image_url, $text);
+            $admin_id = $settingCtrl->getAdminId();
+            \Log::info("sendMessageToAdmin received 11 " . $admin_id);
+            if ($messageType == 'image') {
+                \Log::info("sendMessageToAdmin received admin_id: " . $admin_id);
+                \Log::info("sendMessageToAdmin received image_url: " . $image_url);
+                $text = $this->customTextCtrl->getText('action.send_photo.success.admin', [
+                    'account_id' => $chat_id,
+                ]);
+                
 
-            return response()->json($resualt, 200);
-        } else {
-            $result = $this->telegramService->sendMessage($admin_id, $text);
+                $result = $this->telegramService->sendPhoto($admin_id, $image_url, $text);
+                \Log::info(["sendMessageToAdmin received 2222: " . json_encode($result)]);
+                return "";
+            } else {
+                $result = $this->telegramService->sendMessage($admin_id, $text);
+                \Log::info("sendMessageToAdmin received 33 " . $result);
+                return "";
+            }
+        } catch (\Throwable $th) {
+            \Log::error("خطا در پردازش sendMessageToAdmin: " . $th);
+            return "";
         }
     }
     private function addNewBotLog($type, $message, $event)

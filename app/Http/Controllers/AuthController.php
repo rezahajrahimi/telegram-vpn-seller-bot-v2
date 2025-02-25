@@ -10,6 +10,8 @@ use Illuminate\Validation\ValidationException;
 use App\Services\TelegramService;
 use App\Http\Controllers\CustomTextController;
 use App\Services\TelegramMessageFormatter;
+use Illuminate\Support\Facades\Cache;
+
 class AuthController extends Controller
 {
     private GeneralController $generalCntrl;
@@ -31,19 +33,19 @@ class AuthController extends Controller
     }
     public function getPowerPsLicenseType()
     {
-        // check app env
         $appEnv = env('APP_ENV');
         if ($appEnv != 'local' && $appEnv != 'testing') {
-
             $host = $this->getHostName();
-
             $licenseType = 'gold';
-            // get afmin id from .env
             $adminId = env('TELEGRAM_ADMIN_ID');
-            // $host = '';
-            // if (isset($_SERVER['HTTP_HOST'])) {
-            //     $host = $_SERVER['HTTP_HOST'];
-            // }
+            
+            // ایجاد کلید منحصر به فرد برای کش
+            $cacheKey = "license_check:{$host}:{$licenseType}";
+            
+            // چک کردن وجود داده در کش
+            if (Cache::has($cacheKey)) {
+                return Cache::get($cacheKey);
+            }
 
             $hasLicense = Http::post('https://license-checker.chbk.app/api/checkLicense', [
                 'name'     => 'Reza',
@@ -51,15 +53,18 @@ class AuthController extends Controller
                 'host'     => "{$host}",
                 'admin_id' => "{$adminId}",
             ]);
-            // check if $hasLicense response was 401 or not
-            // if not go on
-            // if yes return false
 
             if ($hasLicense->status() != 200) {
+                // ذخیره نتیجه منفی در کش برای 13 دقیقه
+                Cache::put($cacheKey, 'free', 780); // 13 دقیقه = 780 ثانیه
                 return 'free';
             }
 
-            return $hasLicense->json()['data']['account_type'];
+            $result = $hasLicense->json()['data']['account_type'];
+            // ذخیره نتیجه مثبت در کش برای 13 دقیقه
+            Cache::put($cacheKey, $result, 780);
+            
+            return $result;
         }
     }
 

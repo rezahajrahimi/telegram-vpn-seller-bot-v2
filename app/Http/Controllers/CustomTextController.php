@@ -75,6 +75,12 @@ class CustomTextController extends Controller
                     ['key' => 'action.send_photo', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'ارسال عکس'],
                     ]), 'custom_text' => null, 'description' => 'متن ارسال عکس'],
+                    ['key' => 'action.send_photo.success', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => '{name} عزیز عکس شما دریافت شد، منتظر بررسی توسط مدیر ربات باشید.'],
+                    ]), 'custom_text' => null, 'description' => 'متن {name} عزیز عکس شما دریافت شد، منتظر بررسی توسط مدیر ربات باشید. پارامترها: {name}'],
+                    ['key' => 'action.send_photo.success.admin', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'کاربر {account_id} برای شما عکسی ارسال کرده است.'],
+                    ]), 'custom_text' => null, 'description' => 'متن کاربر {account_id} برای شما عکسی ارسال کرده است. پارامترها: {account_id}'],
                     ['key' => 'action.welcome_back', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'خوش برگشتی {name}! آخرین بازدید شما: {last_visit}'],
                     ]), 'custom_text' => null, 'description' => 'متن خوش برگشتی برای کاربر - پارامترها: {name} {last_visit}'],
