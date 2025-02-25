@@ -366,7 +366,6 @@ class AccountProcessController extends Controller
             $this->telegramService->sendMessage($user_id, $this->customTextCtrl->getText('action.account.balance_added', [
                 'amount' => number_format($amount, 0, '.', ',') . ' تومان'
             ]));
-            
             return "";
             
         } catch (\Throwable $th) {
