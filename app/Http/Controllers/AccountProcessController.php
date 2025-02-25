@@ -368,6 +368,7 @@ class AccountProcessController extends Controller
             ]));
             
             return "";
+            
         } catch (\Throwable $th) {
             \Log::error(["adminFastCharge: " . $th]);
             $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.server_error'));
