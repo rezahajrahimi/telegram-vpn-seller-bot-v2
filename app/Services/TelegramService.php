@@ -72,9 +72,7 @@ class TelegramService
             if (isset($response['ok']) && $response['ok'] === true && isset($response['result']['status'])) {
                 $status = $response['result']['status'];
                 // اگر کاربر left یا kicked باشد یعنی عضو کانال نیست
-                \Log::info(["status" => $status]);
                 $res = in_array($status, ['left', 'kicked']);
-                \log::info("res=> $res");
                 return $res == 1 || $res == true ? false : true;
             }
 
