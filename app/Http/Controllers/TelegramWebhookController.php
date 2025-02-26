@@ -321,9 +321,8 @@ class TelegramWebhookController extends Controller
                     }
                 }
                 if (count($opr) > 0) {
-                    $channelLockMenuCtrl = new ChannelLockMenuItemController();
-
-                    $text = $channelLockMenuCtrl->getChannelLockMenuText();
+                    $text = $this->customTextCtrl->getText('action.chanel_lock_text');
+        
 
                     $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
                     return false;
