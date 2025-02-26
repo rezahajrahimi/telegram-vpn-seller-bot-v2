@@ -166,6 +166,11 @@ class CronJobController extends Controller
     public function execute_auto_delete_expired_configs()
     {
         try {
+            $advanceSettingCntrl = new AdvanceSettingLookupController();
+            $isEnable             = $advanceSettingCntrl->getValueByNameWithBooleanValue('bot_auto_delete_expired_configs');
+            if ($isEnable == false || $isEnable == 0) {
+                return false;
+            }
             $cronJob = CronJob::where('name', 'Auto Delete Expired Configs After 10 Days')->first();
             // check if is_active was false, return
             if ($cronJob == null) {
