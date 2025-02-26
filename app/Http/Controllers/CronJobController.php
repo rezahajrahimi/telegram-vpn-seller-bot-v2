@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\CronJob;
@@ -7,47 +6,48 @@ use App\Models\CronLog;
 use App\Models\Pannel;
 use App\Models\Product;
 use App\Models\ProductCategory;
-use App\Models\BotUser;
 use App\Models\User;
-use App\Models\Setting;
 use App\Services\TelegramService;
-
+use Hekmatinasser\Verta\Verta;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
-use Hekmatinasser\Verta\Verta;
-
-use Illuminate\Http\Request;
 
 class CronJobController extends Controller
 {
     public function seed()
     {
         if (CronJob::all()->isEmpty()) {
-              // create neccessery cron jobs
-            $expiredAccountsCronJob = new CronJob();
-            $expiredAccountsCronJob->name = 'Expired';
-            $expiredAccountsCronJob->frequency = '10m';
-            $expiredAccountsCronJob->is_active = true;
+            // create neccessery cron jobs
+            $expiredAccountsCronJob              = new CronJob();
+            $expiredAccountsCronJob->name        = 'Expired';
+            $expiredAccountsCronJob->frequency   = '10m';
+            $expiredAccountsCronJob->is_active   = true;
             $expiredAccountsCronJob->description = 'ارسال پیام به کاربرانی که اکانت خریداری شده منقضی شده دارند.';
             $expiredAccountsCronJob->save();
-            $lessThan3DaysCronJob = new CronJob();
-            $lessThan3DaysCronJob->name = 'Less than 3 days';
-            $lessThan3DaysCronJob->frequency = '1d';
-            $lessThan3DaysCronJob->is_active = true;
+            $lessThan3DaysCronJob              = new CronJob();
+            $lessThan3DaysCronJob->name        = 'Less than 3 days';
+            $lessThan3DaysCronJob->frequency   = '1d';
+            $lessThan3DaysCronJob->is_active   = true;
             $lessThan3DaysCronJob->description = 'ارسال پیام به کاربرانی که سه روز دیگر اکانت آنها منقضی می شود.';
             $lessThan3DaysCronJob->save();
-            $usageMoreThan85PercentCronJob = new CronJob();
-            $usageMoreThan85PercentCronJob->name = 'Usage more than 85%';
-            $usageMoreThan85PercentCronJob->frequency = '5m';
-            $usageMoreThan85PercentCronJob->is_active = true;
+            $usageMoreThan85PercentCronJob              = new CronJob();
+            $usageMoreThan85PercentCronJob->name        = 'Usage more than 85%';
+            $usageMoreThan85PercentCronJob->frequency   = '5m';
+            $usageMoreThan85PercentCronJob->is_active   = true;
             $usageMoreThan85PercentCronJob->description = 'ارسال پیام به کاربرانی که میزان استفاده از اکانت بیشتر از 85 درصد دارند.';
             $usageMoreThan85PercentCronJob->save();
-            $createDailyBackupCronJob = new CronJob();
-            $createDailyBackupCronJob->name = 'Create Daily Backup';
-            $createDailyBackupCronJob->frequency = '1d';
-            $createDailyBackupCronJob->is_active = true;
+            $createDailyBackupCronJob              = new CronJob();
+            $createDailyBackupCronJob->name        = 'Create Daily Backup';
+            $createDailyBackupCronJob->frequency   = '1d';
+            $createDailyBackupCronJob->is_active   = true;
             $createDailyBackupCronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
             $createDailyBackupCronJob->save();
+            $autoDeleteExpiredConfigsCronJob              = new CronJob();
+            $autoDeleteExpiredConfigsCronJob->name        = 'Auto Delete Expired Configs After 10 Days';
+            $autoDeleteExpiredConfigsCronJob->frequency   = '1d';
+            $autoDeleteExpiredConfigsCronJob->is_active   = true;
+            $autoDeleteExpiredConfigsCronJob->description = 'حذف کانفیگ هایی که 10 روز از انقضا آنها می گذرد.';
+            $autoDeleteExpiredConfigsCronJob->save();
             return true;
         }
         return false;
@@ -80,8 +80,8 @@ class CronJobController extends Controller
     public function change_cron_job_active_status($id)
     {
         try {
-            $cronJob = CronJob::find($id);
-            $cronJob->is_active = !$cronJob->is_active;
+            $cronJob            = CronJob::find($id);
+            $cronJob->is_active = ! $cronJob->is_active;
             $cronJob->save();
             return response()->json($cronJob);
         } catch (\Throwable $th) {
@@ -96,20 +96,20 @@ class CronJobController extends Controller
         if ($cronJob->is_active == false) {
             return false;
         }
-        $authCntrl = new AuthController();
+        $authCntrl             = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
         if ($getPowerPsLicenseType == 'free') {
             return false;
         }
 
-        $pannel = Pannel::all();
+        $pannel           = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
         foreach ($pannel as $key => $value) {
             $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
             // تبدیل Response به آرایه
             $users = json_decode($usersResponse->getContent(), true);
 
-            if (!is_array($users)) {
+            if (! is_array($users)) {
                 continue;
             }
             foreach ($users as $key => $value) {
@@ -129,7 +129,7 @@ class CronJobController extends Controller
 
                 if ($usagePercent > 84.99 && $usagePercent < 99.99) {
                     // get releated products by uuid
-                    $uuid = $value['uuid'];
+                    $uuid    = $value['uuid'];
                     $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
 
                     if ($product != null) {
@@ -140,7 +140,7 @@ class CronJobController extends Controller
                         $prcategory = ProductCategory::find($product->product_categories_id);
                         // get product category name
                         $productCategoryName = $prcategory->category_name;
-                        $productText = "{$productCategoryName} - {$product->remark}";
+                        $productText         = "{$productCategoryName} - {$product->remark}";
                         // send notification
                         $user_id = $product->account_id;
                         // check has exist in cron log or not, if not exist send notification
@@ -151,8 +151,8 @@ class CronJobController extends Controller
                             $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی شما بیشتر از $usagePercent درصد از بسته $productText را مصرف کرده اید.", $user_id, null, 'MarkDown');
 
                             if ($sendNotificationToUser) {
-                                $cronLog = new CronLog();
-                                $cronLog->cron_id = $cronJob->id;
+                                $cronLog             = new CronLog();
+                                $cronLog->cron_id    = $cronJob->id;
                                 $cronLog->product_id = $product->id;
                                 $cronLog->save();
                             }
@@ -163,6 +163,77 @@ class CronJobController extends Controller
         }
         return true;
     }
+    public function execute_auto_delete_expired_configs()
+    {
+        try {
+            $cronJob = CronJob::where('name', 'Auto Delete Expired Configs After 10 Days')->first();
+            // check if is_active was false, return
+            if ($cronJob == null) {
+                $autoDeleteExpiredConfigsCronJob              = new CronJob();
+                $autoDeleteExpiredConfigsCronJob->name        = 'Auto Delete Expired Configs After 10 Days';
+                $autoDeleteExpiredConfigsCronJob->frequency   = '1d';
+                $autoDeleteExpiredConfigsCronJob->is_active   = true;
+                $autoDeleteExpiredConfigsCronJob->description = 'حذف کانفیگ هایی که 10 روز از انقضا آنها می گذرد.';
+                $autoDeleteExpiredConfigsCronJob->save();
+                $cronJob = $autoDeleteExpiredConfigsCronJob;
+            }
+            if ($cronJob->is_active == false) {
+                return false;
+            }
+            $authCntrl             = new AuthController();
+            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+            if ($getPowerPsLicenseType == 'free') {
+                return false;
+            }
+
+            $pannel           = Pannel::all();
+            $hiddifyPanelCtrl = new HiddifyPannelController();
+            foreach ($pannel as $key => $panel) {
+                $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($panel->id);
+                // تبدیل Response به آرایه
+                $users = json_decode($usersResponse->getContent(), true);
+
+                if (! is_array($users)) {
+                    continue;
+                }
+                foreach ($users as $key => $value) {
+                    $startDate = $value['start_date'];
+                    // convert $startDate to valid carbon date
+                    $startDate = Carbon::parse($startDate);
+
+                    $package_days = $value['package_days'];
+                    // convert $package_days to integer
+                    $package_days = intval($package_days);
+                    // add expireDate to $startDate
+                    $expireDate = Carbon::parse($startDate);
+
+                    // add $pacje_days to $expireDate
+                    $expireDate->addDays($package_days);
+                    // add 10 days to $expireDate
+                    $expireDate->addDays(10);
+
+                    // get diffrence between current date and $expireDate
+                    $dateDifference = $expireDate->diffInDays(Carbon::now());
+                    if ($dateDifference > 1) {
+                        // get releated products by uuid
+                        $uuid    = $value['uuid'];
+                        $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+                        if ($product != null) {
+                            $product->delete();
+                        }
+                        // delete config on hiddify panel
+                        $hiddifyPanelCtrl->deleteUserOfHiddifyPanel($panel->id, $value['uuid']);
+                    }
+                }
+
+            }
+            return true;
+        } catch (\Throwable $th) {
+            \Log::error($th->getMessage());
+            return false;
+        }
+    }
+
     public function execute_send_lass_there_than_3_days()
     {
         $cronJob = CronJob::where('name', 'Less than 3 days')->first();
@@ -171,19 +242,19 @@ class CronJobController extends Controller
             return false;
         }
 
-        $authCntrl = new AuthController();
+        $authCntrl             = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
         if ($getPowerPsLicenseType == 'free') {
             return false;
         }
-        $pannel = Pannel::all();
+        $pannel           = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
         foreach ($pannel as $key => $value) {
             $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
             // تبدیل Response به آرایه
             $users = json_decode($usersResponse->getContent(), true);
 
-            if (!is_array($users)) {
+            if (! is_array($users)) {
                 continue;
             }
             foreach ($users as $key => $value) {
@@ -205,7 +276,7 @@ class CronJobController extends Controller
                 // get usage percent
                 if ($dateDifference < 4 && $dateDifference > 0) {
                     // get releated products by uuid
-                    $uuid = $value['uuid'];
+                    $uuid    = $value['uuid'];
                     $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
 
                     if ($product != null) {
@@ -213,7 +284,7 @@ class CronJobController extends Controller
                         $prcategory = ProductCategory::find($product->product_categories_id);
                         // get product category name
                         $productCategoryName = $prcategory->category_name;
-                        $productText = "{$productCategoryName} - {$product->remark}";
+                        $productText         = "{$productCategoryName} - {$product->remark}";
 
                         // send notification
                         $user_id = $product->account_id;
@@ -228,8 +299,8 @@ class CronJobController extends Controller
                             $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی تنها $dateDifference روز دیگر از بسته $productText باقی مانده است.", $user_id, null, 'MarkDown');
 
                             if ($sendNotificationToUser) {
-                                $cronLog = new CronLog();
-                                $cronLog->cron_id = $cronJob->id;
+                                $cronLog             = new CronLog();
+                                $cronLog->cron_id    = $cronJob->id;
                                 $cronLog->product_id = $product->id;
                                 $cronLog->save();
                             }
@@ -244,14 +315,14 @@ class CronJobController extends Controller
     {
         try {
             // check account license
-            $authCntrl = new AuthController();
+            $authCntrl             = new AuthController();
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
             if ($getPowerPsLicenseType == 'free') {
                 return false;
             }
             // checl is enable in advanced setting ot not
             $advancedSettingCntrl = new AdvanceSettingLookupController();
-            $isEnable = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_auto_set_price_by_dollar_price');
+            $isEnable             = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_auto_set_price_by_dollar_price');
             if ($isEnable == false || $isEnable == 0) {
                 return false;
             }
@@ -264,7 +335,7 @@ class CronJobController extends Controller
 
             foreach ($productCats as $key => $value) {
                 if ($value->category_name != 'اکانت آزمایشی') {
-                    $price = $value->price_in_dollar * $tetherPrice;
+                    $price        = $value->price_in_dollar * $tetherPrice;
                     $value->price = $price;
                     $value->update();
                 }
@@ -279,7 +350,7 @@ class CronJobController extends Controller
         try {
             // check account license
 
-            $authCntrl = new AuthController();
+            $authCntrl             = new AuthController();
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
             if ($getPowerPsLicenseType == 'free') {
                 return false;
@@ -287,7 +358,7 @@ class CronJobController extends Controller
 
             // checl is enable in advanced setting ot not
             $advancedSettingCntrl = new AdvanceSettingLookupController();
-            $isEnable = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_calculate_product_category_price_in_dollar_by_toman');
+            $isEnable             = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_calculate_product_category_price_in_dollar_by_toman');
             if ($isEnable == false || $isEnable == 0) {
                 return false;
             }
@@ -319,13 +390,13 @@ class CronJobController extends Controller
             return false;
         }
 
-        $authCntrl = new AuthController();
+        $authCntrl             = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
         if ($getPowerPsLicenseType == 'free') {
             return false;
         }
 
-        $pannel = Pannel::all();
+        $pannel           = Pannel::all();
         $hiddifyPanelCtrl = new HiddifyPannelController();
 
         foreach ($pannel as $key => $value) {
@@ -333,7 +404,7 @@ class CronJobController extends Controller
             // تبدیل Response به آرایه
             $users = json_decode($usersResponse->getContent(), true);
 
-            if (!is_array($users)) {
+            if (! is_array($users)) {
                 continue;
             }
 
@@ -351,7 +422,7 @@ class CronJobController extends Controller
 
                 if ($usagePercent >= 99.97) {
                     // get releated products by uuid
-                    $uuid = $value['uuid'];
+                    $uuid    = $value['uuid'];
                     $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
 
                     if ($product != null) {
@@ -364,7 +435,7 @@ class CronJobController extends Controller
                             $prcategory = ProductCategory::find($product->product_categories_id);
                             // get product category name
                             $productCategoryName = $prcategory->category_name;
-                            $productText = "{$productCategoryName} - {$product->remark}";
+                            $productText         = "{$productCategoryName} - {$product->remark}";
 
                             // send notification
                             $user_id = $product->account_id;
@@ -377,8 +448,8 @@ class CronJobController extends Controller
                             );
 
                             if ($sendNotificationToUser['success']) {
-                                $cronLog = new CronLog();
-                                $cronLog->cron_id = $cronJob->id;
+                                $cronLog             = new CronLog();
+                                $cronLog->cron_id    = $cronJob->id;
                                 $cronLog->product_id = $product->id;
                                 $cronLog->save();
                             }
@@ -418,34 +489,34 @@ class CronJobController extends Controller
     public function execute_create_daily_backup()
     {
         try {
-            $authCntrl = new AuthController();
+            $authCntrl             = new AuthController();
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
             if ($getPowerPsLicenseType == 'free') {
-            return false;
-        }
-        $cronJob = CronJob::where('name', 'Create Daily Backup')->first();
-        if($cronJob == null){
-          $cronJob=  $this->create_cron_job_for_create_daily_backup();
-        }
-        // check if is_active was false, return
-        if ($cronJob->is_active == false) {
-            return false;
-        }
-        $backupCtrl = new BackupController();
-        $backupFile = $backupCtrl->createBackupAndReturnZipFile();
-        if (!isset($backupFile)) {
-            return false;
-        }
-        // log backup file as a array
-        $admin = User::where('role', 'admin')->first();
-        $admin_id = $admin->account_id;
+                return false;
+            }
+            $cronJob = CronJob::where('name', 'Create Daily Backup')->first();
+            if ($cronJob == null) {
+                $cronJob = $this->create_cron_job_for_create_daily_backup();
+            }
+            // check if is_active was false, return
+            if ($cronJob->is_active == false) {
+                return false;
+            }
+            $backupCtrl = new BackupController();
+            $backupFile = $backupCtrl->createBackupAndReturnZipFile();
+            if (! isset($backupFile)) {
+                return false;
+            }
+            // log backup file as a array
+            $admin    = User::where('role', 'admin')->first();
+            $admin_id = $admin->account_id;
 
-        $currentDate = now()->toJalali()->format('Y/m/d');
-        $currentDate = Verta::parse($currentDate)->format('Y-m-d');
-        $text = "نسخه پشتیبان $currentDate";
-        $telegramService = new TelegramService();
-        $result = $telegramService->sendDocumentFile($admin_id, $backupFile, $text);
-        return "done";
+            $currentDate     = now()->toJalali()->format('Y/m/d');
+            $currentDate     = Verta::parse($currentDate)->format('Y-m-d');
+            $text            = "نسخه پشتیبان $currentDate";
+            $telegramService = new TelegramService();
+            $result          = $telegramService->sendDocumentFile($admin_id, $backupFile, $text);
+            return "done";
         } catch (\Throwable $th) {
             \Log::error($th->getMessage());
             return "error";
@@ -453,10 +524,10 @@ class CronJobController extends Controller
     }
     public function create_cron_job_for_create_daily_backup()
     {
-        $cronJob = new CronJob();
-        $cronJob->name = 'Create Daily Backup';
-        $cronJob->frequency = '1d';
-        $cronJob->is_active = true;
+        $cronJob              = new CronJob();
+        $cronJob->name        = 'Create Daily Backup';
+        $cronJob->frequency   = '1d';
+        $cronJob->is_active   = true;
         $cronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
         $cronJob->save();
         return $cronJob;
