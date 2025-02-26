@@ -87,7 +87,7 @@ class AdvanceSettingLookupController extends Controller
                 AdvanceSettingLookup::truncate();
                 $this->seed();
                 foreach ($advanceSettingLookups as $advanceSettingLookup) {
-                    $this->update($advanceSettingLookup->id, $advanceSettingLookup->name, $advanceSettingLookup->value, $advanceSettingLookup->description);
+                    $this->update(Request::create($advanceSettingLookup->id, $advanceSettingLookup->name, $advanceSettingLookup->value, $advanceSettingLookup->description));
                 }
                 $advanceSettingLookup = AdvanceSettingLookup::getByName($name);
                 return $advanceSettingLookup->booleanValue;
