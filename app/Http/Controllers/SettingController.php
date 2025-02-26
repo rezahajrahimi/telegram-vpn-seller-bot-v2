@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\Setting;
+use App\Http\Controllers\DotenvEditor;
 use Illuminate\Http\Request;
 
 class SettingController extends Controller
@@ -48,16 +49,19 @@ class SettingController extends Controller
         $data->bot_name = $request->bot_name;
         $data->admin_id = $request->admin_id;
         $data->bot_token = $request->bot_token;
-        $data->welcome_message = $request->welcome_message;
+        $data->welcome_message = " ";
         $data->panel_address = $request->panel_address;
         if ($data->update()) {
-            // change in .env
-            $env = new DotenvEditor();
-            $env->changeEnv([
-                'TELEGRAM_BOT_TOKEN' => $request->bot_token,
-                'TELEGRAM_ADMIN_ID' => $request->admin_id,
-                'APP_URL' => $request->panel_address,
-            ]);
+            // تغییر مقادیر در فایل .env
+            $path = base_path('.env');
+            $envContent = file_get_contents($path);
+            
+            $envContent = preg_replace('/TELEGRAM_BOT_TOKEN=.*/', 'TELEGRAM_BOT_TOKEN=' . $request->bot_token, $envContent);
+            $envContent = preg_replace('/TELEGRAM_ADMIN_ID=.*/', 'TELEGRAM_ADMIN_ID=' . $request->admin_id, $envContent);
+            $envContent = preg_replace('/APP_URL=.*/', 'APP_URL=' . $request->panel_address, $envContent);
+            
+            file_put_contents($path, $envContent);
+            
             return true;
         } else {
             return false;
