@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\AdvanceSettingLookup;
@@ -30,8 +29,8 @@ class AdvanceSettingLookupController extends Controller
             if ($advanceSettingLookups->isEmpty()) {
                 $this->seed();
                 $advanceSettingLookups = AdvanceSettingLookup::all()->map(function ($item) {
-                return ['name' => $item->name, 'value' => $item->booleanValue];
-            });
+                    return ['name' => $item->name, 'value' => $item->booleanValue];
+                });
             }
             return $advanceSettingLookups;
         } catch (\Throwable $th) {
@@ -81,14 +80,22 @@ class AdvanceSettingLookupController extends Controller
     public function getValueByNameWithBooleanValue($name)
     {
         try {
-           $advanceSettingLookup = AdvanceSettingLookup::getByName($name);
-           if($advanceSettingLookup == null){
-            return null;
-           }
-           if($advanceSettingLookup->booleanValue == 'true'){
-            return true;
-           }
-           return false;
+            $advanceSettingLookup = AdvanceSettingLookup::getByName($name);
+            if ($advanceSettingLookup == null) {
+                // get all advance setting lookups, then clear all of them, then run $this->seed function, update new ones with old values, then get the advance setting lookup by name
+                $advanceSettingLookups = AdvanceSettingLookup::all();
+                AdvanceSettingLookup::truncate();
+                $this->seed();
+                foreach ($advanceSettingLookups as $advanceSettingLookup) {
+                    $this->update($advanceSettingLookup->id, $advanceSettingLookup->name, $advanceSettingLookup->value, $advanceSettingLookup->description);
+                }
+                $advanceSettingLookup = AdvanceSettingLookup::getByName($name);
+                return $advanceSettingLookup->booleanValue;
+            }
+            if ($advanceSettingLookup->booleanValue == 'true') {
+                return true;
+            }
+            return false;
         } catch (\Throwable $th) {
             \Log::info("AdvanceSettingLookupController->getByNameAndValue->error", ['error' => $th->getMessage(), 'name' => $name, 'value' => $value]);
             return null;
@@ -116,9 +123,9 @@ class AdvanceSettingLookupController extends Controller
     public function update(Request $request)
     {
         try {
-            $advanceSettingLookup = AdvanceSettingLookup::find($request->id);
-            $advanceSettingLookup->name = $request->name;
-            $advanceSettingLookup->value = $request->value;
+            $advanceSettingLookup              = AdvanceSettingLookup::find($request->id);
+            $advanceSettingLookup->name        = $request->name;
+            $advanceSettingLookup->value       = $request->value;
             $advanceSettingLookup->description = $request->description;
             $advanceSettingLookup->update();
             return $advanceSettingLookup;
@@ -130,8 +137,8 @@ class AdvanceSettingLookupController extends Controller
     public function updateByName(Request $request)
     {
         try {
-            $advanceSettingLookup = AdvanceSettingLookup::where('name', $request->name)->first();
-            $advanceSettingLookup->value = $request->value;
+            $advanceSettingLookup              = AdvanceSettingLookup::where('name', $request->name)->first();
+            $advanceSettingLookup->value       = $request->value;
             $advanceSettingLookup->description = $request->description;
             $advanceSettingLookup->update();
             return $advanceSettingLookup;
@@ -140,6 +147,5 @@ class AdvanceSettingLookupController extends Controller
             return null;
         }
     }
-
 
 }
