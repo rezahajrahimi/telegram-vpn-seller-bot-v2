@@ -325,17 +325,6 @@ class TelegramWebhookController extends Controller
 
                 if (count($notJoinedChannels) > 0) {
                     $text         = $this->customTextCtrl->getText('action.chanel_lock_text');
-                    // $settingCntrl = new SettingController();
-
-                    // $botName = $settingCntrl->get_bot_name();
-                    // $botName = ltrim($channelId, '@');
-
-
-                    // // هر دکمه را در یک سطر جداگانه قرار می‌دهیم
-                    // $notJoinedChannels[] = [
-                    //     'text' => "عضو شدم",
-                    //     'url'  => "https://t.me/{$botName}?start",
-                    // ];
 
                     $this->telegramService->sendMessageWithLinkButtons($chatId, $text, $notJoinedChannels);
 
