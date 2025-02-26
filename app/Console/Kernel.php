@@ -19,6 +19,7 @@ class Kernel extends ConsoleKernel
         $schedule->call('App\Http\Controllers\CronJobController@execute_create_daily_backup')->dailyAt("08:00");
         $schedule->call('App\Http\Controllers\CronJobController@calculate_product_category_price_by_tether')->everyFiveMinutes();
         $schedule->call('App\Http\Controllers\CronJobController@calculate_product_category_price_in_dollar_by_toman')->everyFiveMinutes();
+        $schedule->call('App\Http\Controllers\CronJobController@execute_auto_delete_expired_configs')->dailyAt("08:02");
 
     }
 

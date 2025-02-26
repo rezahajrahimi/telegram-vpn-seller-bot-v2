@@ -133,7 +133,6 @@ class TelegramWebhookController extends Controller
 
         }
 
-
         return "پیام متنی شما دریافت شد: " . $text;
     }
     private function processMenuCommand($menuItem)
@@ -303,35 +302,38 @@ class TelegramWebhookController extends Controller
     public function checkChannelLock()
     {
         try {
+            $chatId            = $this->getCurrentChatId();
+            $channelLockCtrl   = new ChannelLockController();
+            $channels          = $channelLockCtrl->getAllActiveChannelLock();
+            $notJoinedChannels = [];
 
-            $chatId          = $this->getCurrentChatId();
-            $channelLockCtrl = new ChannelLockController();
-            $channels        = $channelLockCtrl->getAllActiveChannelLock();
-            $opr             = [];
             if ($channels->count() > 0) {
-                foreach ($channels as $channel => $value) {
-                    $isChannelMember = $this->telegramService->checkChatIdIsChannelMember($chatId, $value->channel_id);
+                foreach ($channels as $channel) {
+                    $channelId = $channel->channel_id;
+                    // حذف @ از ابتدای نام کانال اگر وجود داشته باشد
+                    $channelId = ltrim($channelId, '@');
+
+                    $isChannelMember = $this->telegramService->checkChatIdIsChannelMember($chatId, $channelId);
                     if (! $isChannelMember) {
-                        array_push($opr, [
-                            [
-                                'text' => "$value->channel_id",
-                                'url'  => "https://t.me/$value->channel_id",
-                            ],
-                        ]);
+                        // اصلاح ساختار آرایه دکمه‌ها
+                        $notJoinedChannels[] = [
+                            'text' => "@" . $channelId,
+                            'url'  => "https://t.me/" . $channelId,
+                        ];
                     }
                 }
-                if (count($opr) > 0) {
-                    $channelLockMenuCtrl = new ChannelLockMenuItemController();
 
-                    $text = $channelLockMenuCtrl->getChannelLockMenuText();
+                if (count($notJoinedChannels) > 0) {
+                    $text         = $this->customTextCtrl->getText('action.chanel_lock_text');
 
-                    $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+                    $this->telegramService->sendMessageWithLinkButtons($chatId, $text, $notJoinedChannels);
+
                     return false;
                 }
             }
 
             return true;
-            //code...
+
         } catch (\Throwable $th) {
             \Log::error("خطا در پردازش checkChannelLock: " . $th->getMessage());
             return true;
@@ -593,7 +595,6 @@ class TelegramWebhookController extends Controller
                 $text = $this->customTextCtrl->getText('action.send_photo.success.admin', [
                     'account_id' => $chat_id,
                 ]);
-                
 
                 $result = $this->telegramService->sendPhoto($admin_id, $image_url, $text);
                 \Log::info(["sendMessageToAdmin received 2222: " . json_encode($result)]);
