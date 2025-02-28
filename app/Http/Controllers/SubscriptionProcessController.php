@@ -525,14 +525,14 @@ class SubscriptionProcessController extends Controller
             // chcek product cat is rechargeable or not
             if ($prCat->rechargable == false || $prCat->rechargable == 0) {
                 $text    = $this->customTextCtrl->getText('error.product_not_rechargeable');
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chatId, null, 'MarkDown');
-                return $resualt;
+                $this->telegramService->sendMessage($this->chatId, $text);
+                return "";
             }
             // check selectedPrCat is اکانت آزمایشی or not
             if ($prCat->category_name == 'اکانت آزمایشی' || $prCat->is_active == false || $prCat->is_active == 0) {
                 $text    = $this->customTextCtrl->getText('error.product_not_rechargeable');
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chatId, null, 'MarkDown');
-                return $resualt;
+                $this->telegramService->sendMessage($this->chatId, $text);
+                return "";
             }
             // get product price & price in dollar
             $productPrice         = $prCat->price;
@@ -569,8 +569,8 @@ class SubscriptionProcessController extends Controller
                     $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
 
                     $text    = $this->customTextCtrl->getText('action.recharge.success');
-                    $resualt = app('telegram_bot')->sendMessage($text, $this->chatId, null, 'MarkDown');
                     $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
+                    $this->telegramService->sendMessage($this->chatId, $text);
                     return "";
                 }
                 return $this->customTextCtrl->getText('error.server_error');

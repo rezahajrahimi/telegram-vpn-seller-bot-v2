@@ -442,6 +442,9 @@ class CustomTextController extends Controller
             // await for seeding
             sleep(1);
             $text = $this->customText->getText($key);
+            if (json_validate($text)) {
+                return json_decode($text, true);
+            }
             return $text;
         }
     }
