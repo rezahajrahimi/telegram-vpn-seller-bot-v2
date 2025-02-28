@@ -290,7 +290,9 @@ class CustomTextController extends Controller
                     ['key' => 'action.history.buttun.remark', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'تغییر نام بسته'],
                     ]), 'custom_text' => null, 'description' => 'متن تغییر نام بسته'],
-
+                    ['key' => 'action.recharge.success', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'شارژ مجدد با موفقیت انجام شد'],
+                    ]), 'custom_text' => null, 'description' => 'متن شارژ مجدد با موفقیت انجام شد'],
                     ['key' => 'action.account.details', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => 'اطلاعات حساب شما:'],
                         ['type' => 'newline'],
