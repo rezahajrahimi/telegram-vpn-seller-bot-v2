@@ -9,8 +9,8 @@ use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Symfony\Component\DomCrawler\Crawler;
 use Illuminate\Support\Facades\Cache;
+use Symfony\Component\DomCrawler\Crawler;
 
 class GeneralController extends Controller
 {
@@ -749,13 +749,13 @@ class GeneralController extends Controller
         try {
             // بررسی محدودیت تلاش کاربر
             $attemptsCacheKey = "gift_card_attempts_{$chatId}";
-            $blockedCacheKey = "gift_card_blocked_{$chatId}";
-            
+            $blockedCacheKey  = "gift_card_blocked_{$chatId}";
+
             // بررسی اینکه آیا کاربر مسدود شده است
             if (Cache::has($blockedCacheKey)) {
                 $blockExpiresIn = now()->diffInMinutes(Cache::get($blockedCacheKey));
-                $text = $this->customTextCtrl->getText('error.giftCard.too_many_attempts', [
-                    'minutes' => $blockExpiresIn
+                $text           = $this->customTextCtrl->getText('error.giftCard.too_many_attempts', [
+                    'minutes' => $blockExpiresIn,
                 ]);
                 $this->telegramService->sendMessage($chatId, $text);
                 return "";
@@ -766,19 +766,19 @@ class GeneralController extends Controller
             Cache::put($attemptsCacheKey, $attempts, now()->addHour());
 
             $giftCardCntrl = new GiftCardController();
-            $giftCard = $giftCardCntrl->getGiftCardByCode($giftCard);
-            
+            $giftCard      = $giftCardCntrl->getGiftCardByCode($giftCard);
+
             if ($giftCard == null) {
                 // اگر تعداد تلاش‌ها از حد مجاز بیشتر شد
                 if ($attempts >= 3) {
                     Cache::put($blockedCacheKey, now()->addHour(), now()->addHour());
                     Cache::forget($attemptsCacheKey);
-                    
+
                     $text = $this->customTextCtrl->getText('error.giftCard.blocked');
                     $this->telegramService->sendMessage($chatId, $text);
                     return "";
                 }
-                
+
                 $text = $this->customTextCtrl->getText('error.giftCard.not_found');
                 $this->telegramService->sendMessage($chatId, $text);
                 return "";
@@ -786,9 +786,9 @@ class GeneralController extends Controller
 
             // اگر گیفت کارت معتبر بود، کش را پاک می‌کنیم
             Cache::forget($attemptsCacheKey);
-            
+
             // ادامه منطق موجود
-            $usedGiftCntrl = new UsedGiftCardController();
+            $usedGiftCntrl     = new UsedGiftCardController();
             $userUsedItemCount = $usedGiftCntrl->getCountOfUsePerUser($giftCard->id, $chatId);
             if ($userUsedItemCount >= $giftCard->count_of_use_per_user) {
                 $text = $this->customTextCtrl->getText('error.giftCard.already_used');
@@ -811,10 +811,11 @@ class GeneralController extends Controller
             return "";
         }
     }
-    public function referral ($chatId) {
+    public function referral($chatId)
+    {
         try {
-            $text = $this->customTextCtrl->getText('action.referral.title');
-            $opr = [];
+            $text  = $this->customTextCtrl->getText('action.referral.title');
+            $opr   = [];
             $opr[] = [
                 $text => "referral-{$chatId}",
             ];
@@ -831,22 +832,35 @@ class GeneralController extends Controller
             return "";
         }
     }
-    public function subReferral ($chatId) {
+    public function subReferral($chatId)
+    {
         try {
             $referralSettingCntrl = new ReferralSettingController();
-            $settingCntrl = new SettingController();
-            $botName      = $settingCntrl->get_bot_name();
-            $inviteUrl    = "https://t.me/{$botName}?start={$chatId}";
+            $settingCntrl         = new SettingController();
+            $botName              = $settingCntrl->get_bot_name();
+            $inviteUrl            = "https://t.me/{$botName}?start={$chatId}";
 
             // get percent of referral
             $referralPercent = $referralSettingCntrl->get_referral_setting_referral_percent();
-            // درصد چون اعشار هست و متن هم فارسی، ترتیب نوشتاریش تغییر می کنه برای همین می بایست متنش را بصورت استرینگ و برعکس کنیم
-            // تبدیل به رشته و معکوس کردن درصد برای نمایش صحیح در متن فارسی
-            $referralPercentStr = (string)$referralPercent;
-            $referralPercentStr = strrev($referralPercentStr);
+            // check referralPercent is null
+            if ($referralPercent == null) {
+                $referralPercent = 0;
+            }
+            // check referal is double or not
+
+                // درصد چون اعشار هست و متن هم فارسی، ترتیب نوشتاریش تغییر می کنه برای همین می بایست متنش را بصورت استرینگ و برعکس کنیم
+                // تبدیل به رشته و معکوس کردن درصد برای نمایش صحیح در متن فارسی
+                // بررسی اینکه آیا درصد اعشاری هست یا خیر و اگر  رقم اعشار ان برابر با صفر نبود 
+                // if (is_double($referralPercent)) {
+                //     $referralPercentStr = (string) $referralPercent;
+                //     $referralPercentStr = strrev($referralPercentStr);
+                // } else {
+                //     $referralPercentStr = "0";
+                // }
+            
 
             $text = $this->customTextCtrl->getText('action.referral.text', [
-                'link' => $inviteUrl,
+                'link'    => $inviteUrl,
                 'percent' => $referralPercentStr,
             ]);
             $this->telegramService->sendMessage($chatId, $text);

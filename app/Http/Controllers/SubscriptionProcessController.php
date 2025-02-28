@@ -14,7 +14,7 @@ use Hekmatinasser\Verta\Verta;
 use Illuminate\Http\Request;
 // add cache
 use Illuminate\Support\Facades\Cache;
-
+use Carbon\Carbon;
 class SubscriptionProcessController extends Controller
 {
     private $chatId;
@@ -465,8 +465,30 @@ class SubscriptionProcessController extends Controller
                     $userSubscriptionLInk = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $product->subscription_link);
                     $pnlCntrl             = new PannelController();
                     $image                = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+                    $agentCntrl           = new AgentProductController();
+                    $configStatus         = $agentCntrl->getBoughtProductsStatusFromServerById($product->id);
+                    // check configStatus is json
+                    if (is_string($configStatus)) {
+                        $configStatus = json_decode($configStatus, true);
+                    }
+                    $enableText = $configStatus['enable'] == true ? 'فعال' : 'غیر فعال';
+                    $usageGB    = $configStatus['current_usage_GB'];
+                    $usageGB    = round($usageGB, 2);
+                    $limitGB    = $configStatus['usage_limit_GB'];
 
-                    $text      = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $product->remark, 'category_name' => $prCat->category_name, 'panel_link' => $userPannelLink, 'subscription_link' => $userSubscriptionLInk]);
+                    $startDate    = $configStatus['start_date'];
+                    $startDate    = Carbon::parse($startDate);
+                    $package_days = $configStatus['package_days'];
+                    $package_days = intval($package_days);
+                    $expireDate   = Carbon::parse($startDate);
+                    $expireDate->addDays($package_days);
+        
+                    $expireDate = $expireDate->toJalali()->format('Y.m.d');
+                    $startDate  = $startDate->toJalali()->format('Y.m.d');
+        
+
+
+                    $text      = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $product->remark, 'category_name' => $prCat->category_name, 'panel_link' => $userPannelLink, 'subscription_link' => $userSubscriptionLInk, 'start_date' => $startDate, 'expire_date' => $expireDate, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText]);
                     $formatter = new TelegramMessageFormatter($this->telegramService);
                     $text      = $formatter->addFormattedText('', $text)->getMessage();
 
@@ -503,14 +525,14 @@ class SubscriptionProcessController extends Controller
             // chcek product cat is rechargeable or not
             if ($prCat->rechargable == false || $prCat->rechargable == 0) {
                 $text    = $this->customTextCtrl->getText('error.product_not_rechargeable');
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chatId, null, 'MarkDown');
-                return $resualt;
+                $this->telegramService->sendMessage($this->chatId, $text);
+                return "";
             }
             // check selectedPrCat is اکانت آزمایشی or not
             if ($prCat->category_name == 'اکانت آزمایشی' || $prCat->is_active == false || $prCat->is_active == 0) {
                 $text    = $this->customTextCtrl->getText('error.product_not_rechargeable');
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chatId, null, 'MarkDown');
-                return $resualt;
+                $this->telegramService->sendMessage($this->chatId, $text);
+                return "";
             }
             // get product price & price in dollar
             $productPrice         = $prCat->price;
@@ -547,8 +569,8 @@ class SubscriptionProcessController extends Controller
                     $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
 
                     $text    = $this->customTextCtrl->getText('action.recharge.success');
-                    $resualt = app('telegram_bot')->sendMessage($text, $this->chatId, null, 'MarkDown');
                     $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
+                    $this->telegramService->sendMessage($this->chatId, $text);
                     return "";
                 }
                 return $this->customTextCtrl->getText('error.server_error');

@@ -436,7 +436,6 @@ class TelegramWebhookController extends Controller
         // checl is force replay
         $this->handleAwaitingReply($chatId, $data);
 
-        \Log::info('Callback query data: ' . json_encode($data));
         // explode the data to get the action
         $actionList = explode('-', $data);
 

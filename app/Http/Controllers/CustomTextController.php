@@ -264,6 +264,17 @@ class CustomTextController extends Controller
                         ['type' => 'newline'],
                         ['type' => 'text', 'text' => 'بسته: {category_name}'],
                         ['type' => 'newline'],
+                        ['type' => 'text', 'text' => 'تاریخ شروع: {start_date}'],
+                        ['type' => 'newline'],
+                        ['type' => 'text', 'text' => 'تاریخ انقضا: {expire_date}'],
+                        ['type' => 'newline'],
+                        ['type' => 'text', 'text' => 'میزان حجم بسته: {usage_limit_GB} GB'],
+                        ['type' => 'newline'],
+                        ['type' => 'text', 'text' => 'میزان حجم مصرف شده: {usage_GB} GB'],
+                        ['type' => 'newline'],
+                        ['type' => 'text', 'text' => 'وضعیت بسته: {enable}'],
+                        ['type' => 'newline'],
+
                         ['type' => 'bold', 'text' => "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:"],
                         ['type' => 'link', 'text' => "لینک پنل", 'url' => "{panel_link}"],
                         ['type' => 'newline'],
@@ -272,14 +283,16 @@ class CustomTextController extends Controller
                         ['type' => 'code', 'text' => "{subscription_link}"],
                         ['type' => 'newline'],
                         ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
-                    ]), 'custom_text' => null, 'description' => 'متن سابقه خرید شما: - پارامترها: {name} {category_name} {panel_link} {subscription_link}'],
+                    ]), 'custom_text' => null, 'description' => 'متن سابقه خرید شما: - پارامترها: {name} {category_name} {panel_link} {subscription_link} {start_date} {expire_date} {usage_limit_GB} {usage_GB} {enable}'],
                     ['key' => 'action.history.buttun.recharge', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'تمدید بسته'],
                     ]), 'custom_text' => null, 'description' => 'متن تمدید بسته'],
                     ['key' => 'action.history.buttun.remark', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'تغییر نام بسته'],
                     ]), 'custom_text' => null, 'description' => 'متن تغییر نام بسته'],
-
+                    ['key' => 'action.recharge.success', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'شارژ مجدد با موفقیت انجام شد'],
+                    ]), 'custom_text' => null, 'description' => 'متن شارژ مجدد با موفقیت انجام شد'],
                     ['key' => 'action.account.details', 'default_text' => json_encode([
                         ['type' => 'bold', 'text' => 'اطلاعات حساب شما:'],
                         ['type' => 'newline'],
@@ -429,6 +442,9 @@ class CustomTextController extends Controller
             // await for seeding
             sleep(1);
             $text = $this->customText->getText($key);
+            if (json_validate($text)) {
+                return json_decode($text, true);
+            }
             return $text;
         }
     }
