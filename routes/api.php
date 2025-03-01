@@ -330,9 +330,12 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('/advanceSettingLookupByNameWithBooleanValue/{name}', [AdvanceSettingLookupController::class, 'getByNameWithBooleanValue']);
     Route::get('/advanceSettingLookupByNameAndValue/{name}/{value}', [AdvanceSettingLookupController::class, 'getByNameAndValue']);
     Route::get('/advanceSettingLookupByValueWithBooleanValue/{name}', [AdvanceSettingLookupController::class, 'getValueByNameWithBooleanValue']);
+    Route::get('/restore-default-advanced-settings', [AdvanceSettingLookupController::class, 're_seed_advance_settings_lookup']);
+
     Route::post('/advanceSettingLookupCreate', [AdvanceSettingLookupController::class, 'create']);
     Route::post('/advanceSettingLookupUpdate', [AdvanceSettingLookupController::class, 'update']);
     Route::post('/advanceSettingLookupUpdateByName', [AdvanceSettingLookupController::class, 'updateByName']);
+
 
     // CustomTextController
     Route::get('/get-text/{key}', [CustomTextController::class, 'getText']);

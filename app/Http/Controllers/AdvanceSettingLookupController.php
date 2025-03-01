@@ -50,6 +50,16 @@ class AdvanceSettingLookupController extends Controller
         ];
         AdvanceSettingLookup::insert($advanceSettingLookups);
     }
+    public function re_seed_advance_settings_lookup(){
+        try{
+            // truncate all date and run seed
+            AdvanceSettingLookup::truncate();
+            $this->seed();
+        } catch (\Throwable $th) {
+            \Log::info("AdvanceSettingLookupController->re_seed_advance_settings_lookup->error", ['error' => $th->getMessage()]);
+            return response()->json('Server Error', 500);
+        }
+    }
     public function getByName($name)
     {
         try {
