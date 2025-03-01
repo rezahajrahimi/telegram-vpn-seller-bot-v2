@@ -3,6 +3,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\GeneralController;
 use App\Models\User;
+use App\Models\BlockedUser;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
@@ -117,10 +119,12 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         // check blocked user
-        $blockedUser = BotUser::where('account_id', $request->account_id)->first();
-        if ($blockedUser) {
+        $blockedUser = new BlockedUser();
+        $isBlocked = $blockedUser->where('account_id', $request->account_id)->first();
+        if ($isBlocked) {
             return response()->json(['error' => 'The provided credentials are incorrect.'], 401);
         }
+
         // check first admin login
         $this->createFirstAdminUser();
 
@@ -154,8 +158,9 @@ class AuthController extends Controller
     public function forgetPassword(Request $request)
     {
         // check blocked user
-        $blockedUser = BotUser::where('account_id', $request->account_id)->first();
-        if ($blockedUser) {
+        $blockedUser =  new BlockedUser();
+        $isBlocked = $blockedUser->where('account_id', $request->account_id)->first();
+        if ($isBlocked) {
             return response()->json(['error' => 'The provided credentials are incorrect.'], 401);
         }
         $request->validate([
