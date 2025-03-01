@@ -100,40 +100,46 @@ class TelegramWebhookController extends Controller
 
     private function processTextMessage(array $message): string
     {
-        $text = $message['text'];
-        ///
+        try {
+            $text = $message['text'];
+            ///
 
-        // پردازش دستورات
-        if (str_starts_with($text, '/')) {
-            return $this->processCommand($text);
-        }
-        // check if text is a menu item
-        $menuItemCtrl = new MainMenuItemController();
-        $menuItem     = $menuItemCtrl->getMenuItemByAliasName($text);
-        if ($menuItem) {
-            $response = $this->processMenuCommand($menuItem);
-            // if response == true or false or null, don't return anything
-            if ($response == true || $response == false || $response == null || $response == 1 || $response == 0) {
+            // پردازش دستورات
+            if (str_starts_with($text, '/')) {
+                return $this->processCommand($text);
+            }
+            // check if text is a menu item
+            $menuItemCtrl = new MainMenuItemController();
+            $menuItem     = $menuItemCtrl->getMenuItemByAliasName($text);
+            if ($menuItem) {
+                $response = $this->processMenuCommand($menuItem);
+                // if response == true or false or null, don't return anything
+                if ($response == true || $response == false || $response == null || $response == 1 || $response == 0) {
+                    return "";
+                }
+                return $response;
+            }
+            // return main menu items
+            $chatId = $this->getCurrentChatId();
+            $this->generalCntrl->return_main_menu_items($chatId, $text);
+            // check if text is a gift card
+            if (str_starts_with($text, 'giftCard-')) {
+                $this->generalCntrl->subGiftCard($chatId, $text);
                 return "";
             }
-            return $response;
-        }
-        // return main menu items
-        $chatId = $this->getCurrentChatId();
-        $this->generalCntrl->return_main_menu_items($chatId, $text);
-        // check if text is a gift card
-        if (str_starts_with($text, 'giftCard-')) {
-            $this->generalCntrl->subGiftCard($chatId, $text);
+            if (str_starts_with(strtolower($text), 'charge') !== false) {
+                $actionList = explode('-', $text);
+
+                return $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]);
+
+            }
+
+            return "پیام متنی شما دریافت شد: " . $text;
+        } catch (\Throwable $th) {
+            \Log::error("خطا در پردازش processTextMessage: " . $th->getMessage());
+            $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }
-        if (str_starts_with(strtolower($text), 'charge') !== false) {
-            $actionList = explode('-', $text);
-
-            return $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]);
-
-        }
-
-        return "پیام متنی شما دریافت شد: " . $text;
     }
     private function processMenuCommand($menuItem)
     {
@@ -324,7 +330,7 @@ class TelegramWebhookController extends Controller
                 }
 
                 if (count($notJoinedChannels) > 0) {
-                    $text         = $this->customTextCtrl->getText('action.chanel_lock_text');
+                    $text = $this->customTextCtrl->getText('action.chanel_lock_text');
 
                     $this->telegramService->sendMessageWithLinkButtons($chatId, $text, $notJoinedChannels);
 

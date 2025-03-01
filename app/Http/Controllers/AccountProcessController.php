@@ -2,10 +2,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\BotUser;
-use App\Models\User;
 use App\Models\ReferralLogs;
 use App\Models\Transaction;
 use App\Models\TransactionSetting;
+use App\Models\User;
 use App\Models\UserState;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
@@ -92,36 +92,42 @@ class AccountProcessController extends Controller
     }
     private function show_additional_options($chatId)
     {
-        $opr  = [];
-        $text = $this->customTextCtrl->getText('action.account.additional_options.transactions');
-        if (is_array($text)) {
-            // use format text service
-            $text = $this->telegramService->formatText($text);
-        }
-        $opr[] = [
-            $text => "accountTransactions",
-        ];
-        $text = $this->customTextCtrl->getText('action.account.additional_options.sub_accounts');
-        if (is_array($text)) {
-            // use format text service
-            $text = $this->telegramService->formatText($text);
-        }
-        $opr[] = [
-            $text => "accountSubAccounts",
-        ];
+        try {
+            $opr  = [];
+            $text = $this->customTextCtrl->getText('action.account.additional_options.transactions');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
+            $opr[] = [
+                $text => "accountTransactions",
+            ];
+            $text = $this->customTextCtrl->getText('action.account.additional_options.sub_accounts');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
+            $opr[] = [
+                $text => "accountSubAccounts",
+            ];
 
-        $text = $this->customTextCtrl->getText('action.account.additional_options.add_balance');
-        if (is_array($text)) {
-            // use format text service
-            $text = $this->telegramService->formatText($text);
-        }
-        $opr[] = [
-            $text => "accountAddBalance",
-        ];
-        $text = $this->customTextCtrl->getText('action.account.additional_options');
+            $text = $this->customTextCtrl->getText('action.account.additional_options.add_balance');
+            if (is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
+            $opr[] = [
+                $text => "accountAddBalance",
+            ];
+            $text = $this->customTextCtrl->getText('action.account.additional_options');
 
-        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
-        return "";
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["show_additional_options: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
     }
     public function accountTransactions($chatId)
     {
@@ -159,27 +165,33 @@ class AccountProcessController extends Controller
     }
     public function accountSubAccounts($chatId)
     {
-        // todo check on production
-        $this->chatId = $chatId;
-        $this->addNewBotLog('account', 'وارد بخش زیر مجموعه ها شد.', 'show');
-        $botUser = BotUser::where('account_id', $chatId)->first();
-        if ($botUser == null) {
-            return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.server_error'));
-        }
-        $subAccounts = ReferralLogs::where('referral_user_id', $botUser->id)->get();
-        $text        = $this->customTextCtrl->getText('action.account.sub_accounts.title');
-        $this->telegramService->sendMessage($chatId, $text);
-        $text = "";
-
-        if ($subAccounts->count() > 0) {
-            foreach ($subAccounts as $subAccount) {
-                $text .= $subAccount->getReferralLogsText();
+        try {
+            // todo check on production
+            $this->chatId = $chatId;
+            $this->addNewBotLog('account', 'وارد بخش زیر مجموعه ها شد.', 'show');
+            $botUser = BotUser::where('account_id', $chatId)->first();
+            if ($botUser == null) {
+                return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.server_error'));
             }
-        } else {
-            $text = $this->customTextCtrl->getText('action.account.sub_accounts.no_sub_accounts');
+            $subAccounts = ReferralLogs::where('referral_user_id', $botUser->id)->get();
+            $text        = $this->customTextCtrl->getText('action.account.sub_accounts.title');
+            $this->telegramService->sendMessage($chatId, $text);
+            $text = "";
+
+            if ($subAccounts->count() > 0) {
+                foreach ($subAccounts as $subAccount) {
+                    $text .= $subAccount->getReferralLogsText();
+                }
+            } else {
+                $text = $this->customTextCtrl->getText('action.account.sub_accounts.no_sub_accounts');
+            }
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["accountSubAccounts: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
         }
-        $this->telegramService->sendMessage($chatId, $text);
-        return "";
     }
     public function accountAddBalance($chatId, $actionList = null)
     {
@@ -333,10 +345,11 @@ class AccountProcessController extends Controller
             return "";
         }
     }
-    public function adminFastCharge($chat_id, $amount, $user_id){
+    public function adminFastCharge($chat_id, $amount, $user_id)
+    {
         try {
             $this->chatId = $chat_id;
-            $user = User::where('account_id', $chat_id)->first();
+            $user         = User::where('account_id', $chat_id)->first();
             if ($user == null) {
                 return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.user_not_found'));
             }
@@ -344,30 +357,30 @@ class AccountProcessController extends Controller
                 return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.user_not_found'));
             }
             // بررسی معتبر بودن مقدار
-            if (!is_numeric($amount) || $amount <= 0) {
+            if (! is_numeric($amount) || $amount <= 0) {
                 return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.invalid_amount'));
             }
-            
+
             // پیدا کردن کاربر
             $botUser = BotUser::where('account_id', $user_id)->first();
             if ($botUser == null) {
                 return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.user_not_found'));
             }
-            
+
             // افزایش موجودی حساب
-            $this->accBlCtrl->incUserAccuntBalance($user_id,$amount);
+            $this->accBlCtrl->incUserAccuntBalance($user_id, $amount);
             // ثبت لاگ
             $this->addNewBotLog('admin', "شارژ سریع حساب کاربر {$user_id} به مبلغ {$amount} تومان", 'charge');
-            
+
             // ارسال پیام موفقیت به ادمین
             $this->telegramService->sendMessage($chat_id, "حساب کاربر {$user_id} با موفقیت به مبلغ {$amount} تومان شارژ شد.");
-            
+
             // ارسال پیام به کاربر
             $this->telegramService->sendMessage($user_id, $this->customTextCtrl->getText('action.account.balance_added', [
-                'amount' => number_format($amount, 0, '.', ',') . ' تومان'
+                'amount' => number_format($amount, 0, '.', ',') . ' تومان',
             ]));
             return "";
-            
+
         } catch (\Throwable $th) {
             \Log::error(["adminFastCharge: " . $th]);
             $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.server_error'));
