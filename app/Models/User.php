@@ -34,6 +34,13 @@ class User extends Authenticatable
     protected $casts = [
         'password' => 'hashed',
     ];
+    public function get_role_by_account_id($account_id){
+        $user = $this->where('account_id', $account_id)->first();
+        if ($user) {
+            return $user->role;
+        }
+        return null;
+    }
 
     /**
      * Get the user associated with the User

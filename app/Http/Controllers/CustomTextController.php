@@ -405,8 +405,8 @@ class CustomTextController extends Controller
                         ['type' => 'text', 'text' => 'کاربر با موفقیت مسدود شد.'],
                     ]), 'custom_text' => null, 'description' => 'متن کاربر با موفقیت مسدود شد.'],
                     ['key' => 'action.unblock_user.success', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'کاربر با موفقیت آزاد شد.'],
-                    ]), 'custom_text' => null, 'description' => 'متن کاربر با موفقیت آزاد شد.'],
+                        ['type' => 'text', 'text' => 'کاربر با موفقیت رفع مسدودیت شد.'],
+                    ]), 'custom_text' => null, 'description' => 'متن کاربر با موفقیت رفع مسدودیت شد.'],
 
                     ['key' => 'error.menu.not_found', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'گزینه ای یافت نشد'],

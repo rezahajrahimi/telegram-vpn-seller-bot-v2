@@ -22,6 +22,7 @@ class TelegramWebhookController extends Controller
     private AccountProcessController $accountProcessCtrl;
     private AuthController $authCntrl;
     private BlockedUserController $blockedUserCtrl;
+    private UserController $userCtrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService         = $telegramService;
@@ -32,6 +33,7 @@ class TelegramWebhookController extends Controller
         $this->accountProcessCtrl      = new AccountProcessController($this->telegramService);
         $this->authCntrl               = new AuthController();
         $this->blockedUserCtrl         = new BlockedUserController();
+        $this->userCtrl                = new UserController();
     }
 
     public function handle(Request $request)
@@ -41,8 +43,8 @@ class TelegramWebhookController extends Controller
             if ($this->is_first_time_bot_start_event()) {
                 return response()->json(['status' => 'success']);
             }
-            $update = $request->all();
-            $isBlocked       = $this->blockedUserCtrl->isBlocked($update['message']['chat']['id']);
+            $update    = $request->all();
+            $isBlocked = $this->blockedUserCtrl->isBlocked($update['message']['chat']['id']);
             if ($isBlocked) {
                 $text = $this->customTextCtrl->getText('error.blocked_user');
                 $this->telegramService->sendMessage($update['message']['chat']['id'], $text);
@@ -143,13 +145,35 @@ class TelegramWebhookController extends Controller
 
             }
             if (str_starts_with(strtolower($text), 'block') !== false) {
+
+                // check chatId is user and have admin role
+                $user = new User();
+                $user = $user->get_role_by_account_id($chatId);
+                if ($user != 'admin') {
+                    $text = $this->customTextCtrl->getText('error.action.not_found');
+                    $this->telegramService->sendMessage($chatId, $text);
+                    return "";
+                }
                 $actionList = explode('-', $text);
-                $this->generalCntrl->block_user_command('block', $chatId, $actionList[1]);
+                $this->generalCntrl->block_user_command('block', $actionList[1], $actionList[2]);
+                $text = $this->customTextCtrl->getText('action.block_user.success');
+                $this->telegramService->sendMessage($chatId, $text);
                 return "";
             }
             if (str_starts_with(strtolower($text), 'unblock') !== false) {
+                // check chatId is admin
+                $user = new User();
+                $user = $user->get_role_by_account_id($chatId);
+                if ($user != 'admin') {
+                    $text = $this->customTextCtrl->getText('error.action.not_found');
+                    $this->telegramService->sendMessage($chatId, $text);
+                    return "";
+                }
                 $actionList = explode('-', $text);
-                $this->generalCntrl->block_user_command('unblock', $chatId, null);
+                 $this->generalCntrl->block_user_command('unblock', $actionList[1], null);
+                 $text = $this->customTextCtrl->getText('action.unblock_user.success');
+                 $this->telegramService->sendMessage($chatId, $text);
+
                 return "";
             }
 

@@ -848,16 +848,15 @@ class GeneralController extends Controller
             }
             // check referal is double or not
 
-                // درصد چون اعشار هست و متن هم فارسی، ترتیب نوشتاریش تغییر می کنه برای همین می بایست متنش را بصورت استرینگ و برعکس کنیم
-                // تبدیل به رشته و معکوس کردن درصد برای نمایش صحیح در متن فارسی
-                // بررسی اینکه آیا درصد اعشاری هست یا خیر و اگر  رقم اعشار ان برابر با صفر نبود 
-                // if (is_double($referralPercent)) {
-                //     $referralPercentStr = (string) $referralPercent;
-                //     $referralPercentStr = strrev($referralPercentStr);
-                // } else {
-                //     $referralPercentStr = "0";
-                // }
-            
+            // درصد چون اعشار هست و متن هم فارسی، ترتیب نوشتاریش تغییر می کنه برای همین می بایست متنش را بصورت استرینگ و برعکس کنیم
+            // تبدیل به رشته و معکوس کردن درصد برای نمایش صحیح در متن فارسی
+            // بررسی اینکه آیا درصد اعشاری هست یا خیر و اگر  رقم اعشار ان برابر با صفر نبود
+            // if (is_double($referralPercent)) {
+            //     $referralPercentStr = (string) $referralPercent;
+            //     $referralPercentStr = strrev($referralPercentStr);
+            // } else {
+            //     $referralPercentStr = "0";
+            // }
 
             $text = $this->customTextCtrl->getText('action.referral.text', [
                 'link'    => $inviteUrl,
@@ -876,17 +875,14 @@ class GeneralController extends Controller
     {
         try {
             $blockedUserCntrl = new BlockedUserController();
-            $text = null;
-            if($type == 'block'){
-            $blockedUserCntrl->addBlockedUser(new Request(['accountId' => $chatId, 'reason' => $reason]));
-            $this->addNewBotLog($type, "توسط مدیر مسدود شد.", $chatId, 'show');
-            $text = $this->customTextCtrl->getText('action.block_user.success');
-        }else{
-            $blockedUserCntrl->removeBlockedUser(new Request(['accountId' => $chatId]));
-            $this->addNewBotLog($type, "رفع مسدودی توسط مدید", $chatId, 'show');
-            $text = $this->customTextCtrl->getText('action.unblock_user.success');
+            $text             = null;
+            if ($type == 'block') {
+                $blockedUserCntrl->addBlockedUser(new Request(['accountId' => $chatId, 'reason' => $reason]));
+                $this->addNewBotLog($type, "توسط مدیر مسدود شد.", $chatId, 'show');
+            } else {
+                $blockedUserCntrl->removeBlockedUser(new Request(['accountId' => $chatId]));
+                $this->addNewBotLog($type, "رفع مسدودی توسط مدید", $chatId, 'show');
             }
-            $this->telegramService->sendMessage($chatId, $text);
             return "";
         } catch (\Throwable $th) {
             \Log::error(["block_user_command: " . $th]);

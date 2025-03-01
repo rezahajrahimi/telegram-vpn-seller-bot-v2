@@ -17,11 +17,18 @@ class BlockedUserController extends Controller
     }
     public function addBlockedUser(Request $request)
     {
-        $this->blockedUser->addBlockedUser($request->accountId, $request->reason);
+        // check if not exist add new one
+        $blockedUser = $this->blockedUser->where('account_id', $request->accountId)->first();
+        if (!$blockedUser) {
+            $this->blockedUser->addBlockedUser($request->accountId, $request->reason);
+        }
     }
     public function removeBlockedUser(Request $request)
     {
-        $this->blockedUser->removeBlockedUser($request->accountId);
+        $blockedUser = $this->blockedUser->where('account_id', $request->accountId)->first();
+        if ($blockedUser) {
+            $this->blockedUser->removeBlockedUser($request->accountId);
+        }
     }
     public function getBlockedUser($account_id)
     {
