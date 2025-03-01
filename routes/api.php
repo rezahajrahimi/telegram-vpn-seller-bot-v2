@@ -44,6 +44,7 @@ use App\Http\Controllers\WebAppMenuItemController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\CustomTextController;
+use App\Http\Controllers\BlockedUserController;
 
 
 use Illuminate\Http\Request;
@@ -338,6 +339,14 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::put('/set-text/{key}/{text}', [CustomTextController::class, 'setText']);
     Route::post('/set-text', [CustomTextController::class, 'setTest']);
     Route::get('/get-all-texts', [CustomTextController::class, 'getAllTexts']);
+
+    // BlockedUserController
+    Route::get('/getBlockedUserList', [BlockedUserController::class, 'getBlockedUserList']);
+    Route::post('/addBlockedUser', [BlockedUserController::class, 'addBlockedUser']);
+    Route::post('/removeBlockedUser', [BlockedUserController::class, 'removeBlockedUser']);
+    Route::get('/getBlockedUser', [BlockedUserController::class, 'getBlockedUser']);
+    Route::get('/isBlocked', [BlockedUserController::class, 'isBlocked']);
+    Route::get('/getBlockedUserCount', [BlockedUserController::class, 'getBlockedUserCount']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User
