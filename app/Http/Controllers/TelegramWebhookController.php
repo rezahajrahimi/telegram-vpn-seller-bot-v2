@@ -21,6 +21,7 @@ class TelegramWebhookController extends Controller
     private GeneralController $generalCntrl;
     private AccountProcessController $accountProcessCtrl;
     private AuthController $authCntrl;
+    private BlockedUserController $blockedUserCtrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService         = $telegramService;
@@ -30,6 +31,7 @@ class TelegramWebhookController extends Controller
         $this->generalCntrl            = new GeneralController();
         $this->accountProcessCtrl      = new AccountProcessController($this->telegramService);
         $this->authCntrl               = new AuthController();
+        $this->blockedUserCtrl         = new BlockedUserController();
     }
 
     public function handle(Request $request)
@@ -40,6 +42,13 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'success']);
             }
             $update = $request->all();
+            $isBlocked       = $this->blockedUserCtrl->isBlocked($update['message']['chat']['id']);
+            if ($isBlocked) {
+                $text = $this->customTextCtrl->getText('error.blocked_user');
+                $this->telegramService->sendMessage($update['message']['chat']['id'], $text);
+                return response()->json(['status' => 'success']);
+
+            }
 
             // پردازش callback queries (دکمه‌های اینلاین)
             if (isset($update['callback_query'])) {

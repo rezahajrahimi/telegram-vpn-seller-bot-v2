@@ -15,13 +15,13 @@ class BlockedUserController extends Controller
     {
         return $this->blockedUser->getBlockedUserList();
     }
-    public function addBlockedUser($account_id, $reason)
+    public function addBlockedUser(Request $request)
     {
-        $this->blockedUser->addBlockedUser($account_id, $reason);
+        $this->blockedUser->addBlockedUser($request->accountId, $request->reason);
     }
-    public function removeBlockedUser($account_id)
+    public function removeBlockedUser(Request $request)
     {
-        $this->blockedUser->removeBlockedUser($account_id);
+        $this->blockedUser->removeBlockedUser($request->accountId);
     }
     public function getBlockedUser($account_id)
     {

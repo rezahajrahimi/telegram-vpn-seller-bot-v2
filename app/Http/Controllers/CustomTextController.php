@@ -395,7 +395,9 @@ class CustomTextController extends Controller
                     ['key' => 'error.test_account.exist', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.'],
                     ]), 'custom_text' => null, 'description' => 'متن اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.'],
-
+                    ['key' => 'error.blocked_user', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'اکانت شما توسط مدیر مسدود شده است.'],
+                    ]), 'custom_text' => null, 'description' => 'متن اکانت شما توسط مدیر مسدود شده است.'],
                     ['key' => 'error.server_error', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'خطایی رخ داده است'],
                     ]), 'custom_text' => null, 'description' => 'متن خطایی رخ داده است'],

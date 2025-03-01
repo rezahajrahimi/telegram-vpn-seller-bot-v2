@@ -341,12 +341,12 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('/get-all-texts', [CustomTextController::class, 'getAllTexts']);
 
     // BlockedUserController
-    Route::get('/getBlockedUserList', [BlockedUserController::class, 'getBlockedUserList']);
-    Route::post('/addBlockedUser', [BlockedUserController::class, 'addBlockedUser']);
-    Route::post('/removeBlockedUser', [BlockedUserController::class, 'removeBlockedUser']);
-    Route::get('/getBlockedUser', [BlockedUserController::class, 'getBlockedUser']);
-    Route::get('/isBlocked', [BlockedUserController::class, 'isBlocked']);
-    Route::get('/getBlockedUserCount', [BlockedUserController::class, 'getBlockedUserCount']);
+    Route::get('/get-all-blocked-users', [BlockedUserController::class, 'getBlockedUserList']);
+    Route::post('/add-blocked-user', [BlockedUserController::class, 'addBlockedUser']);
+    Route::post('/remove-blocked-user', [BlockedUserController::class, 'removeBlockedUser']);
+    Route::get('/get-blocked-user', [BlockedUserController::class, 'getBlockedUser']);
+    Route::get('/is-blocked', [BlockedUserController::class, 'isBlocked']);
+    Route::get('/get-blocked-user-count', [BlockedUserController::class, 'getBlockedUserCount']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User
