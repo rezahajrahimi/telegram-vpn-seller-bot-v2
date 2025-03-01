@@ -116,6 +116,11 @@ class AuthController extends Controller
     }
     public function login(Request $request)
     {
+        // check blocked user
+        $blockedUser = BotUser::where('account_id', $request->account_id)->first();
+        if ($blockedUser) {
+            return response()->json(['error' => 'The provided credentials are incorrect.'], 401);
+        }
         // check first admin login
         $this->createFirstAdminUser();
 
@@ -148,6 +153,11 @@ class AuthController extends Controller
     }
     public function forgetPassword(Request $request)
     {
+        // check blocked user
+        $blockedUser = BotUser::where('account_id', $request->account_id)->first();
+        if ($blockedUser) {
+            return response()->json(['error' => 'The provided credentials are incorrect.'], 401);
+        }
         $request->validate([
             'account_id' => 'required|min:8',
         ]);
