@@ -142,6 +142,16 @@ class TelegramWebhookController extends Controller
                 return $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]);
 
             }
+            if (str_starts_with(strtolower($text), 'block') !== false) {
+                $actionList = explode('-', $text);
+                $this->generalCntrl->block_user_command('block', $chatId, $actionList[1]);
+                return "";
+            }
+            if (str_starts_with(strtolower($text), 'unblock') !== false) {
+                $actionList = explode('-', $text);
+                $this->generalCntrl->block_user_command('unblock', $chatId, null);
+                return "";
+            }
 
             return "پیام متنی شما دریافت شد: " . $text;
         } catch (\Throwable $th) {

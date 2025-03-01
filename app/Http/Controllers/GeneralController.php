@@ -872,6 +872,29 @@ class GeneralController extends Controller
             return "";
         }
     }
+    public function block_user_command(string $type, string $chatId, string $reason = null)
+    {
+        try {
+            $blockedUserCntrl = new BlockedUserController();
+            $text = null;
+            if($type == 'block'){
+            $blockedUserCntrl->addBlockedUser(new Request(['accountId' => $chatId, 'reason' => $reason]));
+            $this->addNewBotLog($type, "توسط مدیر مسدود شد.", $chatId, 'show');
+            $text = $this->customTextCtrl->getText('action.block_user.success');
+        }else{
+            $blockedUserCntrl->removeBlockedUser(new Request(['accountId' => $chatId]));
+            $this->addNewBotLog($type, "رفع مسدودی توسط مدید", $chatId, 'show');
+            $text = $this->customTextCtrl->getText('action.unblock_user.success');
+            }
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["block_user_command: " . $th]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+    }
     private function addNewBotLog($type, $message, $chatId, $opr)
     {
         $logCtrl = new LogController();

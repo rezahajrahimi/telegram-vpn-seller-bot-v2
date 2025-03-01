@@ -401,6 +401,13 @@ class CustomTextController extends Controller
                     ['key' => 'error.server_error', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'خطایی رخ داده است'],
                     ]), 'custom_text' => null, 'description' => 'متن خطایی رخ داده است'],
+                    ['key' => 'action.block_user.success', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'کاربر با موفقیت مسدود شد.'],
+                    ]), 'custom_text' => null, 'description' => 'متن کاربر با موفقیت مسدود شد.'],
+                    ['key' => 'action.unblock_user.success', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'کاربر با موفقیت آزاد شد.'],
+                    ]), 'custom_text' => null, 'description' => 'متن کاربر با موفقیت آزاد شد.'],
+
                     ['key' => 'error.menu.not_found', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'گزینه ای یافت نشد'],
                     ]), 'custom_text' => null, 'description' => 'متن گزینه ای یافت نشد'],
