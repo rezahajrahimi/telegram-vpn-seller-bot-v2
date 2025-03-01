@@ -82,7 +82,7 @@ class BotUserController extends Controller
     {
         try {
             $data = BotUser::where('id', $id)
-                ->with(['products', 'transaction', 'ballance', 'logs', 'user'])
+                ->with(['products', 'transaction', 'ballance', 'logs', 'user', 'blocked_user'])
                 ->first();
             if ($data != null) {
                 return response()->json($data, 200);
