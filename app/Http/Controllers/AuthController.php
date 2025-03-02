@@ -77,7 +77,6 @@ class AuthController extends Controller
             if ($admin == null) {
                 // get admin id from .env
                 $adminId = env('TELEGRAM_ADMIN_ID');
-                \Log::info("adminId: {$adminId}");
                 $admin = User::create([
                     'name'       => 'admin',
                     'account_id' => $adminId,
@@ -135,13 +134,10 @@ class AuthController extends Controller
 
         $user = User::where('account_id', $request->account_id)
             ->orWhere('name', $request->account_id)
-
             ->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'account_id' => ['The provided credentials are incorrect.'],
-            ]);
+            return response()->json(['error' => 'The provided credentials are incorrect.'], 401);
         }
 
         return response()->json([

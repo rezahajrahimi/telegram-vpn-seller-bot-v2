@@ -3,7 +3,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\OrderController;
-use App\Http\Controllers\ServiceTypeController;
+// use App\Http\Controllers\ServiceTypeController;
 use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\SettingController;
@@ -81,7 +81,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);
     ///
     Route::get('getUserOrder/{userID}', [OrderController::class, 'getUserOrder']);
-    Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
+    // Route::get('getServiceTypes', [ServiceTypeController::class, 'getServiceTypes']);
     // Admin
     Route::put('buyProductByAdmin', [AgentProductController::class, 'buyProductByAdmin']);
     Route::put('changeProductByAdminWithPrID', [AgentProductController::class, 'changeProductByAdminWithPrID']);
@@ -313,6 +313,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('/changeCronJobActiveStatusById/{id}', [CronJobController::class, 'change_cron_job_active_status']);
     // Route::get('/getTetherPriceByNobitex', [CronJobController::class, 'get_tether_price_by_nobitex']);
     Route::get('/dailyBackup', [CronJobController::class, 'execute_create_daily_backup']);
+    Route::get('/usage-more-than-85-percent', [CronJobController::class, 'execute_send_useage_more_than_85_percent']);
+    Route::get('/auto-delete-expired-configs', [CronJobController::class, 'execute_auto_delete_expired_configs']);
+    Route::get('/less-than-3-days', [CronJobController::class, 'execute_send_lass_there_than_3_days']);
 
     // ReferralSettingController
     Route::get('/getReferralSetting', [ReferralSettingController::class, 'get_referral_setting']);

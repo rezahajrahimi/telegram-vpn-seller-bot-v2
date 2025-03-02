@@ -107,14 +107,12 @@ class CronJobController extends Controller
         foreach ($pannel as $key => $value) {
             $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
             // تبدیل Response به آرایه
-            $users = json_decode($usersResponse->getContent(), true);
+            // check if usersResponse is json or array
+            // $users = json_decode($usersResponse->getContent(), true);
+            // \Log::info("users: " . json_encode($users));
 
-            if (! is_array($users)) {
-                continue;
-            }
-            foreach ($users as $key => $value) {
+            foreach ($usersResponse as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
-
                 // $usageGB = round($usageGB, 2);
                 $limitGB = $value['usage_limit_GB'];
 
@@ -196,12 +194,12 @@ class CronJobController extends Controller
             foreach ($pannel as $key => $panel) {
                 $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($panel->id);
                 // تبدیل Response به آرایه
-                $users = json_decode($usersResponse->getContent(), true);
+                // $users = json_decode($usersResponse->getContent(), true);
 
-                if (! is_array($users)) {
+                if (! is_array($usersResponse)) {
                     continue;
                 }
-                foreach ($users as $key => $value) {
+                foreach ($usersResponse as $key => $value) {
                     $startDate = $value['start_date'];
                     // convert $startDate to valid carbon date
                     $startDate = Carbon::parse($startDate);
@@ -217,21 +215,43 @@ class CronJobController extends Controller
                     // add 10 days to $expireDate
                     $expireDate->addDays(10);
 
-                    // get diffrence between current date and $expireDate
+                    // check if $expireDate is in the past
                     $dateDifference = $expireDate->diffInDays(Carbon::now());
-                    if ($dateDifference > 1) {
+                    if (!$expireDate->isPast()) {
+                        continue;
+                    }
+                    // creat a empty arrat of products
+                    $products = [];
+                    // create a empty array of products ids and uuid
+                    $productsIds = [];
+                    $productsUuids = [];
+
+                    if ($dateDifference >= 14) {
                         // get releated products by uuid
                         $uuid    = $value['uuid'];
                         $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
                         if ($product != null) {
-                            $product->delete();
+                            $products[] = $product;
+                            $productsIds[] = $product->id;
+                            $productsUuids[] = $uuid;
                         }
                         // delete config on hiddify panel
-                        $hiddifyPanelCtrl->deleteUserOfHiddifyPanel($panel->id, $value['uuid']);
+                    }
+                    // delete products
+                    Product::whereIn('id', $productsIds)->delete();
+                    // delete users from hiddify panel
+                    foreach ($productsUuids as $key => $uuid) {
+                        $hiddifyPanelCtrl->deleteUserOfHiddifyPanel($panel->id, $uuid);
+                        // send to admin
+                        $admin = User::where('role', 'admin')->first();
+                        $admin_id = $admin->account_id;
+                        $telegramService = new TelegramService();
+                        $telegramService->sendMessage("کانفیگ $uuid منقضی شده بود . بصورت خودکار حذف شد.", $admin_id, null, 'MarkDown');
                     }
                 }
 
             }
+            
             return true;
         } catch (\Throwable $th) {
             \Log::error($th->getMessage());
@@ -256,13 +276,11 @@ class CronJobController extends Controller
         $hiddifyPanelCtrl = new HiddifyPannelController();
         foreach ($pannel as $key => $value) {
             $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
-            // تبدیل Response به آرایه
-            $users = json_decode($usersResponse->getContent(), true);
 
-            if (! is_array($users)) {
+            if (! is_array($usersResponse)) {
                 continue;
             }
-            foreach ($users as $key => $value) {
+            foreach ($usersResponse as $key => $value) {
                 $startDate = $value['start_date'];
                 // convert $startDate to valid carbon date
                 $startDate = Carbon::parse($startDate);
