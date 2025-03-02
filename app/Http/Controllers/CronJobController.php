@@ -242,11 +242,12 @@ class CronJobController extends Controller
                     // delete users from hiddify panel
                     foreach ($productsUuids as $key => $uuid) {
                         $hiddifyPanelCtrl->deleteUserOfHiddifyPanel($panel->id, $uuid);
-                        // send to admin
-                        $admin = User::where('role', 'admin')->first();
-                        $admin_id = $admin->account_id;
-                        $telegramService = new TelegramService();
-                        $telegramService->sendMessage("کانفیگ $uuid منقضی شده بود . بصورت خودکار حذف شد.", $admin_id, null, 'MarkDown');
+                        // // send to admin
+                        // $admin = User::where('role', 'admin')->first();
+                        // $admin_id = $admin->account_id;
+                        // $telegramService = new TelegramService();
+
+                        // $telegramService->sendMessage("کانفیگ $uuid منقضی شده بود . بصورت خودکار حذف شد.", $admin_id);
                     }
                 }
 
