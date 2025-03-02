@@ -226,7 +226,7 @@ class CronJobController extends Controller
                     $productsIds = [];
                     $productsUuids = [];
 
-                    if ($dateDifference >= 14) {
+                    if ($dateDifference >= 10) {
                         // get releated products by uuid
                         $uuid    = $value['uuid'];
                         $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
