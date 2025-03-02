@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 use App\Models\MainMenuItem;
+use Illuminate\Support\Facades\DB;
 
 use Illuminate\Http\Request;
 
@@ -159,6 +160,42 @@ class MainMenuItemController extends Controller
             return false;
         }
     }
+    public function reorderMainMenuItems(Request $request) {
+        try {
+            DB::beginTransaction();
+            
+            $data = MainMenuItem::all();
+            $newOrder = $request->all()['items'];
+            
+            // ابتدا همه position ها را به یک مقدار موقت تغییر می‌دهیم
+            foreach ($data as $menuItem) {
+                $menuItem->position = $menuItem->id + 50; // یک عدد بزرگ موقت
+                $menuItem->save();
+            }
+            
+            // حالا position های جدید را تنظیم می‌کنیم
+            foreach ($data as $menuItem) {
+                $newPosition = collect($newOrder)->first(function($item) use ($menuItem) {
+                    return $item['id'] == $menuItem->id;
+                });
+                
+                if ($newPosition) {
+                    $menuItem->position = $newPosition['position'];
+                    $menuItem->save();
+                }
+            }
+            
+            DB::commit();
+            return true;
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error($e->getMessage());
+            return false;
+        }
+    }
+
+
     public function changeMainMenuPosition(Request $request)
     {
         $data = MainMenuItem::where('name', $request->name)->first();

@@ -140,6 +140,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('reActiveMainMenuItem/{name}', [MainMenuItemController::class, 'reActiveMainMenuItem']);
     Route::post('changeMainMenuAliasName', [MainMenuItemController::class, 'changeMainMenuAliasName']);
     Route::post('changeMainMenuPosition', [MainMenuItemController::class, 'changeMainMenuPosition']);
+    Route::post('reorder-main-menu-items', [MainMenuItemController::class, 'reorderMainMenuItems']);
 
     // payment type
     Route::get('getPaymentTypes', [PaymentTypeController::class, 'getPaymentTypes']);
