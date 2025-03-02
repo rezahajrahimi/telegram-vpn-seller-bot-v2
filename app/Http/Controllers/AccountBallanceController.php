@@ -156,13 +156,14 @@ class AccountBallanceController extends Controller
             $is_admin                  = false;
             $is_agent                  = false;
             $minus_ballance_permission = false;
+            $minus_ballance_permission       = $request->is_request_by_admin ?? false;
             if ($user == null) {
                 $user = BotUser::where('account_id', $request->userID)->first();
                 if ($user == null) {
                     return false;
                 }
             }
-            $user_role = User::where('account_id', $request->userID)->first();
+            $user_role = User::where('account_id', $user->account_id)->first();
             if ($user_role != null) {
                 if ($user_role->role == 'admin') {
                     $is_admin = true;
@@ -193,11 +194,11 @@ class AccountBallanceController extends Controller
                 if ($is_admin) {
                     return true;
                 }
-
                 return false;
             }
 
             if ($type == 'toman') {
+                \Log::info("type is toman");
                 if ($ballance <= $accBallance->ballance) {
                     $accBallance->ballance -= $ballance;
                     $accBallance->update();
