@@ -20,5 +20,9 @@ class PaymentType extends Model
     {
         return $this->hasMany(Transaction::class, 'payment_type_id');
     }
+    public function shetab_verifies()
+    {
+        return $this->hasMany(ShetabVerify::class, 'payment_type_id', 'id');
+    }
 
 }

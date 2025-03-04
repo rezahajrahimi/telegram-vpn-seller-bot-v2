@@ -24,7 +24,7 @@ class PaymentSettingController extends Controller
             $data = [
 
                 [
-                    'key'         => 'shetab',
+                    'key'         => 'shetab_verify_api_key',
                     'value'       => $this->hiddifyCtrl->generateUUID(),
                     'description' => '6104-3333-3333-3333',
                     'status'      => true,
