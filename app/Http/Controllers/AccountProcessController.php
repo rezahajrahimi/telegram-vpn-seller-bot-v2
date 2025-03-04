@@ -28,12 +28,12 @@ class AccountProcessController extends Controller
     private AccountBallanceController $accBlCtrl;
     private BotUser $botUser;
     private LogController $logCtrl;
-    private TransactionSetting $trSetting;
     private $chatId;
     private TransactionController $trCntrl;
     private TransactionSettingController $trSettingCntrl;
     private PaymentTypeController $pymntCntrl;
     private PaymentMenuItemController $pymMenCntrl;
+    private PaymentSettingController $paymnetSettingCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService         = $telegramService;
@@ -49,7 +49,7 @@ class AccountProcessController extends Controller
         $this->pymntCntrl              = new PaymentTypeController();
         $this->pymMenCntrl             = new PaymentMenuItemController();
         $this->trCntrl                 = new TransactionController();
-        $this->trSetting               = new TransactionSetting();
+        $this->paymnetSettingCntrl     = new PaymentSettingController();
 
     }
     public function accountDetails($chatId)
@@ -225,8 +225,9 @@ class AccountProcessController extends Controller
                 ];
                 array_push($opr, $newOpr);
             }
-
-            $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
+            
+            
+            $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             if ($hasDollarPay == true || $hasDollarPay == 1) {
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
                 if (is_array($text)) {

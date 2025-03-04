@@ -11,9 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('transaction_settings', function (Blueprint $table) {
+        Schema::create('payment_settings', function (Blueprint $table) {
             $table->id();
-            $table->boolean('dollar_transaction')->nullable()->default(false);
+            $table->string('key');
+            $table->string('value');
+            $table->string('description')->nullable();
+            $table->boolean('status')->default(true);
             $table->timestamps();
         });
     }
@@ -23,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('transaction_settings');
+        Schema::dropIfExists('payment_settings');
     }
 };

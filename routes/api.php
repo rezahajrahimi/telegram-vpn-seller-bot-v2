@@ -30,7 +30,7 @@ use App\Http\Controllers\TestAccountController;
 use App\Http\Controllers\BillController;
 use App\Http\Controllers\CryptoPaymentController;
 use App\Http\Controllers\TransactionCryptoController;
-use App\Http\Controllers\TransactionSettingController;
+use App\Http\Controllers\PaymentSettingController;
 use App\Http\Controllers\AgentProductController;
 use App\Http\Controllers\AgentPermissonController;
 use App\Http\Controllers\ExecuteArtisanCommandController;
@@ -287,9 +287,15 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     // CryptoPaymentController
     Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
     Route::patch('updateNowPayment', [CryptoPaymentController::class, 'updateNowPayment']);
-    // TransactionSettingController
-    Route::get('getDollorTransactionSetting', [TransactionSettingController::class, 'getDollorTransactionSetting']);
-    Route::patch('setDollorTransactionSetting', [TransactionSettingController::class, 'setDollorTransactionSetting']);
+    // PaymentSettingController
+    Route::get('get-payment-setting-by-key/{key}', [PaymentSettingController::class, 'getPaymentSettingByKey']);
+    Route::get('get-payment-setting-value-by-key/{key}', [PaymentSettingController::class, 'getPaymentSettingValueByKey']);
+    Route::get('get-payment-setting-description-by-key/{key}', [PaymentSettingController::class, 'getPaymentSettingDescriptionByKey']);
+    Route::get('reverse-status-by-key/{key}', [PaymentSettingController::class, 'reverseStatusByKey']);
+    Route::get('seed-payment-setting', [PaymentSettingController::class, 'seed']);
+    Route::patch('set-payment-setting-value-by-key/{key}/{value}', [PaymentSettingController::class, 'setPaymentSettingValueByKey']);
+    Route::patch('set-payment-setting-description-by-key/{key}/{description}', [PaymentSettingController::class, 'setPaymentSettingDescriptionByKey']);
+    Route::patch('set-payment-setting-status-by-key/{key}/{status}', [PaymentSettingController::class, 'setPaymentSettingStatusByKey']);
 
     // AgentProductController
     Route::post('createBatchOfUserAgentProduct', [AgentProductController::class, 'createBatchOfUserAgentProduct']);

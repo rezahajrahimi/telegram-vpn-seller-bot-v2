@@ -29,7 +29,7 @@ class GeneralController extends Controller
     private BillController $billCntrl;
     private MainMenuItem $mainMenuItem;
     private ProductCategory $productCategory;
-    private TransactionSetting $trSetting;
+    private PaymentSettingController $paymnetSettingCntrl;
     private ChannelLockMenuItemController $channelLockMenuItemCntrl;
     private CronJobController $cronJobCntrl;
     private GiftCardMenuItemController $giftCardMenuItemCntrl;
@@ -50,7 +50,7 @@ class GeneralController extends Controller
         $this->billCntrl                = new BillController();
         $this->mainMenuItem             = new MainMenuItem();
         $this->productCategory          = new ProductCategory();
-        $this->trSetting                = new TransactionSetting();
+        $this->paymnetSettingCntrl      = new PaymentSettingController();
         $this->trSettingCntrl           = new TransactionSettingController();
         $this->channelLockMenuItemCntrl = new ChannelLockMenuItemController();
         $this->cronJobCntrl             = new CronJobController();
@@ -430,7 +430,7 @@ class GeneralController extends Controller
             $productPriceInToman   = $productPriceInToman . ' تومان';
             $mainDiffrenceInDollar = $diffrence_in_dollar = 0.00;
 
-            $dollarTransaction = $this->trSetting->getDollarTransactionSetting();
+            $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             $text              = '';
             if ($dollarTransaction == true || $dollarTransaction == 1) {
                 $productPriceInDollar    = $productCategory->price_in_dollar;
@@ -486,7 +486,7 @@ class GeneralController extends Controller
             array_push($opr, $newOpr);
         }
 
-        $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
+        $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         if ($hasDollarPay == true || $hasDollarPay == 1) {
             $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
             array_push($opr, $newOpr);
