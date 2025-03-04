@@ -43,13 +43,19 @@ class TelegramWebhookController extends Controller
             if ($this->is_first_time_bot_start_event()) {
                 return response()->json(['status' => 'success']);
             }
-            $update    = $request->all();
-            $isBlocked = $this->blockedUserCtrl->isBlocked($update['message']['chat']['id']);
-            if ($isBlocked) {
-                $text = $this->customTextCtrl->getText('error.blocked_user');
-                $this->telegramService->sendMessage($update['message']['chat']['id'], $text);
-                return response()->json(['status' => 'success']);
-
+            $update = $request->all();
+            try {
+                if (isset($update['message'])) {
+                    $isBlocked = $this->blockedUserCtrl->isBlocked($update['message']['chat']['id']);
+                    if ($isBlocked) {
+                        $text = $this->customTextCtrl->getText('error.blocked_user');
+                        $this->telegramService->sendMessage($update['message']['chat']['id'], $text);
+                        return response()->json(['status' => 'success']);
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::error('خطا در پردازش webhook تلگرام: ' . $e->getMessage());
+                // return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
             }
 
             // پردازش callback queries (دکمه‌های اینلاین)
@@ -170,9 +176,9 @@ class TelegramWebhookController extends Controller
                     return "";
                 }
                 $actionList = explode('-', $text);
-                 $this->generalCntrl->block_user_command('unblock', $actionList[1], null);
-                 $text = $this->customTextCtrl->getText('action.unblock_user.success');
-                 $this->telegramService->sendMessage($chatId, $text);
+                $this->generalCntrl->block_user_command('unblock', $actionList[1], null);
+                $text = $this->customTextCtrl->getText('action.unblock_user.success');
+                $this->telegramService->sendMessage($chatId, $text);
 
                 return "";
             }

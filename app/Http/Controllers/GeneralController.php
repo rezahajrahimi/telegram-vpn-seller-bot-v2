@@ -851,12 +851,12 @@ class GeneralController extends Controller
             // درصد چون اعشار هست و متن هم فارسی، ترتیب نوشتاریش تغییر می کنه برای همین می بایست متنش را بصورت استرینگ و برعکس کنیم
             // تبدیل به رشته و معکوس کردن درصد برای نمایش صحیح در متن فارسی
             // بررسی اینکه آیا درصد اعشاری هست یا خیر و اگر  رقم اعشار ان برابر با صفر نبود
-            // if (is_double($referralPercent)) {
-            //     $referralPercentStr = (string) $referralPercent;
-            //     $referralPercentStr = strrev($referralPercentStr);
-            // } else {
-            //     $referralPercentStr = "0";
-            // }
+            if (is_double($referralPercent)) {
+                $referralPercentStr = (string) $referralPercent;
+                // $referralPercentStr = strrev($referralPercentStr);
+            } else {
+                $referralPercentStr = "0";
+            }
 
             $text = $this->customTextCtrl->getText('action.referral.text', [
                 'link'    => $inviteUrl,
