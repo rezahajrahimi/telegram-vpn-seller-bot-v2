@@ -34,6 +34,7 @@ class AccountProcessController extends Controller
     private PaymentTypeController $pymntCntrl;
     private PaymentMenuItemController $pymMenCntrl;
     private PaymentSettingController $paymnetSettingCntrl;
+    private ShetabVerifyController $shetabVerifyCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService         = $telegramService;
@@ -50,7 +51,7 @@ class AccountProcessController extends Controller
         $this->pymMenCntrl             = new PaymentMenuItemController();
         $this->trCntrl                 = new TransactionController();
         $this->paymnetSettingCntrl     = new PaymentSettingController();
-
+        $this->shetabVerifyCntrl       = new ShetabVerifyController();
     }
     public function accountDetails($chatId)
     {
@@ -248,6 +249,25 @@ class AccountProcessController extends Controller
 
 // send offline item
             $opr = [];
+            // check payment setting for shetab verify
+            $shetabVerifyStatus = $this->shetabVerifyCntrl->check_shetab_verify_status();
+            if ($shetabVerifyStatus == true || $shetabVerifyStatus == 1) {
+                // $text = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
+                $text = $this->customTextCtrl->getText('action.process.add_online_balance.shetab_verify');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
+                $opr[] = [
+                    $text => "accountSubAccountsShetabVerify",
+                ];
+            }
+            if ($shetabVerify == true || $shetabVerify == 1) {
+                $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option_and_online_balance');
+            } else {
+                $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
+            }
+
 
             $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
             if ($offlinePayment != null) {

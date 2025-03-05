@@ -24,9 +24,13 @@ class PaymentSettingController extends Controller
             $data = [
 
                 [
-                    'key'         => 'shetab_verify_api_key',
+                    'key'         => 'shetab_verify',
                     'value'       => $this->hiddifyCtrl->generateUUID(),
-                    'description' => '6104-3333-3333-3333',
+                    'description' => json_encode([
+                        ['type' => 'text', 'text' => 'لطفا مبلغ را بدون کم یا زیاد کردن به این شماره کارت واریز کنید و منتظر تایید خودکار سیستم باشید'],
+                        ['type' => 'newline'],
+                        ['type' => 'code', 'text' => '6104-3333-3333-3333'],
+                    ]),
                     'status'      => true,
                 ],
                 [
@@ -92,6 +96,18 @@ class PaymentSettingController extends Controller
             \Log::info("PaymentSetting table seeding failed: $th");
             return false;
         }
+    }
+    public function getPaymentSettingStatusByKey($key)
+    {
+        $paymentSetting = $this->getPaymentSettingByKey($key);
+        if (!$paymentSetting) {
+            $this->seed();
+            $paymentSetting = $this->getPaymentSettingByKey($key);
+        }
+        if ($paymentSetting->status == true || $paymentSetting->status == 1) {
+            return true;
+        }
+        return false;
     }
 
 }
