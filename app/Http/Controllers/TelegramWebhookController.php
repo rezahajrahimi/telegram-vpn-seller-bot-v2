@@ -518,6 +518,7 @@ class TelegramWebhookController extends Controller
             'giftCard' => $this->generalCntrl->subGiftCard($chatId, $actionList[1]),
             'referral' => $this->generalCntrl->subReferral($chatId),
             'charge' => $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]),
+            'shetabVerify' => $this->accountProcessCtrl->handleActionAddBalanceShetabVerify($chatId, $actionList[1]),
 
             default => $this->customTextCtrl->getText('error.action.not_found')
         };

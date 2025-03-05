@@ -25,7 +25,6 @@ class ShetabVerifyController extends Controller
         }
 
         $shetabVerify = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('shetab_verify');
-        \Log::info('Shetab verify status: ' . $shetabVerify);
         return $shetabVerify;
     }
     public function create_new_shetab_verify(Request $request)

@@ -252,7 +252,6 @@ class AccountProcessController extends Controller
             // check payment setting for shetab verify
             $shetabVerifyStatus = $this->shetabVerifyCntrl->check_shetab_verify_status();
             if ($shetabVerifyStatus == true || $shetabVerifyStatus == 1) {
-                \Log::info('Shetab verify status: ' . $shetabVerifyStatus);
                 // $text = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance.shetab_verify');
                 if (is_array($text)) {
