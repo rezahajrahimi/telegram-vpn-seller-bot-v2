@@ -174,6 +174,15 @@ class CustomTextController extends Controller
                         ['type' => 'text', 'text' => "{merchant_id}"],
                     ]), 'custom_text' => null, 'description' => 'متن درخواست واریز به شماره کارت - پارامترها: {merchant_id}'],
 
+                    ['key' => 'action.process.shetab_verify.new_invoice', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'لطفا مبلغ را بدون کم یا زیاد کردن به این شماره کارت واریز کنید و منتظر تایید خودکار سیستم باشید'],
+                        ['type' => 'newline'],
+                        ['type' => 'code', 'text' => "شماره کارت: {merchant_id}"],
+                        ['type' => 'newline'],
+                        ['type' => 'code', 'text' => "مبلغ: {amount} تومان"],
+                    ]), 'custom_text' => null, 'description' => 'متن درخواست واریز به شماره کارت - پارامترها: {merchant_id} {amount}'],
+
+
                     ['key' => 'action.account.balance_added', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'کیف پول شما به مبلغ {amount} شارژ شد.'],
                     ]), 'custom_text' => null, 'description' => 'متن کیف پول شما به مبلغ {amount} شارژ شد.'],

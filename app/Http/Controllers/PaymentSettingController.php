@@ -26,11 +26,7 @@ class PaymentSettingController extends Controller
                 [
                     'key'         => 'shetab_verify',
                     'value'       => $this->hiddifyCtrl->generateUUID(),
-                    'description' => json_encode([
-                        ['type' => 'text', 'text' => 'لطفا مبلغ را بدون کم یا زیاد کردن به این شماره کارت واریز کنید و منتظر تایید خودکار سیستم باشید'],
-                        ['type' => 'newline'],
-                        ['type' => 'code', 'text' => '6104-3333-3333-3333'],
-                    ]),
+                    'description' => "6104-3333-3333-3333",
                     'status'      => true,
                 ],
                 [

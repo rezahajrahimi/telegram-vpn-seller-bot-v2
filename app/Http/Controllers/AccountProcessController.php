@@ -360,22 +360,24 @@ class AccountProcessController extends Controller
                 $request = new Request();
                 $request->amount = $text;
                 $request->user_id = User::where('account_id', $chatId)->first()->id;
-                $shetabVerify = $this->shetabVerifyCntrl->create_new_shetab_verify($request);
+                $shetabVerify_amount = $this->shetabVerifyCntrl->create_new_shetab_verify($request);
                 // shetab verify is a json object so just check status code be 200 or 201
-                if($shetabVerify == null){
+                if($shetabVerify_amount == null){
                     \Log::error(["shetabVerify: " . $shetabVerify]);
                     $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
                     return "";
                 }
-                \Log::info(["shetabVerify: " . $shetabVerify]);
-                $text = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
+                \Log::info(["shetabVerify: " . $shetabVerify_amount]);
+                $merchant_id = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
+                $text = $this->customTextCtrl->getText('action.process.shetab_verify.new_invoice', [
+                    'merchant_id' => $merchant_id,
+                    'amount' => $shetabVerify_amount,
+                ]);
                 if (is_array($text)) {
                     // use format text service
                     $text = $this->telegramService->formatText($text);
                 }
                 $this->telegramService->sendMessage($chatId, $text);
-                $this->telegramService->sendMessage($chatId, "مبلغ واربزی : {$shetabVerify}");
-
 
                 return "";
             }
