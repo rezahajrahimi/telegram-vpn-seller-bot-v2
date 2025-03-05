@@ -47,7 +47,6 @@ class ShetabVerifyController extends Controller
         $shetabVerify = ShetabVerify::create([
             'amount'          => $this->create_uniqe_amount($request->amount),
             'user_id'         => $request->user_id,
-            'payment_type_id' => PaymentType::where('is_active', true)->where('type', 'offline')->first()->id ?? 1,
             'status'          => 'pending',
         ]);
         return $shetabVerify->amount;

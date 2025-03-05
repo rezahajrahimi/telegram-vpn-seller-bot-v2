@@ -10,7 +10,6 @@ class ShetabVerify extends Model
     use HasFactory;
     protected $table = 'shetab_verifies';
     protected $fillable = [
-        'payment_type_id',
         'user_id',
         'amount',
         'tracking_code',
@@ -20,10 +19,7 @@ class ShetabVerify extends Model
     {
         return $this->belongsTo(User::class);
     }
-    public function paymentType()
-    {
-        return $this->belongsTo(PaymentType::class);
-    }
+
     public function scopePending($query)
     {
         return $query->where('status', 'pending');

@@ -13,16 +13,11 @@ return new class extends Migration
     {
         Schema::create('shetab_verifies', function (Blueprint $table) {
             $table->id();
-            $table->bigInteger('payment_type_id')->unsigned();
             $table->bigInteger('user_id')->unsigned();
             $table->string('amount');
             $table->string('tracking_code')->nullable();
             $table->string('status')->default('pending');
             $table->timestamps();
-            $table
-                ->foreign('payment_type_id')
-                ->references('id')
-                ->on('payment_types')->onDelete('cascade');
             $table
                 ->foreign('user_id')
                 ->references('id')
