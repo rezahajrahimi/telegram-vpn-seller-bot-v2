@@ -26,7 +26,7 @@ class PaymentSettingController extends Controller
                 [
                     'key'         => 'shetab_verify',
                     'value'       => $this->hiddifyCtrl->generateUUID(),
-                    'description' => "6104-3333-3333-3333",
+                    'description' => "6104333333333333",
                     'status'      => true,
                 ],
                 [

@@ -378,6 +378,7 @@ class AccountProcessController extends Controller
                     $text = $this->telegramService->formatText($text);
                 }
                 $this->telegramService->sendMessage($chatId, $text);
+                $this->clearAwaitingReply($chatId, $text);
 
                 return "";
             }
