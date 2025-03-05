@@ -498,8 +498,8 @@ class GeneralController extends Controller
         }
 
         // send offline item
-        $opr = [];
-
+        // check for shetab verify and if it is active then add it to the offline payment
+    
         $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
         if ($offlinePayment != null) {
             if ($hasZarinPal == true || $hasZarinPal == 1 || $hasDollarPay == true || $hasDollarPay == 1) {
@@ -516,7 +516,20 @@ class GeneralController extends Controller
                 }
             }
 
+            // clear $opr
             $opr = [];
+            $shetabVerify = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('shetab_verify');
+            if ($shetabVerify == true || $shetabVerify == 1) {
+                $shetabVerify_text = $this->customTextCtrl->getText('action.process.add_online_balance.shetab_verify');
+                if (is_array($shetabVerify_text)) {
+                    // use format text service
+                    $shetabVerify_text = $this->telegramService->formatText($shetabVerify_text);
+                }
+                $opr[] = [
+                    $shetabVerify_text => "offlineGateway-shetabVerify-{$estimatedPrice}"
+                ];
+            }
+    
 
             foreach ($offlinePayment as $key => $value) {
                 $opr[] = [
