@@ -252,6 +252,7 @@ class AccountProcessController extends Controller
             // check payment setting for shetab verify
             $shetabVerifyStatus = $this->shetabVerifyCntrl->check_shetab_verify_status();
             if ($shetabVerifyStatus == true || $shetabVerifyStatus == 1) {
+                \Log::info('Shetab verify status: ' . $shetabVerifyStatus);
                 // $text = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance.shetab_verify');
                 if (is_array($text)) {
@@ -259,14 +260,10 @@ class AccountProcessController extends Controller
                     $text = $this->telegramService->formatText($text);
                 }
                 $opr[] = [
-                    $text => "accountSubAccountsShetabVerify",
+                    $text => "shetabVerify-addBalance",
                 ];
             }
-            if ($shetabVerify == true || $shetabVerify == 1) {
-                $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option_and_online_balance');
-            } else {
-                $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
-            }
+
 
 
             $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
@@ -277,7 +274,7 @@ class AccountProcessController extends Controller
                     $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
                 }
 
-                $opr = [];
+                
 
                 foreach ($offlinePayment as $key => $value) {
                     $opr[] = [

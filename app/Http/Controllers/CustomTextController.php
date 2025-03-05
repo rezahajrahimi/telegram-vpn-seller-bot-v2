@@ -135,8 +135,8 @@ class CustomTextController extends Controller
                         ['type' => 'text', 'text' => 'لطفا مبلغ را به صورت عددی وارد کنید'],
                     ]), 'custom_text' => null, 'description' => 'متن لطفا مبلغ را به صورت عددی وارد کنید'],
                     ['key' => 'action.process.add_online_balance.shetab_verify', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'تایید خودکار کارت به کارت'],
-                    ]), 'custom_text' => null, 'description' => 'متن تایید خودکار کارت به کارت'],
+                        ['type' => 'text', 'text' => 'کارت به کارت (تایید خودکار)'],
+                    ]), 'custom_text' => null, 'description' => 'متن کارت به کارت (تایید خودکار)'],
                     ['key' => 'action.process.add_online_balance.zarinpal.reply.invoice', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
                     ]), 'custom_text' => null, 'description' => 'متن صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],

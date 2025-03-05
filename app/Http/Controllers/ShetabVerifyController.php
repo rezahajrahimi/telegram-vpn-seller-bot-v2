@@ -9,19 +9,23 @@ use Illuminate\Http\Request;
 
 class ShetabVerifyController extends Controller
 {
+    private PaymentSettingController $paymnetSettingCntrl;
     public function __construct()
     {
         $this->middleware('auth');
+        $this->paymnetSettingCntrl = new PaymentSettingController();
     }
     public function check_shetab_verify_status()
     {
         $authCntrl             = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
         if ($getPowerPsLicenseType == 'free') {
+            \Log::info('You are not authorized to check the shetab verify status');
             return false;
         }
 
-        $shetabVerify = PaymentSetting::where('key', 'shetab_verify')->first()->status;
+        $shetabVerify = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('shetab_verify');
+        \Log::info('Shetab verify status: ' . $shetabVerify);
         return $shetabVerify;
     }
     public function create_new_shetab_verify(Request $request)
