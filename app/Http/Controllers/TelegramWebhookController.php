@@ -412,12 +412,17 @@ class TelegramWebhookController extends Controller
                 'lastName' => $lastName,
                 'website'  => 'https://powerps.ir',
             ]);
-
-            $formatter = new TelegramMessageFormatter($this->telegramService);
-            $message   = $formatter
-                ->addFormattedText('', $welcomeFormats)
-                ->getMessage();
-            $this->generalCntrl->return_main_menu_items($chatId, $message);
+            if (is_array($welcomeFormats)) {
+                // use format text service
+                $welcomeFormats = $this->telegramService->formatText($welcomeFormats);
+            }
+            // if (is_array($welcomeFormats)) {
+            //     $formatter = new TelegramMessageFormatter($this->telegramService);
+            //     $message   = $formatter
+            //         ->addFormattedText('', $welcomeFormats)
+            //         ->getMessage();
+            // }
+            $this->generalCntrl->return_main_menu_items($chatId, $welcomeFormats);
             return '';
 
         } catch (\Throwable $th) {
