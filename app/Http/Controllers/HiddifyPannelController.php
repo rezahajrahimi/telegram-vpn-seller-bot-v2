@@ -512,7 +512,6 @@ class HiddifyPannelController extends Controller
             // dd($subsequentResponse);
             return json_decode($subsequentResponse->getBody(), true);
         }
-        \Log::info("sendGetRequestToHiddifyPannel => {$subsequentResponse->getBody()}");
         return response()->json(false, 401);
     }
     public function sendDeleteRequestToHiddifyPannel($pannelID, $requestAPi)
@@ -559,7 +558,6 @@ class HiddifyPannelController extends Controller
                 return response()->json(false, 401);
             }
             // dd($subsequentResponse);
-            \Log::info("message => {$subsequentResponse->getBody()}");
             return json_decode($subsequentResponse->getBody(), true);
         }
         return response()->json(false, 401);

@@ -526,7 +526,7 @@ class GeneralController extends Controller
                     $shetabVerify_text = $this->telegramService->formatText($shetabVerify_text);
                 }
                 $opr[] = [
-                    $shetabVerify_text => "offlineGateway-shetabVerify-{$estimatedPrice}"
+                    $shetabVerify_text => "shetabVerifyAuto-{$estimatedPrice}"
                 ];
             }
     
@@ -540,7 +540,7 @@ class GeneralController extends Controller
         }
 
         $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
-        return true;
+        return "";
 
     }
     public function createZarinpalPaymentLink($chat_id, $estimatedPrice)
