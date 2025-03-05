@@ -367,7 +367,7 @@ class AccountProcessController extends Controller
                     $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
                     return "";
                 }
-
+                \Log::info(["shetabVerify: " . $shetabVerify]);
                 $text = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
                 if (is_array($text)) {
                     // use format text service

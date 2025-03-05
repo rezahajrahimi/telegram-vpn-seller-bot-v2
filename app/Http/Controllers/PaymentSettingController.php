@@ -51,31 +51,34 @@ class PaymentSettingController extends Controller
     }
     public function getPaymentSettingByKey($key)
     {
-        $paymentSetting = PaymentSetting::where('key', $key)->first();
-        if (!$paymentSetting) {
-            $this->seed();
-            $paymentSetting = PaymentSetting::where('key', $key)->first();
-        }
-        return $paymentSetting;
+        $paymentSetting = new PaymentSetting();
+        return $paymentSetting->getPaymentSettingByKey($key);
     }
     public function getPaymentSettingValueByKey($key)
     {
-        return PaymentSetting::getPaymentSettingValueByKey($key);
+        $paymentSetting = new PaymentSetting();
+        return $paymentSetting->getPaymentSettingValueByKey($key);
     }
     public function getPaymentSettingDescriptionByKey($key)
     {
-        return PaymentSetting::getPaymentSettingDescriptionByKey($key);
+        $paymentSetting = new PaymentSetting();
+        $paymentSetting = $paymentSetting->getPaymentSettingDescriptionByKey($key);
+
+        if (is_array($paymentSetting)) {
+            // use format text service
+            $paymentSetting = $this->telegramService->formatText($paymentSetting);
+        }
+        return $paymentSetting;
     }
     public function reverseStatusByKey($key)
     {
-        return PaymentSetting::reverseStatusByKey($key);
+        $paymentSetting = new PaymentSetting();
+        return $paymentSetting->reverseStatusByKey($key);
     }
     public function setPaymentSettingValueByKey($key, $value)
     {
-        $paymentSetting = $this->getPaymentSettingByKey($key);
-        $paymentSetting->value = $value;
-        $paymentSetting->save();
-        return $paymentSetting;
+        $paymentSetting = new PaymentSetting();
+        return $paymentSetting->setPaymentSettingValueByKey($key, $value);
     }
     public function setPaymentSettingDescriptionByKey($key, $description)
     {
