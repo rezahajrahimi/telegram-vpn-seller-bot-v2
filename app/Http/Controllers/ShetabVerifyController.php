@@ -6,7 +6,7 @@ use App\Models\PaymentType;
 use App\Models\ShetabVerify;
 use App\Models\User;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Http;
 class ShetabVerifyController extends Controller
 {
     private PaymentSettingController $paymnetSettingCntrl;
@@ -37,20 +37,30 @@ class ShetabVerifyController extends Controller
         }
         // check the amount it's not negative and not zero and not exist in shetab_verifies table where status is pending
         if ($request->amount <= 0) {
-            return response()->json(['message' => 'Amount is not valid'], 400);
+            return null;
         }
         $shetabVerify = ShetabVerify::where('amount', $request->amount)->where('status', 'pending')->first();
         if ($shetabVerify) {
-            return response()->json(['message' => 'Shetab verify already exists'], 400);
+            return null;
         }
         // create a new shetab verify
         $shetabVerify = ShetabVerify::create([
-            'amount'          => $request->amount,
+            'amount'          => $this->create_uniqe_amount($request->amount),
             'user_id'         => $request->user_id,
             'payment_type_id' => PaymentType::where('status', true)->where('type', 'offline')->first()->id,
             'status'          => 'pending',
         ]);
-        return response()->json($shetabVerify);
+        return $shetabVerify->amount;
+    }
+    public function create_uniqe_amount($amount){
+        // get amount and change two last digits to random number bwtween 00 and 99
+        $amount = substr($amount, 0, -2) . str_pad(rand(0, 99), 2, '0', STR_PAD_LEFT);
+        // check if the amount is exist in shetab_verifies table where status is pending
+        $shetabVerify = ShetabVerify::where('amount', $amount)->where('status', 'pending')->first();
+        if ($shetabVerify) {
+            return $this->create_uniqe_amount($amount);
+        }
+        return $amount;
     }
     public function validate_shetab_verify(Request $request)
     {

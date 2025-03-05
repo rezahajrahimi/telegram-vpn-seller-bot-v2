@@ -140,6 +140,9 @@ class CustomTextController extends Controller
                     ['key' => 'action.process.add_online_balance.zarinpal.reply.invoice', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
                     ]), 'custom_text' => null, 'description' => 'متن صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
+                    ['key' => 'action.process.add_online_balance.shetab_verify.reply', 'default_text' => json_encode([
+                        ['type' => 'text', 'text' => 'مبلغ واریزی خود را وارد کنید. (حداقل 10 هزار تومان)'],
+                    ]), 'custom_text' => null, 'description' => 'متن مبلغ واریزی خود را وارد کنید. (حداقل 10 هزار تومان)'],
 
                     ['key' => 'action.process.add_online_balance.nowpayments.reply', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)'],

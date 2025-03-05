@@ -11,6 +11,8 @@ use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 // add cache
 use Illuminate\Support\Facades\Cache;
+// add Request
+use Illuminate\Http\Request;
 
 // add cache
 
@@ -353,6 +355,29 @@ class AccountProcessController extends Controller
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.nowpayments.reply.invoice'), $opr);
                 return "";
 
+            } elseif ($paymentType == "shetab_verify") {
+                // create a new invoice with amount
+                $request = new Request();
+                $request->amount = $text;
+                $request->user_id = User::where('account_id', $chatId)->first()->id;
+                $shetabVerify = $this->shetabVerifyCntrl->create_new_shetab_verify($request);
+                // shetab verify is a json object so just check status code be 200 or 201
+                if($shetabVerify == null){
+                    \Log::error(["shetabVerify: " . $shetabVerify]);
+                    $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+                    return "";
+                }
+
+                $text = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
+                $this->telegramService->sendMessage($chatId, $text);
+                $this->telegramService->sendMessage($chatId, "مبلغ واربزی : {$shetabVerify}");
+
+
+                return "";
             }
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
             return "";
@@ -362,6 +387,7 @@ class AccountProcessController extends Controller
             return "";
         }
     }
+
     public function adminFastCharge($chat_id, $amount, $user_id)
     {
         try {
@@ -401,6 +427,22 @@ class AccountProcessController extends Controller
         } catch (\Throwable $th) {
             \Log::error(["adminFastCharge: " . $th]);
             $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
+    }
+    public function handleActionAddBalanceShetabVerify(string $chatId, string $text)
+    {
+        try {
+            $this->chatId = $chatId;
+            $this->setAwaitingReply($chatId, 'add_balance_reply', 'shetab_verify');
+            $this->telegramService->forceReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.shetab_verify.reply'));
+            return "";
+
+
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["handleActionAddBalanceShetabVerify: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }
     }
