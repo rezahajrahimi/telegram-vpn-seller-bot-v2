@@ -45,6 +45,7 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\BlockedUserController;
+use App\Http\Controllers\ShetabVerifyController;
 
 
 use Illuminate\Http\Request;
@@ -437,4 +438,5 @@ Route::get('/prd', [CronJobController::class, 'calculate_product_category_price_
 
 Route::post('/orderch', [TransactionController::class, 'add_order']);
 
+Route::post('/shetabVerify', [ShetabVerifyController::class, 'validate_shetab_verify']);
 

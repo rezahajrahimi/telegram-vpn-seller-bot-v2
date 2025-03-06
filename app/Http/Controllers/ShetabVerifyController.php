@@ -7,12 +7,13 @@ use App\Models\ShetabVerify;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use App\Services\TelegramService;
 class ShetabVerifyController extends Controller
 {
     private PaymentSettingController $paymnetSettingCntrl;
     public function __construct()
     {
-        $this->middleware('auth');
+        // $this->middleware('auth');
         $this->paymnetSettingCntrl = new PaymentSettingController();
     }
     public function check_shetab_verify_status()
@@ -64,16 +65,19 @@ class ShetabVerifyController extends Controller
     public function validate_shetab_verify(Request $request)
     {
         //get api_key from header and check if it is valid
-        $api_key = $request->header('api_key');
+        $api_key = $request->header('Authorization');
         if (! $api_key) {
             return response()->json(['message' => 'Api key is required'], 401);
         }
         // validate api_key
-        $api_key = PaymentSetting::where('key', 'shetab_verify_api_key')->first()->value;
+        $api_key = PaymentSetting::where('key', 'shetab_verify')->first()->value;
         if (! $api_key) {
             return response()->json(['message' => 'Api key is invalid'], 401);
         }
-        $amount = $request->amount;
+        if ($api_key != $api_key) {
+            return response()->json(['message' => 'Api key is invalid'], 401);
+        }
+        $amount = $request->amount / 10; // convert to toman
         // check the row in shetab_verifies table with amount and status is pending and created_at is less than 10 minutes ago
         $shetabVerify = ShetabVerify::where('amount', $amount)->where('status', 'pending')->where('created_at', '>', now()->subMinutes(10))->first();
         if (! $shetabVerify) {
@@ -83,12 +87,14 @@ class ShetabVerifyController extends Controller
         if ($shetabVerify->status == 'pending') {
             // return response()->json(['message' => 'Shetab verify is pending'], 200);
             // find the user and update the balance
-            $user = User::find($shetabVerify->user_id);
-            $user->balance += $amount;
-            $user->save();
             // update the status of the shetab verify to verified
             $shetabVerify->status = 'verified';
             $shetabVerify->save();
+            $telegramService = new TelegramService();
+            $user = User::find($shetabVerify->user_id);
+            $telegramService->sendMessage($user->account_id, 'Shetab verify is verified');
+
         }
+        return response()->json(['message' => 'Shetab verify is verified'], 200);
     }
 }
