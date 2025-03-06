@@ -99,8 +99,20 @@ class ShetabVerifyController extends Controller
             $accountBallanceCtrl->incUserAccuntBalance($user->account_id, $amount);
             $text = $this->customTextCtrl->getText('action.account.balance_added', ['amount' => $amount]);
             $telegramService->sendMessage($user->account_id, $text);
-
+            // add log
+            $this->addNewBotLog('shetab_verify', 'شارژ کیف پول از طریق کارت به کارت (شتاب)', $user->account_id, 'shetab_verify');
+            // send message to admin
+            $admin = User::where('role', 'admin')->first();
+            $text = "شارژ کیف پول از طریق کارت به کارت (شتاب) بوسیله کاربر {$user->account_id} با مبلغ {$amount} تومان انجام شد.";
+            $telegramService->sendMessage($admin->account_id, $text);
+            return response()->json(['message' => 'Shetab verify is verified'], 200);
         }
-        return response()->json(['message' => 'Shetab verify is verified'], 200);
+        return response()->json(['message' => 'Shetab verify is not verified'], 400);
+    }
+    private function addNewBotLog($type, $message, $chatId, $opr)
+    {
+        $logCtrl = new LogController();
+        $logCtrl->addNewLog($type, $message, $chatId, "", $opr);
+        return true;
     }
 }
