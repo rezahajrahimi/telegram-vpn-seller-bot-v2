@@ -190,8 +190,8 @@ class CustomTextController extends Controller
 
 
                     ['key' => 'action.account.balance_added', 'default_text' => json_encode([
-                        ['type' => 'text', 'text' => 'کیف پول شما به مبلغ {amount} شارژ شد.'],
-                    ]), 'custom_text' => null, 'description' => 'متن کیف پول شما به مبلغ {amount} شارژ شد.'],
+                        ['type' => 'text', 'text' => 'کیف پول شما به مبلغ {amount} تومان شارژ شد.'],
+                    ]), 'custom_text' => null, 'description' => 'متن کیف پول شما به مبلغ {amount} تومان شارژ شد.'],
                     ['key' => 'action.process.success_buy', 'default_text' => json_encode([
                         ['type' => 'text', 'text' => 'اشتراک با موفقیت خریداری شد'],
                     ]), 'custom_text' => null, 'description' => 'متن اشتراک با موفقیت خریداری شد'],

@@ -11,10 +11,12 @@ use App\Services\TelegramService;
 class ShetabVerifyController extends Controller
 {
     private PaymentSettingController $paymnetSettingCntrl;
+    private CustomTextController $customTextCtrl;
     public function __construct()
     {
         // $this->middleware('auth');
         $this->paymnetSettingCntrl = new PaymentSettingController();
+        $this->customTextCtrl = new CustomTextController();
     }
     public function check_shetab_verify_status()
     {
@@ -92,7 +94,11 @@ class ShetabVerifyController extends Controller
             $shetabVerify->save();
             $telegramService = new TelegramService();
             $user = User::find($shetabVerify->user_id);
-            $telegramService->sendMessage($user->account_id, 'Shetab verify is verified');
+            // add to account ballance
+            $accountBallanceCtrl = new AccountBallanceController();
+            $accountBallanceCtrl->incUserAccuntBalance($user->account_id, $amount);
+            $text = $this->customTextCtrl->getText('action.account.balance_added', ['amount' => $amount]);
+            $telegramService->sendMessage($user->account_id, $text);
 
         }
         return response()->json(['message' => 'Shetab verify is verified'], 200);
