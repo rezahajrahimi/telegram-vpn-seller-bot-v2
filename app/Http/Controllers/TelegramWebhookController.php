@@ -415,7 +415,6 @@ class TelegramWebhookController extends Controller
             if (is_array($welcomeFormats)) {
                 $welcomeFormats = $this->telegramService->formatText($welcomeFormats);
             }
-
            
             $this->generalCntrl->return_main_menu_items($chatId, $welcomeFormats);
             return '';
