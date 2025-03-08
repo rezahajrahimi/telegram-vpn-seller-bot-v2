@@ -294,6 +294,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('get-payment-setting-description-by-key/{key}', [PaymentSettingController::class, 'getPaymentSettingDescriptionByKey']);
     Route::get('reverse-status-by-key/{key}', [PaymentSettingController::class, 'reverseStatusByKey']);
     Route::get('seed-payment-setting', [PaymentSettingController::class, 'seed']);
+    Route::get('re-generate-shetab-verify', [PaymentSettingController::class, 'reGenerateShetabVerify']);
     Route::patch('set-payment-setting-value-by-key/{key}/{value}', [PaymentSettingController::class, 'setPaymentSettingValueByKey']);
     Route::patch('set-payment-setting-description-by-key/{key}/{description}', [PaymentSettingController::class, 'setPaymentSettingDescriptionByKey']);
     Route::patch('set-payment-setting-status-by-key/{key}/{status}', [PaymentSettingController::class, 'setPaymentSettingStatusByKey']);

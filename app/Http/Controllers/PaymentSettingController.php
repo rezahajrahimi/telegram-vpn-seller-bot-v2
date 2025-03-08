@@ -45,6 +45,15 @@ class PaymentSettingController extends Controller
             return false;
         }
     }
+    public function reGenerateShetabVerify()
+    {
+        $shetabVerify = $this->getPaymentSettingValueByKey('shetab_verify');
+        if ($shetabVerify) {
+            $this->setPaymentSettingValueByKey('shetab_verify', $this->hiddifyCtrl->generateUUID());
+            return $this->getPaymentSettingValueByKey('shetab_verify');
+        }
+        return response()->json(['message' => 'Shetab verify not found'], 500);
+    }
     public function getPaymentSettingByKey($key)
     {
         $paymentSetting = new PaymentSetting();

@@ -54,5 +54,12 @@ class PaymentSetting extends Model
         }
         return false;
     }
+    public function setPaymentSettingValueByKey($key, $value)
+    {
+        $paymentSetting = $this->getPaymentSettingByKey($key);
+        $paymentSetting->value = $value;
+        $paymentSetting->save();
+        return $paymentSetting;
+    }
     
 }
