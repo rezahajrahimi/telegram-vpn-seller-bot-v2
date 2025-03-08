@@ -439,5 +439,5 @@ Route::get('/prd', [CronJobController::class, 'calculate_product_category_price_
 
 Route::post('/orderch', [TransactionController::class, 'add_order']);
 
-Route::post('/shetabVerify', [ShetabVerifyController::class, 'validate_shetab_verify']);
+Route::post('/shetab-verify', [ShetabVerifyController::class, 'validate_shetab_verify']);
 
