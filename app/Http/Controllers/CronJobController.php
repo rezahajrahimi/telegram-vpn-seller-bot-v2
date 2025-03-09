@@ -372,6 +372,7 @@ class CronJobController extends Controller
             foreach ($productCats as $key => $value) {
                 if ($value->category_name != 'اکانت آزمایشی') {
                     $price        = $value->price_in_dollar * $tetherPrice;
+                    $price        = round($price, 2);
                     $value->price = $price;
                     $value->update();
                 }
@@ -409,6 +410,7 @@ class CronJobController extends Controller
                 if ($value->category_name != 'اکانت آزمایشی') {
                     $price = $value->price / $tetherPrice;
                     // set $price in $value->price_in_dollar by two decimal digit
+                    $price = round($price, 2);
 
                     $value->price_in_dollar = round($price, 2);
                     $value->update();

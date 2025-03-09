@@ -66,6 +66,9 @@ class AgentPermissonController extends Controller
     {
         try {
             $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
+            if ($agentPermisson == null) {
+                return response()->json(false, 404);
+            }
             $agentPermisson->delete();
             return response()->json(true, 200);
         } catch (\Throwable $th) {
