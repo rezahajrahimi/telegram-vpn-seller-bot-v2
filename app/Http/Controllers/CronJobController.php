@@ -252,7 +252,7 @@ class CronJobController extends Controller
                 }
 
             }
-            
+
             return true;
         } catch (\Throwable $th) {
             \Log::error($th->getMessage());
@@ -513,36 +513,43 @@ class CronJobController extends Controller
     public function execute_create_daily_backup()
     {
         try {
-            $authCntrl             = new AuthController();
+            $authCntrl = new AuthController();
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
             if ($getPowerPsLicenseType == 'free') {
                 return false;
             }
+
             $cronJob = CronJob::where('name', 'Create Daily Backup')->first();
             if ($cronJob == null) {
                 $cronJob = $this->create_cron_job_for_create_daily_backup();
             }
+
             // check if is_active was false, return
             if ($cronJob->is_active == false) {
                 return false;
             }
+
             $backupCtrl = new BackupController();
-            $backupFile = $backupCtrl->createBackupAndReturnZipFile();
-            if (! isset($backupFile)) {
+
+            // استفاده از متد جدید که هم بکاپ می‌گیرد و هم به تلگرام ارسال می‌کند
+            $admin = User::where('role', 'admin')->first();
+            if (!$admin) {
+                \Log::error('هیچ کاربر ادمینی یافت نشد');
                 return false;
             }
-            // log backup file as a array
-            $admin    = User::where('role', 'admin')->first();
-            $admin_id = $admin->account_id;
 
-            $currentDate     = now()->toJalali()->format('Y/m/d');
-            $currentDate     = Verta::parse($currentDate)->format('Y-m-d');
-            $text            = "نسخه پشتیبان $currentDate";
-            $telegramService = new TelegramService();
-            $result          = $telegramService->sendDocumentFile($admin_id, $backupFile, $text);
-            return "done";
+            $result = $backupCtrl->createBackupAndSendToTelegram($admin->account_id);
+
+            if ($result) {
+                \Log::info('بکاپ روزانه با موفقیت ایجاد و ارسال شد');
+                return "done";
+            } else {
+                \Log::error('خطا در ایجاد یا ارسال بکاپ روزانه');
+                return "error";
+            }
+
         } catch (\Throwable $th) {
-            \Log::error($th->getMessage());
+            \Log::error('خطا در اجرای بکاپ روزانه: ' . $th->getMessage());
             return "error";
         }
     }

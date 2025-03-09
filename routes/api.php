@@ -95,7 +95,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     // backup
     Route::get('createBackup', [BackupController::class, 'createBackup']);
     Route::post('restoreBackup', [BackupController::class, 'restoreBackup']);
-
+    Route::get('testDatabaseConnection', [BackupController::class, 'testDatabaseConnection']);
+    Route::get('testMysqldump', [BackupController::class, 'testMysqldump']);
+    Route::get('createBackupWithPHP', [BackupController::class, 'createBackupWithPHP']);
 
     // UserController
     Route::get('getUsers', [UserController::class, 'getUsers']);
@@ -439,6 +441,7 @@ Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']
 Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPaymentStatus']);
 
 Route::get('/prd', [CronJobController::class, 'calculate_product_category_price_in_dollar_by_toman']);
+Route::get('/create-backup-and-send-to-telegram', [BackupController::class, 'createBackupAndSendToTelegram']);
 
 
 Route::post('/orderch', [TransactionController::class, 'add_order']);
