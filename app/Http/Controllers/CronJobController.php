@@ -7,8 +7,6 @@ use App\Models\Pannel;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
-use App\Services\TelegramService;
-use Hekmatinasser\Verta\Verta;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
@@ -165,7 +163,7 @@ class CronJobController extends Controller
     {
         try {
             $advanceSettingCntrl = new AdvanceSettingLookupController();
-            $isEnable             = $advanceSettingCntrl->getValueByNameWithBooleanValue('bot_auto_delete_expired_configs');
+            $isEnable            = $advanceSettingCntrl->getValueByNameWithBooleanValue('bot_auto_delete_expired_configs');
             if ($isEnable == false || $isEnable == 0) {
                 return false;
             }
@@ -191,15 +189,20 @@ class CronJobController extends Controller
 
             $pannel           = Pannel::all();
             $hiddifyPanelCtrl = new HiddifyPannelController();
+
             foreach ($pannel as $key => $panel) {
                 $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($panel->id);
-                // تبدیل Response به آرایه
-                // $users = json_decode($usersResponse->getContent(), true);
-
                 if (! is_array($usersResponse)) {
                     continue;
                 }
+                $products = [];
+                // create a empty array of products ids and uuid
+                $productsIds   = [];
+                $productsUuids = [];
                 foreach ($usersResponse as $key => $value) {
+                    // get releated products by uuid
+                    $uuid = $value['uuid'];
+
                     $startDate = $value['start_date'];
                     // convert $startDate to valid carbon date
                     $startDate = Carbon::parse($startDate);
@@ -214,41 +217,50 @@ class CronJobController extends Controller
                     $expireDate->addDays($package_days);
                     // add 10 days to $expireDate
                     $expireDate->addDays(10);
-
-                    // check if $expireDate is in the past
-                    $dateDifference = $expireDate->diffInDays(Carbon::now());
-                    if (!$expireDate->isPast()) {
+                    // get usage_limit_GB
+                    $currentUsageGB = $value['current_usage_GB'];
+                    // check if usage_limit_GB is 0
+                    if ($currentUsageGB == 0) {
                         continue;
                     }
-                    // creat a empty arrat of products
-                    $products = [];
-                    // create a empty array of products ids and uuid
-                    $productsIds = [];
-                    $productsUuids = [];
-
-                    if ($dateDifference >= 10) {
-                        // get releated products by uuid
-                        $uuid    = $value['uuid'];
+                    // get usage_limit_GB
+                    $usageLimitGB = $value['usage_limit_GB'];
+                    // check if currentUsageGB is more than usageLimitGB
+                    if ($currentUsageGB >= $usageLimitGB) {
                         $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
                         if ($product != null) {
-                            $products[] = $product;
-                            $productsIds[] = $product->id;
+                            $products[]      = $product;
+                            $productsIds[]   = $product->id;
                             $productsUuids[] = $uuid;
-                        }
-                        // delete config on hiddify panel
-                    }
-                    // delete products
-                    Product::whereIn('id', $productsIds)->delete();
-                    // delete users from hiddify panel
-                    foreach ($productsUuids as $key => $uuid) {
-                        $hiddifyPanelCtrl->deleteUserOfHiddifyPanel($panel->id, $uuid);
-                        // // send to admin
-                        // $admin = User::where('role', 'admin')->first();
-                        // $admin_id = $admin->account_id;
-                        // $telegramService = new TelegramService();
+                            continue;
 
-                        // $telegramService->sendMessage("کانفیگ $uuid منقضی شده بود . بصورت خودکار حذف شد.", $admin_id);
+                        }
+
                     }
+
+                    // get usage_limit_GB
+                    if (! $expireDate->isPast()) {
+                        continue;
+                    }
+                    // check if $expireDate is in the past
+                    $dateDifference = $expireDate->diffInDays(Carbon::now());
+
+                    // creat a empty arrat of products
+                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+                    if ($product != null) {
+                        $products[]      = $product;
+                        $productsIds[]   = $product->id;
+                        $productsUuids[] = $uuid;
+                    }
+                    // delete config on hiddify panel
+
+                    // delete products
+
+                }
+                Product::whereIn('id', $productsIds)->delete();
+                // delete users from hiddify panel
+                foreach ($productsUuids as $key => $uuid) {
+                    $hiddifyPanelCtrl->deleteUserOfHiddifyPanel($panel->id, $uuid);
                 }
 
             }
@@ -513,7 +525,7 @@ class CronJobController extends Controller
     public function execute_create_daily_backup()
     {
         try {
-            $authCntrl = new AuthController();
+            $authCntrl             = new AuthController();
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
             if ($getPowerPsLicenseType == 'free') {
                 return false;
@@ -533,7 +545,7 @@ class CronJobController extends Controller
 
             // استفاده از متد جدید که هم بکاپ می‌گیرد و هم به تلگرام ارسال می‌کند
             $admin = User::where('role', 'admin')->first();
-            if (!$admin) {
+            if (! $admin) {
                 \Log::error('هیچ کاربر ادمینی یافت نشد');
                 return false;
             }

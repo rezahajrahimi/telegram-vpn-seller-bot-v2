@@ -440,7 +440,8 @@ Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']);
 Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPaymentStatus']);
 
-Route::get('/prd', [CronJobController::class, 'calculate_product_category_price_in_dollar_by_toman']);
+Route::get('/prd', [CronJobController::class, 'execute_auto_delete_expired_configs']);
+
 Route::get('/create-backup-and-send-to-telegram', [BackupController::class, 'createBackupAndSendToTelegram']);
 
 
