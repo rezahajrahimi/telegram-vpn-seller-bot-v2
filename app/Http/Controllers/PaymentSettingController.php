@@ -57,7 +57,12 @@ class PaymentSettingController extends Controller
     public function getPaymentSettingByKey($key)
     {
         $paymentSetting = new PaymentSetting();
-        return $paymentSetting->getPaymentSettingByKey($key);
+        $data = $paymentSetting->getPaymentSettingByKey($key);
+        if (!$data) {
+            $this->seed();
+            $data = $paymentSetting->getPaymentSettingByKey($key);
+        }
+        return $data;
     }
     public function getPaymentSettingValueByKey($key)
     {
