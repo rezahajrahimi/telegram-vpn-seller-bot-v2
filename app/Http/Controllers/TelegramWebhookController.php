@@ -487,6 +487,7 @@ class TelegramWebhookController extends Controller
         $chatId          = $callbackQuery['from']['id'];
         $data            = $callbackQuery['data'];
         $callbackQueryId = $callbackQuery['id'];
+        \Log::info("handleCallbackQuery data=> {$data}");
         // checl is force replay
         $this->handleAwaitingReply($chatId, $data);
 
