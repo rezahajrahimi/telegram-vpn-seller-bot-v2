@@ -183,7 +183,7 @@ class AccountProcessController extends Controller
 
             if ($subAccounts->count() > 0) {
                 foreach ($subAccounts as $subAccount) {
-                    $text .= $subAccount->getReferralLogsText();
+                    $text .= $subAccount->getReferralLogsText() . "\n";
                 }
             } else {
                 $text = $this->customTextCtrl->getText('action.account.sub_accounts.no_sub_accounts');
@@ -228,8 +228,8 @@ class AccountProcessController extends Controller
                 ];
                 array_push($opr, $newOpr);
             }
-            
-            
+
+
             $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             if ($hasDollarPay == true || $hasDollarPay == 1) {
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
@@ -275,7 +275,7 @@ class AccountProcessController extends Controller
                     $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
                 }
 
-                
+
 
                 foreach ($offlinePayment as $key => $value) {
                     $opr[] = [
@@ -482,30 +482,30 @@ class AccountProcessController extends Controller
             $request = new Request();
             $request->amount = $text;
             $request->user_id = User::where('account_id', $chatId)->first()->id;
-            
+
             $shetabVerify_amount = $this->shetabVerifyCntrl->create_new_shetab_verify($request);
-            
+
             if ($shetabVerify_amount === null) {
                 \Log::error(["shetabVerify amount is null"]);
                 $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
                 return false;
             }
-            
+
             $merchant_id = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
             $messageText = $this->customTextCtrl->getText('action.process.shetab_verify.new_invoice', [
                 'merchant_id' => $merchant_id,
                 'amount' => $shetabVerify_amount,
             ]);
-            
+
             if (is_array($messageText)) {
                 $messageText = $this->telegramService->formatText($messageText);
             }
-            
+
             $this->telegramService->sendMessage($chatId, $messageText);
             $this->clearAwaitingReply($chatId, $messageText);
-            
+
             return "";
-            
+
         } catch (\Exception $e) {
             \Log::error("Error in processShetabVerification: " . $e);
             $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
