@@ -20,12 +20,12 @@ class ShetabVerifyController extends Controller
     }
     public function check_shetab_verify_status()
     {
-        $authCntrl             = new AuthController();
-        $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-        if ($getPowerPsLicenseType == 'free') {
-            \Log::info('You are not authorized to check the shetab verify status');
-            return false;
-        }
+        // $authCntrl             = new AuthController();
+        // $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+        // if ($getPowerPsLicenseType == 'free') {
+        //     \Log::info('You are not authorized to check the shetab verify status');
+        //     return false;
+        // }
 
         $shetabVerify = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('shetab_verify');
         return $shetabVerify;
@@ -33,11 +33,11 @@ class ShetabVerifyController extends Controller
     public function create_new_shetab_verify(Request $request)
     {
         // check license type in auth controller
-        $authCntrl             = new AuthController();
-        $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-        if ($getPowerPsLicenseType == 'free') {
-            return response()->json(['message' => 'You are not authorized to create a new shetab verify'], 401);
-        }
+        // $authCntrl             = new AuthController();
+        // $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+        // if ($getPowerPsLicenseType == 'free') {
+        //     return response()->json(['message' => 'You are not authorized to create a new shetab verify'], 401);
+        // }
         // check the amount it's not negative and not zero and not exist in shetab_verifies table where status is pending
         if ($request->amount <= 0) {
             return null;
