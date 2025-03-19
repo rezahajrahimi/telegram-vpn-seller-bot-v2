@@ -36,6 +36,7 @@ class SubscriptionProcessController extends Controller
     private TransactionSettingController $trSettingCntrl;
     private PaymentTypeController $pymntCntrl;
     private HiddifyPannelController $hiddifyPannelCntrl;
+    private PaymentSettingController $paymnetSettingCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService      = $telegramService;
@@ -54,6 +55,7 @@ class SubscriptionProcessController extends Controller
         $this->trSettingCntrl       = new TransactionSettingController();
         $this->pymntCntrl           = new PaymentTypeController();
         $this->hiddifyPannelCntrl   = new HiddifyPannelController();
+        $this->paymnetSettingCntrl  = new PaymentSettingController();
     }
 
     public function buySubscriptionMenu($chatId)
@@ -125,7 +127,7 @@ class SubscriptionProcessController extends Controller
             $prCat = $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
         }
         $opr               = [];
-        $dollarTransaction = $this->trSettingCntrl->getDollorTransactionSetting();
+        $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         $showOneRowConfig  = $this->advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
         if ($showOneRowConfig) {
             foreach ($prCat as $key => $value) {
@@ -218,7 +220,7 @@ class SubscriptionProcessController extends Controller
             }
 
             // بررسی پرداخت دلاری
-            $dollarTransaction = $this->trSettingCntrl->getDollorTransactionSetting();
+            $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             if ($dollarTransaction) {
                 $request->ballance = $productPriceInDollar;
                 $request->type     = 'dollar';
