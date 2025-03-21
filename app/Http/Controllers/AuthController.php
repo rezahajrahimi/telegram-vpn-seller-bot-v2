@@ -53,7 +53,7 @@ class AuthController extends Controller
                 return Cache::get($cacheKey);
             }
 
-            $hasLicense = Http::post('https://license-checker.chbk.app/api/checkLicense', [
+            $hasLicense = Http::post('https://license.powerps.ir/api/checkLicense', [
                 'name'     => 'Reza',
                 'type'     => "{$licenseType}",
                 'host'     => "{$host}",
