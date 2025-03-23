@@ -666,6 +666,10 @@ class GeneralController extends Controller
             }
         }
         $text = $this->customTextCtrl->getText('action.help.appDownload.app');
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
         $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
         return "";
     }
@@ -686,8 +690,10 @@ class GeneralController extends Controller
             'how_to_use'    => $how_to_use,
             'youtube_link'  => $youtube_link,
         ]);
-        $formatter = new TelegramMessageFormatter($this->telegramService);
-        $text      = $formatter->addFormattedText('', $text)->getMessage();
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
 
         $this->telegramService->sendMessage($chatId, $text);
         return "";

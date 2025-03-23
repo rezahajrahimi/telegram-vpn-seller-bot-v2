@@ -278,11 +278,13 @@ class AccountBallanceController extends Controller
             } else {
                 $agentPremissionCntrl = new AgentPermissonController();
                 $agentPr              = $agentPremissionCntrl->getUserPremission();
-                if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
-                    $data->ballance -= $ballance;
-                    $data->update();
-                    \Log::info("  $data->ballance");
-                    return true;
+                if ($agentPr != null) {
+                    if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
+                        $data->ballance -= $ballance;
+                        $data->update();
+                        \Log::info("  $data->ballance");
+                        return true;
+                    }
                 }
                 return false;
             }
