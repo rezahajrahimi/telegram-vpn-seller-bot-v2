@@ -171,7 +171,7 @@ class AccountBallanceController extends Controller
                 if ($user_role->role == 'agent') {
                     $is_agent         = true;
                     $agent_permission = AgentPermisson::where('account_id', $request->userID)->first();
-                    if ($agent_permission != null) {
+                    if (isset($agent_permission)) {
                         if ($agent_permission->minus_ballance == 1 || $agent_permission->minus_ballance == true) {
                             $minus_ballance_permission = true;
                         }
@@ -185,7 +185,7 @@ class AccountBallanceController extends Controller
             $ballance      = $request->ballance;
             $type          = $request->type;
             $accBallance   = AccountBallance::where('account_id', $userAccountID)->first();
-            if ($accBallance == null) {
+            if (isset($accBallance)) {
                 $newAcc                             = new AccountBallance();
                 $newAcc->account_id                 = $request->userID;
                 $newAcc->ballance                   = 0;
@@ -269,7 +269,6 @@ class AccountBallanceController extends Controller
             if ($data->ballance >= $ballance) {
                 $data->ballance -= $ballance;
                 $data->update();
-
                 return true;
             } elseif ($data->account_ballance_in_dollar >= $parice_in_dollar) {
                 $data->account_ballance_in_dollar -= doubleval($parice_in_dollar);
@@ -282,7 +281,6 @@ class AccountBallanceController extends Controller
                     if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
                         $data->ballance -= $ballance;
                         $data->update();
-                        \Log::info("  $data->ballance");
                         return true;
                     }
                 }

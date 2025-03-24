@@ -384,7 +384,6 @@ class AccountProcessController extends Controller
             if (! is_numeric($amount) || $amount <= 0) {
                 return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.invalid_amount'));
             }
-
             // پیدا کردن کاربر
             $botUser = BotUser::where('account_id', $user_id)->first();
             if ($botUser == null) {

@@ -134,7 +134,7 @@ class ReferralLogsController extends Controller
             }
             $referralLogs->amount = $request->amount;
             $referralLogs->transaction_id = $request->transaction_id ?? null;
-            $referralLogs->save(null,);
+            $referralLogs->save();
             return $referralLogs;
         } catch (\Throwable $th) {
             \Log::info("Throwable add_new_referral_logs: $th");

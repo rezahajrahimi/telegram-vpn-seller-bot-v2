@@ -11,7 +11,11 @@ class AgentPermissonController extends Controller
         try {
             $userId = auth()->user()->id;
 
-            return AgentPermisson::where('user_id', $userId)->first();
+            $data = AgentPermisson::where('user_id', $userId)->first();
+            if(isset($data)) {
+                return $data;
+            }
+            return null;
         } catch (\Throwable $th) {
             return null;
         }
