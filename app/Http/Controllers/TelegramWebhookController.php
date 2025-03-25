@@ -147,7 +147,6 @@ class TelegramWebhookController extends Controller
             if (str_starts_with(strtolower($text), 'charge') !== false) {
                 $actionList = explode('-', $text);
 
-                // return $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]);
                 return $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[2], $actionList[1]);
 
             }
