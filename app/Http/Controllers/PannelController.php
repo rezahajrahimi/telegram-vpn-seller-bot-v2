@@ -494,7 +494,6 @@ class PannelController extends Controller
     }
     public function createMarzbanUser($accountId, $day, $vol, $pannelID)
     {
-        \Log::info("accountIdaaaaaaaaaaaaaaaaaaaaaaaa:$accountId");
         // try {
         $panel = Pannel::find($pannelID);
         $token = $panel->token;

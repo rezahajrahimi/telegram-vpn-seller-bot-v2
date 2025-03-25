@@ -814,7 +814,7 @@ class GeneralController extends Controller
                 $this->telegramService->sendMessage($chatId, $text);
                 return "";
             }
-            $reualt = $usedGiftCntrl->addGiftCardToUserAccount($giftCard->id, $chatId, $giftCard);
+            $reualt = $usedGiftCntrl->addGiftCardToUserAccount($giftCard->id, $chatId, $giftCard->code);
             if ($reualt) {
                 $text = $this->customTextCtrl->getText('action.help.giftCard.success');
                 $this->telegramService->sendMessage($chatId, $text);

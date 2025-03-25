@@ -1,11 +1,10 @@
 <?php
-
 namespace App\Http\Controllers;
-use App\Models\GiftCard;
-use Verta;
-use Carbon\Carbon;
 
+use App\Models\GiftCard;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Verta;
 
 class GiftCardController extends Controller
 {
@@ -15,12 +14,12 @@ class GiftCardController extends Controller
         if ($giftCard) {
             return response()->json('duplicate', 401);
         } else {
-            $giftCard = new GiftCard();
-            $giftCard->code = $request->code;
-            $giftCard->start_date = $request->start_date;
-            $giftCard->end_date = $request->end_date;
-            $giftCard->discount = $request->discount;
-            $giftCard->count_of_use = $request->count_of_use;
+            $giftCard                        = new GiftCard();
+            $giftCard->code                  = $request->code;
+            $giftCard->start_date            = $request->start_date;
+            $giftCard->end_date              = $request->end_date;
+            $giftCard->discount              = $request->discount;
+            $giftCard->count_of_use          = $request->count_of_use;
             $giftCard->count_of_use_per_user = $request->count_of_use_per_user;
             $giftCard->save();
             return $giftCard;
@@ -34,11 +33,11 @@ class GiftCardController extends Controller
     {
         $giftCard = GiftCard::where('code', $request->code)->first();
         if ($giftCard) {
-            $giftCard->code = $request->code;
-            $giftCard->start_date = $request->start_date;
-            $giftCard->end_date = $request->end_date;
-            $giftCard->discount = $request->discount;
-            $giftCard->count_of_use = $request->count_of_use;
+            $giftCard->code                  = $request->code;
+            $giftCard->start_date            = $request->start_date;
+            $giftCard->end_date              = $request->end_date;
+            $giftCard->discount              = $request->discount;
+            $giftCard->count_of_use          = $request->count_of_use;
             $giftCard->count_of_use_per_user = $request->count_of_use_per_user;
             $giftCard->update();
             return true;
@@ -48,25 +47,34 @@ class GiftCardController extends Controller
     }
     public function checkGiftCardActive($code, $usedCount)
     {
-        $giftCard = GiftCard::where('code', $code)->first();
+        try {
+            $giftCard = GiftCard::where('code', $code)->first();
 
-        if ($giftCard) {
-            $today = new \DateTime(); // Today's date
-            $giftCardDateBegin = new \DateTime($giftCard->start_date);
-            $giftCardDateEnd = new \DateTime($giftCard->end_date);
+            if (isset($giftCard)) {
+                $today             = new \DateTime(); // Today's date
+                $giftCardDateBegin = new \DateTime($giftCard->start_date);
+                $giftCardDateEnd   = new \DateTime($giftCard->end_date);
 
-            if ($today >= $giftCardDateBegin && $today <= $giftCardDateEnd) {
-                if ($giftCard->count_of_use >= $usedCount) {
-                    return true;
+                if ($today >= $giftCardDateBegin && $today <= $giftCardDateEnd) {
+
+                    if ($giftCard->count_of_use >= $usedCount) {
+
+                        return true;
+                    }
+
+                    return false;
                 }
 
                 return false;
             }
 
             return false;
+        } catch (\Throwable $th) {
+            \Log::info("th => $th");
+            return false;
+
         }
 
-        return false;
     }
     public function getGiftCardByCode($code)
     {
@@ -102,11 +110,11 @@ class GiftCardController extends Controller
                 $m = $v[1];
                 $d = $v[2];
 
-                $newDat = Verta::jalaliToGregorian($y, $m, $d);
-                $car = new Carbon();
-                $car->year = $newDat[0];
+                $newDat     = Verta::jalaliToGregorian($y, $m, $d);
+                $car        = new Carbon();
+                $car->year  = $newDat[0];
                 $car->month = $newDat[1];
-                $car->day = $newDat[2];
+                $car->day   = $newDat[2];
                 return $car;
             } else {
                 return null;
@@ -118,11 +126,11 @@ class GiftCardController extends Controller
                 $m = $v[1];
                 $d = $v[2];
 
-                $newDat = Verta::jalaliToGregorian($y, $m, $d);
-                $car = new Carbon();
-                $car->year = $newDat[0];
+                $newDat     = Verta::jalaliToGregorian($y, $m, $d);
+                $car        = new Carbon();
+                $car->year  = $newDat[0];
                 $car->month = $newDat[1];
-                $car->day = $newDat[2];
+                $car->day   = $newDat[2];
                 return $car;
             } else {
                 return null;
