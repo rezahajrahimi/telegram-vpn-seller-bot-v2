@@ -413,9 +413,9 @@ class TelegramWebhookController extends Controller
                 'website'  => 'https://powerps.ir',
             ]);
             if (is_array($welcomeFormats)) {
-                // use format text service
                 $welcomeFormats = $this->telegramService->formatText($welcomeFormats);
             }
+           
             $this->generalCntrl->return_main_menu_items($chatId, $welcomeFormats);
             return '';
 

@@ -440,11 +440,7 @@ class CronJobController extends Controller
         foreach ($pannel as $key => $value) {
             $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
             // تبدیل Response به آرایه
-            // $users = json_decode($usersResponse->getContent(), true);
-
-            if (! is_array($usersResponse)) {
-                continue;
-            }
+          
 
             foreach ($usersResponse as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
