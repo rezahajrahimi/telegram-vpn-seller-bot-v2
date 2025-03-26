@@ -140,14 +140,14 @@ class TelegramWebhookController extends Controller
             $chatId = $this->getCurrentChatId();
             $this->generalCntrl->return_main_menu_items($chatId, $text);
             // check if text is a gift card
-            if (str_starts_with($text, 'giftCard-')) {
+            if (str_starts_with(strtolower($text), 'giftcard-')) {
                 $this->generalCntrl->subGiftCard($chatId, $text);
                 return "";
             }
             if (str_starts_with(strtolower($text), 'charge') !== false) {
                 $actionList = explode('-', $text);
 
-                return $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]);
+                return $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[2], $actionList[1]);
 
             }
             if (str_starts_with(strtolower($text), 'block') !== false) {
@@ -487,6 +487,7 @@ class TelegramWebhookController extends Controller
         $chatId          = $callbackQuery['from']['id'];
         $data            = $callbackQuery['data'];
         $callbackQueryId = $callbackQuery['id'];
+        \Log::info("handleCallbackQuery data=> {$data}");
         // checl is force replay
         $this->handleAwaitingReply($chatId, $data);
 
@@ -517,6 +518,8 @@ class TelegramWebhookController extends Controller
             'giftCard' => $this->generalCntrl->subGiftCard($chatId, $actionList[1]),
             'referral' => $this->generalCntrl->subReferral($chatId),
             'charge' => $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]),
+            'shetabVerify' => $this->accountProcessCtrl->handleActionAddBalanceShetabVerify($chatId, $actionList[1]),
+            'shetabVerifyAuto' => $this->accountProcessCtrl->processShetabVerification($chatId, $actionList[1]),
 
             default => $this->customTextCtrl->getText('error.action.not_found')
         };

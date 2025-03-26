@@ -10,11 +10,12 @@ use App\Services\TelegramMessageFormatter;
 
 // add BotUser model
 use App\Services\TelegramService;
-use Hekmatinasser\Verta\Verta;
-use Illuminate\Http\Request;
-// add cache
-use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
+use Hekmatinasser\Verta\Verta;
+// add cache
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+
 class SubscriptionProcessController extends Controller
 {
     private $chatId;
@@ -35,6 +36,7 @@ class SubscriptionProcessController extends Controller
     private TransactionSettingController $trSettingCntrl;
     private PaymentTypeController $pymntCntrl;
     private HiddifyPannelController $hiddifyPannelCntrl;
+    private PaymentSettingController $paymnetSettingCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService      = $telegramService;
@@ -53,6 +55,7 @@ class SubscriptionProcessController extends Controller
         $this->trSettingCntrl       = new TransactionSettingController();
         $this->pymntCntrl           = new PaymentTypeController();
         $this->hiddifyPannelCntrl   = new HiddifyPannelController();
+        $this->paymnetSettingCntrl  = new PaymentSettingController();
     }
 
     public function buySubscriptionMenu($chatId)
@@ -102,9 +105,8 @@ class SubscriptionProcessController extends Controller
             $this->chatId  = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
             $this->addNewBotLog('subscription', 'وارد بخش خرید اشتراک بر اساس لوکیشن شد.', 'show');
-            $text    = $this->customTextCtrl->getText('action.buy_subscription_by_location.location');
-            $panelId = $this->panelCntrl->get_pannel_id_by_location($location);
-
+            $text       = $this->customTextCtrl->getText('action.buy_subscription_by_location.location');
+            $panelId    = $this->panelCntrl->get_pannel_id_by_location($location);
             $prCatCntrl = new ProductCategoryController();
             $prCat      = $prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
 
@@ -118,12 +120,14 @@ class SubscriptionProcessController extends Controller
             return "";
         }
     }
-    public function prepareSubscriptionButtons()
+    public function prepareSubscriptionButtons($prCat = null)
     {
-        $text              = $this->customTextCtrl->getText('action.buy_subscription.select_package');
-        $prCat             = $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
+        $text = $this->customTextCtrl->getText('action.buy_subscription.select_package');
+        if ($prCat == null) {
+            $prCat = $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
+        }
         $opr               = [];
-        $dollarTransaction = $this->trSettingCntrl->getDollorTransactionSetting();
+        $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         $showOneRowConfig  = $this->advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
         if ($showOneRowConfig) {
             foreach ($prCat as $key => $value) {
@@ -216,7 +220,7 @@ class SubscriptionProcessController extends Controller
             }
 
             // بررسی پرداخت دلاری
-            $dollarTransaction = $this->trSettingCntrl->getDollorTransactionSetting();
+            $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             if ($dollarTransaction) {
                 $request->ballance = $productPriceInDollar;
                 $request->type     = 'dollar';
@@ -482,11 +486,9 @@ class SubscriptionProcessController extends Controller
                     $package_days = intval($package_days);
                     $expireDate   = Carbon::parse($startDate);
                     $expireDate->addDays($package_days);
-        
+
                     $expireDate = $expireDate->toJalali()->format('Y.m.d');
                     $startDate  = $startDate->toJalali()->format('Y.m.d');
-        
-
 
                     $text      = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $product->remark, 'category_name' => $prCat->category_name, 'panel_link' => $userPannelLink, 'subscription_link' => $userSubscriptionLInk, 'start_date' => $startDate, 'expire_date' => $expireDate, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText]);
                     $formatter = new TelegramMessageFormatter($this->telegramService);
@@ -524,13 +526,13 @@ class SubscriptionProcessController extends Controller
 
             // chcek product cat is rechargeable or not
             if ($prCat->rechargable == false || $prCat->rechargable == 0) {
-                $text    = $this->customTextCtrl->getText('error.product_not_rechargeable');
+                $text = $this->customTextCtrl->getText('error.product_not_rechargeable');
                 $this->telegramService->sendMessage($this->chatId, $text);
                 return "";
             }
             // check selectedPrCat is اکانت آزمایشی or not
             if ($prCat->category_name == 'اکانت آزمایشی' || $prCat->is_active == false || $prCat->is_active == 0) {
-                $text    = $this->customTextCtrl->getText('error.product_not_rechargeable');
+                $text = $this->customTextCtrl->getText('error.product_not_rechargeable');
                 $this->telegramService->sendMessage($this->chatId, $text);
                 return "";
             }
@@ -568,7 +570,7 @@ class SubscriptionProcessController extends Controller
                 if ($updateRemark->getStatusCode() == 200) {
                     $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
 
-                    $text    = $this->customTextCtrl->getText('action.recharge.success');
+                    $text = $this->customTextCtrl->getText('action.recharge.success');
                     $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
                     $this->telegramService->sendMessage($this->chatId, $text);
                     return "";

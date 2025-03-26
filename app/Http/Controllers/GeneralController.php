@@ -29,7 +29,7 @@ class GeneralController extends Controller
     private BillController $billCntrl;
     private MainMenuItem $mainMenuItem;
     private ProductCategory $productCategory;
-    private TransactionSetting $trSetting;
+    private PaymentSettingController $paymnetSettingCntrl;
     private ChannelLockMenuItemController $channelLockMenuItemCntrl;
     private CronJobController $cronJobCntrl;
     private GiftCardMenuItemController $giftCardMenuItemCntrl;
@@ -50,7 +50,7 @@ class GeneralController extends Controller
         $this->billCntrl                = new BillController();
         $this->mainMenuItem             = new MainMenuItem();
         $this->productCategory          = new ProductCategory();
-        $this->trSetting                = new TransactionSetting();
+        $this->paymnetSettingCntrl      = new PaymentSettingController();
         $this->trSettingCntrl           = new TransactionSettingController();
         $this->channelLockMenuItemCntrl = new ChannelLockMenuItemController();
         $this->cronJobCntrl             = new CronJobController();
@@ -430,7 +430,7 @@ class GeneralController extends Controller
             $productPriceInToman   = $productPriceInToman . ' تومان';
             $mainDiffrenceInDollar = $diffrence_in_dollar = 0.00;
 
-            $dollarTransaction = $this->trSetting->getDollarTransactionSetting();
+            $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             $text              = '';
             if ($dollarTransaction == true || $dollarTransaction == 1) {
                 $productPriceInDollar    = $productCategory->price_in_dollar;
@@ -486,7 +486,7 @@ class GeneralController extends Controller
             array_push($opr, $newOpr);
         }
 
-        $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
+        $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         if ($hasDollarPay == true || $hasDollarPay == 1) {
             $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
             array_push($opr, $newOpr);
@@ -498,8 +498,8 @@ class GeneralController extends Controller
         }
 
         // send offline item
-        $opr = [];
-
+        // check for shetab verify and if it is active then add it to the offline payment
+    
         $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
         if ($offlinePayment != null) {
             if ($hasZarinPal == true || $hasZarinPal == 1 || $hasDollarPay == true || $hasDollarPay == 1) {
@@ -516,7 +516,20 @@ class GeneralController extends Controller
                 }
             }
 
+            // clear $opr
             $opr = [];
+            $shetabVerify = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('shetab_verify');
+            if ($shetabVerify == true || $shetabVerify == 1) {
+                $shetabVerify_text = $this->customTextCtrl->getText('action.process.add_online_balance.shetab_verify');
+                if (is_array($shetabVerify_text)) {
+                    // use format text service
+                    $shetabVerify_text = $this->telegramService->formatText($shetabVerify_text);
+                }
+                $opr[] = [
+                    $shetabVerify_text => "shetabVerifyAuto-{$estimatedPrice}"
+                ];
+            }
+    
 
             foreach ($offlinePayment as $key => $value) {
                 $opr[] = [
@@ -527,7 +540,7 @@ class GeneralController extends Controller
         }
 
         $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
-        return true;
+        return "";
 
     }
     public function createZarinpalPaymentLink($chat_id, $estimatedPrice)
@@ -653,6 +666,10 @@ class GeneralController extends Controller
             }
         }
         $text = $this->customTextCtrl->getText('action.help.appDownload.app');
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
         $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
         return "";
     }
@@ -673,8 +690,10 @@ class GeneralController extends Controller
             'how_to_use'    => $how_to_use,
             'youtube_link'  => $youtube_link,
         ]);
-        $formatter = new TelegramMessageFormatter($this->telegramService);
-        $text      = $formatter->addFormattedText('', $text)->getMessage();
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
 
         $this->telegramService->sendMessage($chatId, $text);
         return "";
@@ -795,7 +814,7 @@ class GeneralController extends Controller
                 $this->telegramService->sendMessage($chatId, $text);
                 return "";
             }
-            $reualt = $usedGiftCntrl->addGiftCardToUserAccount($giftCard->id, $chatId, $giftCard);
+            $reualt = $usedGiftCntrl->addGiftCardToUserAccount($giftCard->id, $chatId, $giftCard->code);
             if ($reualt) {
                 $text = $this->customTextCtrl->getText('action.help.giftCard.success');
                 $this->telegramService->sendMessage($chatId, $text);

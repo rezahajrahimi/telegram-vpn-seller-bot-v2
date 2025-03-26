@@ -25,6 +25,10 @@ class AuthController extends Controller
         $this->telegramService = new TelegramService();
         $this->customText = new CustomTextController();
     }
+    public function me()
+    {
+        return response()->json(auth('sanctum')->user());
+    }
     public function getHostName()
     {
 
@@ -40,16 +44,16 @@ class AuthController extends Controller
             $host = $this->getHostName();
             $licenseType = 'gold';
             $adminId = env('TELEGRAM_ADMIN_ID');
-            
+
             // ایجاد کلید منحصر به فرد برای کش
             $cacheKey = "license_check:{$host}:{$licenseType}";
-            
+
             // چک کردن وجود داده در کش
             if (Cache::has($cacheKey)) {
                 return Cache::get($cacheKey);
             }
 
-            $hasLicense = Http::post('https://license-checker.chbk.app/api/checkLicense', [
+            $hasLicense = Http::post('https://license.powerps.ir/api/checkLicense', [
                 'name'     => 'Reza',
                 'type'     => "{$licenseType}",
                 'host'     => "{$host}",
@@ -65,7 +69,7 @@ class AuthController extends Controller
             $result = $hasLicense->json()['data']['account_type'];
             // ذخیره نتیجه مثبت در کش برای 13 دقیقه
             Cache::put($cacheKey, $result, 780);
-            
+
             return $result;
         }
     }
@@ -209,7 +213,7 @@ class AuthController extends Controller
         $message   = $formatter->addFormattedText('', $text)->getMessage();
 
         $this->telegramService->sendMessage($user_id, $message);
-        $text = $this->customText->getText('action.web.auto_login_link');   
+        $text = $this->customText->getText('action.web.auto_login_link');
         $link = "{$frontUrl}/#/login/{$user_id}/{$user_password}";
 
          $opr = [

@@ -11,6 +11,8 @@ use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 // add cache
 use Illuminate\Support\Facades\Cache;
+// add Request
+use Illuminate\Http\Request;
 
 // add cache
 
@@ -28,12 +30,13 @@ class AccountProcessController extends Controller
     private AccountBallanceController $accBlCtrl;
     private BotUser $botUser;
     private LogController $logCtrl;
-    private TransactionSetting $trSetting;
     private $chatId;
     private TransactionController $trCntrl;
     private TransactionSettingController $trSettingCntrl;
     private PaymentTypeController $pymntCntrl;
     private PaymentMenuItemController $pymMenCntrl;
+    private PaymentSettingController $paymnetSettingCntrl;
+    private ShetabVerifyController $shetabVerifyCntrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService         = $telegramService;
@@ -49,8 +52,8 @@ class AccountProcessController extends Controller
         $this->pymntCntrl              = new PaymentTypeController();
         $this->pymMenCntrl             = new PaymentMenuItemController();
         $this->trCntrl                 = new TransactionController();
-        $this->trSetting               = new TransactionSetting();
-
+        $this->paymnetSettingCntrl     = new PaymentSettingController();
+        $this->shetabVerifyCntrl       = new ShetabVerifyController();
     }
     public function accountDetails($chatId)
     {
@@ -180,7 +183,7 @@ class AccountProcessController extends Controller
 
             if ($subAccounts->count() > 0) {
                 foreach ($subAccounts as $subAccount) {
-                    $text .= $subAccount->getReferralLogsText();
+                    $text .= $subAccount->getReferralLogsText() . "\n";
                 }
             } else {
                 $text = $this->customTextCtrl->getText('action.account.sub_accounts.no_sub_accounts');
@@ -226,7 +229,8 @@ class AccountProcessController extends Controller
                 array_push($opr, $newOpr);
             }
 
-            $hasDollarPay = $this->trSetting->getDollarTransactionSetting();
+
+            $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             if ($hasDollarPay == true || $hasDollarPay == 1) {
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
                 if (is_array($text)) {
@@ -247,6 +251,21 @@ class AccountProcessController extends Controller
 
 // send offline item
             $opr = [];
+            // check payment setting for shetab verify
+            $shetabVerifyStatus = $this->shetabVerifyCntrl->check_shetab_verify_status();
+            if ($shetabVerifyStatus == true || $shetabVerifyStatus == 1) {
+                // $text = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
+                $text = $this->customTextCtrl->getText('action.process.add_online_balance.shetab_verify');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
+                $opr[] = [
+                    $text => "shetabVerify-addBalance",
+                ];
+            }
+
+
 
             $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
             if ($offlinePayment != null) {
@@ -256,7 +275,7 @@ class AccountProcessController extends Controller
                     $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option');
                 }
 
-                $opr = [];
+
 
                 foreach ($offlinePayment as $key => $value) {
                     $opr[] = [
@@ -336,6 +355,10 @@ class AccountProcessController extends Controller
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.nowpayments.reply.invoice'), $opr);
                 return "";
 
+            } elseif ($paymentType == "shetab_verify") {
+                // create a new invoice with amount
+                $this->processShetabVerification($chatId, $text);
+                return "";
             }
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
             return "";
@@ -345,6 +368,7 @@ class AccountProcessController extends Controller
             return "";
         }
     }
+
     public function adminFastCharge($chat_id, $amount, $user_id)
     {
         try {
@@ -360,7 +384,6 @@ class AccountProcessController extends Controller
             if (! is_numeric($amount) || $amount <= 0) {
                 return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.invalid_amount'));
             }
-
             // پیدا کردن کاربر
             $botUser = BotUser::where('account_id', $user_id)->first();
             if ($botUser == null) {
@@ -384,6 +407,21 @@ class AccountProcessController extends Controller
         } catch (\Throwable $th) {
             \Log::error(["adminFastCharge: " . $th]);
             $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
+    }
+    public function handleActionAddBalanceShetabVerify(string $chatId, string $text)
+    {
+        try {
+            $this->chatId = $chatId;
+            $this->setAwaitingReply($chatId, 'add_balance_reply', 'shetab_verify');
+            $this->telegramService->forceReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.shetab_verify.reply'));
+            return "";
+
+
+        } catch (\Throwable $th) {
+            \Log::error(["handleActionAddBalanceShetabVerify: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }
     }
@@ -435,6 +473,45 @@ class AccountProcessController extends Controller
         $logCtrl = new LogController();
         $this->logCtrl->addNewLog($type, $message, $this->chatId, $this->botUser->username, $event);
         return true;
+    }
+
+    public function processShetabVerification($chatId, $text)
+    {
+        try {
+            $request = new Request();
+            $request->amount = $text;
+            $request->user_id = User::where('account_id', $chatId)->first()->id;
+
+            $shetabVerify_amount = $this->shetabVerifyCntrl->create_new_shetab_verify($request);
+
+            if ($shetabVerify_amount === null) {
+                \Log::error(["shetabVerify amount is null"]);
+                $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+                return false;
+            }
+
+            $merchant_id = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
+            $messageText = $this->customTextCtrl->getText('action.process.shetab_verify.new_invoice', [
+                'merchant_id' => $merchant_id,
+                'amount' => $shetabVerify_amount,
+            ]);
+
+            if (is_array($messageText)) {
+                $messageText = $this->telegramService->formatText($messageText);
+            }
+
+            $this->telegramService->sendMessage($chatId, $messageText);
+            $this->clearAwaitingReply($chatId, $messageText);
+
+            return "";
+
+        } catch (\Exception $e) {
+            \Log::error("Error in processShetabVerification: " . $e);
+            $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+
+            return false;
+        }
     }
 
 }

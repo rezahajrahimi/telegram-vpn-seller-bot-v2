@@ -134,7 +134,7 @@ class ReferralLogsController extends Controller
             }
             $referralLogs->amount = $request->amount;
             $referralLogs->transaction_id = $request->transaction_id ?? null;
-            $referralLogs->save(null,);
+            $referralLogs->save();
             return $referralLogs;
         } catch (\Throwable $th) {
             \Log::info("Throwable add_new_referral_logs: $th");
@@ -158,8 +158,10 @@ class ReferralLogsController extends Controller
                     $transaction = Transaction::find($transaction_id);
 
                     $referredUser = User::where('account_id', $transaction->account_id)->first()->id;
-
-                     $refferId = ReferralLogs::where('referral_to_id', $referredUser )->first()->referral_user_id;
+                    if ($referredUser == null) {
+                        return null;
+                    }
+                    $refferId = ReferralLogs::where('referral_to_id', $referredUser )->first()->referral_user_id;
                     // get refer percent
                     $referralSettingCntrl = new ReferralSettingController();
                     $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();

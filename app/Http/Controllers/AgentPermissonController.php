@@ -11,7 +11,11 @@ class AgentPermissonController extends Controller
         try {
             $userId = auth()->user()->id;
 
-            return AgentPermisson::where('user_id', $userId)->first();
+            $data = AgentPermisson::where('user_id', $userId)->first();
+            if(isset($data)) {
+                return $data;
+            }
+            return null;
         } catch (\Throwable $th) {
             return null;
         }
@@ -66,6 +70,9 @@ class AgentPermissonController extends Controller
     {
         try {
             $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
+            if ($agentPermisson == null) {
+                return response()->json(false, 404);
+            }
             $agentPermisson->delete();
             return response()->json(true, 200);
         } catch (\Throwable $th) {

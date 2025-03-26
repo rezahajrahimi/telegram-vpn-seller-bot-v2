@@ -30,7 +30,7 @@ use App\Http\Controllers\TestAccountController;
 use App\Http\Controllers\BillController;
 use App\Http\Controllers\CryptoPaymentController;
 use App\Http\Controllers\TransactionCryptoController;
-use App\Http\Controllers\TransactionSettingController;
+use App\Http\Controllers\PaymentSettingController;
 use App\Http\Controllers\AgentProductController;
 use App\Http\Controllers\AgentPermissonController;
 use App\Http\Controllers\ExecuteArtisanCommandController;
@@ -45,6 +45,7 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\BlockedUserController;
+use App\Http\Controllers\ShetabVerifyController;
 
 
 use Illuminate\Http\Request;
@@ -74,7 +75,11 @@ Route::post('/forgetPassword', [AuthController::class, 'forgetPassword']);
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-
+Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
+    return $request->user();
+});
+// /auth/me
+Route::get('/auth/me', [AuthController::class, 'me']);
 // Admin Routes
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function () {
     // run a command by api
@@ -90,7 +95,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     // backup
     Route::get('createBackup', [BackupController::class, 'createBackup']);
     Route::post('restoreBackup', [BackupController::class, 'restoreBackup']);
-
+    Route::get('testDatabaseConnection', [BackupController::class, 'testDatabaseConnection']);
+    Route::get('testMysqldump', [BackupController::class, 'testMysqldump']);
+    Route::get('createBackupWithPHP', [BackupController::class, 'createBackupWithPHP']);
 
     // UserController
     Route::get('getUsers', [UserController::class, 'getUsers']);
@@ -287,9 +294,16 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     // CryptoPaymentController
     Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
     Route::patch('updateNowPayment', [CryptoPaymentController::class, 'updateNowPayment']);
-    // TransactionSettingController
-    Route::get('getDollorTransactionSetting', [TransactionSettingController::class, 'getDollorTransactionSetting']);
-    Route::patch('setDollorTransactionSetting', [TransactionSettingController::class, 'setDollorTransactionSetting']);
+    // PaymentSettingController
+    Route::get('get-payment-setting-by-key/{key}', [PaymentSettingController::class, 'getPaymentSettingByKey']);
+    Route::get('get-payment-setting-value-by-key/{key}', [PaymentSettingController::class, 'getPaymentSettingValueByKey']);
+    Route::get('get-payment-setting-description-by-key/{key}', [PaymentSettingController::class, 'getPaymentSettingDescriptionByKey']);
+    Route::get('reverse-status-by-key/{key}', [PaymentSettingController::class, 'reverseStatusByKey']);
+    Route::get('seed-payment-setting', [PaymentSettingController::class, 'seed']);
+    Route::get('re-generate-shetab-verify', [PaymentSettingController::class, 'reGenerateShetabVerify']);
+    Route::patch('set-payment-setting-value-by-key/{key}/{value}', [PaymentSettingController::class, 'setPaymentSettingValueByKey']);
+    Route::patch('set-payment-setting-description-by-key/{key}/{description}', [PaymentSettingController::class, 'setPaymentSettingDescriptionByKey']);
+    Route::patch('set-payment-setting-status-by-key/{key}/{status}', [PaymentSettingController::class, 'setPaymentSettingStatusByKey']);
 
     // AgentProductController
     Route::post('createBatchOfUserAgentProduct', [AgentProductController::class, 'createBatchOfUserAgentProduct']);
@@ -426,9 +440,12 @@ Route::get('/order', [TransactionController::class, 'order']);
 Route::get('/orderSuccess', [TransactionCryptoController::class, 'orderSuccess']);
 Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPaymentStatus']);
 
-Route::get('/prd', [CronJobController::class, 'calculate_product_category_price_in_dollar_by_toman']);
+Route::get('/prd', [CronJobController::class, 'execute_auto_delete_expired_configs']);
+
+Route::get('/create-backup-and-send-to-telegram', [BackupController::class, 'createBackupAndSendToTelegram']);
 
 
 Route::post('/orderch', [TransactionController::class, 'add_order']);
 
+Route::post('/shetab-verify', [ShetabVerifyController::class, 'validate_shetab_verify']);
 

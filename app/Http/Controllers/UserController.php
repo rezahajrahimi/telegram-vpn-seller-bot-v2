@@ -107,18 +107,24 @@ class UserController extends Controller
     }
     public function changeAgentRoleToUser($id)
     {
-        $user = User::find($id);
-        if (!$user) {
+        try {
+            $user = User::find($id);
+            if (!$user) {
             return null;
         }
         // checl if user_account_id is not null and is not equal to TELEGRAM_ADMIN_ID in .env
-        if ($user->account_id != env('TELEGRAM_ADMIN_ID')) {
-            return null;
-        }
+            if ($user->role != 'agent') {
+                \Log::info("user {$user->id} is  not agent");
+                return null;
+            }
 
-        $user->role = 'user';
-        $user->update();
-        return true;
+            $user->role = 'user';
+            $user->update();
+            return true;
+        } catch (\Throwable $th) {
+            \Log::info("throw $th");
+            return false;
+        }
     }
     public function change_user_role_to_user($id)
     {

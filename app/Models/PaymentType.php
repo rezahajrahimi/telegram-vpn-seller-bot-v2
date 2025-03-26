@@ -21,4 +21,5 @@ class PaymentType extends Model
         return $this->hasMany(Transaction::class, 'payment_type_id');
     }
 
+
 }
