@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TransactionCryptoController;
 use App\Http\Controllers\ExecuteArtisanCommandController;
-use App\Http\Controllers\CryptomusController; // added this line
+use App\Http\Controllers\CryptomusController; // Added this line
 use Illuminate\Http\Request;
 
 /*
@@ -24,7 +24,7 @@ Route::get('/', function () {
 Route::get('buy/{account_id}/{invoiceID}/{price}', function ($account_id, $invoiceID, $price) {
     return view('shop', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
 });
-Route::post('shop', [TransactionController::class, 'add_order']); // for zarinpal
+Route::post('shop', [TransactionController::class, 'add_order'])->name('shop.submit'); // for zarinpal
 
 Route::get('order', function (Request $request) {
 
@@ -37,11 +37,11 @@ Route::get('/pay', [App\Http\Controllers\NowPaymentsController::class, 'createCr
 
 Route::get('cryptopayment/{account_id}/{invoiceID}/{price}', function ($account_id, $invoiceID, $price) {
     return view('crypto', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
-});
-
-Route::post('cryptogateway', [TransactionCryptoController::class, 'add_order_crypto_by_nowpayment']); // fornowpayments
-// back mowpayments
-// Route::post('/orderSuccess', [App\Http\Controllers\TransactionCryptoController::class, 'orderSuccess']);
+ });
+ 
+ Route::post('cryptogateway', [TransactionCryptoController::class, 'initiateCryptoPayment'])->name('crypto.initiate'); // Changed target method
+ // back mowpayments
+ // Route::post('/orderSuccess', [App\Http\Controllers\TransactionCryptoController::class, 'orderSuccess']);
 
 Route::get('/payback', function () {
     $transaction_id = request()->query('NP_id');
@@ -52,7 +52,12 @@ Route::get('/cancelpay', function () {
     return "پرداخت شما لغو شد.";
 });
 
-// crytomous
+// Cryptomus Routes
+Route::post('/cryptomus/create', [CryptomusController::class, 'createPayment'])->name('cryptomus.create');
+Route::post('/cryptomus/callback', [CryptomusController::class, 'handleCallback'])->name('cryptomus.callback'); // Needs CSRF exemption
+Route::get('/payment/success', [CryptomusController::class, 'paymentSuccess'])->name('payment.success');
+Route::get('/payment/return', [CryptomusController::class, 'paymentReturn'])->name('payment.return');
+
 
 // run command by url
 Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);

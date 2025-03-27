@@ -27,6 +27,11 @@ class PaymentTypeController extends Controller
             $data->type = 'offline';
             $data->merchant_id = '0000-0000-0000-0000';
             $data->save();
+            $data = new PaymentType();
+            $data->name = 'cryptomus';
+            $data->type = 'online';
+            $data->merchant_id = '0000-0000-0000-0000';
+            $data->save();
         }
 
     }
