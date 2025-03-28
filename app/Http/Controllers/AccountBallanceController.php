@@ -156,7 +156,8 @@ class AccountBallanceController extends Controller
             $is_admin                  = false;
             $is_agent                  = false;
             $minus_ballance_permission = false;
-            $minus_ballance_permission       = $request->is_request_by_admin ?? false;
+            $minus_ballance_permission = $request->is_request_by_admin ?? false;
+            $isReqByAdmin              = $request->is_request_by_admin ?? false;
             if ($user == null) {
                 $user = BotUser::where('account_id', $request->userID)->first();
                 if ($user == null) {
@@ -170,7 +171,7 @@ class AccountBallanceController extends Controller
                 }
                 if ($user_role->role == 'agent') {
                     $is_agent         = true;
-                    $agent_permission = AgentPermisson::where('account_id', $request->userID)->first();
+                    $agent_permission = AgentPermisson::where('user_id', $user->account_id)->first();
                     if (isset($agent_permission)) {
                         if ($agent_permission->minus_ballance == 1 || $agent_permission->minus_ballance == true) {
                             $minus_ballance_permission = true;
@@ -178,6 +179,7 @@ class AccountBallanceController extends Controller
                     }
                 }
             } else {
+                \Log::info("user_role $user_role->id");
                 return false;
             }
 
@@ -185,7 +187,7 @@ class AccountBallanceController extends Controller
             $ballance      = $request->ballance;
             $type          = $request->type;
             $accBallance   = AccountBallance::where('account_id', $userAccountID)->first();
-            if (isset($accBallance)) {
+            if (!isset($accBallance)) {
                 $newAcc                             = new AccountBallance();
                 $newAcc->account_id                 = $request->userID;
                 $newAcc->ballance                   = 0;
@@ -206,13 +208,16 @@ class AccountBallanceController extends Controller
                     $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
                     return $accBallance->ballance;
                 } else {
-                    if ($is_admin || $minus_ballance_permission) {
+                    // get auth user role for checking this requerst sent by admin
+                    if ($is_admin || $minus_ballance_permission || $isReqByAdmin) {
                         $accBallance->ballance -= $ballance;
                         $accBallance->update();
                         $logCtrl = new LogController();
                         $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
                         return $accBallance->ballance;
                     }
+                    \Log::info("message 555555555555");
+
                     return false;
                 }
             } elseif ($type == 'dollar') {
@@ -230,11 +235,17 @@ class AccountBallanceController extends Controller
                         $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
                         return $accBallance->account_ballance_in_dollar;
                     }
+                    \Log::info("message 233333333333");
+
                     return false;
                 }
             }
+            \Log::info("message 4444444444444444");
+
             return false;
         } catch (\Throwable $th) {
+            \Log::info("message 2222222222222222222");
+
             \Log::info("message $th");
             return response()->json(null, 500);
         }
