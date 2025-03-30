@@ -60,4 +60,4 @@ Route::get('/payment/return', [CryptomusController::class, 'paymentReturn'])->na
 
 
 // run command by url
-Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);
+// Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);

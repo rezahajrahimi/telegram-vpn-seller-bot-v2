@@ -28,8 +28,8 @@ class TransactionCryptoController extends Controller
     {
         $validated = $request->validate([
             'gateway' => 'required|string|in:nowpayments,cryptomus',
-            'invoiceID' => 'required|string|exists:bills,invoiceID', // Validate invoice exists in bills table
-            'account_id' => 'required|integer|exists:users,id',
+            'invoiceID' => 'required|exists:bills,bill_id', // Validate invoice exists in bills table
+            'account_id' => 'required|integer|exists:users,account_id',
             'currency' => 'nullable|string', // Optional: For Cryptomus currency selection
             // Add other necessary fields from your form
         ]);
@@ -152,9 +152,9 @@ class TransactionCryptoController extends Controller
             $transaction = TransactionCrypto::updateOrCreate(
                 ['order_id' => $invoiceID, 'gateway' => 'nowpayments'],
                 [
-                    'user_id' => $accountId, // Use user_id consistently
+                    'account_id' => $accountId, // Use user_id consistently
                     'username' => User::find($accountId)->username ?? '', // Fetch username
-                    // 'crypto_payment_id' => $cryptoPaymentCtrl->getNowPaymentID(), // What ID is this? NowPayments payment_id comes later. Store temporarily?
+                    'crypto_payment_id' => $cryptoPaymentCtrl->getNowPaymentID(), // What ID is this? NowPayments payment_id comes later. Store temporarily?
                     'amount_dollar' => $amountDollar, // Keep original column name for now
                     'currency' => 'USD', // Assuming NowPayments amount is in USD
                     'confirmed' => false, // Use boolean false
@@ -179,7 +179,7 @@ class TransactionCryptoController extends Controller
             $nowPaymentsApiResponse = $npwPaymentCntrl->createCryptoInvoice($req);
 
             // Log the raw response for debugging
-            Log::info('NowPayments createCryptoInvoice API response:', ['response' => $nowPaymentsApiResponse]);
+            // Log::info('NowPayments createCryptoInvoice API response:', ['response' => $nowPaymentsApiResponse]);
 
             // --- Process the response ---
             // Check if the response indicates success and contains necessary data
@@ -189,23 +189,46 @@ class TransactionCryptoController extends Controller
             $paymentIdKey = 'payment_id'; // Adjust if the key is different (e.g., 'id', 'invoice_id')
             $payAddressKey = 'pay_address'; // Adjust if the key is different
 
-            if (isset($nowPaymentsApiResponse[$paymentIdKey]) && isset($nowPaymentsApiResponse[$payAddressKey])) {
+
+            // decode $nowPaymentsApiResponse
+            // $nowPaymentsApiResponse = json_decode($nowPaymentsApiResponse, true);
+            // get location from headers
+            $generalCntrl = new GeneralController();
+            $location = $generalCntrl->get_nowpayment_payment_link_from_html($nowPaymentsApiResponse);
+            // get payment id from location
+            $paymentId = explode('/', $location);
+            $paymentId = $paymentId[count($paymentId) - 1];
+            // remove iid= from paymentId
+            $paymentId = str_replace('?iid=', '', $paymentId);
+
+            \Log::info("location: ".$location);
+            \Log::info("paymentId: ".$paymentId);
+
+
+            if (isset($location)) {
 
                 // Update the transaction record with the actual payment ID and potentially URL
-                $transaction->payment_id = $nowPaymentsApiResponse[$paymentIdKey]; // NowPayments' unique ID for the payment
+                $transaction->payment_id = $paymentId; // NowPayments' unique ID for the payment
                 // Construct a payment URL if not directly provided, or store relevant details
                 // $transaction->payment_url = $nowPaymentsApiResponse['payment_url'] ?? null; // If URL is provided
                 $transaction->save();
 
+
+                // return pay url
+                return  $location;
+
                 // Return a success response to your frontend, including the payment details/URL
-                return response()->json([
-                    'success' => true,
-                    'message' => 'NowPayments invoice created successfully.',
-                    'payment_id' => $nowPaymentsApiResponse[$paymentIdKey],
-                    'pay_address' => $nowPaymentsApiResponse[$payAddressKey], // Example
-                    'pay_currency' => $nowPaymentsApiResponse['pay_currency'] ?? null, // Example
-                    // Add other relevant details for the user
-                ]);
+
+
+
+                // return response()->json([
+                //     'success' => true,
+                //     'message' => 'NowPayments invoice created successfully.',
+                //     'payment_id' => $nowPaymentsApiResponse[$paymentIdKey],
+                //     'pay_address' => $nowPaymentsApiResponse[$payAddressKey], // Example
+                //     'pay_currency' => $nowPaymentsApiResponse['pay_currency'] ?? null, // Example
+                //     // Add other relevant details for the user
+                // ]);
 
             } else {
                 // Handle API error response from NowPayments
