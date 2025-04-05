@@ -58,11 +58,12 @@ class TransactionCryptoController extends Controller
             } elseif ($gateway === 'cryptomus') {
                 // Prepare request for CryptomusController
                 $cryptomusCurrency = $validated['currency'] ?? 'USDT'; // Default to USDT if not provided
-
+                // convert $amountDollar to numberic
+                $amountDollar = (float) $amountDollar;
                 $cryptomusRequest = new Request([
                     'amount' => $amountDollar,
                     'currency' => $cryptomusCurrency,
-                    'order_id' => $invoiceID, // Using the same invoiceID
+                    'order_id' => "$invoiceID", // Using the same invoiceID
                     'account_id' => $accountId,
                 ]);
 
@@ -200,9 +201,6 @@ class TransactionCryptoController extends Controller
             $paymentId = $paymentId[count($paymentId) - 1];
             // remove iid= from paymentId
             $paymentId = str_replace('?iid=', '', $paymentId);
-
-            \Log::info("location: ".$location);
-            \Log::info("paymentId: ".$paymentId);
 
 
             if (isset($location)) {

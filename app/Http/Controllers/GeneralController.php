@@ -488,8 +488,10 @@ class GeneralController extends Controller
 
         $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         if ($hasDollarPay == true || $hasDollarPay == 1) {
-            $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
-            array_push($opr, $newOpr);
+            // $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
+            $cryptomusOpr = $this->createCryptomusLink($chat_id, $estimatedPriceInDollar);
+            // array_push($opr, $newOpr);
+            array_push($opr, $cryptomusOpr);
         }
 
         if (count($opr) > 0) {
@@ -612,6 +614,25 @@ class GeneralController extends Controller
             \Log::error(["createNowPaymentsLink: " . $th]);
             return [];
         }
+    }
+    public function createCryptomusLink($chat_id, $estimatedPriceInDollar)
+    {
+        $request             = new Request();
+        $request->account_id = $chat_id;
+        $request->amount     = $estimatedPriceInDollar;
+        $bill                = $this->billCntrl->createNewBillInDollar($request);
+
+        $trCryptoCntrl         = new TransactionCryptoController();
+        $trRequest             = new Request();
+        $trRequest['gateway']  = "cryptomus";
+        $trRequest['invoiceID']  = $bill->bill_id;
+        $trRequest['account_id'] = $chat_id;
+        $paymentLink           = $trCryptoCntrl->initiateCryptoPayment($trRequest);
+        \Log::info(["createCryptomusLink: " . $paymentLink]);
+        return [
+            'text' => "پرداخت آنلاین با کریپتوموس",
+            'url'  => $paymentLink,
+        ];
     }
     public function getFaqs($chatId)
     {

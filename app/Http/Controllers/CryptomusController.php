@@ -9,6 +9,7 @@ use App\Models\TransactionCrypto; // Assuming this model exists for crypto trans
 use App\Models\AccountBallance; // Assuming this model exists for user balance
 use App\Models\User; // Assuming User model exists
 use App\Models\Bill; // Assuming Bill model exists
+use App\Models\CryptoPayment; // Assuming CryptoPayment model exists
 use Carbon\Carbon;
 
 class CryptomusController extends Controller
@@ -19,8 +20,12 @@ class CryptomusController extends Controller
 
     public function __construct()
     {
-        $this->merchantId = config('cryptomus.merchant_id');
-        $this->apiKey = config('cryptomus.api_key');
+        $this->merchantId = "86905aee-7d8d-45a7-9f41-0cd8bcf9e3fd";
+        $this->apiKey = "vnM40jmQDzdaoLhlZwPnHYC9oW7SEeJnlbXpDqnQQBz8HJNqMcWs90eFIJdanN89z2bXaMiQ7W4c5xiZOyWmd1p2jAKiv9QI6gkPheQI7OLxccYl5vBoQJXweNMgRClN";
+        // use sandbox
+        // $this->baseUrl = "https://sandbox.cryptomus.com/api/v2";
+        // $this->merchantId = config('cryptomus.merchant_id');
+        // $this->apiKey = config('cryptomus.api_key');
         $this->baseUrl = config('cryptomus.base_url');
 
         if (!$this->merchantId || !$this->apiKey) {
@@ -42,7 +47,7 @@ class CryptomusController extends Controller
             'amount' => 'required|numeric|min:0.1', // Adjust min based on Cryptomus limits
             'currency' => 'required|string', // e.g., USDT, BTC
             'order_id' => 'required|string|unique:transaction_cryptos,order_id', // Ensure order_id is unique in your system
-            'account_id' => 'required|integer|exists:users,id', // Assuming account_id refers to user ID
+            'account_id' => 'required|integer|exists:users,account_id', // Assuming account_id refers to user ID
             // Add other necessary fields like url_callback, url_success, url_return if needed directly from request
         ]);
 
@@ -55,7 +60,7 @@ class CryptomusController extends Controller
             'url_success' => route('payment.success'), // Redirect URL after successful payment (adjust route name)
             'url_return' => route('payment.return'), // Redirect URL if user cancels or returns (adjust route name)
             // 'to_currency' => 'USD', // Optional: Currency to receive funds in (if different from 'currency')
-            // 'lifetime' => config('cryptomus.payment_timeout', 3600), // Optional: Invoice lifetime in seconds
+            'lifetime' => config('cryptomus.payment_timeout', 3600), // Optional: Invoice lifetime in seconds
             // 'is_payment_multiple' => false, // Optional: Allow multiple payments for one invoice
         ];
 
@@ -71,10 +76,12 @@ class CryptomusController extends Controller
             if ($response->successful() && isset($result['result'])) {
                 // Payment created successfully
                 Log::info('Cryptomus payment created successfully:', $result['result']);
-
+                $paidLink = $result['result']['url'];
+                $user = User::where('account_id', $validated['account_id'])->first();
+                $crypto_payment_id = CryptoPayment::where('name', 'cryptomus')->first()->id;
                 // Store transaction details in your database
                 TransactionCrypto::create([
-                    'user_id' => $validated['account_id'],
+                    'account_id' => $validated['account_id'],
                     'order_id' => $validated['order_id'],
                     'payment_id' => $result['result']['uuid'], // Cryptomus payment UUID
                     'amount' => $validated['amount'],
@@ -84,14 +91,17 @@ class CryptomusController extends Controller
                     'gateway' => 'cryptomus',
                     'created_at' => Carbon::now(),
                     'updated_at' => Carbon::now(),
+                    'username' => $user->username ?? "admin",
+                    'crypto_payment_id' => $crypto_payment_id,
                 ]);
 
                 // Return the payment URL or other relevant info to the frontend/user
-                return response()->json([
-                    'success' => true,
-                    'payment_url' => $result['result']['url'],
-                    'payment_uuid' => $result['result']['uuid'],
-                ]);
+                // return response()->json([
+                //     'success' => true,
+                //     'payment_url' => $result['result']['url'],
+                //     'payment_uuid' => $result['result']['uuid'],
+                // ]);
+                return $paidLink;
 
             } else {
                 // Error creating payment
