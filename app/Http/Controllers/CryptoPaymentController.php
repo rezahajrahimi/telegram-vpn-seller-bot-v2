@@ -126,12 +126,13 @@ class CryptoPaymentController extends Controller
     }
     public function updateCryptomusPayment(Request $request)
     {
+        \Log::info('request->is_active : ' . $request->is_active);
         try {
             $data = CryptoPayment::where('name', 'cryptomus')->first();
             $data->api_key = $request->api_key;
             $data->email = $request->email;
             $data->password = $request->password;
-            $data->is_active = $request->is_active;
+            $data->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
             $data->update();
             return $data;
         } catch (\Throwable $th) {

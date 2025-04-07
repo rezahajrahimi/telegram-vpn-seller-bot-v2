@@ -11,6 +11,7 @@ use App\Models\User; // Assuming User model exists
 use App\Models\Bill; // Assuming Bill model exists
 use App\Models\CryptoPayment; // Assuming CryptoPayment model exists
 use Carbon\Carbon;
+use App\Services\TelegramService;
 
 class CryptomusController extends Controller
 {
@@ -20,8 +21,11 @@ class CryptomusController extends Controller
 
     public function __construct()
     {
-        $this->merchantId = "86905aee-7d8d-45a7-9f41-0cd8bcf9e3fd";
-        $this->apiKey = "vnM40jmQDzdaoLhlZwPnHYC9oW7SEeJnlbXpDqnQQBz8HJNqMcWs90eFIJdanN89z2bXaMiQ7W4c5xiZOyWmd1p2jAKiv9QI6gkPheQI7OLxccYl5vBoQJXweNMgRClN";
+        $data = CryptoPayment::where('name', 'cryptomus')->first();
+        if ($data != null) {
+            $this->merchantId = $data->password;
+            $this->apiKey = $data->api_key;
+        }
         // use sandbox
         // $this->baseUrl = "https://sandbox.cryptomus.com/api/v2";
         // $this->merchantId = config('cryptomus.merchant_id');
@@ -207,7 +211,7 @@ class CryptomusController extends Controller
 
             try {
                 // Example: Update user balance (adjust based on your models and logic)
-                $user = User::find($transaction->user_id);
+                $user = User::where('account_id', $transaction->account_id)->first();
                 if ($user) {
                     // Assuming you store balance in a separate model or directly on user
                     // Adjust logic based on whether the amount is in USD or crypto equivalent
@@ -215,7 +219,7 @@ class CryptomusController extends Controller
 
                     // Find or create account balance record
                     $accountBalance = AccountBallance::firstOrCreate(
-                        ['user_id' => $user->id],
+                        ['account_id' => $user->account_id],
                         ['ballance' => 0, 'ballance_dollar' => 0] // Default values if creating new
                     );
 
@@ -224,7 +228,7 @@ class CryptomusController extends Controller
                     $accountBalance->save();
 
                     Log::info('User balance updated successfully for Cryptomus payment.', [
-                        'user_id' => $user->id,
+                        'account_id' => $user->account_id,
                         'transaction_id' => $transaction->id,
                         'amount_added' => $amountToAdd,
                     ]);
@@ -236,6 +240,13 @@ class CryptomusController extends Controller
                         $bill->save();
                         Log::info('Associated bill marked as paid.', ['bill_id' => $bill->id, 'invoiceID' => $bill->invoiceID]);
                     }
+                    // send notification to user by telegram
+                    // create new telegram service
+                    $telegramService = new TelegramService();
+                    $text = "کیف پول شما به مقدار {$amountToAdd} دلار افزایش یافت";
+                    $telegramService->sendMessage($user->account_id, $text);
+
+
 
                 } else {
                     Log::error('Cryptomus callback: User not found for transaction.', ['user_id' => $transaction->user_id]);
