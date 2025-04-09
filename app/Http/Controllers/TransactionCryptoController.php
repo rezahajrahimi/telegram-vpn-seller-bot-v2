@@ -30,7 +30,7 @@ class TransactionCryptoController extends Controller
             'gateway' => 'required|string|in:nowpayments,cryptomus',
             'invoiceID' => 'required|exists:bills,bill_id', // Validate invoice exists in bills table
             'account_id' => 'required|integer|exists:users,account_id',
-            'currency' => 'nullable|string', // Optional: For Cryptomus currency selection
+            // 'currency' => 'nullable|string', // Optional: For Cryptomus currency selection
             // Add other necessary fields from your form
         ]);
 
@@ -57,12 +57,12 @@ class TransactionCryptoController extends Controller
                 $response = $this->createNowPaymentsInvoice($accountId, $invoiceID, $amountDollar);
             } elseif ($gateway === 'cryptomus') {
                 // Prepare request for CryptomusController
-                $cryptomusCurrency = $validated['currency'] ?? 'USDT'; // Default to USDT if not provided
+                // $cryptomusCurrency = $validated['currency'] ?? 'USDT'; // Default to USDT if not provided
                 // convert $amountDollar to numberic
                 $amountDollar = (float) $amountDollar;
                 $cryptomusRequest = new Request([
                     'amount' => $amountDollar,
-                    'currency' => $cryptomusCurrency,
+                    'currency' => null,
                     'order_id' => "$invoiceID", // Using the same invoiceID
                     'account_id' => $accountId,
                 ]);

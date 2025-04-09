@@ -7,6 +7,13 @@ use Illuminate\Http\Request;
 
 class CryptoPaymentController extends Controller
 {
+    public function getCryptoPaymentStatusByKey($key)
+    {
+        $data = CryptoPayment::where('name', $key)->first();
+        if ($data != null) {
+            return $data->is_active == true || $data->is_active == 1 ? true : false;
+        }
+    }
     public function createNowPaymentData()
     {
         try {

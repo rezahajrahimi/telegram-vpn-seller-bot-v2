@@ -49,7 +49,7 @@ class CryptomusController extends Controller
         // Basic validation (you should enhance this based on your needs)
         $validated = $request->validate([
             'amount' => 'required|numeric|min:0.1', // Adjust min based on Cryptomus limits
-            'currency' => 'required|string', // e.g., USDT, BTC
+            // 'currency' => 'nullable|string',
             'order_id' => 'required|string|unique:transaction_cryptos,order_id', // Ensure order_id is unique in your system
             'account_id' => 'required|integer|exists:users,account_id', // Assuming account_id refers to user ID
             // Add other necessary fields like url_callback, url_success, url_return if needed directly from request
@@ -57,8 +57,8 @@ class CryptomusController extends Controller
 
         $payload = [
             'amount' => (string) $validated['amount'], // Amount must be a string
-            'currency' => $validated['currency'], // The currency the user pays in
             'order_id' => $validated['order_id'],
+            'currency' => 'usd',
             // 'network' => 'TRON', // Optional: Specify network (e.g., TRON, BSC)
             'url_callback' => route('cryptomus.callback'), // URL for receiving payment status updates
             'url_success' => route('payment.success'), // Redirect URL after successful payment (adjust route name)
@@ -89,7 +89,7 @@ class CryptomusController extends Controller
                     'order_id' => $validated['order_id'],
                     'payment_id' => $result['result']['uuid'], // Cryptomus payment UUID
                     'amount' => $validated['amount'],
-                    'currency' => $validated['currency'],
+                    'currency' => 'usd',
                     'status' => $result['result']['status'], // e.g., 'pending', 'paid'
                     'payment_url' => $result['result']['url'],
                     'gateway' => 'cryptomus',
@@ -226,12 +226,15 @@ class CryptomusController extends Controller
                     // Assuming the payment was for dollar balance
                     $accountBalance->ballance_dollar += (float)$amountToAdd;
                     $accountBalance->save();
-
-                    Log::info('User balance updated successfully for Cryptomus payment.', [
-                        'account_id' => $user->account_id,
-                        'transaction_id' => $transaction->id,
-                        'amount_added' => $amountToAdd,
-                    ]);
+                    try{
+                        Log::info('User balance updated successfully for Cryptomus payment.', [
+                            'account_id' => $user->account_id,
+                            'transaction_id' => $transaction->id,
+                            'amount_added' => $amountToAdd,
+                        ]);
+                    } catch (\Exception $e) {
+                    \Log::info("error in save log on cryptomus");
+                    }
 
                     // Mark the associated Bill as paid (if applicable)
                     $bill = Bill::where('invoiceID', $transaction->order_id)->first();

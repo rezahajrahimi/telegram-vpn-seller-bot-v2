@@ -488,10 +488,18 @@ class GeneralController extends Controller
 
         $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         if ($hasDollarPay == true || $hasDollarPay == 1) {
-            // $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
-            $cryptomusOpr = $this->createCryptomusLink($chat_id, $estimatedPriceInDollar);
-            // array_push($opr, $newOpr);
-            array_push($opr, $cryptomusOpr);
+            // chack nowpayments is active
+            $cryptoPymentCntrl = new CryptoPaymentController();
+            $nowpayments = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('nowpayments');
+            if ($nowpayments == true || $nowpayments == 1) {
+                $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
+                array_push($opr, $newOpr);
+            }
+            $cryptomus = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('cryptomus');
+            if ($cryptomus == true || $cryptomus == 1) {
+                $cryptomusOpr = $this->createCryptomusLink($chat_id, $estimatedPriceInDollar);
+                array_push($opr, $cryptomusOpr);
+            }
         }
 
         if (count($opr) > 0) {
@@ -629,8 +637,15 @@ class GeneralController extends Controller
         $trRequest['account_id'] = $chat_id;
         $paymentLink           = $trCryptoCntrl->initiateCryptoPayment($trRequest);
         \Log::info(["createCryptomusLink: " . $paymentLink]);
+
+        $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
+        $text           = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.cryptomus');
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
         return [
-            'text' => "پرداخت آنلاین با کریپتوموس",
+            'text' => $text . " $formattedPrice دلار",
             'url'  => $paymentLink,
         ];
     }

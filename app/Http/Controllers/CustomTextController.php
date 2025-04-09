@@ -148,8 +148,12 @@ class CustomTextController extends Controller
             ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین با زرین پال'],
 
             ['key' => 'action.process.add_online_balance.dollarpay.nowpayment', 'default_text' => json_encode([
-                ['type' => 'text', 'text' => 'پرداخت آنلاین با رمزارز'],
-            ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین با رمزارز'],
+                ['type' => 'text', 'text' => 'پرداخت آنلاین با رمز ارز (NowPayments)'],
+            ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین با رمز ارز (NowPayments)'],
+
+            ['key' => 'action.process.add_online_balance.dollarpay.cryptomus', 'default_text' => json_encode([
+                ['type' => 'text', 'text' => 'پرداخت آنلاین بارمز ارز (Cryptomus)'],
+            ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین بارمز ارز (Cryptomus)'],
 
             ['key' => 'action.process.add_offline_balance_option_and_online_balance', 'default_text' => json_encode([
                 ['type' => 'text', 'text' => 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.'],
