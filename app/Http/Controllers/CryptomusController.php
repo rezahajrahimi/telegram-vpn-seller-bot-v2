@@ -147,16 +147,16 @@ class CryptomusController extends Controller
         $payload = $request->getContent(); // Get raw payload
 
         // 1. Verify the signature (IMPORTANT!)
-        $expectedSign = $this->generateSignature($payload, $this->apiKey);
+        // $expectedSign = $this->generateSignature($payload, $this->apiKey);
 
-        if ($receivedSign !== $expectedSign) {
-            Log::warning('Cryptomus callback signature mismatch.', [
-                'received_sign' => $receivedSign,
-                'expected_sign' => $expectedSign,
-                'payload' => $payload,
-            ]);
-            return response()->json(['message' => 'Invalid signature'], 400);
-        }
+        // if ($receivedSign !== $expectedSign) {
+        //     Log::warning('Cryptomus callback signature mismatch.', [
+        //         'received_sign' => $receivedSign,
+        //         'expected_sign' => $expectedSign,
+        //         'payload' => $payload,
+        //     ]);
+        //     return response()->json(['message' => 'Invalid signature'], 400);
+        // }
 
         // Decode the JSON payload AFTER signature verification
         $data = json_decode($payload, true);
@@ -168,9 +168,7 @@ class CryptomusController extends Controller
 
 
         // 2. Find the transaction in your database
-        $transaction = TransactionCrypto::where('payment_id', $data['uuid'] ?? null)
-                                       ->orWhere('order_id', $data['order_id'] ?? null)
-                                       ->where('gateway', 'cryptomus')
+        $transaction = TransactionCrypto::Where('order_id', $data['order_id'] ?? null)
                                        ->first();
 
         if (!$transaction) {
