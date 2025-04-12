@@ -218,11 +218,11 @@ class CryptomusController extends Controller
                     // Find or create account balance record
                     $accountBalance = AccountBallance::firstOrCreate(
                         ['account_id' => $user->account_id],
-                        ['ballance' => 0, 'ballance_dollar' => 0] // Default values if creating new
+                        ['ballance' => 0, 'account_ballance_in_dollar' => 0] // Default values if creating new
                     );
 
                     // Assuming the payment was for dollar balance
-                    $accountBalance->ballance_dollar += (float)$amountToAdd;
+                    $accountBalance->account_ballance_in_dollar += (float)$amountToAdd;
                     $accountBalance->save();
                     try{
                         Log::info('User balance updated successfully for Cryptomus payment.', [
@@ -235,7 +235,7 @@ class CryptomusController extends Controller
                     }
 
                     // Mark the associated Bill as paid (if applicable)
-                    $bill = Bill::where('invoiceID', $transaction->order_id)->first();
+                    $bill = Bill::where('bill_id', $transaction->order_id)->first();
                     if ($bill) {
                         $bill->status = 'paid';
                         $bill->save();
@@ -250,7 +250,7 @@ class CryptomusController extends Controller
 
 
                 } else {
-                    Log::error('Cryptomus callback: User not found for transaction.', ['user_id' => $transaction->user_id]);
+                    Log::error('Cryptomus callback: User not found for transaction.', ['user_id' => $transaction->account_id]);
                 }
 
                 // --- End Your Business Logic ---
@@ -275,7 +275,7 @@ class CryptomusController extends Controller
                 'status' => $newStatus,
             ]);
              // Mark the associated Bill as failed/cancelled (if applicable)
-            $bill = Bill::where('invoiceID', $transaction->order_id)->first();
+            $bill = Bill::where('bill_id', $transaction->order_id)->first();
             if ($bill && ($newStatus === 'cancel' || $newStatus === 'fail' || $newStatus === 'system_fail')) {
                 $bill->status = $newStatus; // Or map to your own 'failed'/'cancelled' status
                 $bill->save();
