@@ -213,7 +213,7 @@ class CryptomusController extends Controller
                 if ($user) {
                     // Assuming you store balance in a separate model or directly on user
                     // Adjust logic based on whether the amount is in USD or crypto equivalent
-                    $amountToAdd = $data['merchant_amount'] ?? $transaction->amount; // Use merchant_amount if available (amount after fees in your receiving currency)
+                    $amountToAdd = $data['amount'] ?? $transaction->amount_dollar; // Use merchant_amount if available (amount after fees in your receiving currency)
 
                     // Find or create account balance record
                     $accountBalance = AccountBallance::firstOrCreate(
