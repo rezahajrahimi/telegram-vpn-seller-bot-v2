@@ -7,6 +7,14 @@ use Illuminate\Http\Request;
 
 class CryptoPaymentController extends Controller
 {
+    public function seed(){
+        if (CryptoPayment::all()->isEmpty()) {
+            $this->createNowPaymentData();
+            $this->createCryptoPaymentData();
+            return true;
+        }
+        return false;
+    }
     public function getCryptoPaymentStatusByKey($key)
     {
         $data = CryptoPayment::where('name', $key)->first();
@@ -108,6 +116,7 @@ class CryptoPaymentController extends Controller
     public function createCryptoPaymentData()
     {
         try {
+            $transactionCryptoCntrl = new TransactionCryptoController();
             $data = new CryptoPayment();
             $data->name = 'cryptomus';
             $data->api_key = 'xxxxxxx-xxxxxxx-xxxxxxx-xxxxxxx';

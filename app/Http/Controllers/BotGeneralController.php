@@ -11,9 +11,16 @@ class BotGeneralController extends Controller
     /// check  dollarPay is valid or not
     public function checkDollarPay()
     {
-        $trSettingCntrl = new TransactionSettingController();
-
-        return $trSettingCntrl->getDollorTransactionSetting();
+        $paymnetSettingCntrl = new PaymentSettingController();
+        $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        
+        if($dollarTransaction == 1 || $dollarTransaction == true){ 
+            \Log::info("dollar transaction is true");
+            return true;
+        } else {
+            \Log::info("dollar transaction is false");
+            return false;
+        }
     }
     public function how_to_use_menu($chat_id)
     {

@@ -667,20 +667,17 @@ class TransactionCryptoController extends Controller
     }
 
     // This method seems unused based on routes
-    /*
+    
     public function getCurrentUrl()
     {
-        // $currentUrlWithoutQuery = request()->url();
-        // $host = parse_url($currentUrlWithoutQuery, PHP_URL_HOST);
+        // Get the current URL
+        $currentUrl = url()->current();
 
-        // // Extract the subdomain
-        // $subdomain = explode('.', $host)[0];
+        // Log the current URL
+        // Log::info('Current URL:', ['url' => $currentUrl]);
 
-        // // Combine the subdomain with the desired domain
-        // $domain = 'google.com';
-        // $finalUrl = "https://$subdomain.$domain";
-
-        return request()->getHttpHost();
+        // Return the current URL
+        return $currentUrl;
     }
-    */
+    
 }

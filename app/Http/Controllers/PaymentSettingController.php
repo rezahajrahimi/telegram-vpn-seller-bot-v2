@@ -100,6 +100,7 @@ class PaymentSettingController extends Controller
     public function setPaymentSettingStatusByKey($key, $status)
     {
         try {
+            
             $status = $status == 'true' || $status == 1 ? true : false;
             $paymentSetting = $this->getPaymentSettingByKey($key);
             $paymentSetting->status = $status;

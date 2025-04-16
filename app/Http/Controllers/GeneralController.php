@@ -25,7 +25,6 @@ class GeneralController extends Controller
     private PaymentMenuItemController $pymMenCntrl;
     private CryptoPaymentController $cryptoPymentCntrl;
     private TransactionController $trCntrl;
-    private TransactionSettingController $trSettingCntrl;
     private BillController $billCntrl;
     private MainMenuItem $mainMenuItem;
     private ProductCategory $productCategory;
@@ -34,6 +33,8 @@ class GeneralController extends Controller
     private CronJobController $cronJobCntrl;
     private GiftCardMenuItemController $giftCardMenuItemCntrl;
     private SettingController $settingCntrl;
+    private PaymentSettingController $pymntSettingCntrl;
+    private CryptoPaymentController $cryptoPaymentCntrl;
     public function __construct()
     {
         $this->customTextCtrl           = new CustomTextController();
@@ -51,11 +52,12 @@ class GeneralController extends Controller
         $this->mainMenuItem             = new MainMenuItem();
         $this->productCategory          = new ProductCategory();
         $this->paymnetSettingCntrl      = new PaymentSettingController();
-        $this->trSettingCntrl           = new TransactionSettingController();
         $this->channelLockMenuItemCntrl = new ChannelLockMenuItemController();
         $this->cronJobCntrl             = new CronJobController();
         $this->giftCardMenuItemCntrl    = new GiftCardMenuItemController();
         $this->settingCntrl             = new SettingController();
+        $this->pymntSettingCntrl        = new PaymentSettingController();
+        $this->cryptoPaymentCntrl       = new CryptoPaymentController();
     }
     public function boot_seeding_data()
     {
@@ -79,7 +81,9 @@ class GeneralController extends Controller
         // add default custom texts
         $this->customTextCtrl->seed();
         // add default transaction settings
-        $this->trSettingCntrl->seed();
+        $this->pymntSettingCntrl->seed();
+        // crypto payment
+        $this->cryptoPaymentCntrl->seed();
 
     }
     public function getDashboardAnalytics()

@@ -383,8 +383,17 @@ class AccountBallanceController extends Controller
     /// check  dollarPay is valid or not
     public function checkDollarPay()
     {
-        $trSettingCntrl = new TransactionSettingController();
+        $paymnetSettingCntrl = new PaymentSettingController();
+        $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        
+        if($dollarTransaction == 1 || $dollarTransaction == true){ 
+            \Log::info("dollar transaction is true");
+            return true;
+        } else {
+            \Log::info("dollar transaction is false");
+            return false;
+        }
 
-        return $trSettingCntrl->getDollorTransactionSetting();
+
     }
 }
