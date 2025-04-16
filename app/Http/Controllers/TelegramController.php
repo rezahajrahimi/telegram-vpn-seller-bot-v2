@@ -1885,9 +1885,14 @@ class TelegramController extends Controller
     /// check  dollarPay is valid or not
     public function checkDollarPay()
     {
-        $trSettingCntrl = new TransactionSettingController();
+        $paymnetSettingCntrl = new PaymentSettingController();
+        $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        if ($dollarTransaction == null) {
+            $paymnetSettingCntrl->seed();
+            $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        }
 
-        return $trSettingCntrl->getDollorTransactionSetting();
+        return $dollarTransaction;
     }
     // preper text
     public function prepareText($text)

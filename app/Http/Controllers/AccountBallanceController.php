@@ -377,8 +377,14 @@ class AccountBallanceController extends Controller
     /// check  dollarPay is valid or not
     public function checkDollarPay()
     {
-        $trSettingCntrl = new TransactionSettingController();
 
-        return $trSettingCntrl->getDollorTransactionSetting();
+        $paymnetSettingCntrl = new PaymentSettingController();
+        $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        if ($dollarTransaction == null) {
+            $paymnetSettingCntrl->seed();
+            $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        }
+
+        return $dollarTransaction;
     }
 }

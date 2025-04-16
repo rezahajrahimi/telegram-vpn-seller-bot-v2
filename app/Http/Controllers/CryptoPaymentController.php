@@ -7,6 +7,11 @@ use Illuminate\Http\Request;
 
 class CryptoPaymentController extends Controller
 {
+    public function seed(){
+        $this->createNowPaymentData();
+        
+
+    }
     public function createNowPaymentData()
     {
         try {

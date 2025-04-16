@@ -32,7 +32,6 @@ class AccountProcessController extends Controller
     private LogController $logCtrl;
     private $chatId;
     private TransactionController $trCntrl;
-    private TransactionSettingController $trSettingCntrl;
     private PaymentTypeController $pymntCntrl;
     private PaymentMenuItemController $pymMenCntrl;
     private PaymentSettingController $paymnetSettingCntrl;
@@ -48,7 +47,6 @@ class AccountProcessController extends Controller
         $this->accBlCtrl               = new AccountBallanceController();
         $this->botUser                 = new BotUser();
         $this->logCtrl                 = new LogController();
-        $this->trSettingCntrl          = new TransactionSettingController();
         $this->pymntCntrl              = new PaymentTypeController();
         $this->pymMenCntrl             = new PaymentMenuItemController();
         $this->trCntrl                 = new TransactionController();
