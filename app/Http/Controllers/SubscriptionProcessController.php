@@ -33,7 +33,6 @@ class SubscriptionProcessController extends Controller
     private AdvanceSettingLookupController $advancedSettingCntrl;
     private GeneralController $generalCntrl;
     private LogController $logCtrl;
-    private TransactionSettingController $trSettingCntrl;
     private PaymentTypeController $pymntCntrl;
     private HiddifyPannelController $hiddifyPannelCntrl;
     private PaymentSettingController $paymnetSettingCntrl;
@@ -52,7 +51,6 @@ class SubscriptionProcessController extends Controller
         $this->botUser              = new BotUser();
         $this->product              = new Product();
         $this->selectedPrCat        = new ProductCategory();
-        $this->trSettingCntrl       = new TransactionSettingController();
         $this->pymntCntrl           = new PaymentTypeController();
         $this->hiddifyPannelCntrl   = new HiddifyPannelController();
         $this->paymnetSettingCntrl  = new PaymentSettingController();

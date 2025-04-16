@@ -25,7 +25,6 @@ class GeneralController extends Controller
     private PaymentMenuItemController $pymMenCntrl;
     private CryptoPaymentController $cryptoPymentCntrl;
     private TransactionController $trCntrl;
-    private TransactionSettingController $trSettingCntrl;
     private BillController $billCntrl;
     private MainMenuItem $mainMenuItem;
     private ProductCategory $productCategory;
@@ -51,11 +50,11 @@ class GeneralController extends Controller
         $this->mainMenuItem             = new MainMenuItem();
         $this->productCategory          = new ProductCategory();
         $this->paymnetSettingCntrl      = new PaymentSettingController();
-        $this->trSettingCntrl           = new TransactionSettingController();
         $this->channelLockMenuItemCntrl = new ChannelLockMenuItemController();
         $this->cronJobCntrl             = new CronJobController();
         $this->giftCardMenuItemCntrl    = new GiftCardMenuItemController();
         $this->settingCntrl             = new SettingController();
+        $this->paymentSetting           = new PaymentSettingController();
     }
     public function boot_seeding_data()
     {
@@ -78,8 +77,8 @@ class GeneralController extends Controller
         $this->pymMenCntrl->seed();
         // add default custom texts
         $this->customTextCtrl->seed();
-        // add default transaction settings
-        $this->trSettingCntrl->seed();
+        
+        $this->paymentSetting->seed();
 
     }
     public function getDashboardAnalytics()
