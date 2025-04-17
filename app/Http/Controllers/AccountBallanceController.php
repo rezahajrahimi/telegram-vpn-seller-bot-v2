@@ -220,7 +220,8 @@ class AccountBallanceController extends Controller
 
                     return false;
                 }
-            } elseif ($type == 'dollar') {
+            } else {
+                \Log::info("type is dollar");
                 if ($ballance <= $accBallance->account_ballance_in_dollar) {
                     $accBallance->account_ballance_in_dollar -= doubleval($ballance);
                     $accBallance->update();

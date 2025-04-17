@@ -213,6 +213,7 @@ class SubscriptionProcessController extends Controller
 
             // تلاش برای کسر از کیف پول تومانی
             $balance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+            \Log::info("processPayment balance: " . $balance);
             if ($balance) {
                 $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPrice . ' تومان', 'show');
                 return true;
@@ -220,6 +221,7 @@ class SubscriptionProcessController extends Controller
 
             // بررسی پرداخت دلاری
             $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+            \Log::info("dollarTransaction: " . $dollarTransaction);
             if ($dollarTransaction) {
                 $request->ballance = $productPriceInDollar;
                 $request->type     = 'dollar';
@@ -233,6 +235,7 @@ class SubscriptionProcessController extends Controller
             // بررسی کیف پول ارجاع
             if ($hasRefballance) {
                 $balance = $this->referralCntrl->dec_user_ref_wallet_ballance($this->chatId, $productPrice);
+                \Log::info("processPayment referral balance: " . $balance);
                 if ($balance) {
                     $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول همکاری به مقدار ' . $productPrice . ' تومان', 'show');
                     return true;
@@ -279,12 +282,15 @@ class SubscriptionProcessController extends Controller
                 // create sanaei user
                 return " پنل سنائی";
             }
+            \Log::info("resualt response buoght from hiddify: " . $resualt);
+
             if ($resualt == false || $resualt == null) {
                 $this->addNewBotLog('subscription', 'خرید اشتراک با شکست مواجه شد.', 'show');
                 return $this->customTextCtrl->getText('action.process.failed_buy');
             }
             // پردازش پرداخت
             $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+
             if (! $paymentSuccess) {
                 if ($pannel->type == 'hiddify') {
                     // remove created product from database and panel
