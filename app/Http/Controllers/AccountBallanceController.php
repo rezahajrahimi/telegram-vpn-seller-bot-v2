@@ -185,6 +185,7 @@ class AccountBallanceController extends Controller
 
             $userAccountID = $user->account_id;
             $ballance      = $request->ballance;
+            
             $type          = $request->type;
             $accBallance   = AccountBallance::where('account_id', $userAccountID)->first();
             if (!isset($accBallance)) {
@@ -206,7 +207,11 @@ class AccountBallanceController extends Controller
                     $accBallance->update();
                     $logCtrl = new LogController();
                     $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
-                    return $accBallance->ballance;
+                    $res =  $accBallance->ballance;
+                    if($res == 0){
+                        return true;
+                    }
+                    return $res;
                 } else {
                     // get auth user role for checking this requerst sent by admin
                     if ($is_admin || $minus_ballance_permission || $isReqByAdmin) {
@@ -214,7 +219,11 @@ class AccountBallanceController extends Controller
                         $accBallance->update();
                         $logCtrl = new LogController();
                         $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
-                        return $accBallance->ballance;
+                        $res =  $accBallance->ballance;
+                        if($res == 0){
+                            return true;
+                        }
+                        return $res;
                     }
                     \Log::info("message 555555555555");
 
@@ -222,19 +231,37 @@ class AccountBallanceController extends Controller
                 }
             } else {
                 \Log::info("type is dollar");
-                if ($ballance <= $accBallance->account_ballance_in_dollar) {
+                \Log::info("accBallance->account_ballance_in_dollar $accBallance->account_ballance_in_dollar");
+                \Log::info("ballance $ballance");
+                \Log::info("is_admin $is_admin");
+                \Log::info("minus_ballance_permission $minus_ballance_permission");
+                \Log::info("isReqByAdmin $isReqByAdmin");
+                $ballance = doubleval($ballance);
+                $currentUserDollarBalance = doubleval($accBallance->account_ballance_in_dollar);
+                \Log::info("currentUserDollarBalance $currentUserDollarBalance");
+                \Log::info("ballance $ballance");
+                if ($ballance <= $currentUserDollarBalance) {
+                    \Log::info("ballance is less than currentUserDollarBalance");
                     $accBallance->account_ballance_in_dollar -= doubleval($ballance);
                     $accBallance->update();
                     $logCtrl = new LogController();
                     $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
-                    return $accBallance->account_ballance_in_dollar;
+                    $res = $accBallance->account_ballance_in_dollar;
+                    if($res == 0){
+                        return true;
+                    }
+                    return $res;
                 } else {
                     if ($is_admin || $minus_ballance_permission) {
                         $accBallance->account_ballance_in_dollar -= doubleval($ballance);
                         $accBallance->update();
                         $logCtrl = new LogController();
                         $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
-                        return $accBallance->account_ballance_in_dollar;
+                        $res = $accBallance->account_ballance_in_dollar;
+                        if($res == 0){
+                            return true;
+                        }
+                        return $res;
                     }
                     \Log::info("message 233333333333");
 

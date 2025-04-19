@@ -214,7 +214,7 @@ class SubscriptionProcessController extends Controller
             // تلاش برای کسر از کیف پول تومانی
             $balance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
             \Log::info("processPayment balance: " . $balance);
-            if ($balance == true || $balance == 1) {
+            if ($balance != false || $balance != 0 || $balance != null) {
                 $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPrice . ' تومان', 'show');
                 return true;
             }
@@ -226,7 +226,7 @@ class SubscriptionProcessController extends Controller
                 $request->ballance = $productPriceInDollar;
                 $request->type     = 'dollar';
                 $balance           = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
-                if ($balance) {
+                if ($balance != false || $balance != 0 || $balance != null) {
                     $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPriceInDollar . ' دلار', 'show');
                     return true;
                 }
@@ -236,7 +236,7 @@ class SubscriptionProcessController extends Controller
             if ($hasRefballance == true || $hasRefballance == 1) {
                 $balance = $this->referralCntrl->dec_user_ref_wallet_ballance($this->chatId, $productPrice);
                 \Log::info("processPayment referral balance: " . $balance);
-                if ($balance) {
+                if ($balance != false || $balance != 0 || $balance != null) {
                     $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول همکاری به مقدار ' . $productPrice . ' تومان', 'show');
                     return true;
                 }
@@ -290,8 +290,10 @@ class SubscriptionProcessController extends Controller
             }
             // پردازش پرداخت
             $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+            
+            \Log::info("paymentSuccess: " . $paymentSuccess);
 
-            if (! $paymentSuccess) {
+            if ($paymentSuccess == false || $paymentSuccess == null) {
                 if ($pannel->type == 'hiddify') {
                     // remove created product from database and panel
                     $uuid = $resualt;
