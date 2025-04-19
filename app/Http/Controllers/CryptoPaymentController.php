@@ -21,6 +21,7 @@ class CryptoPaymentController extends Controller
         if ($data != null) {
             return $data->is_active == true || $data->is_active == 1 ? true : false;
         }
+        return false;
     }
     public function createNowPaymentData()
     {
