@@ -218,7 +218,7 @@ class AccountBallanceController extends Controller
                     }
                     \Log::info("message 555555555555");
 
-                    return false;
+                    // return false;
                 }
             } else {
                 \Log::info("type is dollar");

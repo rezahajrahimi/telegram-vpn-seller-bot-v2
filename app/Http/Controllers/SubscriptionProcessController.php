@@ -214,7 +214,7 @@ class SubscriptionProcessController extends Controller
             // تلاش برای کسر از کیف پول تومانی
             $balance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
             \Log::info("processPayment balance: " . $balance);
-            if ($balance) {
+            if ($balance == true || $balance == 1) {
                 $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPrice . ' تومان', 'show');
                 return true;
             }
@@ -222,7 +222,7 @@ class SubscriptionProcessController extends Controller
             // بررسی پرداخت دلاری
             $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             \Log::info("dollarTransaction: " . $dollarTransaction);
-            if ($dollarTransaction) {
+            if ($dollarTransaction == true || $dollarTransaction == 1) {
                 $request->ballance = $productPriceInDollar;
                 $request->type     = 'dollar';
                 $balance           = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
@@ -233,7 +233,7 @@ class SubscriptionProcessController extends Controller
             }
 
             // بررسی کیف پول ارجاع
-            if ($hasRefballance) {
+            if ($hasRefballance == true || $hasRefballance == 1) {
                 $balance = $this->referralCntrl->dec_user_ref_wallet_ballance($this->chatId, $productPrice);
                 \Log::info("processPayment referral balance: " . $balance);
                 if ($balance) {
