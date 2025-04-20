@@ -500,7 +500,6 @@ class GeneralController extends Controller
                 array_push($opr, $newOpr);
             }
             $cryptomus = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('cryptomus');
-            \Log::info("cryptomus payment status: $cryptomus");
             if ($cryptomus == true || $cryptomus == 1) {
                 $cryptomusOpr = $this->createCryptomusLink($chat_id, $estimatedPriceInDollar);
                 array_push($opr, $cryptomusOpr);

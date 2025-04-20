@@ -135,6 +135,9 @@ class CustomTextController extends Controller
                 ['type' => 'text', 'text' => 'مبلغ واریزی خود را وارد کنید. (حداقل 10 هزار تومان)'],
             ]), 'custom_text' => null, 'description' => 'متن مبلغ واریزی خود را وارد کنید. (حداقل 10 هزار تومان)'],
 
+            ['key' => 'action.process.add_online_balance.dollarpay', 'default_text' => json_encode([
+                ['type' => 'text', 'text' => 'پرداخت با رمز ارز'],
+            ]), 'custom_text' => null, 'description' => 'متن پرداخت با رمز ارز'],
             ['key' => 'action.process.add_online_balance.nowpayments.reply', 'default_text' => json_encode([
                 ['type' => 'text', 'text' => 'مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)'],
             ]), 'custom_text' => null, 'description' => 'متن مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)'],
