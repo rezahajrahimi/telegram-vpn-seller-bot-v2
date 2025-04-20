@@ -85,6 +85,7 @@ class GeneralController extends Controller
         // crypto payment
         $this->cryptoPaymentCntrl->seed();
 
+
     }
     public function getDashboardAnalytics()
     {
@@ -492,7 +493,6 @@ class GeneralController extends Controller
 
         $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         if ($hasDollarPay == true || $hasDollarPay == 1) {
-<<<<<<< HEAD
             // chack nowpayments is active
             $cryptoPymentCntrl = new CryptoPaymentController();
             $nowpayments = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('nowpayments');
@@ -505,12 +505,6 @@ class GeneralController extends Controller
                 $cryptomusOpr = $this->createCryptomusLink($chat_id, $estimatedPriceInDollar);
                 array_push($opr, $cryptomusOpr);
             }
-=======
-            // $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
-            $cryptomusOpr = $this->createCryptomusLink($chat_id, $estimatedPriceInDollar);
-            // array_push($opr, $newOpr);
-            array_push($opr, $cryptomusOpr);
->>>>>>> 7f64362 (به‌روزرسانی و بهینه‌سازی کنترلرهای Cryptomus و GeneralController)
         }
 
         if (count($opr) > 0) {
@@ -648,7 +642,6 @@ class GeneralController extends Controller
         $trRequest['account_id'] = $chat_id;
         $paymentLink           = $trCryptoCntrl->initiateCryptoPayment($trRequest);
         \Log::info(["createCryptomusLink: " . $paymentLink]);
-<<<<<<< HEAD
 
         $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
         $text           = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.cryptomus');
@@ -658,10 +651,7 @@ class GeneralController extends Controller
         }
         return [
             'text' => $text . " $formattedPrice دلار",
-=======
-        return [
-            'text' => "پرداخت آنلاین با کریپتوموس",
->>>>>>> 7f64362 (به‌روزرسانی و بهینه‌سازی کنترلرهای Cryptomus و GeneralController)
+
             'url'  => $paymentLink,
         ];
     }
