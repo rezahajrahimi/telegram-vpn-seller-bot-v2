@@ -231,15 +231,15 @@ class AccountProcessController extends Controller
             $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             \Log::info(["hasDollarPay: " . $hasDollarPay]);
             if ($hasDollarPay == true || $hasDollarPay == 1) {
-                $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay');
-                if (is_array($text)) {
-                    // use format text service
-                    $text = $this->telegramService->formatText($text);
-                }
-                $newOpr = [
-                    $text => "accountSubAccountsDollarPay",
-                ];
-                array_push($opr, $newOpr);
+                // $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay');
+                // if (is_array($text)) {
+                //     // use format text service
+                //     $text = $this->telegramService->formatText($text);
+                // }
+                // $newOpr = [
+                //     $text => "accountSubAccountsDollarPay",
+                // ];
+                // array_push($opr, $newOpr);
 
                 $cryptoPymentCntrl = new CryptoPaymentController();
                 $nowpayments = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('nowpayments');

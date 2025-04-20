@@ -78,13 +78,14 @@ class CryptoPaymentController extends Controller
     public function updateNowPayment(Request $request)
     {
         try {
+            \Log::info('request->is_active : ' . $request->is_active);
             $data = CryptoPayment::where('name', 'nowpayments')->first();
 
             $data->api_key = $request->api_key;
             $data->email = $request->email;
             $data->password = $request->password;
-            $data->is_fee_paid_by_user = $request->is_fee_paid_by_user;
-            $data->is_active = $request->is_active;
+            $data->is_fee_paid_by_user = $request->is_fee_paid_by_user == 1 || $request->is_fee_paid_by_user == true ? true : false;
+            $data->is_active = $request->is_active == 1 || $request->is_active == true ? true : false;
 
             $data->update();
             return $data;
