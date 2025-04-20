@@ -21,11 +21,16 @@ class CryptomusController extends Controller
 
     public function __construct()
     {
+<<<<<<< HEAD
         $data = CryptoPayment::where('name', 'cryptomus')->first();
         if ($data != null) {
             $this->merchantId = $data->password;
             $this->apiKey = $data->api_key;
         }
+=======
+        $this->merchantId = "86905aee-7d8d-45a7-9f41-0cd8bcf9e3fd";
+        $this->apiKey = "vnM40jmQDzdaoLhlZwPnHYC9oW7SEeJnlbXpDqnQQBz8HJNqMcWs90eFIJdanN89z2bXaMiQ7W4c5xiZOyWmd1p2jAKiv9QI6gkPheQI7OLxccYl5vBoQJXweNMgRClN";
+>>>>>>> 7f64362 (به‌روزرسانی و بهینه‌سازی کنترلرهای Cryptomus و GeneralController)
         // use sandbox
         // $this->baseUrl = "https://sandbox.cryptomus.com/api/v2";
         // $this->merchantId = config('cryptomus.merchant_id');

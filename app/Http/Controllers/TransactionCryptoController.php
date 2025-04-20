@@ -57,12 +57,20 @@ class TransactionCryptoController extends Controller
                 $response = $this->createNowPaymentsInvoice($accountId, $invoiceID, $amountDollar);
             } elseif ($gateway === 'cryptomus') {
                 // Prepare request for CryptomusController
+<<<<<<< HEAD
                 // $cryptomusCurrency = $validated['currency'] ?? 'USDT'; // Default to USDT if not provided
+=======
+                $cryptomusCurrency = $validated['currency'] ?? 'USDT'; // Default to USDT if not provided
+>>>>>>> 7f64362 (به‌روزرسانی و بهینه‌سازی کنترلرهای Cryptomus و GeneralController)
                 // convert $amountDollar to numberic
                 $amountDollar = (float) $amountDollar;
                 $cryptomusRequest = new Request([
                     'amount' => $amountDollar,
+<<<<<<< HEAD
                     'currency' => null,
+=======
+                    'currency' => $cryptomusCurrency,
+>>>>>>> 7f64362 (به‌روزرسانی و بهینه‌سازی کنترلرهای Cryptomus و GeneralController)
                     'order_id' => "$invoiceID", // Using the same invoiceID
                     'account_id' => $accountId,
                 ]);
