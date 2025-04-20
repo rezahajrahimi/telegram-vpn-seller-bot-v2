@@ -1887,12 +1887,12 @@ class TelegramController extends Controller
     {
         $paymnetSettingCntrl = new PaymentSettingController();
         $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
-        if ($dollarTransaction == null) {
-            $paymnetSettingCntrl->seed();
-            $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        
+        if($dollarTransaction == 1 || $dollarTransaction == true){ 
+            return true;
+        } else {
+            return false;
         }
-
-        return $dollarTransaction;
     }
     // preper text
     public function prepareText($text)

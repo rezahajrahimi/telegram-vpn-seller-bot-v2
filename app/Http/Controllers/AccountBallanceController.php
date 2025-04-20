@@ -179,11 +179,13 @@ class AccountBallanceController extends Controller
                     }
                 }
             } else {
+                \Log::info("user_role $user_role->id");
                 return false;
             }
 
             $userAccountID = $user->account_id;
             $ballance      = $request->ballance;
+            
             $type          = $request->type;
             $accBallance   = AccountBallance::where('account_id', $userAccountID)->first();
             if (!isset($accBallance)) {
@@ -204,7 +206,11 @@ class AccountBallanceController extends Controller
                     $accBallance->update();
                     $logCtrl = new LogController();
                     $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
-                    return $accBallance->ballance;
+                    $res =  $accBallance->ballance;
+                    if($res == 0){
+                        return true;
+                    }
+                    return $res;
                 } else {
                     // get auth user role for checking this requerst sent by admin
                     if ($is_admin || $minus_ballance_permission || $isReqByAdmin) {
@@ -212,33 +218,59 @@ class AccountBallanceController extends Controller
                         $accBallance->update();
                         $logCtrl = new LogController();
                         $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
-                        return $accBallance->ballance;
+                        $res =  $accBallance->ballance;
+                        if($res == 0){
+                            return true;
+                        }
+                        return $res;
                     }
+                    \Log::info("message 555555555555");
 
-                    return false;
                 }
-            } elseif ($type == 'dollar') {
-                if ($ballance <= $accBallance->account_ballance_in_dollar) {
+            } else {
+                \Log::info("type is dollar");
+                \Log::info("accBallance->account_ballance_in_dollar $accBallance->account_ballance_in_dollar");
+                \Log::info("ballance $ballance");
+                \Log::info("is_admin $is_admin");
+                \Log::info("minus_ballance_permission $minus_ballance_permission");
+                \Log::info("isReqByAdmin $isReqByAdmin");
+                $ballance = doubleval($ballance);
+                $currentUserDollarBalance = doubleval($accBallance->account_ballance_in_dollar);
+                \Log::info("currentUserDollarBalance $currentUserDollarBalance");
+                \Log::info("ballance $ballance");
+                if ($ballance <= $currentUserDollarBalance) {
+                    \Log::info("ballance is less than currentUserDollarBalance");
                     $accBallance->account_ballance_in_dollar -= doubleval($ballance);
                     $accBallance->update();
                     $logCtrl = new LogController();
                     $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
-                    return $accBallance->account_ballance_in_dollar;
+                    $res = $accBallance->account_ballance_in_dollar;
+                    if($res == 0){
+                        return true;
+                    }
+                    return $res;
                 } else {
                     if ($is_admin || $minus_ballance_permission) {
                         $accBallance->account_ballance_in_dollar -= doubleval($ballance);
                         $accBallance->update();
                         $logCtrl = new LogController();
                         $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
-                        return $accBallance->account_ballance_in_dollar;
+                        $res = $accBallance->account_ballance_in_dollar;
+                        if($res == 0){
+                            return true;
+                        }
+                        return $res;
                     }
+                    \Log::info("message 233333333333");
 
                     return false;
                 }
             }
+            \Log::info("message 4444444444444444");
 
             return false;
         } catch (\Throwable $th) {
+            \Log::info("message 2222222222222222222");
 
             \Log::info("message $th");
             return response()->json(null, 500);
@@ -377,14 +409,17 @@ class AccountBallanceController extends Controller
     /// check  dollarPay is valid or not
     public function checkDollarPay()
     {
-
         $paymnetSettingCntrl = new PaymentSettingController();
         $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
-        if ($dollarTransaction == null) {
-            $paymnetSettingCntrl->seed();
-            $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        
+        if($dollarTransaction == 1 || $dollarTransaction == true){ 
+            \Log::info("dollar transaction is true");
+            return true;
+        } else {
+            \Log::info("dollar transaction is false");
+            return false;
         }
 
-        return $dollarTransaction;
+
     }
 }

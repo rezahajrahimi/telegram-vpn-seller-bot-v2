@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers;
-
+// add_order_crypto_by_nowpayment
 use App\Http\Controllers\CustomTextController;
 use App\Models\MainMenuItem;
 use App\Models\ProductCategory;
@@ -33,6 +33,8 @@ class GeneralController extends Controller
     private CronJobController $cronJobCntrl;
     private GiftCardMenuItemController $giftCardMenuItemCntrl;
     private SettingController $settingCntrl;
+    private PaymentSettingController $pymntSettingCntrl;
+    private CryptoPaymentController $cryptoPaymentCntrl;
     public function __construct()
     {
         $this->customTextCtrl           = new CustomTextController();
@@ -54,7 +56,8 @@ class GeneralController extends Controller
         $this->cronJobCntrl             = new CronJobController();
         $this->giftCardMenuItemCntrl    = new GiftCardMenuItemController();
         $this->settingCntrl             = new SettingController();
-        $this->paymentSetting           = new PaymentSettingController();
+        $this->pymntSettingCntrl        = new PaymentSettingController();
+        $this->cryptoPaymentCntrl       = new CryptoPaymentController();
     }
     public function boot_seeding_data()
     {
@@ -77,8 +80,11 @@ class GeneralController extends Controller
         $this->pymMenCntrl->seed();
         // add default custom texts
         $this->customTextCtrl->seed();
-        
-        $this->paymentSetting->seed();
+        // add default transaction settings
+        $this->pymntSettingCntrl->seed();
+        // crypto payment
+        $this->cryptoPaymentCntrl->seed();
+
 
     }
     public function getDashboardAnalytics()
@@ -487,8 +493,18 @@ class GeneralController extends Controller
 
         $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         if ($hasDollarPay == true || $hasDollarPay == 1) {
-            $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
-            array_push($opr, $newOpr);
+            // chack nowpayments is active
+            $cryptoPymentCntrl = new CryptoPaymentController();
+            $nowpayments = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('nowpayments');
+            if ($nowpayments == true || $nowpayments == 1) {
+                $newOpr = $this->createNowPaymentsLink($chat_id, $estimatedPriceInDollar);
+                array_push($opr, $newOpr);
+            }
+            $cryptomus = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('cryptomus');
+            if ($cryptomus == true || $cryptomus == 1) {
+                $cryptomusOpr = $this->createCryptomusLink($chat_id, $estimatedPriceInDollar);
+                array_push($opr, $cryptomusOpr);
+            }
         }
 
         if (count($opr) > 0) {
@@ -586,11 +602,14 @@ class GeneralController extends Controller
 
             $trCryptoCntrl         = new TransactionCryptoController();
             $trRequest             = new Request();
-            $trRequest->invoiceID  = $bill->bill_id;
-            $trRequest->account_id = $chat_id;
-            $trRequest->amount     = $estimatedPriceInDollar;
-            $paymentLink           = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
-            $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
+            $trRequest['gateway']  = "nowpayments";
+            $trRequest['invoiceID']  = $bill->bill_id;
+            $trRequest['account_id'] = $chat_id;
+            // $trRequest->currency     = $estimatedPriceInDollar;
+            // $paymentLink           = $trCryptoCntrl->add_order_crypto_by_nowpayment($trRequest);
+            $paymentLink           = $trCryptoCntrl->initiateCryptoPayment($trRequest);
+            
+            // $nowpaymentLink        = $this->get_nowpayment_payment_link_from_html($paymentLink);
 
             // format $estimatedPrice to 0 decimal
             $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
@@ -602,12 +621,39 @@ class GeneralController extends Controller
 
             return [
                 'text' => $text . " $formattedPrice دلار",
-                'url'  => $nowpaymentLink,
+                'url'  => $paymentLink,
             ];
         } catch (\Throwable $th) {
             \Log::error(["createNowPaymentsLink: " . $th]);
             return [];
         }
+    }
+    public function createCryptomusLink($chat_id, $estimatedPriceInDollar)
+    {
+        $request             = new Request();
+        $request->account_id = $chat_id;
+        $request->amount     = $estimatedPriceInDollar;
+        $bill                = $this->billCntrl->createNewBillInDollar($request);
+
+        $trCryptoCntrl         = new TransactionCryptoController();
+        $trRequest             = new Request();
+        $trRequest['gateway']  = "cryptomus";
+        $trRequest['invoiceID']  = $bill->bill_id;
+        $trRequest['account_id'] = $chat_id;
+        $paymentLink           = $trCryptoCntrl->initiateCryptoPayment($trRequest);
+        \Log::info(["createCryptomusLink: " . $paymentLink]);
+
+        $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
+        $text           = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.cryptomus');
+        if (is_array($text)) {
+            // use format text service
+            $text = $this->telegramService->formatText($text);
+        }
+        return [
+            'text' => $text . " $formattedPrice دلار",
+
+            'url'  => $paymentLink,
+        ];
     }
     public function getFaqs($chatId)
     {

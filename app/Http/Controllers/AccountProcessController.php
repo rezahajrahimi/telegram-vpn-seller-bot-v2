@@ -229,16 +229,45 @@ class AccountProcessController extends Controller
 
 
             $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+            \Log::info(["hasDollarPay: " . $hasDollarPay]);
             if ($hasDollarPay == true || $hasDollarPay == 1) {
-                $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
-                if (is_array($text)) {
-                    // use format text service
-                    $text = $this->telegramService->formatText($text);
+                // $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay');
+                // if (is_array($text)) {
+                //     // use format text service
+                //     $text = $this->telegramService->formatText($text);
+                // }
+                // $newOpr = [
+                //     $text => "accountSubAccountsDollarPay",
+                // ];
+                // array_push($opr, $newOpr);
+
+                $cryptoPymentCntrl = new CryptoPaymentController();
+                $nowpayments = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('nowpayments');
+                if ($nowpayments == true || $nowpayments == 1) {
+                    $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
+                    if (is_array($text)) {
+                        // use format text service
+                        $text = $this->telegramService->formatText($text);
+                    }
+                    $newOpr = [
+                        $text => "accountSubAccountsNowpayment",
+                    ];
+                    array_push($opr, $newOpr);
                 }
-                $newOpr = [
-                    $text => "accountSubAccountsNowpayment",
-                ];
-                array_push($opr, $newOpr);
+                $cryptomus = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('cryptomus');
+                if ($cryptomus == true || $cryptomus == 1) {
+                    $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.cryptomus');
+                    if (is_array($text)) {
+                        // use format text service
+                        $text = $this->telegramService->formatText($text);
+                    }
+                    $newOpr = [
+                        $text => "accountSubAccountsCryptomus",
+                    ];
+                    array_push($opr, $newOpr);
+                }
+
+           
             }
             if (count($opr) > 0) {
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance');
@@ -317,6 +346,18 @@ class AccountProcessController extends Controller
             return "";
         }
     }
+    public function handleActionAddBalanceCryptomus(string $chatId): string
+    {
+        try {
+            $this->setAwaitingReply($chatId, 'add_balance_reply', 'cryptomus');
+            $this->telegramService->forceReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.cryptomus.reply'));
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["handleActionAddBalanceCryptomus: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
+    }
     public function addBalanceReply(string $chatId, string $text): string
     {
         try {
@@ -353,7 +394,22 @@ class AccountProcessController extends Controller
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.nowpayments.reply.invoice'), $opr);
                 return "";
 
-            } elseif ($paymentType == "shetab_verify") {
+            } else if ($paymentType == "cryptomus") {
+                $opr  = [];
+                $link = $this->generalCntrl->createCryptomusLink($chatId, $text);
+                array_push($opr, $link);
+
+                $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.cryptomus.reply.invoice'), $opr);
+                return "";
+            } elseif ($paymentType == "dollarpay") {
+                // create a new invoice with amount
+                $this->generalCntrl->createDollarPayPaymentLink($chatId, $text);
+                return "";
+            }
+            
+            
+            
+            elseif ($paymentType == "shetab_verify") {
                 // create a new invoice with amount
                 $this->processShetabVerification($chatId, $text);
                 return "";

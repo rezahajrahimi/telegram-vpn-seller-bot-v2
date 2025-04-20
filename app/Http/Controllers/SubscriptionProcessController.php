@@ -126,6 +126,7 @@ class SubscriptionProcessController extends Controller
         }
         $opr               = [];
         $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        \Log::info("dollarTransaction: " . $dollarTransaction);
         $showOneRowConfig  = $this->advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
         if ($showOneRowConfig) {
             foreach ($prCat as $key => $value) {
@@ -212,27 +213,30 @@ class SubscriptionProcessController extends Controller
 
             // تلاش برای کسر از کیف پول تومانی
             $balance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
-            if ($balance) {
+            \Log::info("processPayment balance: " . $balance);
+            if ($balance != false || $balance != 0 || $balance != null) {
                 $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPrice . ' تومان', 'show');
                 return true;
             }
 
             // بررسی پرداخت دلاری
             $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
-            if ($dollarTransaction) {
+            \Log::info("dollarTransaction: " . $dollarTransaction);
+            if ($dollarTransaction == true || $dollarTransaction == 1) {
                 $request->ballance = $productPriceInDollar;
                 $request->type     = 'dollar';
                 $balance           = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
-                if ($balance) {
+                if ($balance != false || $balance != 0 || $balance != null) {
                     $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPriceInDollar . ' دلار', 'show');
                     return true;
                 }
             }
 
             // بررسی کیف پول ارجاع
-            if ($hasRefballance) {
+            if ($hasRefballance == true || $hasRefballance == 1) {
                 $balance = $this->referralCntrl->dec_user_ref_wallet_ballance($this->chatId, $productPrice);
-                if ($balance) {
+                \Log::info("processPayment referral balance: " . $balance);
+                if ($balance != false || $balance != 0 || $balance != null) {
                     $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول همکاری به مقدار ' . $productPrice . ' تومان', 'show');
                     return true;
                 }
@@ -278,13 +282,18 @@ class SubscriptionProcessController extends Controller
                 // create sanaei user
                 return " پنل سنائی";
             }
+            \Log::info("resualt response buoght from hiddify: " . $resualt);
+
             if ($resualt == false || $resualt == null) {
                 $this->addNewBotLog('subscription', 'خرید اشتراک با شکست مواجه شد.', 'show');
                 return $this->customTextCtrl->getText('action.process.failed_buy');
             }
             // پردازش پرداخت
             $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
-            if (! $paymentSuccess) {
+            
+            \Log::info("paymentSuccess: " . $paymentSuccess);
+
+            if ($paymentSuccess == false || $paymentSuccess == null) {
                 if ($pannel->type == 'hiddify') {
                     // remove created product from database and panel
                     $uuid = $resualt;

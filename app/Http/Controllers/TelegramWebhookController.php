@@ -507,6 +507,8 @@ class TelegramWebhookController extends Controller
             'accountAddBalance' => $this->accountProcessCtrl->accountAddBalance($chatId),
             'accountSubAccountsZarinpal' => $this->accountProcessCtrl->handleActionAddBalanceZarinpal($chatId),
             'accountSubAccountsNowpayment' => $this->accountProcessCtrl->handleActionAddBalanceNowpayments($chatId),
+            'accountSubAccountsCryptomus' => $this->accountProcessCtrl->handleActionAddBalanceCryptomus($chatId),
+
             'addBalanceReply' => $this->accountProcessCtrl->addBalanceReply($chatId, $actionList[1]),
             'toturial' => $actionList[1] == 'appDownload' ? $this->generalCntrl->appDownload($chatId) : $this->generalCntrl->getFaqs($chatId),
             'help' => $this->handleHelpCommand(),

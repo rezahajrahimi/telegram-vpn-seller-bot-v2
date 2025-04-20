@@ -12,6 +12,8 @@ class VerifyCsrfToken extends Middleware
      * @var array<int, string>
      */
     protected $except = [
-        //
+        '/cryptomus/callback', // Exclude Cryptomus callback route
+        '/payback', // Exclude NowPayments callback route if needed (based on existing routes/web.php)
+        // Add other webhook routes here if necessary
     ];
 }

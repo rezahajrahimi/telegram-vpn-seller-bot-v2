@@ -135,6 +135,9 @@ class CustomTextController extends Controller
                 ['type' => 'text', 'text' => 'مبلغ واریزی خود را وارد کنید. (حداقل 10 هزار تومان)'],
             ]), 'custom_text' => null, 'description' => 'متن مبلغ واریزی خود را وارد کنید. (حداقل 10 هزار تومان)'],
 
+            ['key' => 'action.process.add_online_balance.dollarpay', 'default_text' => json_encode([
+                ['type' => 'text', 'text' => 'پرداخت با رمز ارز'],
+            ]), 'custom_text' => null, 'description' => 'متن پرداخت با رمز ارز'],
             ['key' => 'action.process.add_online_balance.nowpayments.reply', 'default_text' => json_encode([
                 ['type' => 'text', 'text' => 'مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)'],
             ]), 'custom_text' => null, 'description' => 'متن مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)'],
@@ -142,14 +145,26 @@ class CustomTextController extends Controller
             ['key' => 'action.process.add_online_balance.nowpayments.reply.invoice', 'default_text' => json_encode([
                 ['type' => 'text', 'text' => 'صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
             ]), 'custom_text' => null, 'description' => 'متن صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
+            ['key' => 'action.process.add_online_balance.cryptomus.reply', 'default_text' => json_encode([
+                ['type' => 'text', 'text' => 'مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)'],
+            ]), 'custom_text' => null, 'description' => 'متن مقدار واریزی خود را وارد کنید. (حداقل 5 دلار)'],
+            ['key' => 'action.process.add_online_balance.cryptomus.reply.invoice', 'default_text' => json_encode([
+                ['type' => 'text', 'text' => 'صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
+            ]), 'custom_text' => null, 'description' => 'متن صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
+
+
 
             ['key' => 'action.process.add_online_balance.dollarpay.zarinpal', 'default_text' => json_encode([
                 ['type' => 'text', 'text' => 'پرداخت آنلاین با زرین پال'],
             ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین با زرین پال'],
 
             ['key' => 'action.process.add_online_balance.dollarpay.nowpayment', 'default_text' => json_encode([
-                ['type' => 'text', 'text' => 'پرداخت آنلاین با رمزارز'],
-            ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین با رمزارز'],
+                ['type' => 'text', 'text' => 'پرداخت آنلاین با رمز ارز (NowPayments)'],
+            ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین با رمز ارز (NowPayments)'],
+
+            ['key' => 'action.process.add_online_balance.dollarpay.cryptomus', 'default_text' => json_encode([
+                ['type' => 'text', 'text' => 'پرداخت آنلاین بارمز ارز (Cryptomus)'],
+            ]), 'custom_text' => null, 'description' => 'متن پرداخت آنلاین بارمز ارز (Cryptomus)'],
 
             ['key' => 'action.process.add_offline_balance_option_and_online_balance', 'default_text' => json_encode([
                 ['type' => 'text', 'text' => 'همچنین می توانید با انتخاب یکی از گزینه های زیر نسبت به پرداخت اقدام نمایید.'],

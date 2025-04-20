@@ -294,6 +294,10 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     // CryptoPaymentController
     Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
     Route::patch('updateNowPayment', [CryptoPaymentController::class, 'updateNowPayment']);
+    Route::get('getCryptoPaymentData', [CryptoPaymentController::class, 'getCryptoPaymentData']);
+    Route::patch('updateCryptomusPayment', [CryptoPaymentController::class, 'updateCryptomusPayment']);
+
+
     // PaymentSettingController
     Route::get('get-payment-setting-by-key/{key}', [PaymentSettingController::class, 'getPaymentSettingByKey']);
     Route::get('get-payment-setting-value-by-key/{key}', [PaymentSettingController::class, 'getPaymentSettingValueByKey']);

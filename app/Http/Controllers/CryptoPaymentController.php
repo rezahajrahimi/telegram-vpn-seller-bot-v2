@@ -8,9 +8,20 @@ use Illuminate\Http\Request;
 class CryptoPaymentController extends Controller
 {
     public function seed(){
-        $this->createNowPaymentData();
-        
-
+        if (CryptoPayment::all()->isEmpty()) {
+            $this->createNowPaymentData();
+            $this->createCryptoPaymentData();
+            return true;
+        }
+        return false;
+    }
+    public function getCryptoPaymentStatusByKey($key)
+    {
+        $data = CryptoPayment::where('name', $key)->first();
+        if ($data != null) {
+            return $data->is_active == true || $data->is_active == 1 ? true : false;
+        }
+        return false;
     }
     public function createNowPaymentData()
     {
@@ -67,13 +78,14 @@ class CryptoPaymentController extends Controller
     public function updateNowPayment(Request $request)
     {
         try {
+            \Log::info('request->is_active : ' . $request->is_active);
             $data = CryptoPayment::where('name', 'nowpayments')->first();
 
             $data->api_key = $request->api_key;
             $data->email = $request->email;
             $data->password = $request->password;
-            $data->is_fee_paid_by_user = $request->is_fee_paid_by_user;
-            $data->is_active = $request->is_active;
+            $data->is_fee_paid_by_user = $request->is_fee_paid_by_user == 1 || $request->is_fee_paid_by_user == true ? true : false;
+            $data->is_active = $request->is_active == 1 || $request->is_active == true ? true : false;
 
             $data->update();
             return $data;
@@ -92,6 +104,58 @@ class CryptoPaymentController extends Controller
             //throw $th;
             \Log::info('message : ' . $th->getMessage());
             return false;
+        }
+    }
+    public function getCryptoPaymentData()
+    {
+        $data = CryptoPayment::where('name', 'cryptomus')->first();
+        if ($data != null) {
+            return $data;
+        }
+        return $this->createCryptoPaymentData();
+
+    }
+    public function createCryptoPaymentData()
+    {
+        try {
+            $transactionCryptoCntrl = new TransactionCryptoController();
+            $data = new CryptoPayment();
+            $data->name = 'cryptomus';
+            $data->api_key = 'xxxxxxx-xxxxxxx-xxxxxxx-xxxxxxx';
+            $data->env = 'live';
+            $data->callback_url = "https://{$transactionCryptoCntrl->getCurrentUrl()}/payback/";
+            $data->email = 'john@gmail.com';
+            $data->password = 'xxxxxxx-xxxxxxx-xxxxxxx-xxxxxxx';
+            $data->ipn_callback_url = "https://{$transactionCryptoCntrl->getCurrentUrl()}/payback/";
+            $data->save();
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info('message : ' . $th->getMessage());
+            return null;
+        }
+    }
+    public function getCryptoPaymentID()
+    {
+        $data = CryptoPayment::where('name', 'cryptomus')->first();
+        if ($data != null) {
+            return $data->id;
+        }
+        return null;
+    }
+    public function updateCryptomusPayment(Request $request)
+    {
+        \Log::info('request->is_active : ' . $request->is_active);
+        try {
+            $data = CryptoPayment::where('name', 'cryptomus')->first();
+            $data->api_key = $request->api_key;
+            $data->email = $request->email;
+            $data->password = $request->password;
+            $data->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
+            $data->update();
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info('message : ' . $th->getMessage());
+            return response()->json(null, 500);
         }
     }
 }
