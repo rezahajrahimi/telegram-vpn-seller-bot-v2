@@ -79,7 +79,11 @@ class AccountProcessController extends Controller
             ]);
 
             $formatter = new TelegramMessageFormatter($this->telegramService);
+            try {
             $text      = $formatter->addFormattedText('', $text)->getMessage();
+            } catch (\Throwable $th) {
+                \Log::error(["unable to format text: "]);
+            }
 
             $this->generalCntrl->return_main_menu_items($chatId, $text);
             $this->show_additional_options($chatId);
