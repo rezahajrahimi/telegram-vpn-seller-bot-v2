@@ -36,15 +36,11 @@ class CustomTextController extends Controller
                     ['type' => 'newline'],
                     ['type' => 'newline'],
                     ['type' => 'text', 'text' => "برای شروع می‌توانید از گزینه های زیر استفاده کنید:"],
-                    ['type' => 'newline'],
-                    ['type' => 'italic', 'text' => "برای اطلاعات بیشتر به "],
-                    ['type' => 'link', 'text' => "وب‌سایت ما", 'url' => "{website}"],
-                    ['type' => 'text', 'text' => " مراجعه کنید."],
                 ]), 'custom_text' => null, 'description' => 'متن خوش آمدگویی برای کاربر - پارامترها: {name} {lastName} {website}'],
 
             ['key' => 'action.start', 'default_text' => json_encode([
                 ['type' => 'text', 'text' => 'سلام {name}! به ربات آموزشی خوش آمدید'],
-            ]), 'custom_text' => null, 'description' => 'متن خوش آمدگویی برای کاربر - پارامترها: {name} {website}'],
+            ]), 'custom_text' => null, 'description' => 'متن خوش آمدگویی برای کاربر - پارامترها: {name} {lastName}'],
             ['key' => 'action.chanel_lock_text', 'default_text' => json_encode([
                 ['type' => 'text', 'text' => 'برای شروع، لطفا در کانالهای زیر عضو بشوید.'],
             ]), 'custom_text' => null, 'description' => 'متن قفل ربات'],

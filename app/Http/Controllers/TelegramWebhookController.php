@@ -410,7 +410,6 @@ class TelegramWebhookController extends Controller
             $welcomeFormats = $this->customTextCtrl->getText('action.welcome.message', [
                 'name'     => $firstName,
                 'lastName' => $lastName,
-                'website'  => 'https://powerps.ir',
             ]);
             if (is_array($welcomeFormats)) {
                 $welcomeFormats = $this->telegramService->formatText($welcomeFormats);
