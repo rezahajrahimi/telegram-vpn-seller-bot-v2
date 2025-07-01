@@ -38,22 +38,22 @@ class SubscriptionProcessController extends Controller
     private PaymentSettingController $paymnetSettingCntrl;
     public function __construct(TelegramService $telegramService)
     {
-        $this->telegramService      = $telegramService;
-        $this->customTextCtrl       = new CustomTextController();
-        $this->accBlCtrl            = new AccountBallanceController();
-        $this->referralCntrl        = new ReferralWalletController();
-        $this->prCatCntrl           = new ProductCategoryController();
-        $this->prCtrl               = new ProductController();
-        $this->panelCntrl           = new PannelController();
+        $this->telegramService = $telegramService;
+        $this->customTextCtrl = new CustomTextController();
+        $this->accBlCtrl = new AccountBallanceController();
+        $this->referralCntrl = new ReferralWalletController();
+        $this->prCatCntrl = new ProductCategoryController();
+        $this->prCtrl = new ProductController();
+        $this->panelCntrl = new PannelController();
         $this->advancedSettingCntrl = new AdvanceSettingLookupController();
-        $this->generalCntrl         = new GeneralController();
-        $this->logCtrl              = new LogController();
-        $this->botUser              = new BotUser();
-        $this->product              = new Product();
-        $this->selectedPrCat        = new ProductCategory();
-        $this->pymntCntrl           = new PaymentTypeController();
-        $this->hiddifyPannelCntrl   = new HiddifyPannelController();
-        $this->paymnetSettingCntrl  = new PaymentSettingController();
+        $this->generalCntrl = new GeneralController();
+        $this->logCtrl = new LogController();
+        $this->botUser = new BotUser();
+        $this->product = new Product();
+        $this->selectedPrCat = new ProductCategory();
+        $this->pymntCntrl = new PaymentTypeController();
+        $this->hiddifyPannelCntrl = new HiddifyPannelController();
+        $this->paymnetSettingCntrl = new PaymentSettingController();
     }
 
     public function buySubscriptionMenu($chatId)
@@ -73,11 +73,11 @@ class SubscriptionProcessController extends Controller
                 $panels = $this->panelCntrl->get_all_panells_by_location_capacity_mode();
 
                 $text = $this->customTextCtrl->getText('action.buy_subscription_by_location.location');
-                $opr  = [];
+                $opr = [];
 
                 foreach ($panels as $key => $value) {
                     $buttonText = $value;
-                    $opr[]      = [
+                    $opr[] = [
                         $buttonText => "buySubscriptionByLocation-" . $value,
                     ];
                 }
@@ -100,13 +100,13 @@ class SubscriptionProcessController extends Controller
     public function buySubscriptionByLocationAction($chatId, $location)
     {
         try {
-            $this->chatId  = $chatId;
+            $this->chatId = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
             $this->addNewBotLog('subscription', 'وارد بخش خرید اشتراک بر اساس لوکیشن شد.', 'show');
-            $text       = $this->customTextCtrl->getText('action.buy_subscription_by_location.location');
-            $panelId    = $this->panelCntrl->get_pannel_id_by_location($location);
+            $text = $this->customTextCtrl->getText('action.buy_subscription_by_location.location');
+            $panelId = $this->panelCntrl->get_pannel_id_by_location($location);
             $prCatCntrl = new ProductCategoryController();
-            $prCat      = $prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
+            $prCat = $prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
 
             $this->prepareSubscriptionButtons($prCat);
 
@@ -124,10 +124,10 @@ class SubscriptionProcessController extends Controller
         if ($prCat == null) {
             $prCat = $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
         }
-        $opr               = [];
+        $opr = [];
         $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         \Log::info("dollarTransaction: " . $dollarTransaction);
-        $showOneRowConfig  = $this->advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
+        $showOneRowConfig = $this->advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
         if ($showOneRowConfig) {
             foreach ($prCat as $key => $value) {
                 // هر دکمه به صورت یک ردیف جداگانه
@@ -143,25 +143,25 @@ class SubscriptionProcessController extends Controller
         } else {
             if ($dollarTransaction == true) {
                 $opr[] = [
-                    'قیمت(دلار)'  => '0',
+                    'قیمت(دلار)' => '0',
                     'قیمت(تومان)' => '0',
-                    'بسته'        => '0',
+                    'بسته' => '0',
                 ];
                 foreach ($prCat as $key => $value) {
                     $opr[] = [
                         "$value->price_in_dollar" => "buySubscription-" . strval($value->id),
-                        "$value->price"           => "buySubscription-" . strval($value->id),
-                        "$value->category_name"   => "buySubscription-" . strval($value->id),
+                        "$value->price" => "buySubscription-" . strval($value->id),
+                        "$value->category_name" => "buySubscription-" . strval($value->id),
                     ];
                 }
             } else {
                 $opr[] = [
                     'قیمت(تومان)' => '0',
-                    'بسته'        => '0',
+                    'بسته' => '0',
                 ];
                 foreach ($prCat as $key => $value) {
                     $opr[] = [
-                        "$value->price"         => "buySubscription-" . strval($value->id),
+                        "$value->price" => "buySubscription-" . strval($value->id),
                         "$value->category_name" => "buySubscription-" . strval($value->id),
                     ];
                 }
@@ -175,14 +175,14 @@ class SubscriptionProcessController extends Controller
     public function buySubscriptionAction($chatId, $subscriptionId)
     {
         try {
-            $this->chatId        = $chatId;
+            $this->chatId = $chatId;
             $this->selectedPrCat = $this->selectedPrCat->getProdctCategorByID($subscriptionId);
             // check if selectedPrCat is null
             if ($this->selectedPrCat == null) {
                 return $this->customTextCtrl->getText('action.process.failed_buy');
             }
             // بررسی موجودی کاربر
-            $productPrice         = $this->selectedPrCat->price;
+            $productPrice = $this->selectedPrCat->price;
             $productPriceInDollar = $this->selectedPrCat->price_in_dollar;
 
             $hasBallance = $this->accBlCtrl->checkUserHasBalance($chatId, $productPrice, $productPriceInDollar);
@@ -206,10 +206,10 @@ class SubscriptionProcessController extends Controller
     private function processPayment($productPrice, $productPriceInDollar, $hasRefballance)
     {
         try {
-            $request           = new Request();
-            $request->userID   = $this->chatId;
+            $request = new Request();
+            $request->userID = $this->chatId;
             $request->ballance = $productPrice;
-            $request->type     = 'toman';
+            $request->type = 'toman';
 
             // تلاش برای کسر از کیف پول تومانی
             $balance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
@@ -224,8 +224,8 @@ class SubscriptionProcessController extends Controller
             \Log::info("dollarTransaction: " . $dollarTransaction);
             if ($dollarTransaction == true || $dollarTransaction == 1) {
                 $request->ballance = $productPriceInDollar;
-                $request->type     = 'dollar';
-                $balance           = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+                $request->type = 'dollar';
+                $balance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
                 if ($balance != false || $balance != 0 || $balance != null) {
                     $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPriceInDollar . ' دلار', 'show');
                     return true;
@@ -253,9 +253,9 @@ class SubscriptionProcessController extends Controller
         try {
             $selectedPrCat = $this->selectedPrCat;
             // بررسی موجودی کاربر
-            $productPrice         = $this->selectedPrCat->price;
+            $productPrice = $this->selectedPrCat->price;
             $productPriceInDollar = $this->selectedPrCat->price_in_dollar;
-            $hasBallance          = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
+            $hasBallance = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
             // بررسی کیف پول ارجاع
             $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $this->selectedPrCat->price);
 
@@ -267,11 +267,11 @@ class SubscriptionProcessController extends Controller
             $productID = $this->selectedPrCat->id;
             $productID += 1;
 
-            $pannel    = $this->panelCntrl->getPannelById($this->selectedPrCat->pannel_id);
-            $day       = $this->selectedPrCat->expire_day;
-            $volume    = $this->selectedPrCat->volume;
+            $pannel = $this->panelCntrl->getPannelById($this->selectedPrCat->pannel_id);
+            $day = $this->selectedPrCat->expire_day;
+            $volume = $this->selectedPrCat->volume;
             $productID = $this->selectedPrCat->id;
-            $resualt   = false;
+            $resualt = false;
 
             if ($pannel->type == 'hiddify') {
                 $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $productID);
@@ -290,7 +290,7 @@ class SubscriptionProcessController extends Controller
             }
             // پردازش پرداخت
             $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
-            
+
             \Log::info("paymentSuccess: " . $paymentSuccess);
 
             if ($paymentSuccess == false || $paymentSuccess == null) {
@@ -300,7 +300,7 @@ class SubscriptionProcessController extends Controller
                     $this->hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
                     // delete product from database
                     $prCntrl = new ProductController();
-                    $res     = $prCntrl->delete_product_by_uuid($uuid);
+                    $res = $prCntrl->delete_product_by_uuid($uuid);
                     if ($res) {
                         $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل و دیتابیس', 'show');
                     }
@@ -330,7 +330,7 @@ class SubscriptionProcessController extends Controller
             $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option.image', ['merchant_id' => $offlinePayment->merchant_id]);
             //fromat text with formatter service
             $formatter = new TelegramMessageFormatter($this->telegramService);
-            $text      = $formatter->addFormattedText('', $text)->getMessage();
+            $text = $formatter->addFormattedText('', $text)->getMessage();
             $this->telegramService->sendMessage($chatId, $text);
             // // ذخیره حالت کاربر
             // UserState::updateOrCreate(
@@ -373,14 +373,14 @@ class SubscriptionProcessController extends Controller
                 ->where('state', 'waiting_payment_receipt')
                 ->first();
 
-            if (! $userState) {
+            if (!$userState) {
                 $this->telegramService->sendMessage($chatId, 'لطفاً ابتدا از منوی پرداخت آفلاین اقدام کنید.');
                 return "";
             }
 
             $paymentTypeId = $userState->data['payment_type_id'];
-            $photoSize     = end($photo);
-            $fileId        = $photoSize['file_id'];
+            $photoSize = end($photo);
+            $fileId = $photoSize['file_id'];
 
             // ذخیره اطلاعات پرداخت در دیتابیس
             $this->addNewBotLog('payment', 'تصویر رسید پرداخت آفلاین ارسال شد', 'upload');
@@ -395,7 +395,7 @@ class SubscriptionProcessController extends Controller
             $adminChatId = env('TELEGRAM_ADMIN_ID');
             if ($adminChatId) {
                 $this->botUser = $this->botUser->getUserByAccountID($chatId);
-                $adminMessage  = "رسید پرداخت جدید:\nکاربر: {$this->botUser->username}\nChat ID: {$chatId}\nنوع پرداخت: {$paymentTypeId}";
+                $adminMessage = "رسید پرداخت جدید:\nکاربر: {$this->botUser->username}\nChat ID: {$chatId}\nنوع پرداخت: {$paymentTypeId}";
                 $this->telegramService->sendPhoto($adminChatId, $fileId, $adminMessage);
             }
 
@@ -413,10 +413,10 @@ class SubscriptionProcessController extends Controller
         }
     }
 
-    public function buyHistory($chatId)
+    public function buyHistory($chatId, $page = 1)
     {
         try {
-            $this->chatId  = $chatId;
+            $this->chatId = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
             $this->addNewBotLog('subscription', 'وارد بخش سابقه خرید شد.', 'show');
             $histories = $this->prCtrl->getUserProductsHistoryByAccountID($chatId);
@@ -426,13 +426,51 @@ class SubscriptionProcessController extends Controller
                 return "";
             }
             $text = $this->customTextCtrl->getText('action.buy_history.title');
-            $opr  = [];
+            $opr = [];
             foreach ($histories as $key => $history) {
                 $opr[] = [
                     $history->remark . ' | ' . $history->product_category->category_name => 'buyHistory-' . $history->id,
                 ];
             }
-            if (count($opr) > 0) {
+            if (count($opr) > 10) {
+                $lastPage = ceil(count($opr) / 10);
+                // add pagination if count bigger than 10
+                if (count($opr) > 10 && $page == 1) {
+                    $opr = array_chunk($opr, 10);
+                    $opr = $opr[0]; // get first 10 items
+                    $nextPage = 2;
+                    $previousPage = 1;
+                    $opr[] = [
+                        'ادامه' => "buyHistoryNext-$nextPage",
+                    ];
+                } elseif ($page > 1) {
+                    $firstItemsIndex = ($page * 10) ;
+                    $firstItemsIndex -= 10; // adjust index for zero-based array
+                    // slice opr array to get 10 items starting from firstItemsIndex
+                    if ($firstItemsIndex < 0) {
+                        $firstItemsIndex = 0; // prevent negative index
+                    }
+                    // slice opr array to get 10 items
+                    if ($firstItemsIndex >= count($opr)) {
+                        $firstItemsIndex = count($opr) - 10; // prevent out of bounds
+                    }
+                    // slice opr array to get 10 items starting from firstItemsIndex
+                    if ($firstItemsIndex < 0) {
+                        $firstItemsIndex = 0; // prevent negative index
+                    }
+                        $opr = array_slice($opr, $firstItemsIndex, 10);
+                    
+                   
+                    // slice opr array to get 10 items
+                    // check is last page, if not add next button
+                    if($page < $lastPage) {
+                        $nextPage = $page + 1;
+                        $opr[] = ['ادامه' => "buyHistoryNext-$nextPage"];
+                    }
+
+                }
+                $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+            } elseif (count($opr) < 10) {
                 $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
             } else {
                 $text = $this->customTextCtrl->getText('action.buy_history.no_history');
@@ -447,7 +485,7 @@ class SubscriptionProcessController extends Controller
     public function subBuyHistory($chatId, $historyId)
     {
         try {
-            $this->chatId  = $chatId;
+            $this->chatId = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
 
             // ابتدا رکورد تاریخچه را از دیتابیس دریافت کنید
@@ -459,8 +497,8 @@ class SubscriptionProcessController extends Controller
             if ($product != null) {
                 // convert $historyId->product_categories_id to int
                 $prCatId = (int) $product->product_categories_id;
-                $prCat   = $this->selectedPrCat->getProdctCategorByID($prCatId);
-                $pannel  = $this->panelCntrl->getPannelById($prCat->pannel_id);
+                $prCat = $this->selectedPrCat->getProdctCategorByID($prCatId);
+                $pannel = $this->panelCntrl->getPannelById($prCat->pannel_id);
 
                 $text = $this->customTextCtrl->getText('action.buy_history.title');
                 $this->addNewBotLog('subscription', 'وارد سابقه خرید با ایدی ' . $product->remark . ' شد.', 'show');
@@ -471,35 +509,35 @@ class SubscriptionProcessController extends Controller
                         $userLink = substr($userLink, 0, -1);
                     }
 
-                    $hiddifcCntrl         = new HiddifyPannelController();
-                    $userPannelLink       = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $product->panel_link);
+                    $hiddifcCntrl = new HiddifyPannelController();
+                    $userPannelLink = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $product->panel_link);
                     $userSubscriptionLInk = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $product->subscription_link);
-                    $pnlCntrl             = new PannelController();
-                    $image                = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
-                    $agentCntrl           = new AgentProductController();
-                    $configStatus         = $agentCntrl->getBoughtProductsStatusFromServerById($product->id);
+                    $pnlCntrl = new PannelController();
+                    $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
+                    $agentCntrl = new AgentProductController();
+                    $configStatus = $agentCntrl->getBoughtProductsStatusFromServerById($product->id);
                     // check configStatus is json
                     if (is_string($configStatus)) {
                         $configStatus = json_decode($configStatus, true);
                     }
                     $enableText = $configStatus['enable'] == true ? 'فعال' : 'غیر فعال';
-                    $usageGB    = $configStatus['current_usage_GB'];
-                    $usageGB    = round($usageGB, 2);
-                    $limitGB    = $configStatus['usage_limit_GB'];
+                    $usageGB = $configStatus['current_usage_GB'];
+                    $usageGB = round($usageGB, 2);
+                    $limitGB = $configStatus['usage_limit_GB'];
 
-                    $startDate    = $configStatus['start_date'];
-                    $startDate    = Carbon::parse($startDate);
+                    $startDate = $configStatus['start_date'];
+                    $startDate = Carbon::parse($startDate);
                     $package_days = $configStatus['package_days'];
                     $package_days = intval($package_days);
-                    $expireDate   = Carbon::parse($startDate);
+                    $expireDate = Carbon::parse($startDate);
                     $expireDate->addDays($package_days);
 
                     $expireDate = $expireDate->toJalali()->format('Y.m.d');
-                    $startDate  = $startDate->toJalali()->format('Y.m.d');
+                    $startDate = $startDate->toJalali()->format('Y.m.d');
 
-                    $text      = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $product->remark, 'category_name' => $prCat->category_name, 'panel_link' => $userPannelLink, 'subscription_link' => $userSubscriptionLInk, 'start_date' => $startDate, 'expire_date' => $expireDate, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText]);
+                    $text = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $product->remark, 'category_name' => $prCat->category_name, 'panel_link' => $userPannelLink, 'subscription_link' => $userSubscriptionLInk, 'start_date' => $startDate, 'expire_date' => $expireDate, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText]);
                     $formatter = new TelegramMessageFormatter($this->telegramService);
-                    $text      = $formatter->addFormattedText('', $text)->getMessage();
+                    $text = $formatter->addFormattedText('', $text)->getMessage();
 
                     $this->telegramService->sendPhotoFile($chatId, $image, $text);
                     $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
@@ -508,7 +546,7 @@ class SubscriptionProcessController extends Controller
                 }
 
             }
-            return $history;
+            return "" ;
         } catch (\Throwable $th) {
             \Log::error("خطا در سابقه خرید: " . $th->getMessage());
             return $this->customTextCtrl->getText('error.server_error');
@@ -517,7 +555,7 @@ class SubscriptionProcessController extends Controller
     public function recharge($chatId, $productID)
     {
         try {
-            $this->chatId  = $chatId;
+            $this->chatId = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
             $this->addNewBotLog('subscription', 'وارد بخش شارژ مجدد شد.', 'show');
             // check product is exist
@@ -544,10 +582,10 @@ class SubscriptionProcessController extends Controller
                 return "";
             }
             // get product price & price in dollar
-            $productPrice         = $prCat->price;
+            $productPrice = $prCat->price;
             $productPriceInDollar = $prCat->price_in_dollar;
             // check user has balance or has ref ballance
-            $hasBallance    = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
+            $hasBallance = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
             $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $productPrice);
             if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
                 $resualt = $this->generalCntrl->send_insufficient_balance_message($this->chatId, $prCat->id);
@@ -561,17 +599,17 @@ class SubscriptionProcessController extends Controller
             // check pannel type is hiddify
             if ($pannel->type == 'hiddify') {
                 $hiddifcCntrl = new HiddifyPannelController();
-                $uuid         = $hiddifcCntrl->extractUUID($product->subscription_link);
-                $day          = $prCat->expire_day;
-                $volume       = $prCat->volume;
+                $uuid = $hiddifcCntrl->extractUUID($product->subscription_link);
+                $day = $prCat->expire_day;
+                $volume = $prCat->volume;
 
-                $req           = new Request();
+                $req = new Request();
                 $req->pannelID = $pannel->id;
-                $req->name     = $product->remark;
-                $req->uuid     = $uuid;
-                $req->vol      = $volume;
-                $req->day      = $day;
-                $req->comment  = "شارژ مجدد در " . Verta::now();
+                $req->name = $product->remark;
+                $req->uuid = $uuid;
+                $req->vol = $volume;
+                $req->day = $day;
+                $req->comment = "شارژ مجدد در " . Verta::now();
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
                 if ($updateRemark->getStatusCode() == 200) {
@@ -609,8 +647,8 @@ class SubscriptionProcessController extends Controller
                 return "";
             }
             $this->chatId = $chatId;
-            $user_state   = UserState::where('chat_id', $chatId)->latest()->first();
-            $product      = Product::where('id', $user_state->data)
+            $user_state = UserState::where('chat_id', $chatId)->latest()->first();
+            $product = Product::where('id', $user_state->data)
                 ->with('product_category_and_panel')
                 ->first();
             if ($product == null) {
@@ -618,14 +656,14 @@ class SubscriptionProcessController extends Controller
                 return "";
             }
 
-            $pannel        = Pannel::find($product->product_category_and_panel->pannel_id);
-            $hiddifcCntrl  = new HiddifyPannelController();
-            $uuid          = $hiddifcCntrl->extractUUID($product->subscription_link);
-            $req           = new Request();
+            $pannel = Pannel::find($product->product_category_and_panel->pannel_id);
+            $hiddifcCntrl = new HiddifyPannelController();
+            $uuid = $hiddifcCntrl->extractUUID($product->subscription_link);
+            $req = new Request();
             $req->pannelID = $pannel->id;
-            $req->name     = $prID;
-            $req->uuid     = $uuid;
-            $req->comment  = "تغییر نام بسته در " . Verta::now();
+            $req->name = $prID;
+            $req->uuid = $uuid;
+            $req->comment = "تغییر نام بسته در " . Verta::now();
 
             $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelApi($req);
             if ($updateRemark !== false) {
@@ -651,10 +689,10 @@ class SubscriptionProcessController extends Controller
     }
     public function setAwaitingReply(string $chatId, string $type, int $id): void
     {
-        $user_state          = new UserState();
+        $user_state = new UserState();
         $user_state->chat_id = $chatId;
-        $user_state->state   = 'remark_reply';
-        $user_state->data    = $id;
+        $user_state->state = 'remark_reply';
+        $user_state->data = $id;
         $user_state->save();
 
         // می‌توانید از کش یا دیتابیس استفاده کنید
@@ -670,7 +708,7 @@ class SubscriptionProcessController extends Controller
         return Cache::get("awaiting_reply_{$chatId}");
     }
 
-    private function clearAwaitingReply(string $chatId, string | array $text): void
+    private function clearAwaitingReply(string $chatId, string|array $text): void
     {
         try {
             $text = $this->telegramService->formatText($text);
