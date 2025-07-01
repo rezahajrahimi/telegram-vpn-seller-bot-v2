@@ -264,17 +264,17 @@ class SubscriptionProcessController extends Controller
                 return "";
             }
 
-            $productID = $this->selectedPrCat->id;
-            $productID += 1;
 
             $pannel = $this->panelCntrl->getPannelById($this->selectedPrCat->pannel_id);
             $day = $this->selectedPrCat->expire_day;
             $volume = $this->selectedPrCat->volume;
-            $productID = $this->selectedPrCat->id;
+            // $productID = $this->selectedPrCat->id;
             $resualt = false;
-
+            // get id of last inserted product id
+            $lastProductId = Product::latest()->first()->id ?? 1;
+            
             if ($pannel->type == 'hiddify') {
-                $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $productID);
+                $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $lastProductId+1);
             } elseif ($pannel->type == 'marzban') {
                 // create marzban user
                 return " پنل مرزبان";
