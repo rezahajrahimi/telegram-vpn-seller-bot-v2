@@ -202,7 +202,7 @@ class TelegramWebhookController extends Controller
                 return $this->accountProcessCtrl->accountDetails($chatId);
                 break;
             case 'سابقه خرید':
-                return $this->subscriptionProcessCtrl->buyHistory($chatId);
+                return $this->subscriptionProcessCtrl->buyHistory($chatId , 1);
                 break;
             case 'پشتیبانی':
                 return $this->generalCntrl->support($chatId);
@@ -499,6 +499,7 @@ class TelegramWebhookController extends Controller
             'buySubscriptionByLocation' => $this->subscriptionProcessCtrl->buySubscriptionByLocationAction($chatId, $actionList[1]),
             'offlineGateway' => $this->subscriptionProcessCtrl->handle_offline_add_balance($chatId, $actionList[1]),
             'buyHistory' => $this->subscriptionProcessCtrl->subBuyHistory($chatId, $actionList[1]),
+            'buyHistoryNext' => $this->subscriptionProcessCtrl->buyHistory($chatId, $actionList[1]),
             'recharge' => $this->subscriptionProcessCtrl->recharge($chatId, $actionList[1]),
             'remark' => $this->subscriptionProcessCtrl->remark($chatId, $actionList[1]),
             'accountTransactions' => $this->accountProcessCtrl->accountTransactions($chatId),
