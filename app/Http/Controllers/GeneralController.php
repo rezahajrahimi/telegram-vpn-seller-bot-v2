@@ -509,6 +509,10 @@ class GeneralController extends Controller
 
         if (count($opr) > 0) {
             $text = $this->customTextCtrl->getText('action.process.add_online_balance');
+            if( is_array($text)) {
+                // use format text service
+                $text = $this->telegramService->formatText($text);
+            }
             $this->telegramService->sendMessageWithLinkButtons($chat_id, $text, $opr);
         }
 

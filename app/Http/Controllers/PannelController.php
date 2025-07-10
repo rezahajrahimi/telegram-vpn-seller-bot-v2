@@ -335,9 +335,12 @@ class PannelController extends Controller
 
             $pannels = Pannel::with('product_category_and_count_products')->get();
             foreach ($pannels as $key => $value) {
-                // remove each pannel wich capacity is above or equal to the products count
-                $rrr = $value->product_category_and_count_products[0]->products_count;
-                if ($value->product_category_and_count_products[0]->products_count >= $value->capacity  ) {
+                // بررسی وجود مقدار و خالی نبودن آرایه
+                $rrr = 0;
+                if (!empty($value->product_category_and_count_products) && isset($value->product_category_and_count_products[0]->products_count)) {
+                    $rrr = $value->product_category_and_count_products[0]->products_count;
+                }
+                if ($rrr >= $value->capacity  ) {
                     $pannels->forget($key);
                 }
             }

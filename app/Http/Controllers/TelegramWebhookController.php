@@ -28,7 +28,7 @@ class TelegramWebhookController extends Controller
         $this->telegramService         = $telegramService;
         $this->customTextCtrl          = new CustomTextController();
         $this->subscriptionProcessCtrl = new SubscriptionProcessController($this->telegramService);
-        $this->transactionCntrl        = new TransactionController($this->telegramService);
+        $this->transactionCntrl        = new TransactionController();
         $this->generalCntrl            = new GeneralController();
         $this->accountProcessCtrl      = new AccountProcessController($this->telegramService);
         $this->authCntrl               = new AuthController();
@@ -202,7 +202,7 @@ class TelegramWebhookController extends Controller
                 return $this->accountProcessCtrl->accountDetails($chatId);
                 break;
             case 'سابقه خرید':
-                return $this->subscriptionProcessCtrl->buyHistory($chatId);
+                return $this->subscriptionProcessCtrl->buyHistory($chatId , 1);
                 break;
             case 'پشتیبانی':
                 return $this->generalCntrl->support($chatId);
@@ -375,14 +375,25 @@ class TelegramWebhookController extends Controller
                             'text' => "@" . $channelId,
                             'url'  => "https://t.me/" . $channelId,
                         ];
-                    }
+                    }                                      
                 }
 
                 if (count($notJoinedChannels) > 0) {
                     $text = $this->customTextCtrl->getText('action.chanel_lock_text');
+                    // add start link by reflink
+                    // get bot name from setting controller
+                    $settingCntrl = new SettingController();
+                    $botName = $settingCntrl->get_bot_name();
+                    $notJoinedChannels[] = [
+                            'text' => "عضو شدم",
+                            'url'  => "https://t.me/" . $botName . "?start=start",
+                        ];
+                    // add start command to $notJoinedChannels
 
                     $this->telegramService->sendMessageWithLinkButtons($chatId, $text, $notJoinedChannels);
 
+                    
+                    
                     return false;
                 }
             }
@@ -410,7 +421,6 @@ class TelegramWebhookController extends Controller
             $welcomeFormats = $this->customTextCtrl->getText('action.welcome.message', [
                 'name'     => $firstName,
                 'lastName' => $lastName,
-                'website'  => 'https://powerps.ir',
             ]);
             if (is_array($welcomeFormats)) {
                 $welcomeFormats = $this->telegramService->formatText($welcomeFormats);
@@ -500,6 +510,7 @@ class TelegramWebhookController extends Controller
             'buySubscriptionByLocation' => $this->subscriptionProcessCtrl->buySubscriptionByLocationAction($chatId, $actionList[1]),
             'offlineGateway' => $this->subscriptionProcessCtrl->handle_offline_add_balance($chatId, $actionList[1]),
             'buyHistory' => $this->subscriptionProcessCtrl->subBuyHistory($chatId, $actionList[1]),
+            'buyHistoryNext' => $this->subscriptionProcessCtrl->buyHistory($chatId, $actionList[1]),
             'recharge' => $this->subscriptionProcessCtrl->recharge($chatId, $actionList[1]),
             'remark' => $this->subscriptionProcessCtrl->remark($chatId, $actionList[1]),
             'accountTransactions' => $this->accountProcessCtrl->accountTransactions($chatId),

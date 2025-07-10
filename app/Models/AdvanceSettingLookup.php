@@ -22,9 +22,7 @@ class AdvanceSettingLookup extends Model
     // get boolean value
     public function getBooleanValueAttribute()
     {
-        if ($this->value == 'true') {
-            return true;
-        }
-        return false;
+        return $this->value === 'true';
+
     }
 }

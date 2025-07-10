@@ -1,7 +1,7 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://d1af-2a12-5940-4449-00-2.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://classic-loved-condor.ngrok-free.app/api/telegram/webhooks/inbound
 
-// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://71da-185-197-74-113.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://classic-loved-condor.ngrok-free.apphttps://classic-loved-condor.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
 // in /start command, why $this->stickyMenu() run twice
 
@@ -298,11 +298,11 @@ class TelegramController extends Controller
             }
         }
         try {
-            if ($this->chat_type == 'image') {
-                $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
+            // if ($this->chat_type == 'image') {
+            //     $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
 
-                return response()->json($result, 200);
-            }
+            //     return response()->json($result, 200);
+            // }
             // check is $this->text start with giftcard-
             // if yes return $this->subGiftCard()
 
