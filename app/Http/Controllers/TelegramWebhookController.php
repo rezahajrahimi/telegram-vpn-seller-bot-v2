@@ -375,9 +375,7 @@ class TelegramWebhookController extends Controller
                             'text' => "@" . $channelId,
                             'url'  => "https://t.me/" . $channelId,
                         ];
-                    }
-                    
-                  
+                    }                                      
                 }
 
                 if (count($notJoinedChannels) > 0) {
