@@ -28,7 +28,7 @@ class TelegramWebhookController extends Controller
         $this->telegramService         = $telegramService;
         $this->customTextCtrl          = new CustomTextController();
         $this->subscriptionProcessCtrl = new SubscriptionProcessController($this->telegramService);
-        $this->transactionCntrl        = new TransactionController($this->telegramService);
+        $this->transactionCntrl        = new TransactionController();
         $this->generalCntrl            = new GeneralController();
         $this->accountProcessCtrl      = new AccountProcessController($this->telegramService);
         $this->authCntrl               = new AuthController();
@@ -376,13 +376,26 @@ class TelegramWebhookController extends Controller
                             'url'  => "https://t.me/" . $channelId,
                         ];
                     }
+                    
+                  
                 }
 
                 if (count($notJoinedChannels) > 0) {
                     $text = $this->customTextCtrl->getText('action.chanel_lock_text');
+                    // add start link by reflink
+                    // get bot name from setting controller
+                    $settingCntrl = new SettingController();
+                    $botName = $settingCntrl->get_bot_name();
+                    $notJoinedChannels[] = [
+                            'text' => "عضو شدم",
+                            'url'  => "https://t.me/" . $botName . "?start=start",
+                        ];
+                    // add start command to $notJoinedChannels
 
                     $this->telegramService->sendMessageWithLinkButtons($chatId, $text, $notJoinedChannels);
 
+                    
+                    
                     return false;
                 }
             }

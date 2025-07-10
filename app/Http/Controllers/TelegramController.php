@@ -298,11 +298,11 @@ class TelegramController extends Controller
             }
         }
         try {
-            if ($this->chat_type == 'image') {
-                $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
+            // if ($this->chat_type == 'image') {
+            //     $result = app('telegram_bot')->imageMessage($image_url, $admin_id, $text);
 
-                return response()->json($result, 200);
-            }
+            //     return response()->json($result, 200);
+            // }
             // check is $this->text start with giftcard-
             // if yes return $this->subGiftCard()
 
