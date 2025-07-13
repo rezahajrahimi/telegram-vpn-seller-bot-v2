@@ -1,3 +1,0 @@
-<?php
-bolt_decrypt( __FILE__ , 'cTOIlx'); return 0;
-##!!!##PT2hlKCYpqOUlphTdKOjj4Cil5ifpm49PaimmFN8n5+ooJyhlKeYj3eUp5SVlKaYj3ifoqSomKGnj3mUlqeipZyYpo97lKZ5lJanoqWsbj2opphTfJ+fqKCcoZSnmI93lKeUlZSmmI94n6KkqJihp4+AopeYn249PZaflKamU4eYn5iapZSgU5irp5ihl6ZTgKKXmJ89rj1TU1NTqKaYU3uUpnmUlqeipaxuPbA9

@@ -40,7 +40,7 @@ class AuthController extends Controller
     public function getPowerPsLicenseType()
     {
         $appEnv = env('APP_ENV');
-        if ($appEnv != 'local' && $appEnv != 'testing') {
+        if ($appEnv != 'development') {
             $host = $this->getHostName();
             $licenseType = 'gold';
             $adminId = env('TELEGRAM_ADMIN_ID');
@@ -72,6 +72,7 @@ class AuthController extends Controller
 
             return $result;
         }
+        return 'free';
     }
 
     public function createFirstAdminUser()

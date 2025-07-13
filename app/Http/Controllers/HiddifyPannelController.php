@@ -161,10 +161,44 @@ class HiddifyPannelController extends Controller
         $data = $this->sendGetRequestToHiddifyPannel($pannelID, "api/v2/admin/user/$userUUID/");
         return $data;
     }
+
     public function getHiddifyPanelAllConfigsUserByPannelID($pannelID, $userUUID)
     {
         $data = $this->sendGetRequestToHiddifyPannel($pannelID, '/api/v2/user/all-configs/');
         return $data;
+    }
+
+    public function modifyDaysToHiddifyConfigs(Request $request)
+    {
+        // \Log::info(json_encode(['request' => $request]));
+        $pannelID = $request->pannelID;
+        $userUUID = $request->uuid;
+        $actionType = $request->actionType;
+        $days = $request->days;
+        $data = $this->getHiddifyPanelUserByPannelID($pannelID, $userUUID);
+        // \Log::info(message: json_encode(["response 1" => $data]));
+        // if (isset($data['uuid']) && $data['uuid'] == '') {
+
+        //     return response()->json(['status' => 'error', 'message' => 'کاربر یافت نشد.'], 404);
+        // }
+        // update
+        $current_day = $data['package_days'];
+        if ($actionType == "add") {
+            $new_day = $current_day + $days;
+            $request->day = $new_day;
+        } else {
+            $new_day = $current_day - $days;
+            $request->day = $new_day;
+        }
+        $request->uuid = $userUUID;
+        $request->vol = $data['usage_limit_GB'];
+        $request->name = $data['name'];
+
+        // send patch request to hiddify panel
+        $result = $this->upgradeUserOfHiddifyPanelApi($request);
+        \Log::info(message: json_encode(["response 2" => $result]));
+
+        return $result;
     }
     public function addUserToHiddifyPanel(Request $request)
     {
@@ -192,7 +226,7 @@ class HiddifyPannelController extends Controller
         // decode data
         // check data have not error and 401 response
 
-        if (is_array($data) ) {
+        if (is_array($data)) {
             if (isset($data['uuid'])) {
                 return $uuid;
             }
@@ -405,6 +439,8 @@ class HiddifyPannelController extends Controller
         ];
 
         $data = $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
+        \Log::info(message: json_encode(["response 3" => $data]));
+
         return $data;
     }
     public function changeUserActivationOfHiddifyPanelOldApi(Request $request)
@@ -575,7 +611,7 @@ class HiddifyPannelController extends Controller
         $url = $url . $requestAPi;
 
         $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->post($url, $params);
-        \Log::info(["subsequentResponse => {$subsequentResponse->getBody()}"]);
+        // \Log::info(["subsequentResponse => {$subsequentResponse->getBody()}"]);
         if ($subsequentResponse->getStatusCode() == 200) {
             $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
             if ($checkIsHtmlPage !== false) {
@@ -599,9 +635,12 @@ class HiddifyPannelController extends Controller
         $url = $url . $requestAPi;
         $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->patch($url, $params);
         // check if status code is 200
+        \Log::info(json_decode($subsequentResponse, true));
+
         if ($subsequentResponse->getStatusCode() == 200) {
             return $subsequentResponse;
         }
+
         return false;
     }
 }

@@ -46,6 +46,7 @@ use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\BlockedUserController;
 use App\Http\Controllers\ShetabVerifyController;
+use App\Http\Controllers\SubscriptionProcessController;
 
 
 use Illuminate\Http\Request;
@@ -357,6 +358,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::post('/advanceSettingLookupCreate', [AdvanceSettingLookupController::class, 'create']);
     Route::post('/advanceSettingLookupUpdate', [AdvanceSettingLookupController::class, 'update']);
     Route::post('/advanceSettingLookupUpdateByName', [AdvanceSettingLookupController::class, 'updateByName']);
+
+    // SubscriptionProcessController
+    Route::post('/batchExistSubscriptionJob', [SubscriptionProcessController::class, 'batchExistSubscriptionJob']);
 
 
     // CustomTextController

@@ -1,3 +1,0 @@
-<?php
-bolt_decrypt( __FILE__ , 'kajLWh'); return 0;
-##!!!##S0uvoq6mtLGipKZhgrGxnY6wpaattHxLS7a0pmGKra22rqqvorWmnYWitaKjorSmnYatsLK2pq+1nYeipLWws6qmtJ2JorSHoqS1sLO6fEu2tKZhiq2ttq6qr6K1pp2ForWio6K0pp2GrbCytqavtZ2OsKWmrXxLS6StorS0YZS2sbGws7Vhprm1pq+ltGGOsKWmrUu8S2FhYWG2tKZhiaK0h6KktbCzunxLYWFhYbGzsLWmpLWmpWFlqLais6WmpWF+YZxoqqVonnxLYWFhYbGzsLWmpLWmpWFlp6qtraKjraZhfmGcaLK2prS1qrCvaG1ooq+0uKazaG1os6a0sbCvtKagtbqxpmiefEtLS0u+Sw==

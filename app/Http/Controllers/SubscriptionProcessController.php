@@ -272,9 +272,9 @@ class SubscriptionProcessController extends Controller
             $resualt = false;
             // get id of last inserted product id
             $lastProductId = Product::latest()->first()->id ?? 1;
-            
+
             if ($pannel->type == 'hiddify') {
-                $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $lastProductId+1);
+                $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $lastProductId + 1);
             } elseif ($pannel->type == 'marzban') {
                 // create marzban user
                 return " پنل مرزبان";
@@ -444,7 +444,7 @@ class SubscriptionProcessController extends Controller
                         'ادامه' => "buyHistoryNext-$nextPage",
                     ];
                 } elseif ($page > 1) {
-                    $firstItemsIndex = ($page * 10) ;
+                    $firstItemsIndex = ($page * 10);
                     $firstItemsIndex -= 10; // adjust index for zero-based array
                     // slice opr array to get 10 items starting from firstItemsIndex
                     if ($firstItemsIndex < 0) {
@@ -458,12 +458,12 @@ class SubscriptionProcessController extends Controller
                     if ($firstItemsIndex < 0) {
                         $firstItemsIndex = 0; // prevent negative index
                     }
-                        $opr = array_slice($opr, $firstItemsIndex, 10);
-                    
-                   
+                    $opr = array_slice($opr, $firstItemsIndex, 10);
+
+
                     // slice opr array to get 10 items
                     // check is last page, if not add next button
-                    if($page < $lastPage) {
+                    if ($page < $lastPage) {
                         $nextPage = $page + 1;
                         $opr[] = ['ادامه' => "buyHistoryNext-$nextPage"];
                     }
@@ -546,7 +546,7 @@ class SubscriptionProcessController extends Controller
                 }
 
             }
-            return "" ;
+            return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در سابقه خرید: " . $th->getMessage());
             return $this->customTextCtrl->getText('error.server_error');
@@ -629,6 +629,97 @@ class SubscriptionProcessController extends Controller
             return $this->customTextCtrl->getText('error.server_error');
         }
     }
+    public function batchExistSubscriptionJob(Request $request)
+    {
+        $action = $request->action;
+        $listOfConfigs = json_decode($request['configs'], true);
+
+        $panelID = $request->panel_id;
+
+        if (!isset($listOfConfigs)) {
+            return response()->json(['status' => 'error', 'message' => 'لیست پیکربندی‌ها ارسال نشده است.'], 400);
+        }
+        if ($action == 'inc_days') {
+            $days = $request->input('days');
+            if (!isset($days)) {
+                return response()->json(['status' => 'error', 'message' => 'تعداد روزها ارسال نشده است.'], 400);
+            }
+            $hiddifyPannelCntrl = new HiddifyPannelController();
+            foreach ($listOfConfigs as $config) {
+                $aa = json_decode($config, true);
+
+                $config = (array) $aa;
+
+
+                $comment = "افزایش روزها در " . Verta::now() . "به مدت " . $days . " روز";
+
+
+                $days = (int) $config['packageDays'] + (int) $days;
+
+                $uuid = $config['uuid'];
+                $name = $config['name'];
+
+
+
+                $params = [
+                    'uuid' => "$uuid",
+                    'name' => "$name",
+                    'package_days' => $days,
+                    'mode' => 'no_reset',
+                    'comment' => "$comment",
+                ];
+
+
+
+
+
+                $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
+                if ($result === false) {
+                    return response()->json(['status' => 'error', 'message' => 'خطا در افزودن روزها به پیکربندی: ' . $config['name']], 500);
+                }
+            }
+
+            return response()->json(data: ['status' => 'success', 'data' => true]);
+        } else if ($action == 'dec_days') {
+            $days = $request->input('days');
+            $panelID = $request->input('panel_id');
+
+            if (!isset($days)) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => '
+            '
+                ], 400);
+            }
+            $hiddifyPannelCntrl = new HiddifyPannelController();
+            foreach ($listOfConfigs as $config) {
+                $pConfig = new Request();
+                $pConfig->pannelID = $panelID;
+                $pConfig->uuid = $config['uuid'];
+                $pConfig->day = $days;
+                $pConfig->comment = "افزایش روزها در " . Verta::now();
+                $pConfig->actionType = "dec";
+                $result = $hiddifyPannelCntrl->modifyDaysToHiddifyConfigs($pConfig);
+
+                if ($result === false) {
+                    \log::error('خطا در کاهش روزهای کانفیگ ' . $config->remark);
+                }
+            }
+            return response()->json(data: ['status' => 'success', 'data' => true]);
+
+
+        } elseif ($action == 'delete') {
+            $hiddifyPannelCntrl = new HiddifyPannelController();
+            foreach ($listOfConfigs as $config) {
+                $result = $hiddifyPannelCntrl->deleteUserOfHiddifyPanel($config, $panelID);
+                if ($result === false) {
+                    \log::error('خطا در حذف ' . $config->remark);
+                }
+            }
+            return response()->json(['status' => 'success', 'data' => $result]);
+        }
+        return response()->json(['status' => 'error', 'message' => 'عملیات نامعتبر است.'], 400);
+    }
     public function remark($chatId, $productID)
     {
         try {
@@ -681,6 +772,7 @@ class SubscriptionProcessController extends Controller
             return "";
         }
     }
+
     private function handleActionRemark(string $chatId, int $productID): string
     {
         $this->setAwaitingReply($chatId, 'remark_reply', $productID);
