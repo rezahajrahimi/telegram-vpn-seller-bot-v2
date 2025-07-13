@@ -708,6 +708,48 @@ class SubscriptionProcessController extends Controller
             return response()->json(data: ['status' => 'success', 'data' => true]);
 
 
+        } else if ($action == 'inc_vol') {
+
+            $vol = $request->input('vol');
+            if (!isset($days)) {
+                return response()->json(['status' => 'error', 'message' => 'مقدار حجم ارسال نشده است.'], 400);
+            }
+            $hiddifyPannelCntrl = new HiddifyPannelController();
+            foreach ($listOfConfigs as $config) {
+                $aa = json_decode($config, true);
+
+                $config = (array) $aa;
+
+
+                $comment = "افزایش حجم در " . Verta::now() . "به مدت " . $vol . " GB";
+
+
+                $vol = (double) $config['usageLimitGB'] + $vol;
+
+                $uuid = $config['uuid'];
+                $name = $config['name'];
+
+
+
+                $params = [
+                    'uuid' => "$uuid",
+                    'name' => "$name",
+                    'usage_limit_GB' => $vol,
+                    'mode' => 'no_reset',
+                    'comment' => "$comment",
+                ];
+
+
+
+
+
+                $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
+                if ($result === false) {
+                    return response()->json(['status' => 'error', 'message' => 'خطا در افزودن روزها به پیکربندی: ' . $config['name']], 500);
+                }
+            }
+
+            return response()->json(data: ['status' => 'success', 'data' => true]);
         } elseif ($action == 'delete') {
             $hiddifyPannelCntrl = new HiddifyPannelController();
             foreach ($listOfConfigs as $config) {
