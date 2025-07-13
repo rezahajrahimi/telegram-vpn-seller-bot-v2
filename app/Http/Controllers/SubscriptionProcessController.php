@@ -635,6 +635,7 @@ class SubscriptionProcessController extends Controller
         $listOfConfigs = json_decode($request['configs'], true);
 
         $panelID = $request->panel_id;
+        \Log::info("Batch Exist Subscription Job Action: " . $action);
 
         if (!isset($listOfConfigs)) {
             return response()->json(['status' => 'error', 'message' => 'لیست پیکربندی‌ها ارسال نشده است.'], 400);
@@ -711,7 +712,7 @@ class SubscriptionProcessController extends Controller
         } else if ($action == 'inc_vol') {
 
             $vol = $request->input('vol');
-            if (!isset($days)) {
+            if (!isset($vol)) {
                 return response()->json(['status' => 'error', 'message' => 'مقدار حجم ارسال نشده است.'], 400);
             }
             $hiddifyPannelCntrl = new HiddifyPannelController();
