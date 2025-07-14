@@ -886,6 +886,12 @@ class SubscriptionProcessController extends Controller
                 if ($result === false) {
                     \log::error('خطا در حذف ' . $config['name']);
                 }
+                // delete on products
+                $product = Product::where('subscription_link', operator: "/$uuid/all.txt?name=sublink-unknown&asn=unknown&mode=new")->first();
+                if ($product !== null) {
+                    \Log::info("Deleting product with ID: " . $product->id);
+                    $product->delete();
+                }
             }
             return response()->json(['status' => 'success', 'data' => $result]);
         }
