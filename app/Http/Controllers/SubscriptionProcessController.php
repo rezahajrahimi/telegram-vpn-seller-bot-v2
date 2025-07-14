@@ -718,7 +718,7 @@ class SubscriptionProcessController extends Controller
             }
 
             return response()->json(data: ['status' => 'success', 'data' => true]);
-        } else if ($action == 'inc_vol') {
+        } elseif ($action == 'inc_vol') {
 
             $vol = $request->input('vol');
             if (!isset($vol)) {
@@ -760,7 +760,7 @@ class SubscriptionProcessController extends Controller
             }
 
             return response()->json(data: ['status' => 'success', 'data' => true]);
-        } else if ($action == 'dec_vol') {
+        } elseif ($action == 'dec_vol') {
 
             $vol = $request->input('vol');
             if (!isset($vol)) {
@@ -802,12 +802,89 @@ class SubscriptionProcessController extends Controller
             }
 
             return response()->json(data: ['status' => 'success', 'data' => true]);
+        } elseif ($action == 'active') {
+            $hiddifyPannelCntrl = new HiddifyPannelController();
+            foreach ($listOfConfigs as $config) {
+                $aa = json_decode($config, true);
+
+                $config = (array) $aa;
+
+
+
+
+
+                $uuid = $config['uuid'];
+                $name = $config['name'];
+
+
+
+                $req = new Request();
+                $req->pannelID = $panelID;
+                $req->uuid = $uuid;
+                $req->comment = "فعالسازی در " . Verta::now();
+                $req->enable = true;
+
+
+
+
+                $result = $hiddifyPannelCntrl->changeUserActivationOfHiddifyPanelApi($req);
+
+
+                if ($result === false) {
+                    return response()->json(['status' => 'error', 'message' => 'خطا در فعالسازی پیکربندی: ' . $config['name']], 500);
+                }
+            }
+
+            return response()->json(data: ['status' => 'success', 'data' => true]);
+
+
+        } elseif ($action == 'deactive') {
+            $hiddifyPannelCntrl = new HiddifyPannelController();
+            foreach ($listOfConfigs as $config) {
+                $aa = json_decode($config, true);
+
+                $config = (array) $aa;
+
+
+
+
+
+                $uuid = $config['uuid'];
+                $name = $config['name'];
+
+
+
+                $req = new Request();
+                $req->pannelID = $panelID;
+                $req->uuid = $uuid;
+                $req->comment = "غیر فعال سازی در " . Verta::now();
+                $req->enable = false;
+
+
+
+
+                $result = $hiddifyPannelCntrl->changeUserActivationOfHiddifyPanelApi($req);
+
+
+                if ($result === false) {
+                    return response()->json(['status' => 'error', 'message' => 'خطا در غیر فعال سازی پیکربندی: ' . $config['name']], 500);
+                }
+            }
+
+            return response()->json(data: ['status' => 'success', 'data' => true]);
+
         } elseif ($action == 'delete') {
             $hiddifyPannelCntrl = new HiddifyPannelController();
             foreach ($listOfConfigs as $config) {
-                $result = $hiddifyPannelCntrl->deleteUserOfHiddifyPanel($config, $panelID);
+                $aa = json_decode($config, true);
+
+                $config = (array) $aa;
+
+                $uuid = $config['uuid'];
+
+                $result = $hiddifyPannelCntrl->deleteUserOfHiddifyPanel($panelID, $uuid);
                 if ($result === false) {
-                    \log::error('خطا در حذف ' . $config->remark);
+                    \log::error('خطا در حذف ' . $config['name']);
                 }
             }
             return response()->json(['status' => 'success', 'data' => $result]);
