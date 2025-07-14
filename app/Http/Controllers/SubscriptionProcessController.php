@@ -633,223 +633,27 @@ class SubscriptionProcessController extends Controller
     {
         $action = $request->action;
         $listOfConfigs = json_decode($request['configs'], true);
-
         $panelID = $request->panel_id;
-        \Log::info("Batch Exist Subscription Job Action: " . $action);
-
-        if (!isset($listOfConfigs)) {
-            return response()->json(['status' => 'error', 'message' => 'لیست پیکربندی‌ها ارسال نشده است.'], 400);
+        $extra = $request->all();
+        // اگر chat_id ارسال شده بود، پیام به کاربر بده
+        if ($request->has('chat_id')) {
+            try {
+                $chatId = $request->input('chat_id');
+                $this->telegramService->sendMessage($chatId, 'درخواست شما دریافت شد و در حال اجراست.');
+            } catch (\Throwable $th) {
+                \Log::error('خطا در ارسال پیام به کاربر: ' . $th->getMessage());
+            }
         }
-        if ($action == 'inc_days') {
-            $days = $request->input('days');
-            if (!isset($days)) {
-                return response()->json(['status' => 'error', 'message' => 'تعداد روزها ارسال نشده است.'], 400);
-            }
-            $hiddifyPannelCntrl = new HiddifyPannelController();
-            foreach ($listOfConfigs as $config) {
-                $aa = json_decode($config, true);
-                $config = (array) $aa;
-                $comment = "افزایش روزها در " . Verta::now() . "به مدت " . $days . " روز";
-                $newDay = (int) $config['packageDays'] + (int) $days;
-                $uuid = $config['uuid'];
-                $name = $config['name'];
-                $params = [
-                    'uuid' => "$uuid",
-                    'name' => "$name",
-                    'package_days' => $newDay,
-                    'mode' => 'no_reset',
-                    'comment' => "$comment",
-                ];
-                $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
-                if ($result === false) {
-                    return response()->json(['status' => 'error', 'message' => 'خطا در افزودن روزها به پیکربندی: ' . $config['name']], 500);
-                }
-            }
-            return response()->json(data: ['status' => 'success', 'data' => true]);
-        } elseif ($action == 'dec_days') {
-            $days = $request->input('days');
-            if (!isset($days)) {
-                return response()->json(['status' => 'error', 'message' => 'تعداد روزها ارسال نشده است.'], 400);
-            }
-            $hiddifyPannelCntrl = new HiddifyPannelController();
-            foreach ($listOfConfigs as $config) {
-                $aa = json_decode($config, true);
-
-                $config = (array) $aa;
-
-
-                $comment = "کاهش روزها در " . Verta::now() . "به مدت " . $days . " روز";
-
-
-                $newDay = (int) $config['packageDays'] - (int) $days;
-
-                $uuid = $config['uuid'];
-                $name = $config['name'];
-
-
-
-                $params = [
-                    'uuid' => "$uuid",
-                    'name' => "$name",
-                    'package_days' => $newDay,
-                    'mode' => 'no_reset',
-                    'comment' => "$comment",
-                ];
-
-                $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
-                if ($result === false) {
-                    return response()->json(['status' => 'error', 'message' => 'خطا در افزودن روزها به پیکربندی: ' . $config['name']], 500);
-                }
-            }
-
-            return response()->json(data: ['status' => 'success', 'data' => true]);
-        } elseif ($action == 'inc_vol') {
-
-            $vol = $request->input('vol');
-            if (!isset($vol)) {
-                return response()->json(['status' => 'error', 'message' => 'مقدار حجم ارسال نشده است.'], 400);
-            }
-            $hiddifyPannelCntrl = new HiddifyPannelController();
-            foreach ($listOfConfigs as $config) {
-                $aa = json_decode($config, true);
-
-                $config = (array) $aa;
-
-
-                $comment = "افزایش حجم در " . Verta::now() . "به مدت " . $vol . " GB";
-
-
-                $newVol = (double) $config['usageLimitGB'] + $vol;
-
-                $uuid = $config['uuid'];
-                $name = $config['name'];
-
-
-
-                $params = [
-                    'uuid' => "$uuid",
-                    'name' => "$name",
-                    'usage_limit_GB' => $newVol,
-                    'mode' => 'no_reset',
-                    'comment' => "$comment",
-                ];
-
-
-
-
-
-                $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
-                if ($result === false) {
-                    return response()->json(['status' => 'error', 'message' => 'خطا در افزودن روزها به پیکربندی: ' . $config['name']], 500);
-                }
-            }
-
-            return response()->json(data: ['status' => 'success', 'data' => true]);
-        } elseif ($action == 'dec_vol') {
-
-            $vol = $request->input('vol');
-            if (!isset($vol)) {
-                return response()->json(['status' => 'error', 'message' => 'مقدار حجم ارسال نشده است.'], 400);
-            }
-            $hiddifyPannelCntrl = new HiddifyPannelController();
-            foreach ($listOfConfigs as $config) {
-                $aa = json_decode($config, true);
-
-                $config = (array) $aa;
-
-
-                $comment = "کاهش حجم در " . Verta::now() . "به مدت " . $vol . " GB";
-
-
-                $newVol = (double) $config['usageLimitGB'] - $vol;
-
-                $uuid = $config['uuid'];
-                $name = $config['name'];
-
-
-
-                $params = [
-                    'uuid' => "$uuid",
-                    'name' => "$name",
-                    'usage_limit_GB' => $newVol,
-                    'mode' => 'no_reset',
-                    'comment' => "$comment",
-                ];
-
-
-
-
-
-                $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
-                if ($result === false) {
-                    return response()->json(['status' => 'error', 'message' => 'خطا در افزودن روزها به پیکربندی: ' . $config['name']], 500);
-                }
-            }
-
-            return response()->json(data: ['status' => 'success', 'data' => true]);
-        } elseif ($action == 'active') {
-            $hiddifyPannelCntrl = new HiddifyPannelController();
-            foreach ($listOfConfigs as $config) {
-                $aa = json_decode($config, true);
-                $config = (array) $aa;
-                $uuid = $config['uuid'];
-                $name = $config['name'];
-                $req = new Request();
-                $req->pannelID = $panelID;
-                $req->uuid = $uuid;
-                $req->comment = "فعالسازی در " . Verta::now();
-                $req->enable = true;
-                $result = $hiddifyPannelCntrl->changeUserActivationOfHiddifyPanelApi($req);
-                if ($result === false) {
-                    return response()->json(['status' => 'error', 'message' => 'خطا در فعالسازی پیکربندی: ' . $config['name']], 500);
-                }
-            }
-            return response()->json(data: ['status' => 'success', 'data' => true]);
-
-
-        } elseif ($action == 'deactive') {
-            $hiddifyPannelCntrl = new HiddifyPannelController();
-            foreach ($listOfConfigs as $config) {
-                $aa = json_decode($config, true);
-
-                $config = (array) $aa;
-                $uuid = $config['uuid'];
-                $name = $config['name'];
-                $req = new Request();
-                $req->pannelID = $panelID;
-                $req->uuid = $uuid;
-                $req->comment = "غیر فعال سازی در " . Verta::now();
-                $req->enable = false;
-                $result = $hiddifyPannelCntrl->changeUserActivationOfHiddifyPanelApi($req);
-                if ($result === false) {
-                    return response()->json(['status' => 'error', 'message' => 'خطا در غیر فعال سازی پیکربندی: ' . $config['name']], 500);
-                }
-            }
-
-            return response()->json(data: ['status' => 'success', 'data' => true]);
-
-        } elseif ($action == 'delete') {
-            $hiddifyPannelCntrl = new HiddifyPannelController();
-            foreach ($listOfConfigs as $config) {
-                $aa = json_decode($config, true);
-
-                $config = (array) $aa;
-
-                $uuid = $config['uuid'];
-
-                $result = $hiddifyPannelCntrl->deleteUserOfHiddifyPanel($panelID, $uuid);
-                if ($result === false) {
-                    \log::error('خطا در حذف ' . $config['name']);
-                }
-                // delete on products
-                $product = Product::where('subscription_link', operator: "/$uuid/all.txt?name=sublink-unknown&asn=unknown&mode=new")->first();
-                if ($product !== null) {
-                    $product->delete();
-                }
-            }
-            return response()->json(['status' => 'success', 'data' => $result]);
-        }
-        return response()->json(['status' => 'error', 'message' => 'عملیات نامعتبر است.'], 400);
+        // Dispatch Job
+        \App\Jobs\BatchSubscriptionJob::dispatch(
+            $action,
+            $listOfConfigs,
+            $panelID,
+            $extra
+        );
+        $executeArtisanCommand = new ExecuteArtisanCommandController();
+        $executeArtisanCommand->execute('queue:work');
+        return response()->json(['status' => 'success', 'message' => 'درخواست شما دریافت شد و در حال اجراست.']);
     }
     public function remark($chatId, $productID)
     {
