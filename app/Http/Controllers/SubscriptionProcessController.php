@@ -655,7 +655,7 @@ class SubscriptionProcessController extends Controller
                 $comment = "افزایش روزها در " . Verta::now() . "به مدت " . $days . " روز";
 
 
-                $days = (int) $config['packageDays'] + (int) $days;
+                $newDay = (int) $config['packageDays'] + (int) $days;
 
                 $uuid = $config['uuid'];
                 $name = $config['name'];
@@ -665,7 +665,7 @@ class SubscriptionProcessController extends Controller
                 $params = [
                     'uuid' => "$uuid",
                     'name' => "$name",
-                    'package_days' => $days,
+                    'package_days' => $newDay,
                     'mode' => 'no_reset',
                     'comment' => "$comment",
                 ];
@@ -681,34 +681,43 @@ class SubscriptionProcessController extends Controller
             }
 
             return response()->json(data: ['status' => 'success', 'data' => true]);
-        } else if ($action == 'dec_days') {
+        } elseif ($action == 'dec_days') {
             $days = $request->input('days');
-            $panelID = $request->input('panel_id');
-
             if (!isset($days)) {
-                return response()->json([
-                    'status' => 'error',
-                    'message' => '
-            '
-                ], 400);
+                return response()->json(['status' => 'error', 'message' => 'تعداد روزها ارسال نشده است.'], 400);
             }
             $hiddifyPannelCntrl = new HiddifyPannelController();
             foreach ($listOfConfigs as $config) {
-                $pConfig = new Request();
-                $pConfig->pannelID = $panelID;
-                $pConfig->uuid = $config['uuid'];
-                $pConfig->day = $days;
-                $pConfig->comment = "افزایش روزها در " . Verta::now();
-                $pConfig->actionType = "dec";
-                $result = $hiddifyPannelCntrl->modifyDaysToHiddifyConfigs($pConfig);
+                $aa = json_decode($config, true);
 
+                $config = (array) $aa;
+
+
+                $comment = "کاهش روزها در " . Verta::now() . "به مدت " . $days . " روز";
+
+
+                $newDay = (int) $config['packageDays'] - (int) $days;
+
+                $uuid = $config['uuid'];
+                $name = $config['name'];
+
+
+
+                $params = [
+                    'uuid' => "$uuid",
+                    'name' => "$name",
+                    'package_days' => $newDay,
+                    'mode' => 'no_reset',
+                    'comment' => "$comment",
+                ];
+
+                $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
                 if ($result === false) {
-                    \log::error('خطا در کاهش روزهای کانفیگ ' . $config->remark);
+                    return response()->json(['status' => 'error', 'message' => 'خطا در افزودن روزها به پیکربندی: ' . $config['name']], 500);
                 }
             }
+
             return response()->json(data: ['status' => 'success', 'data' => true]);
-
-
         } else if ($action == 'inc_vol') {
 
             $vol = $request->input('vol');
@@ -725,7 +734,7 @@ class SubscriptionProcessController extends Controller
                 $comment = "افزایش حجم در " . Verta::now() . "به مدت " . $vol . " GB";
 
 
-                $vol = (double) $config['usageLimitGB'] + $vol;
+                $newVol = (double) $config['usageLimitGB'] + $vol;
 
                 $uuid = $config['uuid'];
                 $name = $config['name'];
@@ -735,7 +744,49 @@ class SubscriptionProcessController extends Controller
                 $params = [
                     'uuid' => "$uuid",
                     'name' => "$name",
-                    'usage_limit_GB' => $vol,
+                    'usage_limit_GB' => $newVol,
+                    'mode' => 'no_reset',
+                    'comment' => "$comment",
+                ];
+
+
+
+
+
+                $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
+                if ($result === false) {
+                    return response()->json(['status' => 'error', 'message' => 'خطا در افزودن روزها به پیکربندی: ' . $config['name']], 500);
+                }
+            }
+
+            return response()->json(data: ['status' => 'success', 'data' => true]);
+        } else if ($action == 'dec_vol') {
+
+            $vol = $request->input('vol');
+            if (!isset($vol)) {
+                return response()->json(['status' => 'error', 'message' => 'مقدار حجم ارسال نشده است.'], 400);
+            }
+            $hiddifyPannelCntrl = new HiddifyPannelController();
+            foreach ($listOfConfigs as $config) {
+                $aa = json_decode($config, true);
+
+                $config = (array) $aa;
+
+
+                $comment = "کاهش حجم در " . Verta::now() . "به مدت " . $vol . " GB";
+
+
+                $newVol = (double) $config['usageLimitGB'] - $vol;
+
+                $uuid = $config['uuid'];
+                $name = $config['name'];
+
+
+
+                $params = [
+                    'uuid' => "$uuid",
+                    'name' => "$name",
+                    'usage_limit_GB' => $newVol,
                     'mode' => 'no_reset',
                     'comment' => "$comment",
                 ];
