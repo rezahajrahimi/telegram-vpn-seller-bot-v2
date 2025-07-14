@@ -635,7 +635,7 @@ class HiddifyPannelController extends Controller
         $url = $url . $requestAPi;
         $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->patch($url, $params);
         // check if status code is 200
-        \Log::info(json_decode($subsequentResponse, true));
+        // \Log::info(json_decode($subsequentResponse, true));
 
         if ($subsequentResponse->getStatusCode() == 200) {
             return $subsequentResponse;

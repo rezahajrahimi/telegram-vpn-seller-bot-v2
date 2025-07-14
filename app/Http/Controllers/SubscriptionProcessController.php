@@ -648,20 +648,11 @@ class SubscriptionProcessController extends Controller
             $hiddifyPannelCntrl = new HiddifyPannelController();
             foreach ($listOfConfigs as $config) {
                 $aa = json_decode($config, true);
-
                 $config = (array) $aa;
-
-
                 $comment = "افزایش روزها در " . Verta::now() . "به مدت " . $days . " روز";
-
-
                 $newDay = (int) $config['packageDays'] + (int) $days;
-
                 $uuid = $config['uuid'];
                 $name = $config['name'];
-
-
-
                 $params = [
                     'uuid' => "$uuid",
                     'name' => "$name",
@@ -669,17 +660,11 @@ class SubscriptionProcessController extends Controller
                     'mode' => 'no_reset',
                     'comment' => "$comment",
                 ];
-
-
-
-
-
                 $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
                 if ($result === false) {
                     return response()->json(['status' => 'error', 'message' => 'خطا در افزودن روزها به پیکربندی: ' . $config['name']], 500);
                 }
             }
-
             return response()->json(data: ['status' => 'success', 'data' => true]);
         } elseif ($action == 'dec_days') {
             $days = $request->input('days');
@@ -806,35 +791,19 @@ class SubscriptionProcessController extends Controller
             $hiddifyPannelCntrl = new HiddifyPannelController();
             foreach ($listOfConfigs as $config) {
                 $aa = json_decode($config, true);
-
                 $config = (array) $aa;
-
-
-
-
-
                 $uuid = $config['uuid'];
                 $name = $config['name'];
-
-
-
                 $req = new Request();
                 $req->pannelID = $panelID;
                 $req->uuid = $uuid;
                 $req->comment = "فعالسازی در " . Verta::now();
                 $req->enable = true;
-
-
-
-
                 $result = $hiddifyPannelCntrl->changeUserActivationOfHiddifyPanelApi($req);
-
-
                 if ($result === false) {
                     return response()->json(['status' => 'error', 'message' => 'خطا در فعالسازی پیکربندی: ' . $config['name']], 500);
                 }
             }
-
             return response()->json(data: ['status' => 'success', 'data' => true]);
 
 
@@ -844,28 +813,14 @@ class SubscriptionProcessController extends Controller
                 $aa = json_decode($config, true);
 
                 $config = (array) $aa;
-
-
-
-
-
                 $uuid = $config['uuid'];
                 $name = $config['name'];
-
-
-
                 $req = new Request();
                 $req->pannelID = $panelID;
                 $req->uuid = $uuid;
                 $req->comment = "غیر فعال سازی در " . Verta::now();
                 $req->enable = false;
-
-
-
-
                 $result = $hiddifyPannelCntrl->changeUserActivationOfHiddifyPanelApi($req);
-
-
                 if ($result === false) {
                     return response()->json(['status' => 'error', 'message' => 'خطا در غیر فعال سازی پیکربندی: ' . $config['name']], 500);
                 }
@@ -889,7 +844,6 @@ class SubscriptionProcessController extends Controller
                 // delete on products
                 $product = Product::where('subscription_link', operator: "/$uuid/all.txt?name=sublink-unknown&asn=unknown&mode=new")->first();
                 if ($product !== null) {
-                    \Log::info("Deleting product with ID: " . $product->id);
                     $product->delete();
                 }
             }
