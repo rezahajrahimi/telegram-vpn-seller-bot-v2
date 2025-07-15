@@ -32,18 +32,26 @@ class BatchSubscriptionJob implements ShouldQueue
     {
         $success = true;
         $message = '';
+        $adminId = env('TELEGRAM_ADMIN_ID');
         try {
             $action = $this->action;
             $listOfConfigs = $this->listOfConfigs;
             $panelID = $this->panelID;
             $extra = $this->extra;
             $hiddifyPannelCntrl = App::make(HiddifyPannelController::class);
+            $telegramService = App::make(\App\Services\TelegramService::class);
+
+
+
             if (!isset($listOfConfigs)) {
                 $success = false;
                 $message = 'لیست پیکربندی‌ها ارسال نشده است.';
                 return;
             }
+            // ارسال پیام به مدیر
             if ($action == 'inc_days') {
+                $telegramService->sendMessage($adminId, 'عملیات افزایش روزها شروع شد.');
+
                 $days = $extra['days'] ?? null;
                 if (!isset($days)) {
                     $success = false;
@@ -67,8 +75,10 @@ class BatchSubscriptionJob implements ShouldQueue
                         if ($result === false) {
                             $success = false;
                             $message = 'خطا در افزودن روزها به پیکربندی: ' . $config['name'];
+                            $telegramService->sendMessage($adminId, 'خطا در افزودن روزها به پیکربندی: ' . $config['name']);
                             break;
                         }
+                        $telegramService->sendMessage($adminId, 'عملیات افزایش روزها به پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                     }
                 }
             } elseif ($action == 'dec_days') {
@@ -77,6 +87,7 @@ class BatchSubscriptionJob implements ShouldQueue
                     $success = false;
                     $message = 'تعداد روزها ارسال نشده است.';
                 } else {
+                    $telegramService->sendMessage($adminId, 'عملیات کاهش روزها شروع شد.');
                     foreach ($listOfConfigs as $config) {
                         $aa = is_array($config) ? $config : json_decode($config, true);
                         $config = (array) $aa;
@@ -95,8 +106,10 @@ class BatchSubscriptionJob implements ShouldQueue
                         if ($result === false) {
                             $success = false;
                             $message = 'خطا در کاهش روزها به پیکربندی: ' . $config['name'];
+                            $telegramService->sendMessage($adminId, 'خطا در کاهش روزها به پیکربندی: ' . $config['name']);
                             break;
                         }
+                        $telegramService->sendMessage($adminId, 'عملیات کاهش روزها به پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                     }
                 }
             } elseif ($action == 'inc_vol') {
@@ -123,8 +136,10 @@ class BatchSubscriptionJob implements ShouldQueue
                         if ($result === false) {
                             $success = false;
                             $message = 'خطا در افزایش حجم پیکربندی: ' . $config['name'];
+                            $telegramService->sendMessage($adminId, 'خطا در افزایش حجم پیکربندی: ' . $config['name']);
                             break;
                         }
+                        $telegramService->sendMessage($adminId, 'عملیات افزایش حجم پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                     }
                 }
             } elseif ($action == 'dec_vol') {
@@ -133,6 +148,7 @@ class BatchSubscriptionJob implements ShouldQueue
                     $success = false;
                     $message = 'مقدار حجم ارسال نشده است.';
                 } else {
+                    $telegramService->sendMessage($adminId, 'عملیات کاهش حجم شروع شد.');
                     foreach ($listOfConfigs as $config) {
                         $aa = is_array($config) ? $config : json_decode($config, true);
                         $config = (array) $aa;
@@ -151,11 +167,14 @@ class BatchSubscriptionJob implements ShouldQueue
                         if ($result === false) {
                             $success = false;
                             $message = 'خطا در کاهش حجم پیکربندی: ' . $config['name'];
+                            $telegramService->sendMessage($adminId, 'خطا در کاهش حجم پیکربندی: ' . $config['name']);
                             break;
                         }
+                        $telegramService->sendMessage($adminId, 'عملیات کاهش حجم پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                     }
                 }
             } elseif ($action == 'active') {
+                $telegramService->sendMessage($adminId, 'عملیات فعالسازی شروع شد.');
                 foreach ($listOfConfigs as $config) {
                     $aa = is_array($config) ? $config : json_decode($config, true);
                     $config = (array) $aa;
@@ -170,10 +189,13 @@ class BatchSubscriptionJob implements ShouldQueue
                     if ($result === false) {
                         $success = false;
                         $message = 'خطا در فعالسازی پیکربندی: ' . $config['name'];
+                        $telegramService->sendMessage($adminId, 'خطا در فعالسازی پیکربندی: ' . $config['name']);
                         break;
                     }
+                    $telegramService->sendMessage($adminId, 'عملیات فعالسازی پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                 }
             } elseif ($action == 'deactive') {
+                $telegramService->sendMessage($adminId, 'عملیات غیرفعالسازی شروع شد.');
                 foreach ($listOfConfigs as $config) {
                     $aa = is_array($config) ? $config : json_decode($config, true);
                     $config = (array) $aa;
@@ -188,10 +210,13 @@ class BatchSubscriptionJob implements ShouldQueue
                     if ($result === false) {
                         $success = false;
                         $message = 'خطا در غیرفعال سازی پیکربندی: ' . $config['name'];
+                        $telegramService->sendMessage($adminId, 'خطا در غیرفعال سازی پیکربندی: ' . $config['name']);
                         break;
                     }
+                    $telegramService->sendMessage($adminId, 'عملیات غیرفعال سازی پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                 }
             } elseif ($action == 'delete') {
+                $telegramService->sendMessage($adminId, 'عملیات حذف شروع شد.');
                 foreach ($listOfConfigs as $config) {
                     $aa = is_array($config) ? $config : json_decode($config, true);
                     $config = (array) $aa;
@@ -201,6 +226,7 @@ class BatchSubscriptionJob implements ShouldQueue
                         Log::error('خطا در حذف ' . $config['name']);
                         $success = false;
                         $message = 'خطا در حذف پیکربندی: ' . $config['name'];
+                        $telegramService->sendMessage($adminId, 'خطا در حذف پیکربندی: ' . $config['name']);
                         break;
                     }
                     // حذف از جدول products
@@ -208,6 +234,7 @@ class BatchSubscriptionJob implements ShouldQueue
                     if ($product !== null) {
                         $product->delete();
                     }
+                    $telegramService->sendMessage($adminId, 'عملیات حذف پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                 }
             } else {
                 $success = false;
@@ -218,18 +245,16 @@ class BatchSubscriptionJob implements ShouldQueue
             $message = 'خطا در اجرای عملیات: ' . $th->getMessage();
             Log::error($message);
         }
-        // اگر chat_id وجود داشت، پیام نتیجه را به کاربر ارسال کن
-        if (isset($this->extra['chat_id'])) {
-            try {
-                $telegramService = App::make(\App\Services\TelegramService::class);
-                if ($success) {
-                    $telegramService->sendMessage($this->extra['chat_id'], 'عملیات با موفقیت انجام شد.');
-                } else {
-                    $telegramService->sendMessage($this->extra['chat_id'], 'خطا: ' . $message);
-                }
-            } catch (\Throwable $th) {
-                Log::error('خطا در ارسال پیام نتیجه به کاربر: ' . $th->getMessage());
+        // ارسال پیام نتیجه به مدیر
+        try {
+            if ($success) {
+                $telegramService->sendMessage($adminId, 'عملیات با موفقیت به اتمام رسید.');
+            } else {
+                $telegramService->sendMessage($adminId, 'خطا: ' . $message);
             }
+        } catch (\Throwable $th) {
+            Log::error('خطا در ارسال پیام نتیجه به مدیر: ' . $th->getMessage());
         }
+
     }
 }
