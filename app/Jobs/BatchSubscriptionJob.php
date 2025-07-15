@@ -81,6 +81,36 @@ class BatchSubscriptionJob implements ShouldQueue
                         $telegramService->sendMessage($adminId, 'عملیات افزایش روزها به پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                     }
                 }
+            } elseif ($action == 'modify_days') {
+                $days = $extra['days'] ?? null;
+                if (!isset($days)) {
+                    $success = false;
+                    $message = 'تعداد روزها ارسال نشده است.';
+                } else {
+                    $telegramService->sendMessage($adminId, 'عملیات تغییر روزها شروع شد.');
+                    foreach ($listOfConfigs as $config) {
+                        $aa = is_array($config) ? $config : json_decode($config, true);
+                        $config = (array) $aa;
+                        $comment = "تغییر روزها در " . Verta::now() . " به میزان " . $days . " روز";
+                        $uuid = $config['uuid'];
+                        $name = $config['name'];
+                        $params = [
+                            'uuid' => "$uuid",
+                            'name' => "$name",
+                            'package_days' => $days,
+                            'mode' => 'no_reset',
+                            'comment' => "$comment",
+                        ];
+                        $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
+                        if ($result === false) {
+                            $success = false;
+                            $message = 'خطا در تغییر روزها به پیکربندی: ' . $config['name'];
+                            $telegramService->sendMessage($adminId, 'خطا در تغییر روزها به پیکربندی: ' . $config['name']);
+                            break;
+                        }
+                        $telegramService->sendMessage($adminId, 'عملیات تغییر روزها به میزان ' . $days . ' روز در پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
+                    }
+                }
             } elseif ($action == 'dec_days') {
                 $days = $extra['days'] ?? null;
                 if (!isset($days)) {
@@ -109,8 +139,39 @@ class BatchSubscriptionJob implements ShouldQueue
                             $telegramService->sendMessage($adminId, 'خطا در کاهش روزها به پیکربندی: ' . $config['name']);
                             break;
                         }
-                        $telegramService->sendMessage($adminId, 'عملیات کاهش روزها به پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
+                        $telegramService->sendMessage($adminId, 'عملیات کاهش روزها به میزان ' . $days . ' روز در پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                     }
+                }
+            } elseif ($action == 'reset') {
+                $telegramService->sendMessage($adminId, 'عملیات ریست شروع شد.');
+                foreach ($listOfConfigs as $config) {
+                    $aa = is_array($config) ? $config : json_decode($config, true);
+                    $config = (array) $aa;
+                    $uuid = $config['uuid'];
+                    $name = $config['name'];
+                    $today = date('Y-m-d');
+                    $vol = $config['usageLimitGB'];
+                    $day = $config['packageDays'];
+                    $comment = "ریست در " . Verta::now();
+                    $today = date('Y-m-d');
+                    $params = [
+                        'uuid' => "$uuid",
+                        'name' => "$name",
+                        'current_usage_GB' => 0,
+                        'usage_limit_GB' => $vol,
+                        'package_days' => $day,
+                        'mode' => 'no_reset',
+                        'start_date' => "$today",
+                        'comment' => "$comment",
+                    ];
+                    $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
+                    if ($result === false) {
+                        $success = false;
+                        $message = 'خطا در ریست روزها به پیکربندی: ' . $config['name'];
+                        $telegramService->sendMessage($adminId, 'خطا در ریست به پیکربندی: ' . $config['name']);
+                        break;
+                    }
+                    $telegramService->sendMessage($adminId, 'عملیات ریست به پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                 }
             } elseif ($action == 'inc_vol') {
                 $vol = $extra['vol'] ?? null;
@@ -139,7 +200,7 @@ class BatchSubscriptionJob implements ShouldQueue
                             $telegramService->sendMessage($adminId, 'خطا در افزایش حجم پیکربندی: ' . $config['name']);
                             break;
                         }
-                        $telegramService->sendMessage($adminId, 'عملیات افزایش حجم پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
+                        $telegramService->sendMessage($adminId, 'عملیات افزایش حجم به میزان ' . $vol . ' GB در پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                     }
                 }
             } elseif ($action == 'dec_vol') {
@@ -170,8 +231,64 @@ class BatchSubscriptionJob implements ShouldQueue
                             $telegramService->sendMessage($adminId, 'خطا در کاهش حجم پیکربندی: ' . $config['name']);
                             break;
                         }
-                        $telegramService->sendMessage($adminId, 'عملیات کاهش حجم پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
+                        $telegramService->sendMessage($adminId, 'عملیات کاهش حجم به میزان ' . $vol . ' GB در پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                     }
+                }
+            } elseif ($action == 'modify_vol') {
+                $vol = $extra['vol'] ?? null;
+                if (!isset($vol)) {
+                    $success = false;
+                    $message = 'مقدار حجم ارسال نشده است.';
+                } else {
+                    $telegramService->sendMessage($adminId, 'عملیات تغییر حجم شروع شد.');
+                    foreach ($listOfConfigs as $config) {
+                        $aa = is_array($config) ? $config : json_decode($config, true);
+                        $config = (array) $aa;
+                        $comment = "تغییر حجم در " . Verta::now() . " به میزان " . $vol . " GB";
+                        $newVol = (double) $config['usageLimitGB'] - $vol;
+                        $uuid = $config['uuid'];
+                        $name = $config['name'];
+                        $params = [
+                            'uuid' => "$uuid",
+                            'name' => "$name",
+                            'usage_limit_GB' => $newVol,
+                            'mode' => 'no_reset',
+                            'comment' => "$comment",
+                        ];
+                        $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
+                        if ($result === false) {
+                            $success = false;
+                            $message = 'خطا در تغییر حجم پیکربندی: ' . $config['name'];
+                            $telegramService->sendMessage($adminId, 'خطا در تغییر حجم پیکربندی: ' . $config['name']);
+                            break;
+                        }
+                        $telegramService->sendMessage($adminId, 'عملیات تغییر حجم به میزان ' . $vol . ' GB در پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
+                    }
+                }
+            } elseif ($action == 'reset_vol') {
+                $telegramService->sendMessage($adminId, 'عملیات ریست حجم شروع شد.');
+                foreach ($listOfConfigs as $config) {
+                    $aa = is_array($config) ? $config : json_decode($config, true);
+                    $config = (array) $aa;
+
+                    $uuid = $config['uuid'];
+                    $name = $config['name'];
+                    $comment = "ریست حجم در " . Verta::now();
+                    $params = [
+                        'uuid' => "$uuid",
+                        'name' => "$name",
+                        'current_usage_GB' => 0,
+                        'mode' => 'no_reset',
+                        'comment' => "$comment",
+                    ];
+                    $result = $hiddifyPannelCntrl->sendPatchRequestToHiddifyPannel($panelID, "/api/v2/admin/user/$uuid/", $params);
+                    if ($result === false) {
+                        $success = false;
+                        $message = 'خطا در ریست حجم پیکربندی: ' . $config['name'];
+                        $telegramService->sendMessage($adminId, 'خطا در ریست حجم پیکربندی: ' . $config['name']);
+                        break;
+                    }
+                    $telegramService->sendMessage($adminId, 'عملیات ریست حجم به پیکربندی: ' . $config['name'] . ' با موفقیت انجام شد.');
                 }
             } elseif ($action == 'active') {
                 $telegramService->sendMessage($adminId, 'عملیات فعالسازی شروع شد.');

@@ -358,7 +358,6 @@ class HiddifyPannelController extends Controller
     }
     public function rechargeUserOfHiddifyPanelApi(Request $request)
     {
-        \Log::info("rechargeUserOfHiddifyPanelApi => 1111111");
         $pannelID = $request->pannelID;
         $pannel = Pannel::find($pannelID);
         $vol = $request->vol;
