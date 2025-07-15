@@ -651,8 +651,6 @@ class SubscriptionProcessController extends Controller
             $panelID,
             $extra
         );
-        $executeArtisanCommand = new ExecuteArtisanCommandController();
-        $executeArtisanCommand->execute('queue:work');
         return response()->json(['status' => 'success', 'message' => 'درخواست شما دریافت شد و در حال اجراست.']);
     }
     public function remark($chatId, $productID)
