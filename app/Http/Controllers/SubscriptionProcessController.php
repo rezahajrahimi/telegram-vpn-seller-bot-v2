@@ -631,6 +631,12 @@ class SubscriptionProcessController extends Controller
     }
     public function batchExistSubscriptionJob(Request $request)
     {
+        // check license
+        $authCntrl             = new AuthController();
+        $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+        if ($getPowerPsLicenseType == 'free') {
+            return response()->json(['status' => 'error', 'message' => 'لایسنس شما منقضی شده است.']);
+        }
         $action = $request->action;
         $listOfConfigs = json_decode($request['configs'], true);
         $panelID = $request->panel_id;
