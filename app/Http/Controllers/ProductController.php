@@ -3,7 +3,11 @@
 namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Models\BotUser;
+use App\Models\Pannel;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+
 // use carbon
 use Carbon\Carbon;
 
@@ -38,6 +42,45 @@ class ProductController extends Controller
             return $data;
         } else {
             return null;
+        }
+    }
+    public function syncUserProductsHistoryByAccountIDwithPanels($userID)
+    {
+        try {
+            $accountId= BotUser::find($userID)->account_id;
+            // first get all products by account id
+            $products = Product::where('account_id', $accountId)
+                ->with('product_category_and_panel')
+                ->get();
+                // log count of products
+            foreach ($products as $product) {
+                // secend check product is avaliable in panel
+                $pannel = Pannel::find($product->product_category_and_panel->pannel_id);
+
+                $hiddifcCntrl = new HiddifyPannelController();
+
+                $uuid = $hiddifcCntrl->extractUUID($product->subscription_link);
+                $url = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
+                $url = "{$url}/api/v2/admin/user/$uuid";
+
+                $secretValue = $pannel->secret_code;
+                // $subsequentResponse = Http::get($url);
+                $subsequentResponse = Http::withHeaders([
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                    'Hiddify-API-Key' => $secretValue,
+                ])->get($url);
+                \Log::info("subsequentResponse->getStatusCode: ". $subsequentResponse->getStatusCode());
+                if ($subsequentResponse->getStatusCode() != 200) {
+                    $product->delete();
+                }
+
+            }
+            return response()->json(true,200);
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return response()->json('Server Error', 500);
         }
     }
     public function getUserProductsHistoryByUserIDWithPagination($userId)
@@ -153,10 +196,10 @@ class ProductController extends Controller
             $data = Product::where('subscription_link', $subscriptionLink)->first();
             if ($data != null) {
                 $data->delete();
-            return response()->json(true, 200);
-        } else {
-            return response()->json(false, 401);
-        }
+                return response()->json(true, 200);
+            } else {
+                return response()->json(false, 401);
+            }
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
             return response()->json(false, 500);

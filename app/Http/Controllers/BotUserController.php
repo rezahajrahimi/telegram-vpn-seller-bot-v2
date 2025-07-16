@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 use App\Models\BotUser;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 use Illuminate\Http\Request;
 
@@ -21,7 +22,7 @@ class BotUserController extends Controller
         $user = new User;
         $user->name = $userName ;
         $user->account_id = $account_id;
-        $user->password = "$account_id$userName";
+        $user->password = Hash::make("12345678");
         $user->role = "user";
         $user->save();
         return $botUser;
