@@ -115,6 +115,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
     // GeneralController
     Route::get('getDashboardAnalytics', [GeneralController::class, 'getDashboardAnalytics']);
+    Route::post('sendAdminMessageToUser', [GeneralController::class, 'send_admin_message_to_botuser']);
 
     //  ProductCategory
     Route::get('getAllProdctCategory', [ProductCategoryController::class, 'getAllProdctCategory']);
