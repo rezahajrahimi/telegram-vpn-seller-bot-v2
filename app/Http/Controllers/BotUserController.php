@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\BotUser;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Services\TelegramService;
 
 use Illuminate\Http\Request;
 
@@ -119,4 +120,49 @@ class BotUserController extends Controller
             return null;
         }
     }
+    public function send_Admin_message_to_All_users(Request $request ){
+        try {
+            $data = BotUser::all();
+            $telegramService = new TelegramService();
+            $message = $request->message;
+            foreach ($data as $key => $value) {
+                    try {
+                        //$telegramService->sendMessage($value->account_id,  $message);
+                        \Log::info($message . " ". $value->account_id);
+
+                    } catch (\Throwable $th) {
+                        \Log::debug('seng_message_to_all_user => ' .$th->getMessage());
+                    }
+            }
+            return response()->json(true, 200);
+        } catch (\Throwable $th) {
+            \Log::debug('seng_message_to_all_user'.$th->getMessage());
+        }
+    }
+    public function send_admin_message_to_all_users_without_configs(Request $request ){
+        try {
+            $data = BotUser::with('products')->get();
+            // get all $data which have zero count of products
+            $data = $data->filter(function($user) {
+                \Log::info('count of '. $user->id . " " . $user->products->count());
+                return $user->products->count() === 0;
+            })->values();
+            
+            $telegramService = new TelegramService();
+            $message = $request->message;
+            foreach ($data as $key => $value) {
+                try {
+                    //$telegramService->sendMessage($value->account_id,  $message);
+                    \Log::info($message . " ". $value->account_id );
+    
+                } catch (\Throwable $th) {
+                    \Log::debug('send_admin_message_to_all_users_without_configs => ' .$th->getMessage());
+                }
+            }
+            return response()->json(true, 200);
+        } catch (\Throwable $th) {
+            \Log::debug('seng_message_to_all_user'.$th->getMessage());
+        }
+    }
+    
 }
