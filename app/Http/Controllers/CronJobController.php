@@ -34,18 +34,18 @@ class CronJobController extends Controller
             $usageMoreThan85PercentCronJob->is_active   = true;
             $usageMoreThan85PercentCronJob->description = 'ارسال پیام به کاربرانی که میزان استفاده از اکانت بیشتر از 85 درصد دارند.';
             $usageMoreThan85PercentCronJob->save();
-            $createDailyBackupCronJob              = new CronJob();
-            $createDailyBackupCronJob->name        = 'Create Daily Backup';
-            $createDailyBackupCronJob->frequency   = '1d';
-            $createDailyBackupCronJob->is_active   = true;
-            $createDailyBackupCronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
-            $createDailyBackupCronJob->save();
-            $autoDeleteExpiredConfigsCronJob              = new CronJob();
-            $autoDeleteExpiredConfigsCronJob->name        = 'Auto Delete Expired Configs After 10 Days';
-            $autoDeleteExpiredConfigsCronJob->frequency   = '1d';
-            $autoDeleteExpiredConfigsCronJob->is_active   = true;
-            $autoDeleteExpiredConfigsCronJob->description = 'حذف کانفیگ هایی که 10 روز از انقضا آنها می گذرد.';
-            $autoDeleteExpiredConfigsCronJob->save();
+            // $createDailyBackupCronJob              = new CronJob();
+            // $createDailyBackupCronJob->name        = 'Create Daily Backup';
+            // $createDailyBackupCronJob->frequency   = '1d';
+            // $createDailyBackupCronJob->is_active   = true;
+            // $createDailyBackupCronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
+            // $createDailyBackupCronJob->save();
+            // $autoDeleteExpiredConfigsCronJob              = new CronJob();
+            // $autoDeleteExpiredConfigsCronJob->name        = 'Auto Delete Expired Configs After 10 Days';
+            // $autoDeleteExpiredConfigsCronJob->frequency   = '1d';
+            // $autoDeleteExpiredConfigsCronJob->is_active   = true;
+            // $autoDeleteExpiredConfigsCronJob->description = 'حذف کانفیگ هایی که 10 روز از انقضا آنها می گذرد.';
+            // $autoDeleteExpiredConfigsCronJob->save();
             return true;
         }
         return false;
@@ -529,13 +529,9 @@ class CronJobController extends Controller
                 return false;
             }
 
-            $cronJob = CronJob::where('name', 'Create Daily Backup')->first();
-            if ($cronJob == null) {
-                $cronJob = $this->create_cron_job_for_create_daily_backup();
-            }
-
-            // check if is_active was false, return
-            if ($cronJob->is_active == false) {
+            $advancedSettingCntrl = new AdvanceSettingLookupController();
+            $isEnable             = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_daily_backup');
+            if ($isEnable == false || $isEnable == 0) {
                 return false;
             }
 
