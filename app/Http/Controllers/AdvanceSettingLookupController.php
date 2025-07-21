@@ -140,7 +140,13 @@ class AdvanceSettingLookupController extends Controller
             $advanceSettingLookup->update();
             return $advanceSettingLookup;
         } catch (\Throwable $th) {
-            \Log::info("AdvanceSettingLookupController->update->error", ['error' => $th->getMessage(), 'id' => $id, 'name' => $name, 'value' => $value, 'description' => $description]);
+            \Log::info("AdvanceSettingLookupController->update->error", [
+                'error' => $th->getMessage(),
+                'id' => $request->id ?? null,
+                'name' => $request->name ?? null,
+                'value' => $request->value ?? null,
+                'description' => $request->description ?? null
+            ]);
             return null;
         }
     }
@@ -153,7 +159,12 @@ class AdvanceSettingLookupController extends Controller
             $advanceSettingLookup->update();
             return $advanceSettingLookup;
         } catch (\Throwable $th) {
-            \Log::info("AdvanceSettingLookupController->update->error", ['error' => $th->getMessage(), 'id' => $id, 'name' => $name, 'value' => $value, 'description' => $description]);
+            \Log::info("AdvanceSettingLookupController->updateByName->error", [
+                'error' => $th->getMessage(),
+                'name' => $request->name ?? null,
+                'value' => $request->value ?? null,
+                'description' => $request->description ?? null
+            ]);
             return null;
         }
     }
