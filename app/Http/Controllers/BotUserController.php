@@ -75,15 +75,47 @@ class BotUserController extends Controller
             return response()->json('Server Error', 500);
         }
     }
-    public function get_users_by_past_days($days){
+    public function get_users_by_past_days($days)
+    {
         try {
             $startDay = Carbon::now()->subDays($days)->startOfDay();
             $endDay = Carbon::now()->endOfDay();
-            $data = BotUser::whereBetween('created_at', [$startDay, $endDay])->orderBy('id','desc')->get();
+            $data = BotUser::whereBetween('created_at', [$startDay, $endDay])->orderBy('id', 'desc')->get();
             return $data;
         } catch (\Throwable $th) {
-            \Log::debug('get_users_by_past_days'. $th->getMessage());
+            \Log::debug('get_users_by_past_days' . $th->getMessage());
             return response()->json('get_users_by_past_days error', 500);
+        }
+    }
+    public function get_users_with_zero_configs()
+    {
+        try {
+            $data = BotUser::with('products')->get();
+            // get all $data which have zero count of products
+            $data = $data->filter(function ($user) {
+                return $user->products->count() === 0;
+            })->values();
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::debug('get_users_by_past_days' . $th->getMessage());
+            return response()->json('get_users_by_past_days error', 500);
+        }
+    }
+    public function get_users_with_zero_ballance()
+    {
+        try {
+            $data = BotUser::with('ballance')->get();
+            // get all $data which have zero count of products
+            \Log::debug('list::' . json_encode($data));
+            $data = $data->filter(function ($user) {
+                if (isset($user->ballance)) {
+                    return intval(value: $user->ballance->ballance) === 0;
+                }
+            })->values();
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::debug('get_users_with_zero_ballance' . $th->getMessage());
+            return response()->json('get_users_with_zero_ballance error', 500);
         }
     }
 
