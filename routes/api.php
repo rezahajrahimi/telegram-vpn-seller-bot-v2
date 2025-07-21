@@ -265,6 +265,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getUsersByPastDays/{days}', [BotUserController::class, 'get_users_by_past_days']);
     Route::get('getUsersWithZeroConfigs', [BotUserController::class, 'get_users_with_zero_configs']);
     Route::get('getUsersWithZeroBallance', [BotUserController::class, 'get_users_with_zero_ballance']);
+    Route::get('getAgentRoleBotUsers', [BotUserController::class, 'get_agent_role_bot_users']);
     Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);

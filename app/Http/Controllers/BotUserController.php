@@ -106,7 +106,6 @@ class BotUserController extends Controller
         try {
             $data = BotUser::with('ballance')->get();
             // get all $data which have zero count of products
-            \Log::debug('list::' . json_encode($data));
             $data = $data->filter(function ($user) {
                 if (isset($user->ballance)) {
                     return intval(value: $user->ballance->ballance) === 0;
@@ -116,6 +115,26 @@ class BotUserController extends Controller
         } catch (\Throwable $th) {
             \Log::debug('get_users_with_zero_ballance' . $th->getMessage());
             return response()->json('get_users_with_zero_ballance error', 500);
+        }
+    }
+  
+    public function get_agent_role_bot_users()
+    {
+        try {
+            $data = BotUser::with('user')
+                ->get();
+                $data = $data->filter(function ($user) {
+                    if (isset($user->user)) {
+                        return $user->user->role === 'agent';
+                    }
+                })->values();
+            if ($data != null) {
+                return $data;
+            } else {
+                return null;
+            }
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
         }
     }
 
@@ -167,6 +186,7 @@ class BotUserController extends Controller
             \Log::info("Throwable:  $th");
         }
     }
+ 
     public function getUserIDByAccountID($accountID)
     {
         $data = BotUser::where('account_id', $accountID)->first();
