@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Http\Controllers\HiddifyPannelController;
 use App\Models\Product;
-use Carbon\Carbon;
 use Hekmatinasser\Verta\Verta;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -32,7 +31,7 @@ class BatchSubscriptionJob implements ShouldQueue
     {
         $success = true;
         $message = '';
-        $adminId = env('TELEGRAM_ADMIN_ID');
+        $adminId = env(key: 'TELEGRAM_ADMIN_ID');
         try {
             $action = $this->action;
             $listOfConfigs = $this->listOfConfigs;
