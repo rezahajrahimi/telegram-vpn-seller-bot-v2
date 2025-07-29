@@ -47,6 +47,7 @@ use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\BlockedUserController;
 use App\Http\Controllers\ShetabVerifyController;
 use App\Http\Controllers\SubscriptionProcessController;
+use App\Http\Controllers\AppInfoController;
 
 
 use Illuminate\Http\Request;
@@ -386,6 +387,12 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('/get-blocked-user', [BlockedUserController::class, 'getBlockedUser']);
     Route::get('/is-blocked', [BlockedUserController::class, 'isBlocked']);
     Route::get('/get-blocked-user-count', [BlockedUserController::class, 'getBlockedUserCount']);
+
+    //  ApplicationInfoController
+    Route::post('/update-application-info', [AppInfoController::class, 'update']);
+
+    // ShetabVerifyController
+    Route::post('/shetab-verify', [ShetabVerifyController::class, 'shetabVerify']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User
@@ -467,3 +474,4 @@ Route::post('/orderch', [TransactionController::class, 'add_order']);
 
 Route::post('/shetab-verify', [ShetabVerifyController::class, 'validate_shetab_verify']);
 
+Route::get('/get-application-info', [AppInfoController::class, 'index']);
