@@ -390,6 +390,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
 
     //  ApplicationInfoController
     Route::post('/update-application-info', [AppInfoController::class, 'update']);
+    Route::post('/save-application-image', [AppInfoController::class, 'save_image']);
 
     // ShetabVerifyController
     Route::post('/shetab-verify', [ShetabVerifyController::class, 'shetabVerify']);
