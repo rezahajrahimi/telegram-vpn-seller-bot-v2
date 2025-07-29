@@ -42,24 +42,19 @@ class AppInfoController extends Controller
     public function save_image(Request $request)
     {
         $image = $request->file('image');
-        // $data = $request->validate([
-        //     'file' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        // ]);
-
         $imagePath = 'images/appinfo/';
-        $imageName = time() . '.' . $image->getClientOriginalExtension();
+        $imageName = time() . '.' . $image->getClientOriginalExtension(); // نام یکتا با پسوند
         try {
-            // check if the image path is writable
-            if (is_writable($imagePath)) {
-                Storage::disk('public')->put($imagePath . $imageName, $image);
-            } else {
-                // create the directory if it does not exist
-                Storage::disk('public')->makeDirectory($imagePath);
-                // add permission to the image path
-                $fullImagePath = storage_path('app/public/' . $imagePath);
-                chmod($fullImagePath, 0777);
-                Storage::disk('public')->put($imagePath . $imageName, $image);
-            }
+            // ایجاد دایرکتوری اگر وجود ندارد
+            Storage::disk('public')->makeDirectory($imagePath);
+
+            // ذخیره فایل با نام یکتا و پسوند صحیح در دیسک public
+            Storage::disk('public')->putFileAs($imagePath, $image, $imageName);
+
+            $appInfo = AppInfo::first();
+            $appInfo->image = $imagePath . $imageName;
+            $appInfo->save();
+
 
 
 
@@ -68,9 +63,6 @@ class AppInfoController extends Controller
         }
 
         // Save the filename to the database or perform any other necessary actions
-        $appInfo = AppInfo::first();
-        $appInfo->image = $imageName;
-        $appInfo->save();
         // This is a placeholder for the actual implementation
         return response()->json(['message' => 'Image saved successfully']);
     }
