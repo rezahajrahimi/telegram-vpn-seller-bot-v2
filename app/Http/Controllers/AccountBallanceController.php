@@ -201,7 +201,6 @@ class AccountBallanceController extends Controller
             }
 
             if ($type == 'toman') {
-                \Log::info("type is toman");
                 if ($ballance <= $accBallance->ballance) {
                     $accBallance->ballance -= $ballance;
                     $accBallance->update();
@@ -227,7 +226,6 @@ class AccountBallanceController extends Controller
                     }
                     \Log::info("message 555555555555");
 
-                    // return false;
                 }
             } else {
                 \Log::info("type is dollar");

@@ -86,6 +86,7 @@ class GeneralController extends Controller
         // crypto payment
         $this->cryptoPaymentCntrl->seed();
 
+
     }
     public function get_license_type()
     {
@@ -679,6 +680,7 @@ class GeneralController extends Controller
         return [
             'text' => $text . " $formattedPrice دلار",
             'url' => $paymentLink,
+
         ];
     }
     public function getFaqs($chatId)
