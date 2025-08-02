@@ -272,9 +272,9 @@ class SubscriptionProcessController extends Controller
             $resualt = false;
             // get id of last inserted product id
             $lastProductId = Product::latest()->first()->id ?? 1;
-            
+
             if ($pannel->type == 'hiddify') {
-                $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $lastProductId+1);
+                $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $lastProductId + 1);
             } elseif ($pannel->type == 'marzban') {
                 // create marzban user
                 return " پنل مرزبان";
@@ -444,7 +444,7 @@ class SubscriptionProcessController extends Controller
                         'ادامه' => "buyHistoryNext-$nextPage",
                     ];
                 } elseif ($page > 1) {
-                    $firstItemsIndex = ($page * 10) ;
+                    $firstItemsIndex = ($page * 10);
                     $firstItemsIndex -= 10; // adjust index for zero-based array
                     // slice opr array to get 10 items starting from firstItemsIndex
                     if ($firstItemsIndex < 0) {
@@ -458,12 +458,12 @@ class SubscriptionProcessController extends Controller
                     if ($firstItemsIndex < 0) {
                         $firstItemsIndex = 0; // prevent negative index
                     }
-                        $opr = array_slice($opr, $firstItemsIndex, 10);
-                    
-                   
+                    $opr = array_slice($opr, $firstItemsIndex, 10);
+
+
                     // slice opr array to get 10 items
                     // check is last page, if not add next button
-                    if($page < $lastPage) {
+                    if ($page < $lastPage) {
                         $nextPage = $page + 1;
                         $opr[] = ['ادامه' => "buyHistoryNext-$nextPage"];
                     }
@@ -546,7 +546,7 @@ class SubscriptionProcessController extends Controller
                 }
 
             }
-            return "" ;
+            return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در سابقه خرید: " . $th->getMessage());
             return $this->customTextCtrl->getText('error.server_error');
@@ -629,6 +629,36 @@ class SubscriptionProcessController extends Controller
             return $this->customTextCtrl->getText('error.server_error');
         }
     }
+    public function batchExistSubscriptionJob(Request $request)
+    {
+        // check license
+        $authCntrl = new AuthController();
+        $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+        if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
+            return response()->json(['status' => 'error', 'message' => 'لایسنس شما منقضی شده است.']);
+        }
+        $action = $request->action;
+        $listOfConfigs = json_decode($request['configs'], true);
+        $panelID = $request->panel_id;
+        $extra = $request->all();
+        // اگر chat_id ارسال شده بود، پیام به کاربر بده
+        if ($request->has('chat_id')) {
+            try {
+                $chatId = $request->input('chat_id');
+                $this->telegramService->sendMessage($chatId, 'درخواست شما دریافت شد و در حال اجراست.');
+            } catch (\Throwable $th) {
+                \Log::error('خطا در ارسال پیام به کاربر: ' . $th->getMessage());
+            }
+        }
+        // Dispatch Job
+        \App\Jobs\BatchSubscriptionJob::dispatch(
+            $action,
+            $listOfConfigs,
+            $panelID,
+            $extra
+        );
+        return response()->json(['status' => 'success', 'message' => 'درخواست شما دریافت شد و در حال اجراست.']);
+    }
     public function remark($chatId, $productID)
     {
         try {
@@ -681,6 +711,7 @@ class SubscriptionProcessController extends Controller
             return "";
         }
     }
+
     private function handleActionRemark(string $chatId, int $productID): string
     {
         $this->setAwaitingReply($chatId, 'remark_reply', $productID);

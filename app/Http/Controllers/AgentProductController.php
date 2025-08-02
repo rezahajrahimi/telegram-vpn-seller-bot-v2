@@ -26,7 +26,7 @@ class AgentProductController extends Controller
         if ($userID == null) {
             return response()->json(false, 201);
         }
-        $selectedExistConfig = json_decode($request['selectedExistConfig'], true);
+        $selectedExistConfig = json_decode($request['configs'], true);
         $prCatCntrl = new ProductCategoryController();
         $prCntrl = new ProductController();
         foreach ($selectedExistConfig as $value) {
@@ -57,11 +57,11 @@ class AgentProductController extends Controller
             // check powerps license
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
             $hasAccountLimitation = false;
-            if ($getPowerPsLicenseType == 'free') {
+            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
                 $hasAccountLimitation = true;
             }
 
-            if ($agentsCount > 10 && $getPowerPsLicenseType == 'silver') {
+            if ($agentsCount > 10 && $getPowerPsLicenseType == "silver") {
                 $hasAccountLimitation = true;
             }
             if ($hasAccountLimitation == true) {
@@ -345,7 +345,7 @@ class AgentProductController extends Controller
             $req->comment = "شارژ مجدد در {$today}";
 
             $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-            if ($updateRemark->getStatusCode()== 200) {
+            if ($updateRemark->getStatusCode() == 200) {
                 $this->addNewBotLog('product', "$data->remark توسط مدیر شارژ شد", 'charge product');
 
                 return response()->json(true, 200);
@@ -383,7 +383,7 @@ class AgentProductController extends Controller
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
                 // $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
-                if ($updateRemark->getStatusCode()== 200) {
+                if ($updateRemark->getStatusCode() == 200) {
                     $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'charge product');
                 } else {
                     return response()->json(false, 500);
@@ -465,7 +465,7 @@ class AgentProductController extends Controller
             // get today date with new variable
 
             $updateRemark = $hiddifcCntrl->changeUserActivationOfHiddifyPanelApi($req);
-            if ($updateRemark->getStatusCode()== 200) {
+            if ($updateRemark->getStatusCode() == 200) {
                 $this->addNewBotLog('product', "$data->remark توسط مدیر غیر فعال شد.", 'charge product');
                 $data->update();
                 return response()->json(true, 200);
@@ -525,7 +525,7 @@ class AgentProductController extends Controller
             $today = Verta::now();
             $req->comment = "حذف شده در {$today}";
 
-            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id,$uuid);
+            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
             if ($updateRemark->getStatusCode() == 200) {
                 $data->delete();
                 $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
@@ -602,7 +602,7 @@ class AgentProductController extends Controller
                 $hiddifcCntrl = new HiddifyPannelController();
 
                 $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
-                $userPannelLink= $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
+                $userPannelLink = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
                 $reqProductDetails = new Request();
                 $reqProductDetails->account_id = $accountID;
@@ -661,7 +661,7 @@ class AgentProductController extends Controller
                 // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
 
 
-                $userPannelLink= $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
+                $userPannelLink = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
                 $reqProductDetails = new Request();
                 $reqProductDetails->account_id = $accountID;
@@ -725,7 +725,7 @@ class AgentProductController extends Controller
                 $req->comment = "شارژ مجدد در {$today}";
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-                if ($updateRemark->getStatusCode()== 200) {
+                if ($updateRemark->getStatusCode() == 200) {
                     $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                     $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
                     $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
@@ -845,8 +845,8 @@ class AgentProductController extends Controller
 
             // $subsequentResponse = Http::get($url);
             $subsequentResponse = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
                 'Hiddify-API-Key' => $secretValue,
             ])->get($url);
             if ($subsequentResponse->getStatusCode() == 200) {
@@ -976,7 +976,7 @@ class AgentProductController extends Controller
                 $req->comment = "شارژ مجدد در {$today}";
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-                if ($updateRemark->getStatusCode()== 200) {
+                if ($updateRemark->getStatusCode() == 200) {
                     $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                     $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
                     $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
@@ -1060,7 +1060,7 @@ class AgentProductController extends Controller
                     $req->comment = "تغییر دسته بندی همراه با ریست زمان و حجم {$today}";
 
                     $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-                    if ($updateRemark->getStatusCode()== 200) {
+                    if ($updateRemark->getStatusCode() == 200) {
                         $this->addNewBotLog('product', "$data->remark توسط کاربر تغییر یافت.", 'charge product');
                     } else {
                         return response()->json(false, 401);
@@ -1137,7 +1137,7 @@ class AgentProductController extends Controller
             // get today date with new variable
 
             $updateRemark = $hiddifcCntrl->changeUserActivationOfHiddifyPanelApi($req);
-            if ($updateRemark->getStatusCode()== 200) {
+            if ($updateRemark->getStatusCode() == 200) {
                 $this->addNewBotLog('product', "$data->remark توسط کاربر غیر فعال شد.", 'charge product');
                 return response()->json(true, 200);
             } else {
@@ -1184,7 +1184,7 @@ class AgentProductController extends Controller
             $today = Verta::now();
             $req->comment = "حذف شده در {$today}";
 
-            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id,$uuid);
+            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
             if ($updateRemark->getStatusCode() == 200) {
 
                 $data->delete();
@@ -1251,7 +1251,7 @@ class AgentProductController extends Controller
             $today = Verta::now();
             $req->comment = "حذف شده در {$today}";
 
-            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id,$uuid);
+            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
             if ($updateRemark->getStatusCode() == 200) {
                 $data->delete();
                 $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');

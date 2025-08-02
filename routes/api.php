@@ -46,6 +46,8 @@ use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\BlockedUserController;
 use App\Http\Controllers\ShetabVerifyController;
+use App\Http\Controllers\SubscriptionProcessController;
+use App\Http\Controllers\AppInfoController;
 
 
 use Illuminate\Http\Request;
@@ -81,7 +83,9 @@ Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
 // /auth/me
 Route::get('/auth/me', [AuthController::class, 'me']);
 // Admin Routes
-Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function () {
+Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.license']], function () {
+
+
     // run a command by api
     Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);
     ///
@@ -113,7 +117,10 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::patch('changeAgentRoleToUser/{id}', [UserController::class, 'change_user_role_to_user']);
 
     // GeneralController
+    Route::get('get-license-type', [GeneralController::class, 'get_license_type']);
+
     Route::get('getDashboardAnalytics', [GeneralController::class, 'getDashboardAnalytics']);
+    Route::post('sendAdminMessageToUser', [GeneralController::class, 'send_admin_message_to_botuser']);
 
     //  ProductCategory
     Route::get('getAllProdctCategory', [ProductCategoryController::class, 'getAllProdctCategory']);
@@ -133,6 +140,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('getLastBuyersByCatIdAndCount/{id}/{count}', [ProductController::class, 'getLastBuyersByCatIdAndCount']);
     Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
     Route::get('deleteProductByProductID/{id}', [ProductController::class, 'deleteProductByProductID']);
+    Route::get('syncUserProductsHistoryByAccountIDwithPanels/{accountid}', [ProductController::class, 'syncUserProductsHistoryByAccountIDwithPanels']);
     Route::get('getUserProductsHistoryByUserIDWithPagination/{userId}', [ProductController::class, 'getUserProductsHistoryByUserIDWithPagination']);
 
     //Settings
@@ -258,8 +266,16 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     //  BotUser
     Route::get('getBotUserList', [BotUserController::class, 'getBotUserList']);
     Route::get('getBotUserListByPagination', [BotUserController::class, 'getBotUserListByPagination']);
+    Route::get('getLast10BotUser', [BotUserController::class, 'get_last_10_bot_user']);
+    Route::get('getUsersByPastDays/{days}', [BotUserController::class, 'get_users_by_past_days']);
+    Route::get('getUsersWithZeroConfigs', [BotUserController::class, 'get_users_with_zero_configs']);
+    Route::get('getUsersWithZeroBallance', [BotUserController::class, 'get_users_with_zero_ballance']);
+    Route::get('getAgentRoleBotUsers', [BotUserController::class, 'get_agent_role_bot_users']);
     Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
+    Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
+    Route::post('sendAdminMessageToAllUsers', [BotUserController::class, 'send_Admin_message_to_All_users']);
+    Route::post('sendAdminMessageToAllUsersWithoutConfigs', [BotUserController::class, 'send_admin_message_to_all_users_without_configs']);
 
     Route::get('getLast10Users', [BotUserController::class, 'getLast10Users']);
     Route::get('getProductBoughtedByProductId/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
@@ -358,6 +374,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::post('/advanceSettingLookupUpdate', [AdvanceSettingLookupController::class, 'update']);
     Route::post('/advanceSettingLookupUpdateByName', [AdvanceSettingLookupController::class, 'updateByName']);
 
+    // SubscriptionProcessController
+    Route::post('/batchExistSubscriptionJob', [SubscriptionProcessController::class, 'batchExistSubscriptionJob']);
+
 
     // CustomTextController
     Route::get('/get-text/{key}', [CustomTextController::class, 'getText']);
@@ -372,6 +391,13 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin']], function 
     Route::get('/get-blocked-user', [BlockedUserController::class, 'getBlockedUser']);
     Route::get('/is-blocked', [BlockedUserController::class, 'isBlocked']);
     Route::get('/get-blocked-user-count', [BlockedUserController::class, 'getBlockedUserCount']);
+
+    //  ApplicationInfoController
+    Route::post('/update-application-info', [AppInfoController::class, 'update']);
+    Route::post('/save-application-image', [AppInfoController::class, 'save_image']);
+
+    // ShetabVerifyController
+    Route::post('/shetab-verify', [ShetabVerifyController::class, 'shetabVerify']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User
@@ -453,3 +479,4 @@ Route::post('/orderch', [TransactionController::class, 'add_order']);
 
 Route::post('/shetab-verify', [ShetabVerifyController::class, 'validate_shetab_verify']);
 
+Route::get('/get-application-info', [AppInfoController::class, 'index']);
