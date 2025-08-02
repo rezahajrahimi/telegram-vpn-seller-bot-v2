@@ -84,6 +84,8 @@ Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
 Route::get('/auth/me', [AuthController::class, 'me']);
 // Admin Routes
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.license']], function () {
+
+
     // run a command by api
     Route::get('/run-command/{name_of_command}', ExecuteArtisanCommandController::class);
     ///
@@ -115,6 +117,8 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::patch('changeAgentRoleToUser/{id}', [UserController::class, 'change_user_role_to_user']);
 
     // GeneralController
+    Route::get('get-license-type', [GeneralController::class, 'get_license_type']);
+
     Route::get('getDashboardAnalytics', [GeneralController::class, 'getDashboardAnalytics']);
     Route::post('sendAdminMessageToUser', [GeneralController::class, 'send_admin_message_to_botuser']);
 

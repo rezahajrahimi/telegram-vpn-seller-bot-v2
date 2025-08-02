@@ -87,6 +87,11 @@ class GeneralController extends Controller
         $this->cryptoPaymentCntrl->seed();
 
     }
+    public function get_license_type()
+    {
+        $authCntrl = new AuthController();
+        return $authCntrl->getPowerPsLicenseType();
+    }
     public function getDashboardAnalytics()
     {
         try {
