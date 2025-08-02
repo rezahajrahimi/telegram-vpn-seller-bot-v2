@@ -30,7 +30,7 @@ class AdvancedSettingController extends Controller
             // check account license
             $authCntrl = new AuthController();
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-            if ($getPowerPsLicenseType == 'free') {
+            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
                 return false;
             }
 

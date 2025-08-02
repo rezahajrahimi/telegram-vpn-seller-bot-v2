@@ -57,11 +57,11 @@ class AgentProductController extends Controller
             // check powerps license
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
             $hasAccountLimitation = false;
-            if ($getPowerPsLicenseType == 'free') {
+            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
                 $hasAccountLimitation = true;
             }
 
-            if ($agentsCount > 10 && $getPowerPsLicenseType == 'silver') {
+            if ($agentsCount > 10 && $getPowerPsLicenseType == "silver") {
                 $hasAccountLimitation = true;
             }
             if ($hasAccountLimitation == true) {

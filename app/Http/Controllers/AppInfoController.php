@@ -52,8 +52,10 @@ class AppInfoController extends Controller
             Storage::disk('public')->putFileAs($imagePath, $image, $imageName);
 
             $appInfo = AppInfo::first();
-            $appInfo->image = $imagePath . $imageName;
+            $appInfo->image = '/storage/' . $imagePath . $imageName;
             $appInfo->save();
+            return response()->json($appInfo->image, 200);
+
 
 
 
@@ -62,8 +64,14 @@ class AppInfoController extends Controller
             \Log::info("save app image:  $th");
         }
 
+        // Return the image path or any other response as needed
+        $appInfo = AppInfo::first();
+        if (!$appInfo) {
+            return response()->json(['error' => 'App info not found'], 404);
+        }
+        return response()->json($appInfo->image, 200);
+
         // Save the filename to the database or perform any other necessary actions
         // This is a placeholder for the actual implementation
-        return response()->json(['message' => 'Image saved successfully']);
     }
 }

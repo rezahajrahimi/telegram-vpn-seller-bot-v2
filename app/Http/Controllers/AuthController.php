@@ -53,26 +53,32 @@ class AuthController extends Controller
                 return Cache::get($cacheKey);
             }
 
-            $hasLicense = Http::post('https://license.powerps.ir/api/checkLicense', [
-                'name'     => 'Reza',
-                'type'     => "{$licenseType}",
-                'host'     => "{$host}",
+            $hasLicense = Http::post('https://classic-loved-condor.ngrok-free.app', [
+                'name' => 'Reza',
+                'type' => "{$licenseType}",
+                'host' => "{$host}",
                 'admin_id' => "{$adminId}",
             ]);
-
+            // $hasLicense = Http::post('https://license.powerps.ir/api/checkLicense', [
+            //     'name'     => 'Reza',
+            //     'type'     => "{$licenseType}",
+            //     'host'     => "{$host}",
+            //     'admin_id' => "{$adminId}",
+            // ]);
+            $accountType = $hasLicense->json()['data']['account_type'] ?? null;
             if ($hasLicense->status() != 200) {
+                
                 // ذخیره نتیجه منفی در کش برای 13 دقیقه
                 Cache::put($cacheKey, 'free', 780); // 13 دقیقه = 780 ثانیه
-                return 'free';
+                return "false";
             }
 
-            $result = $hasLicense->json()['data']['account_type'];
             // ذخیره نتیجه مثبت در کش برای 13 دقیقه
-            Cache::put($cacheKey, $result, 780);
+            Cache::put($cacheKey, $accountType, 780);
 
-            return $result;
+            return $accountType;
         }
-        return 'free';
+        return "false";
     }
 
     public function createFirstAdminUser()
@@ -83,10 +89,10 @@ class AuthController extends Controller
                 // get admin id from .env
                 $adminId = env('TELEGRAM_ADMIN_ID');
                 $admin = User::create([
-                    'name'       => 'admin',
+                    'name' => 'admin',
                     'account_id' => $adminId,
-                    'role'       => 'admin',
-                    'password'   => Hash::make('admin123456'),
+                    'role' => 'admin',
+                    'password' => Hash::make('admin123456'),
                 ]);
                 $this->generalCntrl->boot_seeding_data();
             }
@@ -99,22 +105,22 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'name'       => 'required|string|max:255|unique:users',
+            'name' => 'required|string|max:255|unique:users',
             'account_id' => 'required|max:8|unique:users',
-            'password'   => 'required|string|min:8',
-            'role'       => 'required|string',
+            'password' => 'required|string|min:8',
+            'role' => 'required|string',
         ]);
 
         $user = User::create([
-            'name'       => $request->name,
+            'name' => $request->name,
             'account_id' => $request->account_id,
-            'role'       => $request->role,
-            'password'   => Hash::make($request->password),
+            'role' => $request->role,
+            'password' => Hash::make($request->password),
         ]);
 
         return response()->json(
             [
-                'user'  => $user,
+                'user' => $user,
                 'token' => $user->createToken('token-name')->plainTextToken,
             ],
             201,
@@ -134,19 +140,19 @@ class AuthController extends Controller
 
         $request->validate([
             'account_id' => 'required|max:255', // it's also can be name
-            'password'   => 'required|string',
+            'password' => 'required|string',
         ]);
 
         $user = User::where('account_id', $request->account_id)
             ->orWhere('name', $request->account_id)
             ->first();
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['error' => 'The provided credentials are incorrect.'], 401);
         }
 
         return response()->json([
-            'user'  => $user,
+            'user' => $user,
             'token' => $user->createToken('token-name')->plainTextToken,
         ]);
     }
@@ -159,7 +165,7 @@ class AuthController extends Controller
     public function forgetPassword(Request $request)
     {
         // check blocked user
-        $blockedUser =  new BlockedUser();
+        $blockedUser = new BlockedUser();
         $isBlocked = $blockedUser->where('account_id', $request->account_id)->first();
         if ($isBlocked) {
             return response()->json(['error' => 'The provided credentials are incorrect.'], 401);
@@ -168,24 +174,24 @@ class AuthController extends Controller
             'account_id' => 'required|min:8',
         ]);
         $user = User::where('account_id', $request->account_id)->first();
-        if (! $user) {
+        if (!$user) {
             return response()->json(false);
         }
-        $user_password  = substr(str_shuffle('abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRTUVWXYZ2346789'), 0, 8);
+        $user_password = substr(str_shuffle('abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRTUVWXYZ2346789'), 0, 8);
         $user->password = Hash::make($user_password);
         $user->update();
         // \Log::info("passss {$user_password}");
         $user_id = $user->account_id;
-        $text    = "کاربر گرامی \n\r";
+        $text = "کاربر گرامی \n\r";
         $text .= "رمز عبور شما به پنل تغییر یافت \n\r";
         $text .= 'نام کاربری ورود به پنل:';
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text   = "<code>{$user_id}</code>";
+        $text = "<code>{$user_id}</code>";
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
 
-        $text   = "پسورد ورود به پنل:  \n\r";
+        $text = "پسورد ورود به پنل:  \n\r";
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text   = "<code>{$user_password}</code>";
+        $text = "<code>{$user_password}</code>";
         $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
         return response()->json(true);
     }
@@ -193,34 +199,34 @@ class AuthController extends Controller
     {
         try {
             $user = User::where('account_id', $request->account_id)->first();
-            if (! $user) {
+            if (!$user) {
                 return response()->json(false);
-        }
+            }
 
-        $frontUrl = env('FRONT_URL');
+            $frontUrl = env('FRONT_URL');
 
-        if (str_ends_with($frontUrl, '/')) {
-            $frontUrl = substr($frontUrl, 0, -1);
-        }
+            if (str_ends_with($frontUrl, '/')) {
+                $frontUrl = substr($frontUrl, 0, -1);
+            }
 
-        $user_password  = substr(str_shuffle('abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRTUVWXYZ2346789'), 0, 8);
-        $user->password = Hash::make($user_password);
-        $user->update();
-        $user_id       = $user->account_id;
-        $mainMenuCntrl = new MainMenuItemController();
-        $menuAliasName = $mainMenuCntrl->getMenuAliasNameByName('webapp');
-        $text = $this->customText->getText('action.web.generate_auto_login_link', ['link' => $frontUrl, 'username' => $user_id, 'password' => $user_password]);
-        $formatter = new TelegramMessageFormatter($this->telegramService);
-        $message   = $formatter->addFormattedText('', $text)->getMessage();
+            $user_password = substr(str_shuffle('abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRTUVWXYZ2346789'), 0, 8);
+            $user->password = Hash::make($user_password);
+            $user->update();
+            $user_id = $user->account_id;
+            $mainMenuCntrl = new MainMenuItemController();
+            $menuAliasName = $mainMenuCntrl->getMenuAliasNameByName('webapp');
+            $text = $this->customText->getText('action.web.generate_auto_login_link', ['link' => $frontUrl, 'username' => $user_id, 'password' => $user_password]);
+            $formatter = new TelegramMessageFormatter($this->telegramService);
+            $message = $formatter->addFormattedText('', $text)->getMessage();
 
-        $this->telegramService->sendMessage($user_id, $message);
-        $text = $this->customText->getText('action.web.auto_login_link');
-        $link = "{$frontUrl}/#/login/{$user_id}/{$user_password}";
+            $this->telegramService->sendMessage($user_id, $message);
+            $text = $this->customText->getText('action.web.auto_login_link');
+            $link = "{$frontUrl}/#/login/{$user_id}/{$user_password}";
 
-         $opr = [
-            [
+            $opr = [
+                [
                     'text' => "$menuAliasName",
-                    'url'  => "$link",
+                    'url' => "$link",
                 ],
             ];
 
