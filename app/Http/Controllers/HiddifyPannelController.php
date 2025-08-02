@@ -100,7 +100,7 @@ class HiddifyPannelController extends Controller
             if ($panelCount >= 2 && $getPowerPsLicenseType == 'silver') {
                 $hasAccountLimitation = true;
             }
-            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
+            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
                 $hasAccountLimitation = true;
             }
             if ($hasAccountLimitation == true) {

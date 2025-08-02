@@ -96,7 +96,7 @@ class CronJobController extends Controller
         }
         $authCntrl             = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-        if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
+        if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
             return false;
         }
 
@@ -183,7 +183,7 @@ class CronJobController extends Controller
             }
             $authCntrl             = new AuthController();
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
+            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
                 return false;
             }
 
@@ -282,7 +282,7 @@ class CronJobController extends Controller
 
         $authCntrl             = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-        if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
+        if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
             return false;
         }
         $pannel           = Pannel::all();
@@ -353,7 +353,7 @@ class CronJobController extends Controller
             // check account license
             $authCntrl             = new AuthController();
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
+            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
                 return false;
             }
             // checl is enable in advanced setting ot not
@@ -389,7 +389,7 @@ class CronJobController extends Controller
 
             $authCntrl             = new AuthController();
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
+            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
                 return false;
             }
 
@@ -430,7 +430,7 @@ class CronJobController extends Controller
 
         $authCntrl             = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-        if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
+        if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
             return false;
         }
 
@@ -525,7 +525,7 @@ class CronJobController extends Controller
         try {
             $authCntrl             = new AuthController();
             $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
+            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
                 return false;
             }
 

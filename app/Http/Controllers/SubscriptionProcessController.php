@@ -634,7 +634,7 @@ class SubscriptionProcessController extends Controller
         // check license
         $authCntrl = new AuthController();
         $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-        if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial") {
+        if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
             return response()->json(['status' => 'error', 'message' => 'لایسنس شما منقضی شده است.']);
         }
         $action = $request->action;
