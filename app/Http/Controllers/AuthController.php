@@ -53,7 +53,7 @@ class AuthController extends Controller
                 return Cache::get($cacheKey);
             }
 
-            $hasLicense = Http::post('https://classic-loved-condor.ngrok-free.app', [
+            $hasLicense = Http::post('https://classic-loved-condor.ngrok-free.app/api/checkLicense', [
                 'name' => 'Reza',
                 'type' => "{$licenseType}",
                 'host' => "{$host}",
@@ -67,7 +67,7 @@ class AuthController extends Controller
             // ]);
             $accountType = $hasLicense->json()['data']['account_type'] ?? null;
             if ($hasLicense->status() != 200) {
-                
+
                 // ذخیره نتیجه منفی در کش برای 13 دقیقه
                 Cache::put($cacheKey, 'free', 780); // 13 دقیقه = 780 ثانیه
                 return "false";
