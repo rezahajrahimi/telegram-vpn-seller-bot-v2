@@ -53,18 +53,18 @@ class AuthController extends Controller
                 return Cache::get($cacheKey);
             }
 
-            $hasLicense = Http::post('https://classic-loved-condor.ngrok-free.app/api/checkLicense', [
+            // $hasLicense = Http::post('https://classic-loved-condor.ngrok-free.app/api/checkLicense', [
+            //     'name' => 'Reza',
+            //     'type' => "{$licenseType}",
+            //     'host' => "{$host}",
+            //     'admin_id' => "{$adminId}",
+            // ]);
+            $hasLicense = Http::post('https://license.powerps.ir/api/checkLicense', [
                 'name' => 'Reza',
                 'type' => "{$licenseType}",
                 'host' => "{$host}",
                 'admin_id' => "{$adminId}",
             ]);
-            // $hasLicense = Http::post('https://license.powerps.ir/api/checkLicense', [
-            //     'name'     => 'Reza',
-            //     'type'     => "{$licenseType}",
-            //     'host'     => "{$host}",
-            //     'admin_id' => "{$adminId}",
-            // ]);
             $accountType = $hasLicense->json()['data']['account_type'] ?? null;
             if ($hasLicense->status() != 200) {
 

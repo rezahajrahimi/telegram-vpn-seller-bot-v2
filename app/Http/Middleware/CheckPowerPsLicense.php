@@ -19,7 +19,7 @@ class CheckPowerPsLicense
             if (Cache::has($cacheKey)) {
                 $accountType = Cache::get($cacheKey);
             } else {
-                $hasLicense = Http::post('https://classic-loved-condor.ngrok-free.app/api/checkLicense', [
+                $hasLicense = Http::post('https://license.powerps.ir/api/checkLicense', [
                     'name' => 'Reza',
                     'type' => $licenseType,
                     'host' => $host,
