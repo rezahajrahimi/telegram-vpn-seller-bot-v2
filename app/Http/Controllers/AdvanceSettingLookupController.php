@@ -107,7 +107,7 @@ class AdvanceSettingLookupController extends Controller
             }
             return false;
         } catch (\Throwable $th) {
-            \Log::info("AdvanceSettingLookupController->getByNameAndValue->error", ['error' => $th->getMessage(), 'name' => $name, 'value' => $value]);
+            \Log::info("AdvanceSettingLookupController->getByNameAndValue->error", ['error' => $th->getMessage(), 'name' => $name]);
             return null;
         }
     }
