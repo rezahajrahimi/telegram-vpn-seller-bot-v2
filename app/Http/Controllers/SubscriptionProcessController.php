@@ -279,8 +279,33 @@ class SubscriptionProcessController extends Controller
                 // create marzban user
                 return " پنل مرزبان";
             } elseif ($pannel->type == 'sanaei') {
-                // create sanaei user
-                return " پنل سنائی";
+                $sn = new SanaeiPannelController();
+                $uuid = $sn->addUserToSanaeiPanel(new Request([
+                    'pannelID' => $this->selectedPrCat->pannel_id,
+                    'vol' => $volume,
+                    'day' => $day,
+                    'accountId' => "$this->chatId-" . ($lastProductId + 1),
+                ]));
+                if ($uuid === false) {
+                    $resualt = false;
+                } else {
+                    // ذخیره رکورد مینیمال Product مشابه هیدیفای ولی بدون subscription_link
+                    $prCntrl = new ProductController();
+                    $request = new Request();
+                    $request->account_id = $this->chatId;
+                    $request->subscription_link = '';
+                    $request->product_categories_id = $this->selectedPrCat->id;
+                    $request->panel_link = '';
+                    $request->configs = json_encode(['uuid' => $uuid]);
+                    $request->remark = "$this->chatId-" . ($lastProductId + 1);
+                    $prCntrl->addAutomatedProductDetails($request);
+
+                    $text = $this->customTextCtrl->getText('action.subscription.sanaei', [
+                        'uuid' => $uuid,
+                    ]);
+                    $this->telegramService->sendMessage($this->chatId, is_array($text) ? $this->telegramService->formatText($text) : $text);
+                    $resualt = $uuid;
+                }
             }
             \Log::info("resualt response buoght from hiddify: " . $resualt);
 
@@ -535,7 +560,17 @@ class SubscriptionProcessController extends Controller
                     $expireDate = $expireDate->toJalali()->format('Y.m.d');
                     $startDate = $startDate->toJalali()->format('Y.m.d');
 
-                    $text = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $product->remark, 'category_name' => $prCat->category_name, 'panel_link' => $userPannelLink, 'subscription_link' => $userSubscriptionLInk, 'start_date' => $startDate, 'expire_date' => $expireDate, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText]);
+                    $text = $this->customTextCtrl->getText('action.buy_history.history', [
+                        'name' => $product->remark,
+                        'category_name' => $prCat->category_name,
+                        'panel_link' => $userPannelLink,
+                        'subscription_link' => $userSubscriptionLInk,
+                        'start_date' => $startDate,
+                        'expire_date' => $expireDate,
+                        'usage_limit_GB' => $limitGB,
+                        'usage_GB' => $usageGB,
+                        'enable' => $enableText,
+                    ]);
                     $formatter = new TelegramMessageFormatter($this->telegramService);
                     $text = $formatter->addFormattedText('', $text)->getMessage();
 

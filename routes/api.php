@@ -48,6 +48,7 @@ use App\Http\Controllers\BlockedUserController;
 use App\Http\Controllers\ShetabVerifyController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Http\Controllers\AppInfoController;
+use App\Http\Controllers\SanaeiPannelController;
 
 
 use Illuminate\Http\Request;
@@ -246,6 +247,10 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('deleteUserOfHiddifyPanel/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'deleteUserOfHiddifyPanel']);
     Route::get('getHiddifyPanelUsersByPannelID/{pannelID}', [HiddifyPannelController::class, 'getHiddifyPanelUsersByPannelID']);
     Route::get('getHiddifyPanelUserByPannelID/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'getHiddifyPanelUserByPannelID']);
+
+    // Sanaei Panel
+    Route::post('addUserToSanaeiPanel', [SanaeiPannelController::class, 'addUserToSanaeiPanel']);
+    Route::get('syncSanaeiInbounds/{pannelID}', [SanaeiPannelController::class, 'syncInbounds']);
 
     //  Proxy
     Route::post('addNewProxy', [ProxyController::class, 'addNewProxy']);

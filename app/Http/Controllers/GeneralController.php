@@ -366,6 +366,55 @@ class GeneralController extends Controller
         }
 
     }
+    public function new_sanaei_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $chat_id, $productID)
+    {
+        try {
+            $snCtrl = new SanaeiPannelController();
+            $req = new Request();
+            $req->accountId = "$chat_id-$productID";
+            $req->pannelID = $selectedPrCat->pannel_id;
+            $req->vol = $volume;
+            $req->day = $day;
+
+            $uuid = $snCtrl->addUserToSanaeiPanel($req);
+            if ($uuid === false) {
+                return false;
+            }
+
+            // Generate client links and QR codes
+            $links = $snCtrl->getUserLinks($selectedPrCat->pannel_id, $uuid, "$chat_id-$productID");
+            if (!empty($links)) {
+                $text = $this->customTextCtrl->getText('action.subscription.sanaei_with_links', [
+                    'uuid' => $uuid,
+                ]);
+                $this->telegramService->sendMessage($chat_id, is_array($text) ? $this->telegramService->formatText($text) : $text);
+                foreach ($links as $link) {
+                    $pnlCntrl = new PannelController();
+                    $image = $pnlCntrl->generateQrMOC($link);
+                    $this->telegramService->sendPhotoFile($chat_id, $image, $link);
+                }
+            } else {
+                $text = $this->customTextCtrl->getText('action.subscription.sanaei', [
+                    'uuid' => $uuid,
+                ]);
+                $this->telegramService->sendMessage($chat_id, is_array($text) ? $this->telegramService->formatText($text) : $text);
+            }
+
+            $request = new Request();
+            $request->account_id = $chat_id;
+            $request->subscription_link = '';
+            $request->product_categories_id = $selectedPrCat->id;
+            $request->panel_link = '';
+            $request->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
+            $request->remark = "$chat_id-$productID";
+            $prCntrl = new ProductController();
+            $prCntrl->addAutomatedProductDetails($request);
+            return $uuid;
+        } catch (\Throwable $th) {
+            \Log::info("error on new_sanaei_config_telegram_text-> $th");
+            return false;
+        }
+    }
     public function send_using_subscription_manual_message($chat_id, $recharge = null, $productID = null)
     {
         $opr = [];
@@ -476,9 +525,7 @@ class GeneralController extends Controller
             if (is_array($text)) {
                 $formatter = new TelegramMessageFormatter($this->telegramService);
                 $text = $formatter->addFormattedText('', $text)->getMessage();
-            } else {
-                $text = $text;
-            }
+			}
             $this->telegramService->sendMessage($chat_id, $text);
             $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar);
             return true;
@@ -612,7 +659,7 @@ class GeneralController extends Controller
                 'url' => $paymentLink,
             ];
         } catch (\Throwable $th) {
-            \Log::error(["createZarinpalPaymentLink: " . $th]);
+            \Log::error("createZarinpalPaymentLink: " . $th);
             return [];
         }
     }
@@ -651,7 +698,7 @@ class GeneralController extends Controller
                 'url' => $paymentLink,
             ];
         } catch (\Throwable $th) {
-            \Log::error(["createNowPaymentsLink: " . $th]);
+            \Log::error("createNowPaymentsLink: " . $th);
             return [];
         }
     }
@@ -668,7 +715,7 @@ class GeneralController extends Controller
         $trRequest['invoiceID'] = $bill->bill_id;
         $trRequest['account_id'] = $chat_id;
         $paymentLink = $trCryptoCntrl->initiateCryptoPayment($trRequest);
-        \Log::info(["createCryptomusLink: " . $paymentLink]);
+        \Log::info("createCryptomusLink: " . $paymentLink);
 
         $formattedPrice = number_format($estimatedPriceInDollar, 0, ',', '.');
         $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.cryptomus');
@@ -895,7 +942,7 @@ class GeneralController extends Controller
             $this->telegramService->sendMessage($chatId, $text);
             return "";
         } catch (\Throwable $th) {
-            \Log::error(["subGiftCard: " . $th]);
+            \Log::error("subGiftCard: " . $th);
             $text = $this->customTextCtrl->getText('error.server_error');
             $this->telegramService->sendMessage($chatId, $text);
             return "";
@@ -916,7 +963,7 @@ class GeneralController extends Controller
             $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
             return "";
         } catch (\Throwable $th) {
-            \Log::error(["referral: " . $th]);
+            \Log::error("referral: " . $th);
             $text = $this->customTextCtrl->getText('error.server_error');
             $this->telegramService->sendMessage($chatId, $text);
             return "";
@@ -955,7 +1002,7 @@ class GeneralController extends Controller
             $this->telegramService->sendMessage($chatId, $text);
             return "";
         } catch (\Throwable $th) {
-            \Log::error(["subReferral: " . $th]);
+            \Log::error("subReferral: " . $th);
             $text = $this->customTextCtrl->getText('error.server_error');
             $this->telegramService->sendMessage($chatId, $text);
             return "";
@@ -975,7 +1022,7 @@ class GeneralController extends Controller
             }
             return "";
         } catch (\Throwable $th) {
-            \Log::error(["block_user_command: " . $th]);
+            \Log::error("block_user_command: " . $th);
             $text = $this->customTextCtrl->getText('error.server_error');
             $this->telegramService->sendMessage($chatId, $text);
             return "";
