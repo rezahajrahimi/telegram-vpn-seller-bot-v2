@@ -191,6 +191,8 @@ class SanaeiPannelController extends Controller
                     ['proxy_id' => $proxy->id, 'name' => $remark],
                     [
                         'is_active' => true,
+                        'port' => $in['port'] ?? null,
+                        'protocol' => $protocol,
                         'data' => json_encode([
                             'id' => $in['id'] ?? null,
                             'protocol' => $protocol,
@@ -198,6 +200,9 @@ class SanaeiPannelController extends Controller
                             'settings' => $in['settings'] ?? null,
                             'streamSettings' => $in['streamSettings'] ?? null,
                         ]),
+                        'settings' => json_encode($in['settings'] ?? []),
+                        'stream_settings' => json_encode($in['streamSettings'] ?? []),
+                        'tag' => $in['tag'] ?? null,
                     ]
                 );
             }
@@ -248,13 +253,8 @@ class SanaeiPannelController extends Controller
             $success = false;
 
             foreach ($inbounds as $in) {
-                $meta = json_decode($in->data, true);
-                $inboundId = null;
-                if (is_array($meta) && isset($meta['id'])) {
-                    $inboundId = $meta['id'];
-                } elseif (is_numeric($in->data)) {
-                    $inboundId = (int) $in->data;
-                }
+                // Use the new model method to get inbound ID
+                $inboundId = $in->getInboundId();
                 if (!$inboundId) {
                     continue;
                 }
@@ -322,11 +322,10 @@ class SanaeiPannelController extends Controller
 
             $links = [];
             foreach ($inbounds as $in) {
-                $meta = json_decode($in->data, true);
-                if (!is_array($meta)) { continue; }
-                $protocol = $meta['protocol'] ?? 'vless';
-                $port = (int) ($meta['port'] ?? 0);
-                $stream = $meta['streamSettings'] ?? [];
+                // Use new model fields and methods
+                $protocol = $in->protocol ?? 'vless';
+                $port = $in->port ?? 0;
+                $stream = $in->parsed_stream_settings;
                 $network = $stream['network'] ?? 'tcp';
                 $security = $stream['security'] ?? null; // tls or reality
                 $sni = null; $alpn = null; $wsPath = null; $hostHeader = null;
@@ -380,11 +379,10 @@ class SanaeiPannelController extends Controller
             ->get()->flatMap->inbounds;
 
         foreach ($inbounds as $in) {
-            $meta = json_decode($in->data, true);
-            if (!is_array($meta)) { continue; }
-            $protocol = $meta['protocol'] ?? 'vless';
-            $port = $meta['port'] ?? null;
-            $stream = $meta['streamSettings'] ?? [];
+            // Use new model fields
+            $protocol = $in->protocol ?? 'vless';
+            $port = $in->port ?? null;
+            $stream = $in->parsed_stream_settings;
             $network = $stream['network'] ?? 'tcp';
             $security = $stream['security'] ?? '';
             $sni = '';
@@ -582,6 +580,126 @@ class SanaeiPannelController extends Controller
             'totalGB' => $totalBytes,
             'expiryTime' => $expireSec * 1000,
         ]);
+    }
+
+    /**
+     * Add user to Sanaei panel using a specific inbound template
+     */
+    public function addUserWithTemplate(Request $request)
+    {
+        try {
+            $pannelID = (int) $request->pannelID;
+            $day = (int) $request->day;
+            $volGb = (int) $request->vol;
+            $accountId = (string) ($request->accountId ?? 'bot');
+            $templateId = (int) $request->template_id;
+
+            $panel = Pannel::findOrFail($pannelID);
+            if (!$this->login($panel->id)) {
+                return false;
+            }
+
+            // Get the template
+            $template = \App\Models\InboundTemplate::findOrFail($templateId);
+            if (!$template->is_active || $template->pannel_id !== $pannelID) {
+                return false;
+            }
+
+            $uuid = (new HiddifyPannelController())->generateUUID();
+            $expireSec = now('UTC')->addDays($day)->timestamp;
+            $totalBytes = $volGb * 1024 * 1024 * 1024;
+            $expiryMs = $expireSec * 1000;
+
+            // Use template configuration
+            $inboundConfig = $template->toInboundConfig();
+            $inboundId = $inboundConfig['id'];
+
+            $base = $this->baseUrl($panel);
+            $paths = ['/xui/inbound/addClient', '/panel/api/inbounds/addClient'];
+            $success = false;
+
+            $bodies = [
+                [
+                    'id' => $inboundId,
+                    'client' => [
+                        'id' => $uuid,
+                        'email' => "bot{$accountId}",
+                        'flow' => '',
+                        'limitIp' => 0,
+                        'totalGB' => $totalBytes,
+                        'expiryTime' => $expiryMs,
+                        'enable' => true,
+                    ],
+                ],
+                [
+                    'id' => $inboundId,
+                    'settings' => [
+                        'clients' => [[
+                            'id' => $uuid,
+                            'email' => "bot{$accountId}",
+                            'flow' => '',
+                            'limitIp' => 0,
+                            'totalGB' => $totalBytes,
+                            'expiryTime' => $expiryMs,
+                            'enable' => true,
+                        ]],
+                    ],
+                ],
+            ];
+
+            foreach ($paths as $path) {
+                foreach ($bodies as $body) {
+                    try {
+                        $r = $this->httpWithAuth($panel)->post($base . $path, $body);
+                        if ($r->ok()) {
+                            $success = true;
+                            break 2;
+                        }
+                    } catch (\Throwable $th) {
+                        // try next
+                    }
+                }
+            }
+
+            if ($success) {
+                Log::info("User created with template", [
+                    'template_id' => $templateId,
+                    'uuid' => $uuid,
+                    'panel_id' => $pannelID
+                ]);
+            }
+
+            return $success ? $uuid : false;
+
+        } catch (\Throwable $th) {
+            \Log::info('addUserWithTemplate error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get available templates for a panel
+     */
+    public function getAvailableTemplates($panelId)
+    {
+        try {
+            $templates = \App\Models\InboundTemplate::forPanel($panelId)
+                ->active()
+                ->select('id', 'name', 'description', 'protocol', 'port')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $templates
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('Get available templates error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error occurred'
+            ], 500);
+        }
     }
 }
 

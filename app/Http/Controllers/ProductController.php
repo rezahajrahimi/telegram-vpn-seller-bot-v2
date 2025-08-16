@@ -205,6 +205,23 @@ class ProductController extends Controller
             return response()->json(false, 500);
         }
     }
+
+    public function delete_sanaei_product_by_uuid($uuid)
+    {
+        try {
+            // Search for Sanaei products by UUID in configs field
+            $data = Product::where('configs', 'like', '%"uuid":"' . $uuid . '"%')->first();
+            if ($data != null) {
+                $data->delete();
+                return response()->json(true, 200);
+            } else {
+                return response()->json(false, 401);
+            }
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+            return response()->json(false, 500);
+        }
+    }
     public function deleteProductByProductID($id)
     {
         try {

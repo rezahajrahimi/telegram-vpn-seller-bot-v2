@@ -279,6 +279,7 @@ class SubscriptionProcessController extends Controller
                 // create marzban user
                 return " پنل مرزبان";
             } elseif ($pannel->type == 'sanaei') {
+                \Log::info("sanaei pannel");
                 $sn = new SanaeiPannelController();
                 $uuid = $sn->addUserToSanaeiPanel(new Request([
                     'pannelID' => $this->selectedPrCat->pannel_id,
@@ -289,25 +290,24 @@ class SubscriptionProcessController extends Controller
                 if ($uuid === false) {
                     $resualt = false;
                 } else {
-                    // ذخیره رکورد مینیمال Product مشابه هیدیفای ولی بدون subscription_link
-                    $prCntrl = new ProductController();
-                    $request = new Request();
-                    $request->account_id = $this->chatId;
-                    $request->subscription_link = '';
-                    $request->product_categories_id = $this->selectedPrCat->id;
-                    $request->panel_link = '';
-                    $request->configs = json_encode(['uuid' => $uuid]);
-                    $request->remark = "$this->chatId-" . ($lastProductId + 1);
-                    $prCntrl->addAutomatedProductDetails($request);
-
-                    $text = $this->customTextCtrl->getText('action.subscription.sanaei', [
-                        'uuid' => $uuid,
-                    ]);
-                    $this->telegramService->sendMessage($this->chatId, is_array($text) ? $this->telegramService->formatText($text) : $text);
-                    $resualt = $uuid;
+                    // ایجاد کانفیگ کامل برای Sanaei مشابه Hiddify
+                    $configs = $this->generalCntrl->new_sanaei_config_telegram_text(
+                        $this->selectedPrCat,
+                        $pannel,
+                        $volume,
+                        $day,
+                        $this->chatId,
+                        $lastProductId + 1
+                    );
+                    
+                    if ($configs) {
+                        $resualt = $uuid;
+                    } else {
+                        $resualt = false;
+                    }
                 }
             }
-            \Log::info("resualt response buoght from hiddify: " . $resualt);
+            \Log::info("resualt response buoght from sanaei: " . $resualt);
 
             if ($resualt == false || $resualt == null) {
                 $this->addNewBotLog('subscription', 'خرید اشتراک با شکست مواجه شد.', 'show');
@@ -329,7 +329,17 @@ class SubscriptionProcessController extends Controller
                     if ($res) {
                         $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل و دیتابیس', 'show');
                     }
-
+                } elseif ($pannel->type == 'sanaei') {
+                    // remove created product from Sanaei panel and database
+                    $uuid = $resualt;
+                    $sn = new SanaeiPannelController();
+                    $sn->deleteUser($pannel->id, $uuid);
+                    // delete product from database
+                    $prCntrl = new ProductController();
+                    $res = $prCntrl->delete_sanaei_product_by_uuid($uuid);
+                    if ($res) {
+                        $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل سنایی و دیتابیس', 'show');
+                    }
                 }
                 return $this->customTextCtrl->getText('action.process.failed_buy');
             }

@@ -49,6 +49,7 @@ use App\Http\Controllers\ShetabVerifyController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\SanaeiPannelController;
+use App\Http\Controllers\InboundTemplateController;
 
 
 use Illuminate\Http\Request;
@@ -250,7 +251,17 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
 
     // Sanaei Panel
     Route::post('addUserToSanaeiPanel', [SanaeiPannelController::class, 'addUserToSanaeiPanel']);
+    Route::post('addUserWithTemplate', [SanaeiPannelController::class, 'addUserWithTemplate']);
     Route::get('syncSanaeiInbounds/{pannelID}', [SanaeiPannelController::class, 'syncInbounds']);
+    Route::get('getAvailableTemplates/{panelId}', [SanaeiPannelController::class, 'getAvailableTemplates']);
+
+    // Inbound Template Management
+    Route::post('createInboundTemplate', [InboundTemplateController::class, 'createFromUserInput']);
+    Route::get('getInboundTemplates/{panelId}', [InboundTemplateController::class, 'getTemplatesForPanel']);
+    Route::get('getInboundTemplate/{id}', [InboundTemplateController::class, 'getTemplate']);
+    Route::put('updateInboundTemplate/{id}', [InboundTemplateController::class, 'updateTemplate']);
+    Route::delete('deleteInboundTemplate/{id}', [InboundTemplateController::class, 'deleteTemplate']);
+    Route::post('testInboundTemplate/{id}', [InboundTemplateController::class, 'testTemplate']);
 
     //  Proxy
     Route::post('addNewProxy', [ProxyController::class, 'addNewProxy']);
