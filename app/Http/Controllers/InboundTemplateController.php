@@ -57,6 +57,9 @@ class InboundTemplateController extends Controller
                 'settings' => $parsedConfig['settings'] ?? null,
                 'listen' => $parsedConfig['listen'] ?? null,
                 'server_info' => $parsedConfig['server_info'] ?? null,
+                'dns_info' => $parsedConfig['dns_info'] ?? null,
+                'routing_info' => $parsedConfig['routing_info'] ?? null,
+                'remarks' => $parsedConfig['remarks'] ?? null,
                 'config_type' => $configType,
                 'is_active' => true,
                 'created_by' => $request->created_by
@@ -149,12 +152,186 @@ class InboundTemplateController extends Controller
                 return $this->parseHysteria2Config($config);
             }
 
+            // Check if this is a ShadowSocks2022 configuration
+            if (isset($config['outbounds']) && $this->hasShadowSocks2022($config)) {
+                return $this->parseShadowSocks2022Config($config);
+            }
+
             return null;
 
         } catch (\Exception $e) {
             Log::error('Parse V2Ray config error: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Check if configuration has ShadowSocks2022
+     */
+    private function hasShadowSocks2022(array $config): bool
+    {
+        if (!isset($config['outbounds']) || !is_array($config['outbounds'])) {
+            return false;
+        }
+
+        foreach ($config['outbounds'] as $outbound) {
+            if (isset($outbound['protocol']) && $outbound['protocol'] === 'shadowsocks') {
+                if (isset($outbound['settings']['servers'][0]['method'])) {
+                    $method = $outbound['settings']['servers'][0]['method'];
+                    if (str_contains($method, '2022-')) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Parse ShadowSocks2022 configuration
+     */
+    private function parseShadowSocks2022Config(array $config): array
+    {
+        $outbound = null;
+        $inbound = null;
+
+        // Find ShadowSocks2022 outbound
+        foreach ($config['outbounds'] as $out) {
+            if (isset($out['protocol']) && $out['protocol'] === 'shadowsocks') {
+                $outbound = $out;
+                break;
+            }
+        }
+
+        // Find main inbound
+        if (isset($config['inbounds'][0])) {
+            $inbound = $config['inbounds'][0];
+        }
+
+        if (!$outbound) {
+            return $this->createDefaultConfig($config);
+        }
+
+        $server = $outbound['settings']['servers'][0] ?? [];
+        $address = $server['address'] ?? '';
+        $port = (int) ($server['port'] ?? 443);
+        $method = $server['method'] ?? '';
+        $password = $server['password'] ?? '';
+
+        // Extract DNS information
+        $dnsInfo = $this->extractDNSInfo($config);
+
+        // Extract routing information
+        $routingInfo = $this->extractRoutingInfo($config);
+
+        return [
+            'id' => uniqid('template_'),
+            'protocol' => 'shadowsocks2022',
+            'port' => $port,
+            'settings' => [
+                'method' => $method,
+                'password' => $password,
+                'level' => $server['level'] ?? 0
+            ],
+            'streamSettings' => $outbound['streamSettings'] ?? [],
+            'tag' => $outbound['tag'] ?? 'shadowsocks2022',
+            'listen' => $inbound['listen'] ?? '127.0.0.1',
+            'server_info' => [
+                'address' => $address,
+                'port' => $port,
+                'protocol' => 'shadowsocks2022'
+            ],
+            'dns_info' => $dnsInfo,
+            'routing_info' => $routingInfo,
+            'remarks' => $config['remarks'] ?? 'ShadowSocks2022 Configuration'
+        ];
+    }
+
+    /**
+     * Extract DNS information from V2Ray config
+     */
+    private function extractDNSInfo(array $config): ?array
+    {
+        if (!isset($config['dns'])) {
+            return null;
+        }
+
+        $dns = $config['dns'];
+        return [
+            'servers' => $dns['servers'] ?? [],
+            'hosts' => $dns['hosts'] ?? [],
+            'has_advanced_dns' => !empty($dns['servers']) || !empty($dns['hosts'])
+        ];
+    }
+
+    /**
+     * Extract routing information from V2Ray config
+     */
+    private function extractRoutingInfo(array $config): ?array
+    {
+        if (!isset($config['routing'])) {
+            return null;
+        }
+
+        $routing = $config['routing'];
+        return [
+            'domain_strategy' => $routing['domainStrategy'] ?? 'AsIs',
+            'rules_count' => count($routing['rules'] ?? []),
+            'has_geo_rules' => $this->hasGeoRules($routing['rules'] ?? []),
+            'has_ad_blocking' => $this->hasAdBlocking($routing['rules'] ?? [])
+        ];
+    }
+
+    /**
+     * Check if routing has geo-based rules
+     */
+    private function hasGeoRules(array $rules): bool
+    {
+        foreach ($rules as $rule) {
+            if (isset($rule['domain']) && is_array($rule['domain'])) {
+                foreach ($rule['domain'] as $domain) {
+                    if (str_contains($domain, 'geosite:') || str_contains($domain, 'geoip:')) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if routing has ad blocking
+     */
+    private function hasAdBlocking(array $rules): bool
+    {
+        foreach ($rules as $rule) {
+            if (isset($rule['domain']) && is_array($rule['domain'])) {
+                foreach ($rule['domain'] as $domain) {
+                    if (str_contains($domain, 'category-ads')) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Create default configuration if parsing fails
+     */
+    private function createDefaultConfig(array $config): array
+    {
+        return [
+            'id' => uniqid('template_'),
+            'protocol' => 'unknown',
+            'port' => 10808,
+            'settings' => [],
+            'streamSettings' => [],
+            'tag' => 'unknown',
+            'listen' => '127.0.0.1',
+            'server_info' => null,
+            'remarks' => $config['remarks'] ?? 'Unknown Configuration'
+        ];
     }
 
     /**
@@ -406,6 +583,9 @@ class InboundTemplateController extends Controller
             }
             if ($protocol === 'hysteria2') {
                 return 'hysteria2';
+            }
+            if ($protocol === 'shadowsocks2022') {
+                return 'shadowsocks2022';
             }
             if (in_array($protocol, ['ws', 'grpc'])) {
                 return 'url';

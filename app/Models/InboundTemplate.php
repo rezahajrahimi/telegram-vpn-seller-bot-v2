@@ -23,7 +23,10 @@ class InboundTemplate extends Model
         'created_by',
         'listen',
         'server_info',
-        'config_type' // v2ray, hysteria2, custom, etc.
+        'config_type', // v2ray, hysteria2, custom, etc.
+        'dns_info',
+        'routing_info',
+        'remarks'
     ];
 
     protected $casts = [
@@ -31,6 +34,8 @@ class InboundTemplate extends Model
         'stream_settings' => 'array',
         'settings' => 'array',
         'server_info' => 'array',
+        'dns_info' => 'array',
+        'routing_info' => 'array',
         'is_active' => 'boolean',
         'port' => 'integer'
     ];
