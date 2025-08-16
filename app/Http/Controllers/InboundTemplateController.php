@@ -42,6 +42,9 @@ class InboundTemplateController extends Controller
                 ], 400);
             }
 
+            // Determine config type
+            $configType = $this->determineConfigType($parsedConfig);
+
             // Create template
             $template = InboundTemplate::create([
                 'pannel_id' => $request->pannel_id,
@@ -52,6 +55,9 @@ class InboundTemplateController extends Controller
                 'port' => $parsedConfig['port'],
                 'stream_settings' => $parsedConfig['streamSettings'] ?? null,
                 'settings' => $parsedConfig['settings'] ?? null,
+                'listen' => $parsedConfig['listen'] ?? null,
+                'server_info' => $parsedConfig['server_info'] ?? null,
+                'config_type' => $configType,
                 'is_active' => true,
                 'created_by' => $request->created_by
             ]);
@@ -87,7 +93,7 @@ class InboundTemplateController extends Controller
             if (str_starts_with(trim($userInput), '{')) {
                 $config = json_decode($userInput, true);
                 if (json_last_error() === JSON_ERROR_NONE) {
-                    return $this->normalizeConfig($config);
+                    return $this->parseV2RayConfig($config);
                 }
             }
 
@@ -107,6 +113,175 @@ class InboundTemplateController extends Controller
             Log::error('Parse user input error: ' . $e->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Parse V2Ray configuration file
+     */
+    private function parseV2RayConfig(array $config): ?array
+    {
+        try {
+            // Check if this is a V2Ray config with inbounds
+            if (isset($config['inbounds']) && is_array($config['inbounds'])) {
+                $inbounds = $config['inbounds'];
+                
+                // Find the main inbound (usually the first one)
+                $mainInbound = null;
+                foreach ($inbounds as $inbound) {
+                    if (isset($inbound['protocol']) && in_array($inbound['protocol'], ['socks', 'http', 'shadowsocks', 'vmess', 'vless', 'trojan'])) {
+                        $mainInbound = $inbound;
+                        break;
+                    }
+                }
+
+                if ($mainInbound) {
+                    return $this->extractInboundFromV2Ray($mainInbound, $config);
+                }
+            }
+
+            // Check if this is a single inbound configuration
+            if (isset($config['protocol'])) {
+                return $this->extractInboundFromV2Ray($config, $config);
+            }
+
+            // Check if this is a Hysteria2 configuration
+            if (isset($config['server']) && isset($config['auth'])) {
+                return $this->parseHysteria2Config($config);
+            }
+
+            return null;
+
+        } catch (\Exception $e) {
+            Log::error('Parse V2Ray config error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Extract inbound information from V2Ray configuration
+     */
+    private function extractInboundFromV2Ray(array $inbound, array $fullConfig): array
+    {
+        $protocol = strtolower($inbound['protocol'] ?? 'socks');
+        $port = (int) ($inbound['port'] ?? 10808);
+        $listen = $inbound['listen'] ?? '127.0.0.1';
+        $tag = $inbound['tag'] ?? 'inbound';
+
+        // Extract settings based on protocol
+        $settings = $inbound['settings'] ?? [];
+        $streamSettings = $inbound['streamSettings'] ?? [];
+
+        // Handle different protocols
+        switch ($protocol) {
+            case 'socks':
+                $protocol = 'socks5'; // Normalize protocol name
+                break;
+            case 'http':
+                $protocol = 'http';
+                break;
+            case 'shadowsocks':
+                $protocol = 'ss';
+                break;
+            case 'vmess':
+            case 'vless':
+            case 'trojan':
+                // These are already in correct format
+                break;
+            default:
+                $protocol = 'socks5'; // Default fallback
+        }
+
+        // Extract server information from outbounds if available
+        $serverInfo = $this->extractServerInfoFromOutbounds($fullConfig);
+
+        $config = [
+            'id' => uniqid('template_'),
+            'protocol' => $protocol,
+            'port' => $port,
+            'settings' => $settings,
+            'streamSettings' => $streamSettings,
+            'tag' => $tag,
+            'listen' => $listen,
+            'server_info' => $serverInfo
+        ];
+
+        return $config;
+    }
+
+    /**
+     * Extract server information from V2Ray outbounds
+     */
+    private function extractServerInfoFromOutbounds(array $config): ?array
+    {
+        if (!isset($config['outbounds']) || !is_array($config['outbounds'])) {
+            return null;
+        }
+
+        foreach ($config['outbounds'] as $outbound) {
+            if (isset($outbound['protocol']) && in_array($outbound['protocol'], ['vmess', 'vless', 'trojan', 'shadowsocks', 'socks'])) {
+                if (isset($outbound['settings']['servers']) && is_array($outbound['settings']['servers'])) {
+                    $server = $outbound['settings']['servers'][0] ?? null;
+                    if ($server && isset($server['address']) && isset($server['port'])) {
+                        return [
+                            'address' => $server['address'],
+                            'port' => $server['port'],
+                            'protocol' => $outbound['protocol']
+                        ];
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Parse Hysteria2 configuration
+     */
+    private function parseHysteria2Config(array $config): array
+    {
+        $server = $config['server'] ?? '';
+        $auth = $config['auth'] ?? '';
+        $tls = $config['tls'] ?? [];
+        $obfs = $config['obfs'] ?? [];
+
+        // Extract host and port from server
+        $serverParts = explode(':', $server);
+        $host = $serverParts[0] ?? '';
+        $port = (int) ($serverParts[1] ?? 443);
+
+        // Extract SNI from TLS
+        $sni = $tls['sni'] ?? '';
+
+        // Extract obfuscation settings
+        $obfsType = $obfs['type'] ?? '';
+        $obfsPassword = $obfs['salamander']['password'] ?? '';
+
+        return [
+            'id' => uniqid('template_'),
+            'protocol' => 'hysteria2',
+            'port' => $port,
+            'settings' => [
+                'auth' => $auth,
+                'obfs' => [
+                    'type' => $obfsType,
+                    'password' => $obfsPassword
+                ]
+            ],
+            'streamSettings' => [
+                'security' => 'tls',
+                'tlsSettings' => [
+                    'serverName' => $sni,
+                    'insecure' => $tls['insecure'] ?? false
+                ]
+            ],
+            'tag' => 'hysteria2',
+            'server_info' => [
+                'address' => $host,
+                'port' => $port,
+                'protocol' => 'hysteria2'
+            ]
+        ];
     }
 
     /**
@@ -216,6 +391,28 @@ class InboundTemplateController extends Controller
         }
 
         return $normalized;
+    }
+
+    /**
+     * Determine the type of inbound configuration
+     */
+    private function determineConfigType(array $config): string
+    {
+        if (isset($config['protocol'])) {
+            $protocol = strtolower($config['protocol']);
+            
+            if (in_array($protocol, ['vmess', 'vless', 'trojan', 'shadowsocks', 'socks'])) {
+                return 'v2ray';
+            }
+            if ($protocol === 'hysteria2') {
+                return 'hysteria2';
+            }
+            if (in_array($protocol, ['ws', 'grpc'])) {
+                return 'url';
+            }
+        }
+        
+        return 'custom';
     }
 
     /**
@@ -366,6 +563,71 @@ class InboundTemplateController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Server error occurred'
+            ], 500);
+        }
+    }
+
+    /**
+     * Test specific configuration parsing
+     */
+    public function testSpecificConfig(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'config_json' => 'required|string'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 400);
+            }
+
+            $config = json_decode($request->config_json, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid JSON format',
+                    'error' => json_last_error_msg()
+                ], 400);
+            }
+
+            // Parse the configuration
+            $parsedConfig = $this->parseV2RayConfig($config);
+            
+            if (!$parsedConfig) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Could not parse configuration'
+                ], 400);
+            }
+
+            // Determine config type
+            $configType = $this->determineConfigType($parsedConfig);
+
+            $result = [
+                'success' => true,
+                'message' => 'Configuration parsed successfully',
+                'data' => [
+                    'parsed_config' => $parsedConfig,
+                    'config_type' => $configType,
+                    'protocol' => $parsedConfig['protocol'] ?? 'unknown',
+                    'port' => $parsedConfig['port'] ?? 'unknown',
+                    'has_server_info' => !empty($parsedConfig['server_info']),
+                    'has_stream_settings' => !empty($parsedConfig['streamSettings']),
+                    'extracted_fields' => array_keys($parsedConfig)
+                ]
+            ];
+
+            return response()->json($result);
+
+        } catch (\Exception $e) {
+            Log::error('Test specific config error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error occurred: ' . $e->getMessage()
             ], 500);
         }
     }

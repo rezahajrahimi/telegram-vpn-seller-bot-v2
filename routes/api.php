@@ -257,6 +257,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
 
     // Inbound Template Management
     Route::post('createInboundTemplate', [InboundTemplateController::class, 'createFromUserInput']);
+    Route::post('testSpecificConfig', [InboundTemplateController::class, 'testSpecificConfig']);
     Route::get('getInboundTemplates/{panelId}', [InboundTemplateController::class, 'getTemplatesForPanel']);
     Route::get('getInboundTemplate/{id}', [InboundTemplateController::class, 'getTemplate']);
     Route::put('updateInboundTemplate/{id}', [InboundTemplateController::class, 'updateTemplate']);

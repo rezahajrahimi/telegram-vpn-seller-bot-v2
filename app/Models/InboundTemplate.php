@@ -20,13 +20,17 @@ class InboundTemplate extends Model
         'stream_settings',
         'settings',
         'is_active',
-        'created_by'
+        'created_by',
+        'listen',
+        'server_info',
+        'config_type' // v2ray, hysteria2, custom, etc.
     ];
 
     protected $casts = [
         'inbound_config' => 'array',
         'stream_settings' => 'array',
         'settings' => 'array',
+        'server_info' => 'array',
         'is_active' => 'boolean',
         'port' => 'integer'
     ];
