@@ -249,14 +249,16 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getHiddifyPanelUsersByPannelID/{pannelID}', [HiddifyPannelController::class, 'getHiddifyPanelUsersByPannelID']);
     Route::get('getHiddifyPanelUserByPannelID/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'getHiddifyPanelUserByPannelID']);
 
-    // Sanaei Panel
+    // Sanaei Panel Management
     Route::post('addUserToSanaeiPanel', [SanaeiPannelController::class, 'addUserToSanaeiPanel']);
     Route::post('addUserWithTemplate', [SanaeiPannelController::class, 'addUserWithTemplate']);
     Route::get('syncSanaeiInbounds/{pannelID}', [SanaeiPannelController::class, 'syncInbounds']);
-    Route::get('getAvailableTemplates/{panelId}', [SanaeiPannelController::class, 'getAvailableTemplates']);
+    Route::get('checkSanaeiLoginStatus/{pannelID}', [SanaeiPannelController::class, 'checkLoginStatus']);
+    Route::post('refreshSanaeiLogin/{pannelID}', [SanaeiPannelController::class, 'refreshLogin']);
+    Route::get('checkSanaeiInboundSources/{pannelID}', [SanaeiPannelController::class, 'checkInboundSources']);
 
     // Inbound Template Management
-    Route::post('createInboundTemplate', [InboundTemplateController::class, 'createFromUserInput']);
+    // Route::post('createInboundTemplate', [InboundTemplateController::class, 'createFromUserInput']);
     Route::post('testSpecificConfig', [InboundTemplateController::class, 'testSpecificConfig']);
     Route::get('getInboundTemplates/{panelId}', [InboundTemplateController::class, 'getTemplatesForPanel']);
     Route::get('getInboundTemplate/{id}', [InboundTemplateController::class, 'getTemplate']);
@@ -497,3 +499,6 @@ Route::post('/orderch', [TransactionController::class, 'add_order']);
 Route::post('/shetab-verify', [ShetabVerifyController::class, 'validate_shetab_verify']);
 
 Route::get('/get-application-info', [AppInfoController::class, 'index']);
+
+
+Route::post('createInboundTemplate', [InboundTemplateController::class, 'createFromUserInput']);

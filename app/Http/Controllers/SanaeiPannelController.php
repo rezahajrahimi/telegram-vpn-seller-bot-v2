@@ -108,12 +108,55 @@ class SanaeiPannelController extends Controller
         return $req;
     }
 
+    /**
+     * Check if current cookies are still valid
+     */
+    private function isCookieValid(Pannel $panel): bool
+    {
+        if (empty($panel->cookie_session)) {
+            return false;
+        }
+
+        try {
+            // Try to make a simple API call to check if cookies are valid
+            $base = $this->baseUrl($panel);
+            $testPaths = ['/xui/inbound/list', '/panel/api/inbounds', '/api/inbounds'];
+            
+            foreach ($testPaths as $path) {
+                try {
+                    $response = $this->httpWithAuth($panel)->get($base . $path);
+                    if ($response->ok()) {
+                        return true; // Cookies are still valid
+                    }
+                } catch (\Throwable $th) {
+                    continue;
+                }
+            }
+            
+            return false; // All test paths failed
+        } catch (\Throwable $th) {
+            return false;
+        }
+    }
+
     public function login($pannelID)
     {
         $panel = Pannel::findOrFail($pannelID);
-        // If we already have token or cookies, assume logged in
-        if (!empty($panel->token) || !empty($panel->cookie_session)) {
+        
+        // If we have a token, assume we're authenticated
+        if (!empty($panel->token)) {
             return true;
+        }
+        
+        // If we have cookies, check if they're still valid
+        if (!empty($panel->cookie_session) && $this->isCookieValid($panel)) {
+            return true;
+        }
+
+        // If cookies are invalid or expired, clear them
+        if (!empty($panel->cookie_session)) {
+            $panel->cookie_session = null;
+            $panel->save();
         }
 
         $base = $this->baseUrl($panel);
@@ -133,13 +176,17 @@ class SanaeiPannelController extends Controller
                     if (!empty($cookies)) {
                         $panel->cookie_session = json_encode($cookies);
                         $panel->save();
+                        \Log::info('Successfully logged in to Sanaei panel', ['panel_id' => $pannelID]);
                         return true;
                     }
                 }
             } catch (\Throwable $th) {
+                \Log::warning('Login attempt failed for path', ['panel_id' => $pannelID, 'path' => $path, 'error' => $th->getMessage()]);
                 // try next endpoint
             }
         }
+        
+        \Log::error('Failed to login to Sanaei panel', ['panel_id' => $pannelID]);
         return false;
     }
 
@@ -220,42 +267,61 @@ class SanaeiPannelController extends Controller
             $day = (int) $request->day;
             $volGb = (int) $request->vol;
             $accountId = (string) ($request->accountId ?? 'bot');
+            $templateId = (int) ($request->template_id ?? 0);
 
             $panel = Pannel::findOrFail($pannelID);
             if (!$this->login($panel->id)) {
                 return false;
             }
+            \Log::info("addUserToSanaeiPanel request: " . json_encode($request));
 
             $uuid = (new HiddifyPannelController())->generateUUID();
             $expireSec = now('UTC')->addDays($day)->timestamp;
-            // Most x-ui variants expect total traffic in bytes and expiryTime in ms
             $totalBytes = $volGb * 1024 * 1024 * 1024;
             $expiryMs = $expireSec * 1000;
 
-            $inbounds = Proxy::where('pannel_id', $panel->id)
-                ->where('is_active', true)
-                ->with(['inbounds' => function ($q) {
-                    $q->where('is_active', true);
-                }])->get()->flatMap->inbounds;
+            // Select the best available inbound source
+            $source = $this->selectBestInboundSource($pannelID, $templateId);
+            \Log::info("Selected inbound source", $source);
 
-            if ($inbounds->count() === 0) {
-                // try to sync first time
-                $this->syncInbounds($panel->id);
-                $inbounds = Proxy::where('pannel_id', $panel->id)
-                    ->where('is_active', true)
-                    ->with(['inbounds' => function ($q) {
-                        $q->where('is_active', true);
-                    }])->get()->flatMap->inbounds;
+            if ($source['source_type'] === 'none') {
+                \Log::error("No inbound source available", ['panel_id' => $pannelID]);
+                return false;
             }
 
+            // If we have a template, use it
+            if (in_array($source['source_type'], ['specific_template', 'auto_template'])) {
+                $request->merge(['template_id' => $source['template_id']]);
+                \Log::info("Using template for user creation", ['template_id' => $source['template_id']]);
+                return $this->addUserWithTemplate($request);
+            }
+
+            // Otherwise, use inbounds table
+            if ($source['source_type'] === 'inbounds_table') {
+                return $this->createUserWithInbounds($panel, $uuid, $totalBytes, $expiryMs, $accountId, $source['inbounds']);
+            }
+
+            return false;
+        } catch (\Throwable $th) {
+            \Log::error('addUserToSanaeiPanel error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Create user using inbounds from the table
+     */
+    private function createUserWithInbounds(Pannel $panel, string $uuid, int $totalBytes, int $expiryMs, string $accountId, $inbounds): bool
+    {
+        try {
             $base = $this->baseUrl($panel);
             $paths = ['/xui/inbound/addClient', '/panel/api/inbounds/addClient'];
             $success = false;
 
             foreach ($inbounds as $in) {
-                // Use the new model method to get inbound ID
                 $inboundId = $in->getInboundId();
                 if (!$inboundId) {
+                    \Log::warning("Could not get inbound ID", ['inbound' => $in->toArray()]);
                     continue;
                 }
 
@@ -291,21 +357,52 @@ class SanaeiPannelController extends Controller
                 foreach ($paths as $path) {
                     foreach ($bodies as $body) {
                         try {
+                            \Log::info("Creating user with inbound", [
+                                'inbound_id' => $inboundId,
+                                'body' => $body
+                            ]);
+                            
                             $r = $this->httpWithAuth($panel)->post($base . $path, $body);
+                            
                             if ($r->ok()) {
                                 $success = true;
+                                \Log::info("User created successfully with inbound", [
+                                    'inbound_id' => $inboundId,
+                                    'uuid' => $uuid
+                                ]);
                                 break 2;
+                            } else {
+                                \Log::warning("Failed to create user with inbound", [
+                                    'inbound_id' => $inboundId,
+                                    'response_status' => $r->status(),
+                                    'response_body' => $r->body()
+                                ]);
                             }
                         } catch (\Throwable $th) {
-                            // try next
+                            \Log::error("Error creating user with inbound", [
+                                'inbound_id' => $inboundId,
+                                'error' => $th->getMessage()
+                            ]);
                         }
                     }
                 }
             }
 
-            return $success ? $uuid : false;
+            if ($success) {
+                \Log::info("User created successfully using inbounds table", [
+                    'uuid' => $uuid,
+                    'panel_id' => $panel->id
+                ]);
+            } else {
+                \Log::error("Failed to create user using inbounds table", [
+                    'panel_id' => $panel->id,
+                    'inbound_count' => $inbounds->count()
+                ]);
+            }
+
+            return $success;
         } catch (\Throwable $th) {
-            \Log::info('addUserToSanaeiPanel error: ' . $th->getMessage());
+            \Log::error("createUserWithInbounds error: " . $th->getMessage());
             return false;
         }
     }
@@ -314,6 +411,13 @@ class SanaeiPannelController extends Controller
     {
         try {
             $panel = Pannel::findOrFail($pannelID);
+            
+            // Check if we're logged in
+            if (!$this->login($panel->id)) {
+                \Log::warning('getUserLinks: Failed to login to panel', ['panel_id' => $pannelID]);
+                return [];
+            }
+            
             $host = $this->getServerHost($panel);
             $inbounds = Proxy::where('pannel_id', $panel->id)
                 ->where('is_active', true)
@@ -370,82 +474,94 @@ class SanaeiPannelController extends Controller
 
     public function generateClientLinks(int $pannelID, string $uuid, string $remark): array
     {
-        $panel = Pannel::findOrFail($pannelID);
-        $host = parse_url($this->baseUrl($panel), PHP_URL_HOST) ?? ($panel->url_port ?? '');
-        $links = [];
-        $inbounds = Proxy::where('pannel_id', $panel->id)
-            ->where('is_active', true)
-            ->with(['inbounds' => function ($q) { $q->where('is_active', true); }])
-            ->get()->flatMap->inbounds;
-
-        foreach ($inbounds as $in) {
-            // Use new model fields
-            $protocol = $in->protocol ?? 'vless';
-            $port = $in->port ?? null;
-            $stream = $in->parsed_stream_settings;
-            $network = $stream['network'] ?? 'tcp';
-            $security = $stream['security'] ?? '';
-            $sni = '';
-            if (isset($stream['tlsSettings']['serverName'])) { $sni = $stream['tlsSettings']['serverName']; }
-            if (isset($stream['realitySettings']['serverNames'][0])) { $sni = $stream['realitySettings']['serverNames'][0]; }
-
-            if ($protocol === 'vless') {
-                $query = [];
-                $query['type'] = $network;
-                if ($network === 'ws') {
-                    $ws = $stream['wsSettings'] ?? [];
-                    if (isset($ws['path'])) { $query['path'] = $ws['path']; }
-                    $hostHeader = $ws['headers']['Host'] ?? null;
-                    if ($hostHeader) { $query['host'] = $hostHeader; }
-                } elseif ($network === 'grpc') {
-                    $grpc = $stream['grpcSettings'] ?? [];
-                    if (isset($grpc['serviceName'])) { $query['serviceName'] = $grpc['serviceName']; }
-                }
-                if ($security === 'tls' || $security === 'reality') { $query['security'] = $security; }
-                if ($sni) { $query['sni'] = $sni; }
-                $q = http_build_query($query);
-                $links[] = sprintf('vless://%s@%s:%s?%s#%s', $uuid, $host, $port, $q, rawurlencode($remark));
-            } elseif ($protocol === 'vmess') {
-                $conf = [
-                    'v' => '2',
-                    'ps' => $remark,
-                    'add' => $host,
-                    'port' => (string) $port,
-                    'id' => $uuid,
-                    'aid' => '0',
-                    'scy' => 'auto',
-                    'net' => $network,
-                    'type' => 'none',
-                    'host' => '',
-                    'path' => '',
-                    'tls' => ($security === 'tls' ? 'tls' : ''),
-                    'sni' => $sni,
-                ];
-                if ($network === 'ws') {
-                    $ws = $stream['wsSettings'] ?? [];
-                    $conf['path'] = $ws['path'] ?? '';
-                    $conf['host'] = $ws['headers']['Host'] ?? '';
-                }
-                $json = json_encode($conf, JSON_UNESCAPED_SLASHES);
-                $links[] = 'vmess://' . base64_encode($json);
-            } elseif ($protocol === 'trojan') {
-                // Best-effort: use uuid as password
-                $query = [];
-                if ($security === 'tls') { $query['security'] = 'tls'; }
-                if ($sni) { $query['sni'] = $sni; }
-                if ($network === 'ws') {
-                    $query['type'] = 'ws';
-                    $ws = $stream['wsSettings'] ?? [];
-                    if (isset($ws['path'])) { $query['path'] = $ws['path']; }
-                    $hostHeader = $ws['headers']['Host'] ?? null;
-                    if ($hostHeader) { $query['host'] = $hostHeader; }
-                }
-                $q = http_build_query($query);
-                $links[] = sprintf('trojan://%s@%s:%s?%s#%s', $uuid, $host, $port, $q, rawurlencode($remark));
+        try {
+            $panel = Pannel::findOrFail($pannelID);
+            
+            // Check if we're logged in
+            if (!$this->login($panel->id)) {
+                \Log::warning('generateClientLinks: Failed to login to panel', ['panel_id' => $pannelID]);
+                return [];
             }
-        }
+            
+            $host = parse_url($this->baseUrl($panel), PHP_URL_HOST) ?? ($panel->url_port ?? '');
+            $links = [];
+            $inbounds = Proxy::where('pannel_id', $panel->id)
+                ->where('is_active', true)
+                ->with(['inbounds' => function ($q) { $q->where('is_active', true); }])
+                ->get()->flatMap->inbounds;
 
-        return $links;
+            foreach ($inbounds as $in) {
+                // Use new model fields
+                $protocol = $in->protocol ?? 'vless';
+                $port = $in->port ?? null;
+                $stream = $in->parsed_stream_settings;
+                $network = $stream['network'] ?? 'tcp';
+                $security = $stream['security'] ?? '';
+                $sni = '';
+                if (isset($stream['tlsSettings']['serverName'])) { $sni = $stream['tlsSettings']['serverName']; }
+                if (isset($stream['realitySettings']['serverNames'][0])) { $sni = $stream['realitySettings']['serverNames'][0]; }
+
+                if ($protocol === 'vless') {
+                    $query = [];
+                    $query['type'] = $network;
+                    if ($network === 'ws') {
+                        $ws = $stream['wsSettings'] ?? [];
+                        if (isset($ws['path'])) { $query['path'] = $ws['path']; }
+                        $hostHeader = $ws['headers']['Host'] ?? null;
+                        if ($hostHeader) { $query['host'] = $hostHeader; }
+                    } elseif ($network === 'grpc') {
+                        $grpc = $stream['grpcSettings'] ?? [];
+                        if (isset($grpc['serviceName'])) { $query['serviceName'] = $grpc['serviceName']; }
+                    }
+                    if ($security === 'tls' || $security === 'reality') { $query['security'] = $security; }
+                    if ($sni) { $query['sni'] = $sni; }
+                    $q = http_build_query($query);
+                    $links[] = sprintf('vless://%s@%s:%s?%s#%s', $uuid, $host, $port, $q, rawurlencode($remark));
+                } elseif ($protocol === 'vmess') {
+                    $conf = [
+                        'v' => '2',
+                        'ps' => $remark,
+                        'add' => $host,
+                        'port' => (string) $port,
+                        'id' => $uuid,
+                        'aid' => '0',
+                        'scy' => 'auto',
+                        'net' => $network,
+                        'type' => 'none',
+                        'host' => '',
+                        'path' => '',
+                        'tls' => ($security === 'tls' ? 'tls' : ''),
+                        'sni' => $sni,
+                    ];
+                    if ($network === 'ws') {
+                        $ws = $stream['wsSettings'] ?? [];
+                        $conf['path'] = $ws['path'] ?? '';
+                        $conf['host'] = $ws['headers']['Host'] ?? '';
+                    }
+                    $json = json_encode($conf, JSON_UNESCAPED_SLASHES);
+                    $links[] = 'vmess://' . base64_encode($json);
+                } elseif ($protocol === 'trojan') {
+                    // Best-effort: use uuid as password
+                    $query = [];
+                    if ($security === 'tls') { $query['security'] = 'tls'; }
+                    if ($sni) { $query['sni'] = $sni; }
+                    if ($network === 'ws') {
+                        $query['type'] = 'ws';
+                        $ws = $stream['wsSettings'] ?? [];
+                        if (isset($ws['path'])) { $query['path'] = $ws['path']; }
+                        $hostHeader = $ws['headers']['Host'] ?? null;
+                        if ($hostHeader) { $query['host'] = $hostHeader; }
+                    }
+                    $q = http_build_query($query);
+                    $links[] = sprintf('trojan://%s@%s:%s?%s#%s', $uuid, $host, $port, $q, rawurlencode($remark));
+                }
+            }
+
+            return $links;
+        } catch (\Throwable $th) {
+            \Log::error('generateClientLinks error: ' . $th->getMessage());
+            return [];
+        }
     }
 
     // New methods for deletion, activation, updating and limits
@@ -615,7 +731,9 @@ class SanaeiPannelController extends Controller
             $inboundId = $inboundConfig['id'];
 
             $base = $this->baseUrl($panel);
-            $paths = ['/xui/inbound/addClient', '/panel/api/inbounds/addClient'];
+            
+            $paths = ['/panel/api/inbounds/add'];
+            // $paths = ['/xui/inbound/addClient', '/panel/api/inbounds/addClient','/panel/api/inbounds/add'];
             $success = false;
 
             $bodies = [
@@ -645,12 +763,13 @@ class SanaeiPannelController extends Controller
                         ]],
                     ],
                 ],
-            ];
+            ];  
 
             foreach ($paths as $path) {
                 foreach ($bodies as $body) {
                     try {
                         $r = $this->httpWithAuth($panel)->post($base . $path, $body);
+                        \Log::info("addUserWithTemplate r: " . json_encode($r));
                         if ($r->ok()) {
                             $success = true;
                             break 2;
@@ -695,6 +814,270 @@ class SanaeiPannelController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Get available templates error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error occurred'
+            ], 500);
+        }
+    }
+
+    /**
+     * Force refresh login and get new cookies
+     */
+    public function refreshLogin($pannelID)
+    {
+        try {
+            $panel = Pannel::findOrFail($pannelID);
+            
+            // Clear existing cookies
+            $panel->cookie_session = null;
+            $panel->save();
+            
+            // Try to login again
+            if ($this->login($pannelID)) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Login refreshed successfully'
+                ]);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to refresh login'
+                ], 401);
+            }
+        } catch (\Exception $e) {
+            \Log::error('Refresh login error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error occurred'
+            ], 500);
+        }
+    }
+
+    /**
+     * Check login status and return panel info
+     */
+    public function checkLoginStatus($pannelID)
+    {
+        try {
+            $panel = Pannel::findOrFail($pannelID);
+            
+            $status = [
+                'panel_id' => $panel->id,
+                'panel_name' => $panel->name ?? 'Unknown',
+                'admin_url' => $panel->admin_url,
+                'has_token' => !empty($panel->token),
+                'has_cookies' => !empty($panel->cookie_session),
+                'cookies_valid' => false,
+                'login_status' => 'unknown'
+            ];
+            
+            if (!empty($panel->token)) {
+                $status['login_status'] = 'token_authenticated';
+                $status['cookies_valid'] = true;
+            } elseif (!empty($panel->cookie_session)) {
+                if ($this->isCookieValid($panel)) {
+                    $status['login_status'] = 'cookie_authenticated';
+                    $status['cookies_valid'] = true;
+                } else {
+                    $status['login_status'] = 'cookie_expired';
+                    $status['cookies_valid'] = false;
+                }
+            } else {
+                $status['login_status'] = 'not_authenticated';
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => $status
+            ]);
+            
+        } catch (\Exception $e) {
+            \Log::error('Check login status error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Server error occurred'
+            ], 500);
+        }
+    }
+
+    /**
+     * Select the best available template or inbound for user creation
+     */
+    private function selectBestInboundSource(int $pannelID, int $templateId = 0): array
+    {
+        $result = [
+            'source_type' => 'none',
+            'template_id' => null,
+            'inbounds' => collect(),
+            'message' => ''
+        ];
+
+        // 1. If specific template is requested, use it
+        if ($templateId > 0) {
+            $template = \App\Models\InboundTemplate::where('id', $templateId)
+                ->where('pannel_id', $pannelID)
+                ->where('is_active', true)
+                ->first();
+
+            if ($template) {
+                $result['source_type'] = 'specific_template';
+                $result['template_id'] = $template->id;
+                $result['message'] = "Using specific template: {$template->name}";
+                \Log::info("Selected specific template", ['template_id' => $template->id, 'name' => $template->name]);
+                return $result;
+            } else {
+                $result['message'] = "Requested template not found or inactive";
+                \Log::warning("Requested template not found", ['template_id' => $templateId, 'panel_id' => $pannelID]);
+            }
+        }
+
+        // 2. Try to find active templates for this panel
+        $activeTemplates = \App\Models\InboundTemplate::where('pannel_id', $pannelID)
+            ->where('is_active', true)
+            ->orderBy('created_at', 'desc') // Use newest first
+            ->get();
+
+        if ($activeTemplates->count() > 0) {
+            $bestTemplate = $activeTemplates->first();
+            $result['source_type'] = 'auto_template';
+            $result['template_id'] = $bestTemplate->id;
+            $result['message'] = "Using auto-selected template: {$bestTemplate->name}";
+            \Log::info("Selected auto template", [
+                'template_id' => $bestTemplate->id, 
+                'name' => $bestTemplate->name,
+                'total_templates' => $activeTemplates->count()
+            ]);
+            return $result;
+        }
+
+        // 3. Fall back to inbounds table
+        $inbounds = Proxy::where('pannel_id', $pannelID)
+            ->where('is_active', true)
+            ->with(['inbounds' => function ($q) {
+                $q->where('is_active', true);
+            }])->get()->flatMap->inbounds;
+
+        if ($inbounds->count() === 0) {
+            // Try to sync from panel
+            \Log::info("No inbounds found, attempting to sync from panel", ['panel_id' => $pannelID]);
+            $this->syncInbounds($pannelID);
+            
+            $inbounds = Proxy::where('pannel_id', $pannelID)
+                ->where('is_active', true)
+                ->with(['inbounds' => function ($q) {
+                    $q->where('is_active', true);
+                }])->get()->flatMap->inbounds;
+        }
+
+        if ($inbounds->count() > 0) {
+            $result['source_type'] = 'inbounds_table';
+            $result['inbounds'] = $inbounds;
+            $result['message'] = "Using inbounds table with {$inbounds->count()} inbounds";
+            \Log::info("Selected inbounds table", [
+                'inbound_count' => $inbounds->count(),
+                'inbound_ids' => $inbounds->pluck('id')->toArray()
+            ]);
+            return $result;
+        }
+
+        // 4. Nothing available
+        $result['message'] = "No templates or inbounds available for this panel";
+        \Log::error("No inbound sources available", ['panel_id' => $pannelID]);
+        return $result;
+    }
+
+    /**
+     * Check available inbound sources for a panel
+     */
+    public function checkInboundSources($pannelID)
+    {
+        try {
+            $panel = Pannel::findOrFail($pannelID);
+            
+            // Check login status first
+            if (!$this->login($panel->id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to login to panel',
+                    'data' => null
+                ], 401);
+            }
+
+            $result = [
+                'panel_id' => $panel->id,
+                'panel_name' => $panel->name ?? 'Unknown',
+                'admin_url' => $panel->admin_url,
+                'sources' => []
+            ];
+
+            // Check templates
+            $templates = \App\Models\InboundTemplate::where('pannel_id', $pannelID)
+                ->where('is_active', true)
+                ->select('id', 'name', 'description', 'protocol', 'port', 'config_type')
+                ->get();
+
+            if ($templates->count() > 0) {
+                $result['sources']['templates'] = [
+                    'count' => $templates->count(),
+                    'items' => $templates->toArray(),
+                    'recommended' => true
+                ];
+            }
+
+            // Check inbounds table
+            $inbounds = Proxy::where('pannel_id', $panel->id)
+                ->where('is_active', true)
+                ->with(['inbounds' => function ($q) {
+                    $q->where('is_active', true);
+                }])->get()->flatMap->inbounds;
+
+            if ($inbounds->count() === 0) {
+                // Try to sync
+                $this->syncInbounds($panel->id);
+                $inbounds = Proxy::where('pannel_id', $panel->id)
+                    ->where('is_active', true)
+                    ->with(['inbounds' => function ($q) {
+                        $q->where('is_active', true);
+                    }])->get()->flatMap->inbounds;
+            }
+
+            if ($inbounds->count() > 0) {
+                $result['sources']['inbounds_table'] = [
+                    'count' => $inbounds->count(),
+                    'items' => $inbounds->map(function ($in) {
+                        return [
+                            'id' => $in->id,
+                            'name' => $in->name,
+                            'protocol' => $in->protocol,
+                            'port' => $in->port,
+                            'tag' => $in->tag
+                        ];
+                    })->toArray(),
+                    'recommended' => !$templates->count() // Only recommended if no templates
+                ];
+            }
+
+            // Determine best source
+            if ($templates->count() > 0) {
+                $result['best_source'] = 'template';
+                $result['best_source_id'] = $templates->first()->id;
+                $result['best_source_name'] = $templates->first()->name;
+            } elseif ($inbounds->count() > 0) {
+                $result['best_source'] = 'inbounds_table';
+                $result['best_source_count'] = $inbounds->count();
+            } else {
+                $result['best_source'] = 'none';
+                $result['message'] = 'No inbound sources available';
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $result
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Check inbound sources error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Server error occurred'

@@ -377,6 +377,7 @@ class GeneralController extends Controller
             $req->day = $day;
 
             $uuid = $snCtrl->addUserToSanaeiPanel($req);
+            \Log::info("addUserToSanaeiPanel uuid: $uuid");
             if ($uuid === false) {
                 return false;
             }
