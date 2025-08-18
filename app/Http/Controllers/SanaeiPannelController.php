@@ -769,7 +769,9 @@ class SanaeiPannelController extends Controller
                 foreach ($bodies as $body) {
                     try {
                         $r = $this->httpWithAuth($panel)->post($base . $path, $body);
-                        \Log::info("addUserWithTemplate r: " . json_encode($r));
+                        \Log::info("addUserWithTemplate r: " . json_encode($r->body()));
+                        // log full path of $r
+                        \Log::info("addUserWithTemplate path: " . $base . $path);
                         if ($r->ok()) {
                             $success = true;
                             break 2;
