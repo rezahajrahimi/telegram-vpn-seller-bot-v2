@@ -732,58 +732,135 @@ class SanaeiPannelController extends Controller
 
             $base = $this->baseUrl($panel);
             
-            $paths = ['/panel/api/inbounds/add'];
-            // $paths = ['/xui/inbound/addClient', '/panel/api/inbounds/addClient','/panel/api/inbounds/add'];
+            // Per provided cURL, use the form-encoded endpoint
+            $paths = ['/panel/inbound/add', '/xui/inbound/add'];
             $success = false;
 
-            $bodies = [
-                [
-                    'id' => $inboundId,
-                    'client' => [
-                        'id' => $uuid,
-                        'email' => "bot{$accountId}",
-                        'flow' => '',
-                        'limitIp' => 0,
-                        'totalGB' => $totalBytes,
-                        'expiryTime' => $expiryMs,
-                        'enable' => true,
+            $inboundProtocol = strtolower((string)($inboundConfig['protocol'] ?? $template->protocol ?? ''));
+            $settingsFromTemplate = $inboundConfig['settings'] ?? $template->parsed_settings ?? [];
+            $clientRecord = [];
+            if (in_array($inboundProtocol, ['vless', 'vmess'], true)) {
+                $clientRecord = [
+                    'id' => $uuid,
+                    'email' => "bot{$accountId}",
+                    'flow' => '',
+                    'limitIp' => 0,
+                    'totalGB' => 0,
+                    'expiryTime' => 0,
+                    'enable' => true,
+                    'tgId' => '',
+                    'subId' => substr(md5($uuid), 0, 16),
+                    'comment' => '',
+                    'reset' => 0,
+                ];
+            } elseif ($inboundProtocol === 'trojan') {
+                $clientRecord = [
+                    'password' => $uuid,
+                    'email' => "bot{$accountId}",
+                    'limitIp' => 0,
+                    'totalGB' => 0,
+                    'expiryTime' => 0,
+                    'enable' => true,
+                ];
+            }
+
+            $settings = $settingsFromTemplate;
+            $settings['clients'] = [$clientRecord];
+            if ($inboundProtocol === 'vless' && empty($settings['decryption'])) {
+                $settings['decryption'] = 'none';
+            }
+
+            $streamSettings = $inboundConfig['streamSettings'] ?? $template->parsed_stream_settings ?? [];
+            if (empty($streamSettings)) {
+                $streamSettings = [
+                    'network' => 'tcp',
+                    'security' => 'none',
+                    'externalProxy' => [],
+                    'tcpSettings' => [
+                        'acceptProxyProtocol' => false,
+                        'header' => ['type' => 'none'],
                     ],
-                ],
-                [
-                    'id' => $inboundId,
-                    'settings' => [
-                        'clients' => [[
-                            'id' => $uuid,
-                            'email' => "bot{$accountId}",
-                            'flow' => '',
-                            'limitIp' => 0,
-                            'totalGB' => $totalBytes,
-                            'expiryTime' => $expiryMs,
-                            'enable' => true,
-                        ]],
-                    ],
-                ],
-            ];  
+                ];
+            }
+
+            $sniffing = [
+                'enabled' => false,
+                'destOverride' => ['http', 'tls', 'quic', 'fakedns'],
+                'metadataOnly' => false,
+                'routeOnly' => false,
+            ];
+            $allocate = [
+                'strategy' => 'always',
+                'refresh' => 5,
+                'concurrency' => 3,
+            ];
+
+            $listen = $inboundConfig['listen'] ?? $template->listen ?? '';
+            $port = (int)($inboundConfig['port'] ?? $template->port ?? 0);
+
+            $form = [
+                'up' => 0,
+                'down' => 0,
+                'total' => 0,
+                'remark' => (string) $accountId,
+                'enable' => true,
+                'expiryTime' => $expiryMs,
+                'listen' => (string) $listen,
+                'port' => $port,
+                'protocol' => $inboundProtocol,
+                'settings' => json_encode($settings, JSON_UNESCAPED_SLASHES),
+                'streamSettings' => json_encode($streamSettings, JSON_UNESCAPED_SLASHES),
+                'sniffing' => json_encode($sniffing, JSON_UNESCAPED_SLASHES),
+                'allocate' => json_encode($allocate, JSON_UNESCAPED_SLASHES),
+            ];
 
             foreach ($paths as $path) {
-                foreach ($bodies as $body) {
-                    try {
-                        $r = $this->httpWithAuth($panel)->post($base . $path, $body);
-                        \Log::info("addUserWithTemplate r: " . json_encode($r->body()));
-                        // log full path of $r
-                        \Log::info("addUserWithTemplate path: " . $base . $path);
-                        if ($r->ok()) {
-                            $success = true;
-                            break 2;
+                try {
+                    $r = $this->httpWithAuth($panel)
+                        ->asForm()
+                        ->withHeaders([
+                            'Accept' => 'application/json, text/plain, */*',
+                            'X-Requested-With' => 'XMLHttpRequest',
+                        ])
+                        ->post($base . $path, $form);
+                    \Log::info('addUserWithTemplate form endpoint response', [
+                        'path' => $base . $path,
+                        'status' => $r->status(),
+                        'body' => $r->body(),
+                    ]);
+                    // if cookie/session expired, refresh login and retry once
+                    if ($r->status() === 401) {
+                        try {
+                            \Log::info('401 from panel, refreshing login and retrying once', ['panel_id' => $pannelID, 'path' => $path]);
+                            // clear and re-login
+                            $panel->cookie_session = null;
+                            $panel->save();
+                            if ($this->login($panel->id)) {
+                                $r = $this->httpWithAuth($panel)
+                                    ->asForm()
+                                    ->withHeaders([
+                                        'Accept' => 'application/json, text/plain, */*',
+                                        'X-Requested-With' => 'XMLHttpRequest',
+                                    ])
+                                    ->post($base . $path, $form);
+                                \Log::info('Retry after refresh response', ['status' => $r->status(), 'body' => $r->body()]);
+                            }
+                        } catch (\Throwable $th) {
+                            \Log::error('Retry after 401 failed', ['error' => $th->getMessage()]);
                         }
-                    } catch (\Throwable $th) {
-                        // try next
                     }
+
+                    if ($r->ok()) {
+                        $success = true;
+                        break;
+                    }
+                } catch (\Throwable $th) {
+                    // try next
                 }
             }
 
             if ($success) {
-                Log::info("User created with template", [
+                \Log::info("User created with template", [
                     'template_id' => $templateId,
                     'uuid' => $uuid,
                     'panel_id' => $pannelID
@@ -815,7 +892,7 @@ class SanaeiPannelController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('Get available templates error: ' . $e->getMessage());
+            \Log::error('Get available templates error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Server error occurred'
