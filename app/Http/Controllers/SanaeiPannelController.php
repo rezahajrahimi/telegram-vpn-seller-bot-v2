@@ -7,6 +7,7 @@ use App\Models\Pannel;
 use App\Models\Proxy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Nette\Utils\Random;
 
 class SanaeiPannelController extends Controller
 {
@@ -276,7 +277,7 @@ class SanaeiPannelController extends Controller
                         \Log::info($cookies);
                         $panel->update();
                         \Log::info('Successfully logged in to Sanaei panel', ['panel_id' => $pannelID]);
-                        return  $cookies;
+                        return $cookies;
                     }
                 }
             } catch (\Throwable $th) {
@@ -859,14 +860,20 @@ class SanaeiPannelController extends Controller
             $templateId = (int) $request->template_id;
 
             $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
-                return false;
-            }
+            \Log::info("aaaaa1");
+            // if (!$this->login($panel->id)) {
+            //     \Log::info("fff1");
+
+            //     return false;
+            // }
 
             // Get the template
             $template = \App\Models\InboundTemplate::findOrFail($templateId);
             if (!$template->is_active || $template->pannel_id !== $pannelID) {
+                \Log::info("fff2");
+
                 return false;
+
             }
 
             $uuid = (new HiddifyPannelController())->generateUUID();
@@ -887,14 +894,15 @@ class SanaeiPannelController extends Controller
             $inboundProtocol = strtolower((string) ($inboundConfig['protocol'] ?? $template->protocol ?? ''));
             $settingsFromTemplate = $inboundConfig['settings'] ?? $template->parsed_settings ?? [];
             $clientRecord = [];
+            $email = Random::generate(10, 'a-z0-9') . '@example.com';  // random string
             if (in_array($inboundProtocol, ['vless', 'vmess'], true)) {
                 $clientRecord = [
                     'id' => $uuid,
-                    'email' => "bot{$accountId}",
+                    'email' => $email,
                     'flow' => '',
                     'limitIp' => 0,
-                    'totalGB' => 0,
-                    'expiryTime' => 0,
+                    'totalGB' => $totalBytes,
+                    'expiryTime' => $expiryMs,
                     'enable' => true,
                     'tgId' => '',
                     'subId' => substr(md5($uuid), 0, 16),
@@ -904,10 +912,10 @@ class SanaeiPannelController extends Controller
             } elseif ($inboundProtocol === 'trojan') {
                 $clientRecord = [
                     'password' => $uuid,
-                    'email' => "bot{$accountId}",
+                    'email' => $email,
                     'limitIp' => 0,
-                    'totalGB' => 0,
-                    'expiryTime' => 0,
+                    'totalGB' => $totalBytes,
+                    'expiryTime' => $expiryMs,
                     'enable' => true,
                 ];
             }
@@ -944,7 +952,9 @@ class SanaeiPannelController extends Controller
             ];
 
             $listen = $inboundConfig['listen'] ?? $template->listen ?? '';
-            $port = (int) ($inboundConfig['port'] ?? $template->port ?? 0);
+            // $port = (int) ($inboundConfig['port'] ?? $template->port ?? 0);
+            // read port from config
+            $port = (int) rand(11111, 99999);
 
             $form = [
                 'up' => 0,
@@ -964,6 +974,7 @@ class SanaeiPannelController extends Controller
 
             // Prepare cookies from panel->cookie_session
             $cookies = json_decode($panel->cookie_session, true) ?? [];
+            \Log::info('ssssssssss cookies', ['cookies' => $cookies]);
             foreach ($paths as $path) {
                 try {
                     $req = $this->httpWithAuth($panel)
@@ -971,15 +982,17 @@ class SanaeiPannelController extends Controller
                         ->withHeaders([
                             'Accept' => 'application/json, text/plain, */*',
                             'X-Requested-With' => 'XMLHttpRequest',
+                            'Content-Type' => 'application/x-www-form-urlencoded',
+                            'cookie' => implode('; ', array_map(fn($c) => "{$c['Name']}={$c['Value']}", $cookies))
                         ]);
-                    // Add all cookies if present
-                    foreach ($cookies as $cookie) {
-                        $name = $cookie['Name'] ?? ($cookie['name'] ?? null);
-                        $value = $cookie['Value'] ?? ($cookie['value'] ?? null);
-                        if ($name !== null) {
-                            $req = $req->withCookie($name, $value);
-                        }
-                    }
+                    // // Add all cookies if present
+                    // foreach ($cookies as $cookie) {
+                    //     $name = $cookie['Name'] ?? ($cookie['name'] ?? null);
+                    //     $value = $cookie['Value'] ?? ($cookie['value'] ?? null);
+                    //     if ($name !== null) {
+                    //         $req = $req->withCookie($name, $value);
+                    //     }
+                    // }
                     $r = $req->post($base . $path, $form);
                     \Log::info('addUserWithTemplate form endpoint response', [
                         'path' => $base . $path,
@@ -1016,8 +1029,10 @@ class SanaeiPannelController extends Controller
                             \Log::error('Retry after 401 failed', ['error' => $th->getMessage()]);
                         }
                     }
+                    \Log::info('resss', ['status' => $r->status(), 'body' => $r->body()]);
 
                     if ($r->ok()) {
+
                         $success = true;
                         break;
                     }
