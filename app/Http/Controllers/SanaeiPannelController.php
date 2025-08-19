@@ -48,15 +48,31 @@ class SanaeiPannelController extends Controller
     private function buildVlessLink(string $host, int $port, string $uuid, string $network, ?string $security, ?string $path, ?string $sni, ?array $alpn, ?array $reality, string $remark): string
     {
         $params = [];
-        if ($network !== '') { $params[] = 'type=' . $this->urlencodeIfNotNull($network); }
-        if (!empty($security)) { $params[] = 'security=' . $this->urlencodeIfNotNull($security); }
-        if (!empty($path)) { $params[] = 'path=' . $this->urlencodeIfNotNull($path); }
-        if (!empty($sni)) { $params[] = 'sni=' . $this->urlencodeIfNotNull($sni); }
-        if (!empty($alpn)) { $params[] = 'alpn=' . $this->urlencodeIfNotNull(implode(',', $alpn)); }
+        if ($network !== '') {
+            $params[] = 'type=' . $this->urlencodeIfNotNull($network);
+        }
+        if (!empty($security)) {
+            $params[] = 'security=' . $this->urlencodeIfNotNull($security);
+        }
+        if (!empty($path)) {
+            $params[] = 'path=' . $this->urlencodeIfNotNull($path);
+        }
+        if (!empty($sni)) {
+            $params[] = 'sni=' . $this->urlencodeIfNotNull($sni);
+        }
+        if (!empty($alpn)) {
+            $params[] = 'alpn=' . $this->urlencodeIfNotNull(implode(',', $alpn));
+        }
         if (!empty($reality)) {
-            if (!empty($reality['publicKey'])) { $params[] = 'pbk=' . $this->urlencodeIfNotNull($reality['publicKey']); }
-            if (!empty($reality['shortId'])) { $params[] = 'sid=' . $this->urlencodeIfNotNull($reality['shortId']); }
-            if (!empty($reality['fingerprint'])) { $params[] = 'fp=' . $this->urlencodeIfNotNull($reality['fingerprint']); }
+            if (!empty($reality['publicKey'])) {
+                $params[] = 'pbk=' . $this->urlencodeIfNotNull($reality['publicKey']);
+            }
+            if (!empty($reality['shortId'])) {
+                $params[] = 'sid=' . $this->urlencodeIfNotNull($reality['shortId']);
+            }
+            if (!empty($reality['fingerprint'])) {
+                $params[] = 'fp=' . $this->urlencodeIfNotNull($reality['fingerprint']);
+            }
         }
         $query = implode('&', $params);
         return "vless://{$uuid}@{$host}:{$port}?{$query}#" . rawurlencode($remark);
@@ -84,10 +100,18 @@ class SanaeiPannelController extends Controller
     private function buildTrojanLink(string $host, int $port, string $password, string $network, ?string $tls, ?string $path, ?string $sni, string $remark): string
     {
         $params = [];
-        if ($network !== '') { $params[] = 'type=' . $this->urlencodeIfNotNull($network); }
-        if (!empty($tls)) { $params[] = 'security=' . $this->urlencodeIfNotNull($tls); }
-        if (!empty($path)) { $params[] = 'path=' . $this->urlencodeIfNotNull($path); }
-        if (!empty($sni)) { $params[] = 'sni=' . $this->urlencodeIfNotNull($sni); }
+        if ($network !== '') {
+            $params[] = 'type=' . $this->urlencodeIfNotNull($network);
+        }
+        if (!empty($tls)) {
+            $params[] = 'security=' . $this->urlencodeIfNotNull($tls);
+        }
+        if (!empty($path)) {
+            $params[] = 'path=' . $this->urlencodeIfNotNull($path);
+        }
+        if (!empty($sni)) {
+            $params[] = 'sni=' . $this->urlencodeIfNotNull($sni);
+        }
         $query = implode('&', $params);
         return "trojan://{$password}@{$host}:{$port}?{$query}#" . rawurlencode($remark);
     }
@@ -109,6 +133,78 @@ class SanaeiPannelController extends Controller
     }
 
     /**
+     * Parse a raw Cookie header string (e.g. "lang=en-US; 3x-ui=...") into an array of
+     * structures compatible with stored cookie format (Name/Value).
+     */
+    private function parseCookieHeader(string $cookieHeader): array
+    {
+        $raw = trim($cookieHeader);
+        if ($raw === '') {
+            return [];
+        }
+        if (stripos($raw, 'Cookie:') === 0) {
+            $raw = trim(substr($raw, 7));
+        }
+        $raw = trim($raw, " \t\n\r\0\x0B\"'");
+        $parts = preg_split('/;\s*/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $cookies = [];
+        foreach ($parts as $part) {
+            $eqPos = strpos($part, '=');
+            if ($eqPos === false) {
+                continue;
+            }
+            $name = trim(substr($part, 0, $eqPos));
+            $value = substr($part, $eqPos + 1);
+            if ($name === '') {
+                continue;
+            }
+            $cookies[] = [
+                'Name' => $name,
+                'Value' => $value,
+            ];
+        }
+        return $cookies;
+    }
+
+    /**
+     * Set raw cookie header string for a panel, store into cookie_session, and validate.
+     */
+    public function setRawCookie(Request $request, $pannelID)
+    {
+        try {
+            $panel = Pannel::findOrFail((int) $pannelID);
+            $raw = (string) ($request->input('cookie') ?? $request->input('cookie_raw') ?? '');
+            if ($raw === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'cookie is required',
+                ], 422);
+            }
+            $cookiesArray = $this->parseCookieHeader($raw);
+            if (empty($cookiesArray)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'invalid cookie format',
+                ], 422);
+            }
+            $panel->cookie_session = json_encode($cookiesArray);
+            $panel->save();
+            $valid = $this->isCookieValid($panel);
+            \Log::info('setRawCookie applied', ['panel_id' => (int) $pannelID, 'valid' => $valid]);
+            return response()->json([
+                'success' => true,
+                'valid' => $valid,
+            ]);
+        } catch (\Throwable $th) {
+            \Log::error('setRawCookie error: ' . $th->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'server error',
+            ], 500);
+        }
+    }
+
+    /**
      * Check if current cookies are still valid
      */
     private function isCookieValid(Pannel $panel): bool
@@ -120,8 +216,8 @@ class SanaeiPannelController extends Controller
         try {
             // Try to make a simple API call to check if cookies are valid
             $base = $this->baseUrl($panel);
-            $testPaths = ['/xui/inbound/list', '/panel/api/inbounds', '/api/inbounds'];
-            
+            $testPaths = ['/panel/api/inbounds'];
+
             foreach ($testPaths as $path) {
                 try {
                     $response = $this->httpWithAuth($panel)->get($base . $path);
@@ -132,7 +228,7 @@ class SanaeiPannelController extends Controller
                     continue;
                 }
             }
-            
+
             return false; // All test paths failed
         } catch (\Throwable $th) {
             return false;
@@ -142,21 +238,23 @@ class SanaeiPannelController extends Controller
     public function login($pannelID)
     {
         $panel = Pannel::findOrFail($pannelID);
-        
-        // If we have a token, assume we're authenticated
-        if (!empty($panel->token)) {
-            return true;
-        }
-        
+
+        // // If we have a token, assume we're authenticated
+        // if (!empty($panel->token)) {
+        //     return true;
+        // }
+
         // If we have cookies, check if they're still valid
         if (!empty($panel->cookie_session) && $this->isCookieValid($panel)) {
+            \Log::info("cook valid");
             return true;
         }
 
         // If cookies are invalid or expired, clear them
         if (!empty($panel->cookie_session)) {
+            \Log::info("If cookies are invalid or expired, clear them");
             $panel->cookie_session = null;
-            $panel->save();
+            $panel->update();
         }
 
         $base = $this->baseUrl($panel);
@@ -164,7 +262,7 @@ class SanaeiPannelController extends Controller
             return false;
         }
 
-        $loginCandidates = ['/xui/login', '/login', '/panel/login'];
+        $loginCandidates = ['/login'];
         foreach ($loginCandidates as $path) {
             try {
                 $res = Http::asForm()->post($base . $path, [
@@ -174,10 +272,11 @@ class SanaeiPannelController extends Controller
                 if ($res->status() === 200 || $res->status() === 302) {
                     $cookies = $res->cookies()->toArray();
                     if (!empty($cookies)) {
-                        $panel->cookie_session = json_encode($cookies);
-                        $panel->save();
+                        $panel->cookie_session = json_encode($cookies); // Always store as JSON
+                        \Log::info($cookies);
+                        $panel->update();
                         \Log::info('Successfully logged in to Sanaei panel', ['panel_id' => $pannelID]);
-                        return true;
+                        return  $cookies;
                     }
                 }
             } catch (\Throwable $th) {
@@ -185,7 +284,7 @@ class SanaeiPannelController extends Controller
                 // try next endpoint
             }
         }
-        
+
         \Log::error('Failed to login to Sanaei panel', ['panel_id' => $pannelID]);
         return false;
     }
@@ -200,9 +299,7 @@ class SanaeiPannelController extends Controller
 
             $base = $this->baseUrl($panel);
             $paths = [
-                '/xui/inbound/list',
                 '/panel/api/inbounds',
-                '/api/inbounds',
             ];
             $list = null;
             foreach ($paths as $path) {
@@ -315,7 +412,7 @@ class SanaeiPannelController extends Controller
     {
         try {
             $base = $this->baseUrl($panel);
-            $paths = ['/xui/inbound/addClient', '/panel/api/inbounds/addClient'];
+            $paths = ['/xui/inbound/add', '/panel/api/inbounds/add'];
             $success = false;
 
             foreach ($inbounds as $in) {
@@ -341,15 +438,17 @@ class SanaeiPannelController extends Controller
                     [
                         'id' => $inboundId,
                         'settings' => [
-                            'clients' => [[
-                                'id' => $uuid,
-                                'email' => "bot{$accountId}",
-                                'flow' => '',
-                                'limitIp' => 0,
-                                'totalGB' => $totalBytes,
-                                'expiryTime' => $expiryMs,
-                                'enable' => true,
-                            ]],
+                            'clients' => [
+                                [
+                                    'id' => $uuid,
+                                    'email' => "bot{$accountId}",
+                                    'flow' => '',
+                                    'limitIp' => 0,
+                                    'totalGB' => $totalBytes,
+                                    'expiryTime' => $expiryMs,
+                                    'enable' => true,
+                                ]
+                            ],
                         ],
                     ],
                 ];
@@ -361,9 +460,9 @@ class SanaeiPannelController extends Controller
                                 'inbound_id' => $inboundId,
                                 'body' => $body
                             ]);
-                            
+
                             $r = $this->httpWithAuth($panel)->post($base . $path, $body);
-                            
+
                             if ($r->ok()) {
                                 $success = true;
                                 \Log::info("User created successfully with inbound", [
@@ -411,17 +510,21 @@ class SanaeiPannelController extends Controller
     {
         try {
             $panel = Pannel::findOrFail($pannelID);
-            
+
             // Check if we're logged in
             if (!$this->login($panel->id)) {
                 \Log::warning('getUserLinks: Failed to login to panel', ['panel_id' => $pannelID]);
                 return [];
             }
-            
+
             $host = $this->getServerHost($panel);
             $inbounds = Proxy::where('pannel_id', $panel->id)
                 ->where('is_active', true)
-                ->with(['inbounds' => function ($q) { $q->where('is_active', true); }])
+                ->with([
+                    'inbounds' => function ($q) {
+                        $q->where('is_active', true);
+                    }
+                ])
                 ->get()->flatMap->inbounds;
 
             $links = [];
@@ -432,7 +535,10 @@ class SanaeiPannelController extends Controller
                 $stream = $in->parsed_stream_settings;
                 $network = $stream['network'] ?? 'tcp';
                 $security = $stream['security'] ?? null; // tls or reality
-                $sni = null; $alpn = null; $wsPath = null; $hostHeader = null;
+                $sni = null;
+                $alpn = null;
+                $wsPath = null;
+                $hostHeader = null;
                 if ($network === 'ws') {
                     $ws = $stream['wsSettings'] ?? [];
                     $wsPath = $ws['path'] ?? null;
@@ -454,7 +560,9 @@ class SanaeiPannelController extends Controller
                     ];
                     $sni = null;
                     $serverNames = $realitySet['serverNames'] ?? null;
-                    if (is_array($serverNames) && count($serverNames) > 0) { $sni = $serverNames[0]; }
+                    if (is_array($serverNames) && count($serverNames) > 0) {
+                        $sni = $serverNames[0];
+                    }
                 }
 
                 if ($protocol === 'vless') {
@@ -476,18 +584,22 @@ class SanaeiPannelController extends Controller
     {
         try {
             $panel = Pannel::findOrFail($pannelID);
-            
+
             // Check if we're logged in
             if (!$this->login($panel->id)) {
                 \Log::warning('generateClientLinks: Failed to login to panel', ['panel_id' => $pannelID]);
                 return [];
             }
-            
+
             $host = parse_url($this->baseUrl($panel), PHP_URL_HOST) ?? ($panel->url_port ?? '');
             $links = [];
             $inbounds = Proxy::where('pannel_id', $panel->id)
                 ->where('is_active', true)
-                ->with(['inbounds' => function ($q) { $q->where('is_active', true); }])
+                ->with([
+                    'inbounds' => function ($q) {
+                        $q->where('is_active', true);
+                    }
+                ])
                 ->get()->flatMap->inbounds;
 
             foreach ($inbounds as $in) {
@@ -498,23 +610,37 @@ class SanaeiPannelController extends Controller
                 $network = $stream['network'] ?? 'tcp';
                 $security = $stream['security'] ?? '';
                 $sni = '';
-                if (isset($stream['tlsSettings']['serverName'])) { $sni = $stream['tlsSettings']['serverName']; }
-                if (isset($stream['realitySettings']['serverNames'][0])) { $sni = $stream['realitySettings']['serverNames'][0]; }
+                if (isset($stream['tlsSettings']['serverName'])) {
+                    $sni = $stream['tlsSettings']['serverName'];
+                }
+                if (isset($stream['realitySettings']['serverNames'][0])) {
+                    $sni = $stream['realitySettings']['serverNames'][0];
+                }
 
                 if ($protocol === 'vless') {
                     $query = [];
                     $query['type'] = $network;
                     if ($network === 'ws') {
                         $ws = $stream['wsSettings'] ?? [];
-                        if (isset($ws['path'])) { $query['path'] = $ws['path']; }
+                        if (isset($ws['path'])) {
+                            $query['path'] = $ws['path'];
+                        }
                         $hostHeader = $ws['headers']['Host'] ?? null;
-                        if ($hostHeader) { $query['host'] = $hostHeader; }
+                        if ($hostHeader) {
+                            $query['host'] = $hostHeader;
+                        }
                     } elseif ($network === 'grpc') {
                         $grpc = $stream['grpcSettings'] ?? [];
-                        if (isset($grpc['serviceName'])) { $query['serviceName'] = $grpc['serviceName']; }
+                        if (isset($grpc['serviceName'])) {
+                            $query['serviceName'] = $grpc['serviceName'];
+                        }
                     }
-                    if ($security === 'tls' || $security === 'reality') { $query['security'] = $security; }
-                    if ($sni) { $query['sni'] = $sni; }
+                    if ($security === 'tls' || $security === 'reality') {
+                        $query['security'] = $security;
+                    }
+                    if ($sni) {
+                        $query['sni'] = $sni;
+                    }
                     $q = http_build_query($query);
                     $links[] = sprintf('vless://%s@%s:%s?%s#%s', $uuid, $host, $port, $q, rawurlencode($remark));
                 } elseif ($protocol === 'vmess') {
@@ -543,14 +669,22 @@ class SanaeiPannelController extends Controller
                 } elseif ($protocol === 'trojan') {
                     // Best-effort: use uuid as password
                     $query = [];
-                    if ($security === 'tls') { $query['security'] = 'tls'; }
-                    if ($sni) { $query['sni'] = $sni; }
+                    if ($security === 'tls') {
+                        $query['security'] = 'tls';
+                    }
+                    if ($sni) {
+                        $query['sni'] = $sni;
+                    }
                     if ($network === 'ws') {
                         $query['type'] = 'ws';
                         $ws = $stream['wsSettings'] ?? [];
-                        if (isset($ws['path'])) { $query['path'] = $ws['path']; }
+                        if (isset($ws['path'])) {
+                            $query['path'] = $ws['path'];
+                        }
                         $hostHeader = $ws['headers']['Host'] ?? null;
-                        if ($hostHeader) { $query['host'] = $hostHeader; }
+                        if ($hostHeader) {
+                            $query['host'] = $hostHeader;
+                        }
                     }
                     $q = http_build_query($query);
                     $links[] = sprintf('trojan://%s@%s:%s?%s#%s', $uuid, $host, $port, $q, rawurlencode($remark));
@@ -583,7 +717,8 @@ class SanaeiPannelController extends Controller
             foreach ($inbounds as $in) {
                 $meta = json_decode($in->data, true);
                 $inboundId = is_array($meta) ? ($meta['id'] ?? null) : (is_numeric($in->data) ? (int) $in->data : null);
-                if (!$inboundId) continue;
+                if (!$inboundId)
+                    continue;
 
                 $bodies = [
                     ['id' => $inboundId, 'client' => ['id' => $uuid]],
@@ -593,7 +728,10 @@ class SanaeiPannelController extends Controller
                     foreach ($bodies as $body) {
                         try {
                             $r = $this->httpWithAuth($panel)->post($base . $path, $body);
-                            if ($r->ok()) { $ok = true; break 2; }
+                            if ($r->ok()) {
+                                $ok = true;
+                                break 2;
+                            }
                         } catch (\Throwable $th) {
                         }
                     }
@@ -624,7 +762,8 @@ class SanaeiPannelController extends Controller
             foreach ($inbounds as $in) {
                 $meta = json_decode($in->data, true);
                 $inboundId = is_array($meta) ? ($meta['id'] ?? null) : (is_numeric($in->data) ? (int) $in->data : null);
-                if (!$inboundId) continue;
+                if (!$inboundId)
+                    continue;
 
                 $body = [
                     'id' => $inboundId,
@@ -636,11 +775,15 @@ class SanaeiPannelController extends Controller
                 foreach ($paths as $path) {
                     try {
                         $r = $this->httpWithAuth($panel)->post($base . $path, $body);
-                        if ($r->ok()) { $ok = true; break; }
+                        if ($r->ok()) {
+                            $ok = true;
+                            break;
+                        }
                     } catch (\Throwable $th) {
                     }
                 }
-                if ($ok) break;
+                if ($ok)
+                    break;
             }
             return $ok ? response()->json(true, 200) : response()->json(false, 401);
         } catch (\Throwable $th) {
@@ -668,18 +811,23 @@ class SanaeiPannelController extends Controller
             foreach ($inbounds as $in) {
                 $meta = json_decode($in->data, true);
                 $inboundId = is_array($meta) ? ($meta['id'] ?? null) : (is_numeric($in->data) ? (int) $in->data : null);
-                if (!$inboundId) continue;
+                if (!$inboundId)
+                    continue;
 
                 $client = array_merge(['id' => $uuid], $fields);
                 $body = ['id' => $inboundId, 'client' => $client];
                 foreach ($paths as $path) {
                     try {
                         $r = $this->httpWithAuth($panel)->post($base . $path, $body);
-                        if ($r->ok()) { $ok = true; break; }
+                        if ($r->ok()) {
+                            $ok = true;
+                            break;
+                        }
                     } catch (\Throwable $th) {
                     }
                 }
-                if ($ok) break;
+                if ($ok)
+                    break;
             }
             return $ok ? response()->json(true, 200) : response()->json(false, 401);
         } catch (\Throwable $th) {
@@ -731,12 +879,12 @@ class SanaeiPannelController extends Controller
             $inboundId = $inboundConfig['id'];
 
             $base = $this->baseUrl($panel);
-            
+
             // Per provided cURL, use the form-encoded endpoint
             $paths = ['/panel/inbound/add', '/xui/inbound/add'];
             $success = false;
 
-            $inboundProtocol = strtolower((string)($inboundConfig['protocol'] ?? $template->protocol ?? ''));
+            $inboundProtocol = strtolower((string) ($inboundConfig['protocol'] ?? $template->protocol ?? ''));
             $settingsFromTemplate = $inboundConfig['settings'] ?? $template->parsed_settings ?? [];
             $clientRecord = [];
             if (in_array($inboundProtocol, ['vless', 'vmess'], true)) {
@@ -796,7 +944,7 @@ class SanaeiPannelController extends Controller
             ];
 
             $listen = $inboundConfig['listen'] ?? $template->listen ?? '';
-            $port = (int)($inboundConfig['port'] ?? $template->port ?? 0);
+            $port = (int) ($inboundConfig['port'] ?? $template->port ?? 0);
 
             $form = [
                 'up' => 0,
@@ -814,15 +962,25 @@ class SanaeiPannelController extends Controller
                 'allocate' => json_encode($allocate, JSON_UNESCAPED_SLASHES),
             ];
 
+            // Prepare cookies from panel->cookie_session
+            $cookies = json_decode($panel->cookie_session, true) ?? [];
             foreach ($paths as $path) {
                 try {
-                    $r = $this->httpWithAuth($panel)
+                    $req = $this->httpWithAuth($panel)
                         ->asForm()
                         ->withHeaders([
                             'Accept' => 'application/json, text/plain, */*',
                             'X-Requested-With' => 'XMLHttpRequest',
-                        ])
-                        ->post($base . $path, $form);
+                        ]);
+                    // Add all cookies if present
+                    foreach ($cookies as $cookie) {
+                        $name = $cookie['Name'] ?? ($cookie['name'] ?? null);
+                        $value = $cookie['Value'] ?? ($cookie['value'] ?? null);
+                        if ($name !== null) {
+                            $req = $req->withCookie($name, $value);
+                        }
+                    }
+                    $r = $req->post($base . $path, $form);
                     \Log::info('addUserWithTemplate form endpoint response', [
                         'path' => $base . $path,
                         'status' => $r->status(),
@@ -836,13 +994,22 @@ class SanaeiPannelController extends Controller
                             $panel->cookie_session = null;
                             $panel->save();
                             if ($this->login($panel->id)) {
-                                $r = $this->httpWithAuth($panel)
+                                $panel = Pannel::findOrFail($pannelID);
+                                $cookies = json_decode($panel->cookie_session, true) ?? [];
+                                $req = $this->httpWithAuth($panel)
                                     ->asForm()
                                     ->withHeaders([
                                         'Accept' => 'application/json, text/plain, */*',
                                         'X-Requested-With' => 'XMLHttpRequest',
-                                    ])
-                                    ->post($base . $path, $form);
+                                    ]);
+                                foreach ($cookies as $cookie) {
+                                    $name = $cookie['Name'] ?? ($cookie['name'] ?? null);
+                                    $value = $cookie['Value'] ?? ($cookie['value'] ?? null);
+                                    if ($name !== null) {
+                                        $req = $req->withCookie($name, $value);
+                                    }
+                                }
+                                $r = $req->post($base . $path, $form);
                                 \Log::info('Retry after refresh response', ['status' => $r->status(), 'body' => $r->body()]);
                             }
                         } catch (\Throwable $th) {
@@ -860,79 +1027,17 @@ class SanaeiPannelController extends Controller
             }
 
             if ($success) {
-                \Log::info("User created with template", [
-                    'template_id' => $templateId,
-                    'uuid' => $uuid,
-                    'panel_id' => $pannelID
-                ]);
+                // \Log::info("User created with template", [
+                //     'template_id' => $templateId,
+                //     'uuid' => $uuid,
+                // ]);
             }
-
-            return $success ? $uuid : false;
-
+            return $success;
         } catch (\Throwable $th) {
-            \Log::info('addUserWithTemplate error: ' . $th->getMessage());
+            \Log::error('Error in user creation: ' . $th->getMessage());
             return false;
         }
     }
-
-    /**
-     * Get available templates for a panel
-     */
-    public function getAvailableTemplates($panelId)
-    {
-        try {
-            $templates = \App\Models\InboundTemplate::forPanel($panelId)
-                ->active()
-                ->select('id', 'name', 'description', 'protocol', 'port')
-                ->get();
-
-            return response()->json([
-                'success' => true,
-                'data' => $templates
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Get available templates error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Server error occurred'
-            ], 500);
-        }
-    }
-
-    /**
-     * Force refresh login and get new cookies
-     */
-    public function refreshLogin($pannelID)
-    {
-        try {
-            $panel = Pannel::findOrFail($pannelID);
-            
-            // Clear existing cookies
-            $panel->cookie_session = null;
-            $panel->save();
-            
-            // Try to login again
-            if ($this->login($pannelID)) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Login refreshed successfully'
-                ]);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to refresh login'
-                ], 401);
-            }
-        } catch (\Exception $e) {
-            \Log::error('Refresh login error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Server error occurred'
-            ], 500);
-        }
-    }
-
     /**
      * Check login status and return panel info
      */
@@ -940,7 +1045,7 @@ class SanaeiPannelController extends Controller
     {
         try {
             $panel = Pannel::findOrFail($pannelID);
-            
+
             $status = [
                 'panel_id' => $panel->id,
                 'panel_name' => $panel->name ?? 'Unknown',
@@ -950,7 +1055,7 @@ class SanaeiPannelController extends Controller
                 'cookies_valid' => false,
                 'login_status' => 'unknown'
             ];
-            
+
             if (!empty($panel->token)) {
                 $status['login_status'] = 'token_authenticated';
                 $status['cookies_valid'] = true;
@@ -965,12 +1070,12 @@ class SanaeiPannelController extends Controller
             } else {
                 $status['login_status'] = 'not_authenticated';
             }
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $status
             ]);
-            
+
         } catch (\Exception $e) {
             \Log::error('Check login status error: ' . $e->getMessage());
             return response()->json([
@@ -1023,7 +1128,7 @@ class SanaeiPannelController extends Controller
             $result['template_id'] = $bestTemplate->id;
             $result['message'] = "Using auto-selected template: {$bestTemplate->name}";
             \Log::info("Selected auto template", [
-                'template_id' => $bestTemplate->id, 
+                'template_id' => $bestTemplate->id,
                 'name' => $bestTemplate->name,
                 'total_templates' => $activeTemplates->count()
             ]);
@@ -1033,20 +1138,24 @@ class SanaeiPannelController extends Controller
         // 3. Fall back to inbounds table
         $inbounds = Proxy::where('pannel_id', $pannelID)
             ->where('is_active', true)
-            ->with(['inbounds' => function ($q) {
-                $q->where('is_active', true);
-            }])->get()->flatMap->inbounds;
+            ->with([
+                'inbounds' => function ($q) {
+                    $q->where('is_active', true);
+                }
+            ])->get()->flatMap->inbounds;
 
         if ($inbounds->count() === 0) {
             // Try to sync from panel
             \Log::info("No inbounds found, attempting to sync from panel", ['panel_id' => $pannelID]);
             $this->syncInbounds($pannelID);
-            
+
             $inbounds = Proxy::where('pannel_id', $pannelID)
                 ->where('is_active', true)
-                ->with(['inbounds' => function ($q) {
-                    $q->where('is_active', true);
-                }])->get()->flatMap->inbounds;
+                ->with([
+                    'inbounds' => function ($q) {
+                        $q->where('is_active', true);
+                    }
+                ])->get()->flatMap->inbounds;
         }
 
         if ($inbounds->count() > 0) {
@@ -1073,7 +1182,7 @@ class SanaeiPannelController extends Controller
     {
         try {
             $panel = Pannel::findOrFail($pannelID);
-            
+
             // Check login status first
             if (!$this->login($panel->id)) {
                 return response()->json([
@@ -1107,18 +1216,22 @@ class SanaeiPannelController extends Controller
             // Check inbounds table
             $inbounds = Proxy::where('pannel_id', $panel->id)
                 ->where('is_active', true)
-                ->with(['inbounds' => function ($q) {
-                    $q->where('is_active', true);
-                }])->get()->flatMap->inbounds;
+                ->with([
+                    'inbounds' => function ($q) {
+                        $q->where('is_active', true);
+                    }
+                ])->get()->flatMap->inbounds;
 
             if ($inbounds->count() === 0) {
                 // Try to sync
                 $this->syncInbounds($panel->id);
                 $inbounds = Proxy::where('pannel_id', $panel->id)
                     ->where('is_active', true)
-                    ->with(['inbounds' => function ($q) {
-                        $q->where('is_active', true);
-                    }])->get()->flatMap->inbounds;
+                    ->with([
+                        'inbounds' => function ($q) {
+                            $q->where('is_active', true);
+                        }
+                    ])->get()->flatMap->inbounds;
             }
 
             if ($inbounds->count() > 0) {
