@@ -240,10 +240,10 @@ class SanaeiPannelController extends Controller
     {
         $panel = Pannel::findOrFail($pannelID);
 
-        // // If we have a token, assume we're authenticated
-        // if (!empty($panel->token)) {
-        //     return true;
-        // }
+        // If we have a token, assume we're authenticated
+        if (!empty($panel->token)) {
+            return true;
+        }
 
         // If we have cookies, check if they're still valid
         if (!empty($panel->cookie_session) && $this->isCookieValid($panel)) {
@@ -277,7 +277,7 @@ class SanaeiPannelController extends Controller
                         \Log::info($cookies);
                         $panel->update();
                         \Log::info('Successfully logged in to Sanaei panel', ['panel_id' => $pannelID]);
-                        return $cookies;
+                        return true;
                     }
                 }
             } catch (\Throwable $th) {
@@ -861,11 +861,13 @@ class SanaeiPannelController extends Controller
 
             $panel = Pannel::findOrFail($pannelID);
             \Log::info("aaaaa1");
-            // if (!$this->login($panel->id)) {
-            //     \Log::info("fff1");
+            $login = $this->login($panel->id);
+            \Log::info("aaaaloginlogina1 {$login}");
 
-            //     return false;
-            // }
+            if (!$login) {
+
+                return false;
+            }
 
             // Get the template
             $template = \App\Models\InboundTemplate::findOrFail($templateId);
@@ -952,9 +954,7 @@ class SanaeiPannelController extends Controller
             ];
 
             $listen = $inboundConfig['listen'] ?? $template->listen ?? '';
-            // $port = (int) ($inboundConfig['port'] ?? $template->port ?? 0);
-            // read port from config
-            $port = (int) rand(11111, 99999);
+            $port = (int) ($inboundConfig['port'] ?? $template->port ?? 0);
 
             $form = [
                 'up' => 0,
