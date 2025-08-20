@@ -11,6 +11,9 @@ use Nette\Utils\Random;
 
 class SanaeiPannelController extends Controller
 {
+
+
+
     private function baseUrl(Pannel $panel): string
     {
         $url = trim((string) $panel->admin_url);
@@ -1289,6 +1292,135 @@ class SanaeiPannelController extends Controller
                 'success' => false,
                 'message' => 'Server error occurred'
             ], 500);
+        }
+    }
+    /**
+     * Add a client to a specific inbound in Sanaei panel
+     */
+    public function addClientToInbound($pannelID, $inboundId, array $client)
+    {
+        try {
+            $panel = Pannel::findOrFail($pannelID);
+            if (!$this->login($panel->id)) {
+                return response()->json(['success' => false, 'message' => 'Login failed'], 401);
+            }
+            $base = $this->baseUrl($panel);
+            $paths = ['/xui/inbound/addClient', '/panel/api/inbounds/addClient'];
+            $body = [
+                'id' => $inboundId,
+                'client' => $client
+            ];
+            foreach ($paths as $path) {
+                try {
+                    $res = $this->httpWithAuth($panel)->post($base . $path, $body);
+                    if ($res->ok()) {
+                        return response()->json(['success' => true, 'data' => $res->json()]);
+                    }
+                } catch (\Throwable $th) {
+                }
+            }
+            return response()->json(['success' => false, 'message' => 'Failed to add client'], 500);
+        } catch (\Throwable $th) {
+            \Log::error('addClientToInbound error: ' . $th->getMessage());
+            return response()->json(['success' => false, 'message' => 'Server error'], 500);
+        }
+    }
+
+    /**
+     * Edit (update) a client in a specific inbound
+     */
+    public function updateClientInInbound($pannelID, $inboundId, array $client)
+    {
+        try {
+            $panel = Pannel::findOrFail($pannelID);
+            if (!$this->login($panel->id)) {
+                return response()->json(['success' => false, 'message' => 'Login failed'], 401);
+            }
+            $base = $this->baseUrl($panel);
+            $paths = ['/xui/inbound/updateClient', '/panel/api/inbounds/updateClient'];
+            $body = [
+                'id' => $inboundId,
+                'client' => $client
+            ];
+            foreach ($paths as $path) {
+                try {
+                    $res = $this->httpWithAuth($panel)->post($base . $path, $body);
+                    if ($res->ok()) {
+                        return response()->json(['success' => true, 'data' => $res->json()]);
+                    }
+                } catch (\Throwable $th) {
+                }
+            }
+            return response()->json(['success' => false, 'message' => 'Failed to update client'], 500);
+        } catch (\Throwable $th) {
+            \Log::error('updateClientInInbound error: ' . $th->getMessage());
+            return response()->json(['success' => false, 'message' => 'Server error'], 500);
+        }
+    }
+
+    /**
+     * Delete a client from a specific inbound
+     */
+    public function deleteClientFromInbound($pannelID, $inboundId, $clientId)
+    {
+        try {
+            $panel = Pannel::findOrFail($pannelID);
+            if (!$this->login($panel->id)) {
+                return response()->json(['success' => false, 'message' => 'Login failed'], 401);
+            }
+            $base = $this->baseUrl($panel);
+            $paths = ['/xui/inbound/delClient', '/panel/api/inbounds/delClient'];
+            $bodies = [
+                ['id' => $inboundId, 'client' => ['id' => $clientId]],
+                ['id' => $inboundId, 'uuid' => $clientId],
+            ];
+            foreach ($paths as $path) {
+                foreach ($bodies as $body) {
+                    try {
+                        $res = $this->httpWithAuth($panel)->post($base . $path, $body);
+                        if ($res->ok()) {
+                            return response()->json(['success' => true, 'data' => $res->json()]);
+                        }
+                    } catch (\Throwable $th) {
+                    }
+                }
+            }
+            return response()->json(['success' => false, 'message' => 'Failed to delete client'], 500);
+        } catch (\Throwable $th) {
+            \Log::error('deleteClientFromInbound error: ' . $th->getMessage());
+            return response()->json(['success' => false, 'message' => 'Server error'], 500);
+        }
+    }
+
+    /**
+     * Reset a client's usage in a specific inbound (if supported by API)
+     */
+    public function resetClientUsage($pannelID, $inboundId, $clientId)
+    {
+        try {
+            $panel = Pannel::findOrFail($pannelID);
+            if (!$this->login($panel->id)) {
+                return response()->json(['success' => false, 'message' => 'Login failed'], 401);
+            }
+            $base = $this->baseUrl($panel);
+            $paths = ['/xui/inbound/resetClient', '/panel/api/inbounds/resetClient'];
+            $body = [
+                'id' => $inboundId,
+                'client' => ['id' => $clientId]
+            ];
+            foreach ($paths as $path) {
+                try {
+                    $res = $this->httpWithAuth($panel)->post($base . $path, $body);
+                    if ($res->ok()) {
+                        return response()->json(['success' => true, 'data' => $res->json()]);
+                    }
+                } catch (\Throwable $th) {
+                }
+            }
+            return response()->json(['success' => false, 'message' => 'Failed to reset client usage'], 500);
+        } catch (\Throwable $th) {
+            \Log::error('resetClientUsage error: ' . $th->getMessage());
+            return response()->json(['success' => false, 'message' => 'Server error'], 500);
         }
     }
 }
