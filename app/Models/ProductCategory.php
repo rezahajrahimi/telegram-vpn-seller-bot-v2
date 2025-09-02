@@ -9,7 +9,7 @@ class ProductCategory extends Model
 {
     use HasFactory;
     protected $guarded = ['id','pannel_id'];
-    protected $fillable = ['pannel_id','category_name','price','expire_day','volume','rechargable','show_subscription_link','show_pannel_link','is_active','price_in_dollar'];
+    protected $fillable = ['pannel_id','category_name','price','expire_day','volume','rechargable','show_subscription_link','show_pannel_link','is_active','price_in_dollar','category_type_id'];
 
 
     public function getProdctCategorByID($id)
@@ -19,6 +19,10 @@ class ProductCategory extends Model
     public function getProdctCategorByIDWithPannel($id)
     {
         return ProductCategory::find($id)->with('pannel');
+    }
+    public function getProdctCategorByIDWithCategoryType($id)
+    {
+        return ProductCategory::find($id)->with('category_type');
     }
     /**
      * Get the user that owns the ProductCategory
@@ -40,6 +44,10 @@ class ProductCategory extends Model
     public function products()
     {
         return $this->hasMany(Product::class, 'product_categories_id');
+    }
+    public function category_type()
+    {
+        return $this->belongsTo(CategoryType::class, 'category_type_id');
     }
 
 }

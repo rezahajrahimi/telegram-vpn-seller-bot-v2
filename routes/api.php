@@ -50,6 +50,7 @@ use App\Http\Controllers\SubscriptionProcessController;
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\SanaeiPannelController;
 use App\Http\Controllers\InboundTemplateController;
+use App\Http\Controllers\CategoryTypeController;
 
 
 use Illuminate\Http\Request;
@@ -417,6 +418,15 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
 
     // ShetabVerifyController
     Route::post('/shetab-verify', [ShetabVerifyController::class, 'shetabVerify']);
+
+    // CategoryTypeController
+    Route::get('/get-all-category-types', [CategoryTypeController::class, 'index']);
+    Route::post('/create-category-type', [CategoryTypeController::class, 'create']);
+    Route::post('/update-category-type', [CategoryTypeController::class, 'update']);
+    Route::delete('/delete-category-type/{id}', [CategoryTypeController::class, 'destroy']);
+    Route::get('/get-active-category-types', [CategoryTypeController::class, 'getActiveCategoryType']);
+    Route::get('/get-category-type-by-id/{id}', [CategoryTypeController::class, 'getCategoryTypeByID']);
+    Route::get('/get-category-type-by-name/{name}', [CategoryTypeController::class, 'getCategoryTypeByName']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User

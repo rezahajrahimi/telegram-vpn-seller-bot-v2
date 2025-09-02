@@ -93,6 +93,7 @@ class ProductCategoryController extends Controller
     {
         $data = new ProductCategory();
         $data->pannel_id = $request->pannel_id;
+        $data->category_type_id = $request->category_type_id ?? null;
         $data->category_name = $request->category_name;
         $data->price = $request->price;
         $data->expire_day = $request->expire_day;
@@ -117,6 +118,7 @@ class ProductCategoryController extends Controller
         try {
             $data = ProductCategory::find($request->id);
             $data->pannel_id = $request->pannel_id;
+            $data->category_type_id = $request->category_type_id ?? null;
             $data->category_name = $request->category_name;
             $data->price = $request->price;
             $data->expire_day = $request->expire_day;
