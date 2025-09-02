@@ -422,7 +422,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     // CategoryTypeController
     Route::get('/get-all-category-types', [CategoryTypeController::class, 'index']);
     Route::post('/create-category-type', [CategoryTypeController::class, 'create']);
-    Route::post('/update-category-type', [CategoryTypeController::class, 'update']);
+    Route::put('/update-category-type', [CategoryTypeController::class, 'update']);
     Route::delete('/delete-category-type/{id}', [CategoryTypeController::class, 'destroy']);
     Route::get('/get-active-category-types', [CategoryTypeController::class, 'getActiveCategoryType']);
     Route::get('/get-category-type-by-id/{id}', [CategoryTypeController::class, 'getCategoryTypeByID']);
