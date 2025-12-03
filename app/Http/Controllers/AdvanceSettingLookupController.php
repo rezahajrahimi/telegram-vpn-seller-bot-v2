@@ -107,7 +107,7 @@ class AdvanceSettingLookupController extends Controller
             }
             return false;
         } catch (\Throwable $th) {
-            \Log::info("AdvanceSettingLookupController->getByNameAndValue->error", ['error' => $th->getMessage(), 'name' => $name, 'value' => $value]);
+            \Log::info("AdvanceSettingLookupController->getByNameAndValue->error", ['error' => $th->getMessage(), 'name' => $name]);
             return null;
         }
     }
@@ -127,7 +127,7 @@ class AdvanceSettingLookupController extends Controller
             return AdvanceSettingLookup::create(['name' => $name, 'value' => $value, 'description' => $description]);
         } catch (\Throwable $th) {
             \Log::info("AdvanceSettingLookupController->create->error", ['error' => $th->getMessage(), 'name' => $name, 'value' => $value, 'description' => $description]);
-            return null;
+            return "null";
         }
     }
     public function update(Request $request)

@@ -141,38 +141,44 @@ class ReferralLogsController extends Controller
             return response()->json(null, 500);
         }
     }
-    public function add_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id, $amount,$isPaymentBack = false)
+    public function add_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id, $amount, $isPaymentBack = false)
     {
         try {
-                        // check if referral is active
+            // check if referral is active
 
             $referralSetting = ReferralSetting::first();
-            $refferalActivation = $referralSetting->is_active;
+            $refferalActivation = false;
+            try {
+                $refferalActivation = $referralSetting->is_active;
+            } catch (\Throwable $th) {
+                \Log::info("Throwable add_amount_to_refrerral_user_Log_and_referral_wallet inner: $th");
+                $refferalActivation = false;
+            }
             if ($refferalActivation == 0 || $refferalActivation == null || $refferalActivation == false) {
                 return null;
             }
 
             $referralLogs = ReferralLogs::where('transaction_id', $transaction_id)->first();
             if ($referralLogs === null) {
-                if($isPaymentBack){
+                if ($isPaymentBack) {
                     $transaction = Transaction::find($transaction_id);
 
                     $referredUser = User::where('account_id', $transaction->account_id)->first()->id;
                     if ($referredUser == null) {
                         return null;
                     }
-                    $refferId = ReferralLogs::where('referral_to_id', $referredUser )->first()->referral_user_id;
+                    $refferId = ReferralLogs::where('referral_to_id', $referredUser)->first()->referral_user_id;
                     // get refer percent
                     $referralSettingCntrl = new ReferralSettingController();
                     $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
                     $percentAmount = 0;
                     if ($referral_percent !== null || $referral_percent !== 0) {
                         $percentAmount = ($transaction->amount / 100) * $referral_percent;
-                     }
+                    }
 
                     $referralLogs = new ReferralLogs();
-                    $referralLogs->referral_user_id  = $refferId;
-                    $referralLogs->referral_to_id  = $referredUser;
+                    $referralLogs->referral_user_id = $refferId;
+                    $referralLogs->referral_to_id = $referredUser;
                     $referralLogs->amount = $percentAmount;
                     $referralLogs->transaction_id = $transaction->id;
                     $referralLogs->save();

@@ -23,7 +23,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('agent_permissons', function (Blueprint $table) {
-            //
+            Schema::dropIfExists('agent_permissons');
+
         });
     }
 };

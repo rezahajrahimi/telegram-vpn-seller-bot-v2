@@ -48,6 +48,8 @@ use App\Http\Controllers\BlockedUserController;
 use App\Http\Controllers\ShetabVerifyController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Http\Controllers\AppInfoController;
+use App\Http\Controllers\SanaeiPannelController;
+use App\Http\Controllers\InboundTemplateController;
 
 
 use Illuminate\Http\Request;
@@ -246,6 +248,23 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('deleteUserOfHiddifyPanel/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'deleteUserOfHiddifyPanel']);
     Route::get('getHiddifyPanelUsersByPannelID/{pannelID}', [HiddifyPannelController::class, 'getHiddifyPanelUsersByPannelID']);
     Route::get('getHiddifyPanelUserByPannelID/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'getHiddifyPanelUserByPannelID']);
+
+    // Sanaei Panel Management
+    Route::post('addUserToSanaeiPanel', [SanaeiPannelController::class, 'addUserToSanaeiPanel']);
+    Route::post('addUserWithTemplate', [SanaeiPannelController::class, 'addUserWithTemplate']);
+    Route::get('syncSanaeiInbounds/{pannelID}', [SanaeiPannelController::class, 'syncInbounds']);
+    Route::get('checkSanaeiLoginStatus/{pannelID}', [SanaeiPannelController::class, 'checkLoginStatus']);
+    Route::post('refreshSanaeiLogin/{pannelID}', [SanaeiPannelController::class, 'refreshLogin']);
+    Route::get('checkSanaeiInboundSources/{pannelID}', [SanaeiPannelController::class, 'checkInboundSources']);
+
+    // Inbound Template Management
+    // Route::post('createInboundTemplate', [InboundTemplateController::class, 'createFromUserInput']);
+    Route::post('testSpecificConfig', [InboundTemplateController::class, 'testSpecificConfig']);
+    Route::get('getInboundTemplates/{panelId}', [InboundTemplateController::class, 'getTemplatesForPanel']);
+    Route::get('getInboundTemplate/{id}', [InboundTemplateController::class, 'getTemplate']);
+    Route::put('updateInboundTemplate/{id}', [InboundTemplateController::class, 'updateTemplate']);
+    Route::delete('deleteInboundTemplate/{id}', [InboundTemplateController::class, 'deleteTemplate']);
+    Route::post('testInboundTemplate/{id}', [InboundTemplateController::class, 'testTemplate']);
 
     //  Proxy
     Route::post('addNewProxy', [ProxyController::class, 'addNewProxy']);
@@ -480,3 +499,6 @@ Route::post('/orderch', [TransactionController::class, 'add_order']);
 Route::post('/shetab-verify', [ShetabVerifyController::class, 'validate_shetab_verify']);
 
 Route::get('/get-application-info', [AppInfoController::class, 'index']);
+
+
+Route::post('createInboundTemplate', [InboundTemplateController::class, 'createFromUserInput']);

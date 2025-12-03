@@ -1,10 +1,8 @@
 <?php
 
 namespace App\Http\Controllers;
-use Shetabit\Multipay\Invoice;
-use Shetabit\Payment\Facade\Payment;
-use Shetabit\Multipay\Exceptions\InvalidPaymentException;
-use SoapClient;
+
+use App\Services\ZarinpalService;
 use Illuminate\Support\Facades\Config;
 
 use App\Models\Transaction;
@@ -21,44 +19,37 @@ class TransactionController extends Controller
     public $amount_dollar;
     public function add_order(Request $request)
     {
-        $pymntCntrrl = new PaymentTypeController();
-
-        config::set('payment.drivers.zarinpal.merchantId', $pymntCntrrl->getZarinpalMerchantID());
-
         $settingCntrl = new SettingController();
         $mainUrl = $settingCntrl->getMainUrl();
 
-        config::set('payment.drivers.zarinpal.callbackUrl', "{$mainUrl}/order");
-
-        $value = config('payment.drivers.zarinpal.merchantId');
-        //get amount from bill
+        // Get amount from bill
         $bill = Bill::where('bill_id', $request->invoiceID)->first();
 
         $this->amount = $bill->amount;
         $this->account_id = $request->account_id;
+
         if ($this->amount != null) {
-            // Create new invoice.
-            // getzarinpal merchent id from .env
+            // Get zarinpal merchant id from database
             $zarinpalMerchentID = PaymentType::where('name', 'زرین پال')->first()->merchant_id;
             if ($zarinpalMerchentID == null) {
-                return 'ZARINPAL_MERCHANT_ID is not set in .env';
+                return 'ZARINPAL_MERCHANT_ID is not set';
             }
+
             $callbackUrl = $mainUrl . '/order';
 
-            $response = zarinpal()
-                ->merchantId($zarinpalMerchentID) // تعیین مرچنت کد در حین اجرا - اختیاری
-                ->amount($this->amount) // مبلغ تراکنش
-                ->request()
-                ->description('خرید کالا') // توضیحات تراکنش
-                ->callbackUrl($callbackUrl) // آدرس برگشت پس از پرداخت
-                ->send();
-            if (!$response->success()) {
-                return $response->error()->message();
-            }
-            $authority = $response->authority();
+            // Use custom ZarinpalService
+            $zarinpal = new ZarinpalService($zarinpalMerchentID, null, $callbackUrl);
+            $response = $zarinpal->request($this->amount, 'خرید کالا');
 
-            // save authority in db as new bill transaction_id
-            // create a new transaction
+            \Log::info("Zarinpal payment link created: " . ($response['success'] ? $response['authority'] : $response['error']));
+
+            if (!$response['success']) {
+                return $response['error'];
+            }
+
+            $authority = $response['authority'];
+
+            // Save authority in db as new bill transaction_id
             $transaction = new Transaction();
             $transaction->account_id = $this->account_id;
             $transaction->username = '';
@@ -69,12 +60,7 @@ class TransactionController extends Controller
 
             $transaction->save();
 
-            $result = ['success' => $response->redirect()];
-            // \Log::info('add_order', ['result' => $result]);
-
-            $link = 'https://www.zarinpal.com/pg/StartPay/' . $authority;
-
-            return $link;
+            return $response['url'];
         } else {
             return 'این صورتحساب موجود نمی باشد.';
         }
@@ -87,31 +73,23 @@ class TransactionController extends Controller
 
             $amount = $this->getAmountByRecipeNUmber($transaction_id);
 
-            //  $receipt = Payment::amount($amount)->transactionId($transaction_id)->verify();
-            // confirm transaction
-            // get transaction with $transaction_id
+            // Get transaction with $transaction_id
             $transaction = Transaction::where('recipe_number', $transaction_id)->first();
-            // check if transaction was confirmed before so return it's confirmed status
 
+            // Check if transaction was confirmed before
             if ($transaction->confirmed == true) {
                 return 'تراکنش تکراری می باشد.';
             }
-            // if ($status !== 'OK') {
-            //     return 'تراکنش ناموفق می باشد.';
-            // }
 
-            $authority = $transaction_id; // دریافت کوئری استرینگ ارسال شده توسط زرین پال
+            $authority = $transaction_id;
             $zarinpalMerchentID = PaymentType::where('name', 'زرین پال')->first()->merchant_id;
 
-            $response = zarinpal()
-                ->merchantId($zarinpalMerchentID) // تعیین مرچنت کد در حین اجرا - اختیاری
-                ->amount($amount)
-                ->verification()
-                ->authority($authority)
-                ->send();
+            // Use custom ZarinpalService for verification
+            $zarinpal = new ZarinpalService($zarinpalMerchentID);
+            $response = $zarinpal->verify($authority, $amount);
 
-            if (!$response->success()) {
-                return $response->error()->message();
+            if (!$response['success']) {
+                return $response['error'];
             }
 
             $confirmReq = new Request();
@@ -126,14 +104,15 @@ class TransactionController extends Controller
             $this->editUserTranaction($confirmReq);
 
             return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید.';
-        } catch (InvalidPaymentException $exception) {
+        } catch (\Exception $exception) {
             $transaction_id = $request->transaction_id;
 
             $transaction = Transaction::where('recipe_number', $transaction_id)->first();
 
-            $this->removeUnconfirmedTransaction($transaction->id);
+            if ($transaction) {
+                $this->removeUnconfirmedTransaction($transaction->id);
+            }
             \Log::info("back from zarinpal $exception");
-            // $this->removeUnconfirmedTransaction($transaction_id);
             return 'خطا در انجام عملیات';
         }
     }
@@ -152,35 +131,35 @@ class TransactionController extends Controller
             if ($paymentTypeId == 0 || $paymentTypeId == null) {
                 $pay = PaymentType::where('is_active', true)->where('type', 'offline')->first();
                 $paymentTypeId = $pay->id;
-        }
-        $transaction = new Transaction();
-        $transaction->account_id = $userID;
-        $transaction->username = '';
-        $transaction->amount = $amount;
-        $transaction->recipe_number = $recipeNUmber;
-        $transaction->payment_type_id = $paymentTypeId;
-        $transaction->save();
-        // check user have referral, if has create referral log
-        $referralLogsCntrl = new ReferralLogsController();
-        $hasRef = $referralLogsCntrl->check_user_is_referred($transaction->account_id);
-
-        if ($hasRef == true) {
-            // get amount from referralsetting and calculate by percent stored in db
-            $referralSettingCntrl = new ReferralSettingController();
-            $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
-            $amount = 0;
-            if ($referral_percent !== null || $referral_percent !== 0) {
-                $amount = ($transaction->amount / 100) * $referral_percent;
             }
+            $transaction = new Transaction();
+            $transaction->account_id = $userID;
+            $transaction->username = '';
+            $transaction->amount = $amount;
+            $transaction->recipe_number = $recipeNUmber;
+            $transaction->payment_type_id = $paymentTypeId;
+            $transaction->save();
+            // check user have referral, if has create referral log
+            $referralLogsCntrl = new ReferralLogsController();
+            $hasRef = $referralLogsCntrl->check_user_is_referred($transaction->account_id);
 
-            $referReq = new Request();
-            $referReq->referral_to_id = $userID;
+            if ($hasRef == true) {
+                // get amount from referralsetting and calculate by percent stored in db
+                $referralSettingCntrl = new ReferralSettingController();
+                $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
+                $amount = 0;
+                if ($referral_percent !== null || $referral_percent !== 0) {
+                    $amount = ($transaction->amount / 100) * $referral_percent;
+                }
 
-            $referReq->amount = $amount;
-            $referReq->transaction_id = $transaction->id;
+                $referReq = new Request();
+                $referReq->referral_to_id = $userID;
 
-            $referralLogsCntrl->add_new_referral_logs($referReq);
-        }
+                $referReq->amount = $amount;
+                $referReq->transaction_id = $transaction->id;
+
+                $referralLogsCntrl->add_new_referral_logs($referReq);
+            }
 
             return $transaction->id;
         } catch (\Throwable $th) {

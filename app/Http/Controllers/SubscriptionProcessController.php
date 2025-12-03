@@ -279,10 +279,35 @@ class SubscriptionProcessController extends Controller
                 // create marzban user
                 return " پنل مرزبان";
             } elseif ($pannel->type == 'sanaei') {
-                // create sanaei user
-                return " پنل سنائی";
+                \Log::info("sanaei pannel");
+                $sn = new SanaeiPannelController();
+                $uuid = $sn->addUserToSanaeiPanel(new Request([
+                    'pannelID' => $this->selectedPrCat->pannel_id,
+                    'vol' => $volume,
+                    'day' => $day,
+                    'accountId' => "$this->chatId-" . ($lastProductId + 1),
+                ]));
+                if ($uuid === false) {
+                    $resualt = false;
+                } else {
+                    // ایجاد کانفیگ کامل برای Sanaei مشابه Hiddify
+                    $configs = $this->generalCntrl->new_sanaei_config_telegram_text(
+                        $this->selectedPrCat,
+                        $pannel,
+                        $volume,
+                        $day,
+                        $this->chatId,
+                        $lastProductId + 1
+                    );
+                    
+                    if ($configs) {
+                        $resualt = $uuid;
+                    } else {
+                        $resualt = false;
+                    }
+                }
             }
-            \Log::info("resualt response buoght from hiddify: " . $resualt);
+            \Log::info("resualt response buoght from sanaei: " . $resualt);
 
             if ($resualt == false || $resualt == null) {
                 $this->addNewBotLog('subscription', 'خرید اشتراک با شکست مواجه شد.', 'show');
@@ -304,7 +329,17 @@ class SubscriptionProcessController extends Controller
                     if ($res) {
                         $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل و دیتابیس', 'show');
                     }
-
+                } elseif ($pannel->type == 'sanaei') {
+                    // remove created product from Sanaei panel and database
+                    $uuid = $resualt;
+                    $sn = new SanaeiPannelController();
+                    $sn->deleteUser($pannel->id, $uuid);
+                    // delete product from database
+                    $prCntrl = new ProductController();
+                    $res = $prCntrl->delete_sanaei_product_by_uuid($uuid);
+                    if ($res) {
+                        $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل سنایی و دیتابیس', 'show');
+                    }
                 }
                 return $this->customTextCtrl->getText('action.process.failed_buy');
             }
@@ -535,7 +570,17 @@ class SubscriptionProcessController extends Controller
                     $expireDate = $expireDate->toJalali()->format('Y.m.d');
                     $startDate = $startDate->toJalali()->format('Y.m.d');
 
-                    $text = $this->customTextCtrl->getText('action.buy_history.history', ['name' => $product->remark, 'category_name' => $prCat->category_name, 'panel_link' => $userPannelLink, 'subscription_link' => $userSubscriptionLInk, 'start_date' => $startDate, 'expire_date' => $expireDate, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText, 'usage_limit_GB' => $limitGB, 'usage_GB' => $usageGB, 'enable' => $enableText]);
+                    $text = $this->customTextCtrl->getText('action.buy_history.history', [
+                        'name' => $product->remark,
+                        'category_name' => $prCat->category_name,
+                        'panel_link' => $userPannelLink,
+                        'subscription_link' => $userSubscriptionLInk,
+                        'start_date' => $startDate,
+                        'expire_date' => $expireDate,
+                        'usage_limit_GB' => $limitGB,
+                        'usage_GB' => $usageGB,
+                        'enable' => $enableText,
+                    ]);
                     $formatter = new TelegramMessageFormatter($this->telegramService);
                     $text = $formatter->addFormattedText('', $text)->getMessage();
 

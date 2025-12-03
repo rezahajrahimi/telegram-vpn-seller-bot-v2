@@ -38,7 +38,7 @@ class InboundController extends Controller
     public function deleteInbound($id)
     {
         try {
-            $inbound = Inbound::where('id', $request->id)->first();
+            $inbound = Inbound::where('id', $id)->first();
             $inbound->delete();
             return true;
         } catch (\Throwable $th) {
@@ -48,7 +48,7 @@ class InboundController extends Controller
     public function reActiveInbound($id)
     {
         try {
-            $inbound = Inbound::where('id', $request->id)->first();
+            $inbound = Inbound::where('id', $id)->first();
             $inbound->is_active = true;
             $inbound->update();
             return true;
@@ -59,7 +59,7 @@ class InboundController extends Controller
     public function deActiveInbound($id)
     {
         try {
-            $inbound = Inbound::where('id', $request->id)->first();
+            $inbound = Inbound::where('id', $id)->first();
             $inbound->is_active = false;
             $inbound->update();
             return true;
