@@ -20,13 +20,14 @@ class TransactionSettingController extends Controller
 
    public function getDollorTransactionSetting()
    {
-       $data = TransactionSetting::first();
-       if($data != null){
-           return $data->dollar_transaction;
-       }else{
-          $this->seed();
-          return $this->getDollorTransactionSetting();
-       }
+    $paymnetSettingCntrl = new PaymentSettingController();
+    $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+    if ($dollarTransaction == null) {
+        $paymnetSettingCntrl->seed();
+        $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+    }
+
+    return $dollarTransaction;
    }
 
    public function setDollorTransactionSetting(Request $request)
