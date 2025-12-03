@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot7449013530:AAGR7wNtSKSmYEeH4RehIb3lq-nz3Q1TKg4/setwebhook?url=https://classic-loved-condor.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot380422547:AAH38rivvYZvRnIF6zM-mwZpvqanKJCTclk/setwebhook?url=https://ubuntu.powernad.ir/api/telegram/webhooks/inbound
 
 // https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://classic-loved-condor.ngrok-free.apphttps://classic-loved-condor.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
@@ -276,7 +276,7 @@ class TelegramController extends Controller
             $this->referralCode = trim($this->referralCode);
             // save refrence code in database
             $referralLogsCntrl = new ReferralLogsController();
-                    $botUserCtrl = new BotUserController();
+            $botUserCtrl = new BotUserController();
 
             $botUserCtrl->hasRegistred($this->from_id, $this->username, $this->first_name, $this->last_name);
             $saveRef = $referralLogsCntrl->check_user_has_referral_and_create($this->from_id, $this->referralCode);
@@ -658,7 +658,7 @@ class TelegramController extends Controller
 
             if ($pannel->type == 'hiddify') {
                 $generalCntrl = new GeneralController();
-                $resualt= $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat,$pannel,$volume,$day,$this->chat_id,$productID);
+                $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chat_id, $productID);
 
             } elseif ($pannel->type == 'marzban') {
                 $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id$productID", $day, $volume, $selectedPrCat->pannel_id);
@@ -1071,8 +1071,8 @@ class TelegramController extends Controller
 
             // check pannel type
             if ($pannel->type == 'hiddify') {
-              $generalCntrl = new GeneralController();
-               $resualt =   $generalCntrl->return_exist_hiddify_config_telegram_text($selectedProduct, $selectedProductCategory,$pannel,$this->chat_id);
+                $generalCntrl = new GeneralController();
+                $resualt = $generalCntrl->return_exist_hiddify_config_telegram_text($selectedProduct, $selectedProductCategory, $pannel, $this->chat_id);
 
             } else {
                 if ($selectedProduct->panel_link != null) {
@@ -1805,7 +1805,7 @@ class TelegramController extends Controller
 
         $text = "$inviteUrl";
 
-                $resualt = app('telegram_bot')->sendMessage("<code>$text</code>", $this->chat_id, null, 'HTML');
+        $resualt = app('telegram_bot')->sendMessage("<code>$text</code>", $this->chat_id, null, 'HTML');
 
 
         return response()->json($resualt, 200);
@@ -1887,8 +1887,8 @@ class TelegramController extends Controller
     {
         $paymnetSettingCntrl = new PaymentSettingController();
         $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
-        
-        if($dollarTransaction == 1 || $dollarTransaction == true){ 
+
+        if ($dollarTransaction == 1 || $dollarTransaction == true) {
             return true;
         } else {
             return false;
