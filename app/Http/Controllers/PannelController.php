@@ -28,6 +28,7 @@ class PannelController extends Controller
             $pannel->url_port = $request->url_port ?? null;
             $pannel->admin_url = $request->admin_url ?? null;
             $pannel->user_link = $request->user_link ?? null;
+            $pannel->inbound_id = $request->inbound_id ?? null;
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->save();
             return response()->json($pannel->id, 201);
@@ -252,6 +253,7 @@ class PannelController extends Controller
                 $pannel->url_port = $request->url_port ?? null;
                 $pannel->admin_url = $request->admin_url ?? null;
                 $pannel->user_link = $request->user_link ?? null;
+                $pannel->inbound_id = $request->inbound_id ?? null;
                 $pannel->capacity = $request->capacity ?? 1333333;
                 if ($pannel->update()) {
                     return true;
@@ -326,7 +328,8 @@ class PannelController extends Controller
         }
     }
 
-    public function get_all_panells_by_location_capacity_mode(){
+    public function get_all_panells_by_location_capacity_mode()
+    {
 
         // get all stored products conts with the pannel_id seperation
 
@@ -340,7 +343,7 @@ class PannelController extends Controller
                 if (!empty($value->product_category_and_count_products) && isset($value->product_category_and_count_products[0]->products_count)) {
                     $rrr = $value->product_category_and_count_products[0]->products_count;
                 }
-                if ($rrr >= $value->capacity  ) {
+                if ($rrr >= $value->capacity) {
                     $pannels->forget($key);
                 }
             }
@@ -351,7 +354,8 @@ class PannelController extends Controller
         }
 
     }
-    public function get_all_panells_Id_by_location_capacity_mode(){
+    public function get_all_panells_Id_by_location_capacity_mode()
+    {
 
         // get all stored products conts with the pannel_id seperation
 
@@ -362,7 +366,7 @@ class PannelController extends Controller
             foreach ($pannels as $key => $value) {
                 // remove each pannel wich capacity is above or equal to the products count
                 $rrr = $value->product_category_and_count_products[0]->products_count;
-                if ($value->product_category_and_count_products[0]->products_count >= $value->capacity  ) {
+                if ($value->product_category_and_count_products[0]->products_count >= $value->capacity) {
                     $pannels->forget($key);
                 }
             }
