@@ -698,6 +698,39 @@ class SanaeiPannelController extends Controller
             return false;
         }
     }
+
+    /**
+     * Find a client in an inbound by email and return client data and inbound id
+     * Returns array ['inbound' => <inbound>, 'client' => <client>] or null
+     */
+    public function findClientByEmail($panelId, $email)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                return null;
+            }
+            // Get list of inbounds
+            $res = $this->performRequest($panel, 'GET', '/inbounds/list');
+            $list = $res['obj'] ?? [];
+            foreach ($list as $inbound) {
+                $settings = $inbound['settings'] ?? null;
+                if (is_string($settings)) {
+                    $settings = json_decode($settings, true);
+                }
+                $clients = $settings['clients'] ?? [];
+                foreach ($clients as $client) {
+                    if (($client['email'] ?? '') === $email) {
+                        return ['inbound' => $inbound, 'client' => $client];
+                    }
+                }
+            }
+            return null;
+        } catch (\Throwable $th) {
+            \Log::error('findClientByEmail error: ' . $th->getMessage());
+            return null;
+        }
+    }
 }
 
 
