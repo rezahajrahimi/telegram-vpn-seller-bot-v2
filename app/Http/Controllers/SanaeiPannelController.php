@@ -447,6 +447,257 @@ class SanaeiPannelController extends Controller
         // form encoded
         return Http::withHeaders($headers)->asForm()->post($url, $body);
     }
+
+    /**
+     * Generic request helper that tries known API prefixes and falls back to raw cookie requests when needed.
+     * Returns decoded JSON array on success, or null on failure.
+     */
+    private function performRequest(Pannel $panel, string $method, string $path, $body = null, $asJson = true)
+    {
+        $base = $this->baseUrl($panel);
+        $prefixes = ['/panel/api', '/xui/API'];
+
+        foreach ($prefixes as $prefix) {
+            $url = $base . $prefix . $path;
+            try {
+                if (strtoupper($method) === 'GET') {
+                    $r = $this->httpWithAuth($panel)->get($url);
+                    if ($r->status() === 404 && !empty($panel->cookie_session)) {
+                        $raw = $this->rawGetWithCookie($panel, $url);
+                        if ($raw->ok()) {
+                            $r = $raw;
+                        }
+                    }
+                } else { // POST
+                    $r = $this->httpWithAuth($panel)->post($url, $body ?? []);
+                    if ($r->status() === 404 && !empty($panel->cookie_session)) {
+                        $raw = $this->rawPostWithCookie($panel, $url, $body ?? [], $asJson);
+                        if ($raw->ok()) {
+                            $r = $raw;
+                        }
+                    }
+                }
+
+                $json = null;
+                try {
+                    $json = $r->json();
+                } catch (\Throwable $th) {
+                    // ignore json parse errors
+                }
+
+                if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
+                    // remember working prefix
+                    $this->apiPrefix = $prefix;
+                    return $json;
+                }
+
+                \Log::warning("Request to $url failed. Status: " . $r->status() . ", Body: " . substr($r->body(), 0, 2000));
+            } catch (\Throwable $th) {
+                \Log::warning("Request exception for $url: " . $th->getMessage());
+            }
+        }
+
+        return null;
+    }
+
+    // --- High-level API wrappers ---
+
+    public function deleteClient($panelId, $inboundId, $clientId)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                \Log::error("Login failed for deleteClient on panel $panelId");
+                return false;
+            }
+            $path = "/inbounds/$inboundId/delClient/$clientId";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
+        } catch (\Throwable $th) {
+            \Log::error('deleteClient error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    public function updateClient($panelId, $clientId, array $data)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                \Log::error("Login failed for updateClient on panel $panelId");
+                return false;
+            }
+            $path = "/inbounds/updateClient/$clientId";
+            $res = $this->performRequest($panel, 'POST', $path, $data);
+            return $res !== null;
+        } catch (\Throwable $th) {
+            \Log::error('updateClient error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    public function resetClientTraffic($panelId, $inboundId, $email)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                \Log::error("Login failed for resetClientTraffic on panel $panelId");
+                return false;
+            }
+            $path = "/inbounds/$inboundId/resetClientTraffic/$email";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
+        } catch (\Throwable $th) {
+            \Log::error('resetClientTraffic error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    public function resetAllTraffics($panelId)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                \Log::error("Login failed for resetAllTraffics on panel $panelId");
+                return false;
+            }
+            $path = "/inbounds/resetAllTraffics";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
+        } catch (\Throwable $th) {
+            \Log::error('resetAllTraffics error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    public function delDepletedClients($panelId, $inboundId)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                \Log::error("Login failed for delDepletedClients on panel $panelId");
+                return false;
+            }
+            $path = "/inbounds/delDepletedClients/$inboundId";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
+        } catch (\Throwable $th) {
+            \Log::error('delDepletedClients error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    public function getClientTrafficsByEmail($panelId, $email)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                return null;
+            }
+            $path = "/inbounds/getClientTraffics/$email";
+            $res = $this->performRequest($panel, 'GET', $path);
+            return $res['obj'] ?? null;
+        } catch (\Throwable $th) {
+            \Log::error('getClientTrafficsByEmail error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    public function getClientTrafficsById($panelId, $id)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                return null;
+            }
+            $path = "/inbounds/getClientTrafficsById/$id";
+            $res = $this->performRequest($panel, 'GET', $path);
+            return $res['obj'] ?? null;
+        } catch (\Throwable $th) {
+            \Log::error('getClientTrafficsById error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    public function onlines($panelId)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                return null;
+            }
+            $path = "/inbounds/onlines";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res['obj'] ?? null;
+        } catch (\Throwable $th) {
+            \Log::error('onlines error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    public function lastOnline($panelId)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                return null;
+            }
+            $path = "/inbounds/lastOnline";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res['obj'] ?? null;
+        } catch (\Throwable $th) {
+            \Log::error('lastOnline error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    public function clientIps($panelId, $email)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                return null;
+            }
+            $path = "/inbounds/clientIps/$email";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res['obj'] ?? null;
+        } catch (\Throwable $th) {
+            \Log::error('clientIps error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    public function clearClientIps($panelId, $email)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                return false;
+            }
+            $path = "/inbounds/clearClientIps/$email";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
+        } catch (\Throwable $th) {
+            \Log::error('clearClientIps error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    public function delClientByEmail($panelId, $inboundId, $email)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                return false;
+            }
+            $path = "/inbounds/$inboundId/delClientByEmail/$email";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
+        } catch (\Throwable $th) {
+            \Log::error('delClientByEmail error: ' . $th->getMessage());
+            return false;
+        }
+    }
 }
 
 
