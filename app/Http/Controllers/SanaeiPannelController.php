@@ -423,6 +423,8 @@ class SanaeiPannelController extends Controller
         $cookieHeader = implode('; ', $parts);
         $headers = $this->headers($panel);
         $headers['Cookie'] = $cookieHeader;
+        // Marker header to indicate this is the raw-cookie attempt
+        $headers['X-Raw-Cookie-Retry'] = '1';
         return Http::withHeaders($headers)->get($url);
     }
 
@@ -440,6 +442,8 @@ class SanaeiPannelController extends Controller
         $cookieHeader = implode('; ', $parts);
         $headers = $this->headers($panel);
         $headers['Cookie'] = $cookieHeader;
+        // Marker header to indicate this is the raw-cookie attempt
+        $headers['X-Raw-Cookie-Retry'] = '1';
 
         if ($asJson) {
             return Http::withHeaders($headers)->asJson()->post($url, $body);
@@ -470,7 +474,19 @@ class SanaeiPannelController extends Controller
                         }
                     }
                 } else { // POST
-                    $r = $this->httpWithAuth($panel)->post($url, $body ?? []);
+                    // Log what we are about to send for debugging (truncate large bodies)
+                    try {
+                        $preview = json_encode($body ?? []);
+                    } catch (\Throwable $th) {
+                        $preview = "[unserializable body]";
+                    }
+                    \Log::debug("POST $url asJson=" . ($asJson ? '1' : '0') . " body_preview=" . substr($preview, 0, 2000));
+
+                    if ($asJson) {
+                        $r = $this->httpWithAuth($panel)->asJson()->post($url, $body ?? []);
+                    } else {
+                        $r = $this->httpWithAuth($panel)->asForm()->post($url, $body ?? []);
+                    }
                     if ($r->status() === 404 && !empty($panel->cookie_session)) {
                         $raw = $this->rawPostWithCookie($panel, $url, $body ?? [], $asJson);
                         if ($raw->ok()) {
@@ -486,10 +502,33 @@ class SanaeiPannelController extends Controller
                     // ignore json parse errors
                 }
 
+                // If the request returned OK but the JSON indicates failure (e.g., unexpected end of JSON on server side),
+                // try a raw-cookie retry which some panel setups require.
                 if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
                     // remember working prefix
                     $this->apiPrefix = $prefix;
                     return $json;
+                } elseif ($r->ok() && !($json['success'] ?? false) && !empty($panel->cookie_session)) {
+                    // Try raw fallback (single Cookie header) in case the server couldn't parse our body
+                    try {
+                        if (strtoupper($method) === 'GET') {
+                            $raw = $this->rawGetWithCookie($panel, $url);
+                        } else {
+                            $raw = $this->rawPostWithCookie($panel, $url, $body ?? [], $asJson);
+                        }
+                        $rawJson = null;
+                        try {
+                            $rawJson = $raw->json();
+                        } catch (\Throwable $th) {
+                        }
+                        if ($raw->ok() && is_array($rawJson) && ($rawJson['success'] ?? false)) {
+                            $this->apiPrefix = $prefix;
+                            return $rawJson;
+                        }
+                        \Log::warning("Raw cookie retry for $url returned Status: " . $raw->status() . ", Body: " . substr($raw->body(), 0, 2000));
+                    } catch (\Throwable $th) {
+                        \Log::warning("Raw cookie retry exception for $url: " . $th->getMessage());
+                    }
                 }
 
                 \Log::warning("Request to $url failed. Status: " . $r->status() . ", Body: " . substr($r->body(), 0, 2000));
@@ -529,10 +568,90 @@ class SanaeiPannelController extends Controller
                 return false;
             }
             $path = "/inbounds/updateClient/$clientId";
-            $res = $this->performRequest($panel, 'POST', $path, $data);
-            return $res !== null;
+            // The Sanaei panel's updateClient prefers form-encoded payloads (not raw JSON)
+            $res = $this->performRequest($panel, 'POST', $path, $data, false);
+            if ($res !== null) {
+                return true;
+            }
+
+            // Fallback: some panel setups expect a full 'settings' payload (JSON string)
+            // Build settings from the inbound and replace the target client with merged data
+            try {
+                $found = $this->findClientByUUID($panelId, $clientId);
+                if ($found) {
+                    $inbound = $found['inbound'];
+                    $settings = $inbound['settings'] ?? null;
+                    if (is_string($settings)) {
+                        $settings = json_decode($settings, true);
+                    }
+                    $clients = $settings['clients'] ?? [];
+                    foreach ($clients as &$c) {
+                        if (($c['id'] ?? '') === $clientId) {
+                            // merge provided fields
+                            $c = array_merge($c, $data);
+                        }
+                    }
+                    $body = [
+                        'id' => $inbound['id'] ?? ($inbound['listen'] ?? 0),
+                        'settings' => json_encode($settings),
+                    ];
+                    \Log::info("updateClient fallback: sending settings payload for client $clientId");
+                    $res2 = $this->performRequest($panel, 'POST', $path, $body, false);
+                    if ($res2 !== null) {
+                        return true;
+                    }
+                }
+            } catch (\Throwable $th) {
+                \Log::warning('updateClient fallback failed: ' . $th->getMessage());
+            }
+
+            return false;
         } catch (\Throwable $th) {
             \Log::error('updateClient error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Recharge a client by UUID: add days to expiry and add GB to total quota.
+     * $addDays: integer days to add
+     * $addGb: integer GB to add
+     */
+    public function rechargeClient($panelId, $uuid, int $addDays = 0, int $addGb = 0)
+    {
+        try {
+            $found = $this->findClientByUUID($panelId, $uuid);
+            if (!$found) {
+                \Log::error("rechargeClient: client $uuid not found in panel $panelId");
+                return false;
+            }
+
+            $client = $found['client'];
+            $clientId = $client['id'];
+
+            // compute new expiry
+            $nowMs = now('UTC')->timestamp * 1000;
+            $currentExpiry = (int) ($client['expiryTime'] ?? 0);
+            if ($currentExpiry <= 0) {
+                $currentExpiry = $nowMs;
+            }
+            $addMs = $addDays * 86400 * 1000;
+            $newExpiry = $currentExpiry + $addMs;
+
+            // compute new totalGB (stored as bytes in this project)
+            $currentTotal = (int) ($client['totalGB'] ?? 0);
+            $addBytes = $addGb * 1024 * 1024 * 1024;
+            $newTotal = $currentTotal + $addBytes;
+
+            $data = [
+                // Sanaei API uses updateClient by clientId
+                'expiryTime' => $newExpiry,
+                'totalGB' => $newTotal,
+            ];
+
+            return $this->updateClient($panelId, $clientId, $data);
+        } catch (\Throwable $th) {
+            \Log::error('rechargeClient error: ' . $th->getMessage());
             return false;
         }
     }

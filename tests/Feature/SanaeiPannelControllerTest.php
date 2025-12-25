@@ -8,6 +8,26 @@ use App\Models\Pannel;
 use App\Http\Controllers\SanaeiPannelController;
 use Illuminate\Http\Request;
 
+// Fake TelegramService subclass to avoid actual network calls
+class FakeTelegramService extends \App\Services\TelegramService
+{
+    public function __construct()
+    {
+    }
+    public function sendPhotoFile(string $chatId, string $image, string|array $caption = '', array $options = []): array
+    {
+        return [];
+    }
+    public function formatText(array $text): string
+    {
+        return is_array($text) ? implode("\n", $text) : '';
+    }
+    public function sendMessage(string $chatId, string|array $text, array $options = []): array
+    {
+        return [];
+    }
+}
+
 class SanaeiPannelControllerTest extends TestCase
 {
     public function test_add_user_and_delete_flow()
@@ -270,23 +290,11 @@ class SanaeiPannelControllerTest extends TestCase
             'configs' => json_encode(['uuid' => 'uuid-123', 'links' => ['vless://...']]),
         ]);
 
-        // Fake TelegramService subclass to avoid actual network calls
-        class FakeTelegramService extends \App\Services\TelegramService
-        {
-            public function __construct()
-            {
-            }
-            public function sendPhotoFile($chatId, $image, $text)
-            {
-            }
-            public function formatText($text)
-            {
-                return is_array($text) ? implode("\n", $text) : $text;
-            }
-            public function sendMessage($chatId, $text, $opts = null)
-            {
-            }
-        }
+        // ensure BotUser exists so SubscriptionProcessController->subBuyHistory can access username
+        \App\Models\BotUser::create([
+            'account_id' => 12345,
+            'username' => 'test-bot-user'
+        ]);
 
         $fakeTelegram = new FakeTelegramService();
         $subCtrl = new \App\Http\Controllers\SubscriptionProcessController($fakeTelegram);
@@ -294,5 +302,167 @@ class SanaeiPannelControllerTest extends TestCase
         // Should not throw and should return string (empty)
         $res = $subCtrl->subBuyHistory(12345, $product->id);
         $this->assertIsString($res);
+    }
+
+    public function test_recharge_client_updates_expiry_and_quota()
+    {
+        Http::fake([
+            '*/login' => Http::response(["success" => true, "msg" => "logged in", "obj" => null], 200, ['Set-Cookie' => '3x-ui=abcd']),
+            '*/inbounds/list' => Http::response([
+                "success" => true,
+                "msg" => "",
+                "obj" => [
+                    [
+                        'id' => 1,
+                        'settings' => json_encode([
+                            'clients' => [
+                                [
+                                    'id' => 'uuid-123',
+                                    'email' => 'bot-test-1',
+                                    'created_at' => 1766600000000,
+                                    'expiryTime' => 1766700000000,
+                                    'enable' => true,
+                                    'totalGB' => 1073741824
+                                ]
+                            ]
+                        ])
+                    ]
+                ]
+            ], 200),
+            '*/inbounds/get/*' => Http::response([
+                "success" => true,
+                "msg" => "",
+                "obj" => [
+                    'id' => 1,
+                    'settings' => json_encode([
+                        'clients' => [
+                            [
+                                'id' => 'uuid-123',
+                                'email' => 'bot-test-1',
+                                'created_at' => 1766600000000,
+                                'expiryTime' => 1766700000000,
+                                'enable' => true,
+                                'totalGB' => 1073741824
+                            ]
+                        ]
+                    ])
+                ]
+            ], 200),
+            '*/inbounds/updateClient/*' => Http::response(["success" => true], 200),
+        ]);
+
+        $panel = Pannel::create([
+            'admin_url' => 'http://127.0.0.1:2053',
+            'username' => 'admin',
+            'password' => 'admin',
+            'inbound_id' => 1,
+            'type' => 'sanaei'
+        ]);
+
+        $ctrl = new SanaeiPannelController();
+
+        $ok = $ctrl->rechargeClient($panel->id, 'uuid-123', 10, 1); // add 10 days and 1 GB
+        $this->assertTrue($ok);
+    }
+
+    public function test_updateClient_raw_cookie_retry_when_server_returns_success_false()
+    {
+        Http::fake([
+            '*/login' => Http::response(["success" => true, "msg" => "logged in", "obj" => null], 200, ['Set-Cookie' => '3x-ui=abcd']),
+            // For updateClient, if Cookie header is present, return success true; else return success false
+            '*/inbounds/updateClient/*' => function ($request) {
+                static $calls = 0;
+                $calls++;
+                if ($calls === 1) {
+                    return Http::response(["success" => false, "msg" => "Something went wrong (unexpected end of JSON input)"], 200);
+                }
+                return Http::response(["success" => true], 200);
+            },
+            '*/inbounds/list' => Http::response([
+                "success" => true,
+                "msg" => "",
+                "obj" => [
+                    [
+                        'id' => 1,
+                        'settings' => json_encode([
+                            'clients' => [
+                                [
+                                    'id' => 'uuid-123',
+                                    'email' => 'bot-test-1',
+                                    'created_at' => 1766600000000,
+                                    'expiryTime' => 1766700000000,
+                                    'enable' => true,
+                                    'totalGB' => 1073741824
+                                ]
+                            ]
+                        ])
+                    ]
+                ]
+            ], 200),
+        ]);
+
+        $panel = Pannel::create([
+            'admin_url' => 'http://127.0.0.1:2053',
+            'username' => 'admin',
+            'password' => 'admin',
+            'inbound_id' => 1,
+            'type' => 'sanaei'
+        ]);
+
+        $ctrl = new SanaeiPannelController();
+
+        $ok = $ctrl->rechargeClient($panel->id, 'uuid-123', 1, 1);
+        $this->assertTrue($ok, 'Expected rechargeClient to succeed by retrying with raw Cookie header');
+    }
+
+    public function test_updateClient_settings_fallback_succeeds()
+    {
+        Http::fake([
+            '*/login' => Http::response(["success" => true, "msg" => "logged in", "obj" => null], 200, ['Set-Cookie' => '3x-ui=abcd']),
+            // First update attempt: returns success false
+            '*/inbounds/updateClient/*' => function ($request) {
+                static $calls = 0;
+                $calls++;
+                if ($calls === 1) {
+                    return Http::response(["success" => false, "msg" => "Something went wrong (unexpected end of JSON input)"], 200);
+                }
+                // the fallback (settings) attempt succeeds
+                return Http::response(["success" => true], 200);
+            },
+            '*/inbounds/list' => Http::response([
+                "success" => true,
+                "msg" => "",
+                "obj" => [
+                    [
+                        'id' => 1,
+                        'settings' => json_encode([
+                            'clients' => [
+                                [
+                                    'id' => 'uuid-123',
+                                    'email' => 'bot-test-1',
+                                    'created_at' => 1766600000000,
+                                    'expiryTime' => 1766700000000,
+                                    'enable' => true,
+                                    'totalGB' => 1073741824
+                                ]
+                            ]
+                        ])
+                    ]
+                ]
+            ], 200),
+        ]);
+
+        $panel = Pannel::create([
+            'admin_url' => 'http://127.0.0.1:2053',
+            'username' => 'admin',
+            'password' => 'admin',
+            'inbound_id' => 1,
+            'type' => 'sanaei'
+        ]);
+
+        $ctrl = new SanaeiPannelController();
+
+        $ok = $ctrl->rechargeClient($panel->id, 'uuid-123', 1, 1);
+        $this->assertTrue($ok, 'Expected rechargeClient to succeed via settings fallback');
     }
 }

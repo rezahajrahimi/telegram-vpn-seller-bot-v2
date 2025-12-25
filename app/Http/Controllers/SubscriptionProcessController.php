@@ -725,6 +725,29 @@ class SubscriptionProcessController extends Controller
                 return $this->customTextCtrl->getText('error.server_error');
             }
 
+            if ($pannel->type == 'sanaei') {
+                $sn = new SanaeiPannelController();
+                $uuid = json_decode($product->configs ?? '{}', true)['uuid'] ?? null;
+                if (!$uuid) {
+                    return $this->customTextCtrl->getText('error.server_error');
+                }
+
+                $day = $prCat->expire_day;
+                $volume = $prCat->volume;
+
+                $ok = $sn->rechargeClient($pannel->id, $uuid, $day, $volume);
+                if ($ok) {
+                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+                    if ($paymentSuccess) {
+                        $text = $this->customTextCtrl->getText('action.recharge.success');
+                        $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
+                        $this->telegramService->sendMessage($this->chatId, $text);
+                        return "";
+                    }
+                }
+                return $this->customTextCtrl->getText('error.server_error');
+            }
+
             return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در شارژ مجدد: " . $th->getMessage());
@@ -789,21 +812,24 @@ class SubscriptionProcessController extends Controller
             }
 
             $pannel = Pannel::find($product->product_category_and_panel->pannel_id);
-            $hiddifcCntrl = new HiddifyPannelController();
-            $uuid = $hiddifcCntrl->extractUUID($product->subscription_link);
-            $req = new Request();
-            $req->pannelID = $pannel->id;
-            $req->name = $prID;
-            $req->uuid = $uuid;
-            $req->comment = "تغییر نام بسته در " . Verta::now();
+            if ($pannel->type == 'hiddify') {
 
-            $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelApi($req);
-            if ($updateRemark !== false) {
-                $product->remark = $prID;
-                $product->update();
-                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.success'));
-                $this->addNewBotLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', 'show');
-                return "";
+                $hiddifcCntrl = new HiddifyPannelController();
+                $uuid = $hiddifcCntrl->extractUUID($product->subscription_link);
+                $req = new Request();
+                $req->pannelID = $pannel->id;
+                $req->name = $prID;
+                $req->uuid = $uuid;
+                $req->comment = "تغییر نام بسته در " . Verta::now();
+
+                $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelApi($req);
+                if ($updateRemark !== false) {
+                    $product->remark = $prID;
+                    $product->update();
+                    $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.success'));
+                    $this->addNewBotLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', 'show');
+                    return "";
+                }
             }
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
