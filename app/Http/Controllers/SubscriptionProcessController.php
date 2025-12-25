@@ -299,7 +299,7 @@ class SubscriptionProcessController extends Controller
                         $this->chatId,
                         $lastProductId + 1
                     );
-                    
+
                     if ($configs) {
                         $resualt = $uuid;
                     } else {
@@ -588,8 +588,64 @@ class SubscriptionProcessController extends Controller
                     $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
                     return "";
 
+                } elseif ($pannel->type == 'sanaei') {
+                    // Sanaei panel: retrieve client status using UUID stored in product->configs
+                    $configs = json_decode($product->configs ?? '', true) ?? [];
+                    $uuid = $configs['uuid'] ?? null;
+                    $sn = new SanaeiPannelController();
+                    if (!$uuid) {
+                        return "";
+                    }
+
+                    $status = $sn->getClientStatus($pannel->id, $uuid);
+                    if (!$status) {
+                        return "";
+                    }
+
+                    $links = $sn->getUserLinks($pannel->id, $uuid, $product->remark);
+                    $panelLink = $links[0] ?? '';
+                    $pnlCntrl = new PannelController();
+                    $image = $pnlCntrl->generateQrMOC($panelLink);
+
+                    $enableText = $status['enable'] == true ? 'فعال' : 'غیر فعال';
+                    $usageGB = $status['current_usage_GB'];
+                    $usageGB = round($usageGB, 2);
+                    $limitGB = $status['usage_limit_GB'];
+
+                    $startDate = $status['start_date'];
+                    if ($startDate) {
+                        $startDate = Carbon::parse($startDate);
+                        $package_days = $status['package_days'] ?? 0;
+                        $expireDate = Carbon::parse($startDate);
+                        $expireDate->addDays($package_days);
+
+                        $expireDate = $expireDate->toJalali()->format('Y.m.d');
+                        $startDate = $startDate->toJalali()->format('Y.m.d');
+                    } else {
+                        $expireDate = '-';
+                        $startDate = '-';
+                    }
+
+                    $text = $this->customTextCtrl->getText('action.buy_history.history', [
+                        'name' => $product->remark,
+                        'category_name' => $prCat->category_name,
+                        'panel_link' => $panelLink,
+                        'subscription_link' => $panelLink,
+                        'start_date' => $startDate,
+                        'expire_date' => $expireDate,
+                        'usage_limit_GB' => $limitGB,
+                        'usage_GB' => $usageGB,
+                        'enable' => $enableText,
+                    ]);
+                    $formatter = new TelegramMessageFormatter($this->telegramService);
+                    $text = $formatter->addFormattedText('', $text)->getMessage();
+
+                    $this->telegramService->sendPhotoFile($chatId, $image, $text);
+                    $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
+                    return "";
+
                 }
-                
+
 
             }
             return "";

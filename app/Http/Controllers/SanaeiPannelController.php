@@ -6,6 +6,7 @@ use App\Models\Pannel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Nette\Utils\Random;
+use Carbon\Carbon;
 
 class SanaeiPannelController extends Controller
 {
@@ -728,6 +729,91 @@ class SanaeiPannelController extends Controller
             return null;
         } catch (\Throwable $th) {
             \Log::error('findClientByEmail error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Find a client by UUID across inbounds. Returns ['inbound'=>..., 'client'=>...] or null
+     */
+    public function findClientByUUID($panelId, $uuid)
+    {
+        try {
+            $panel = Pannel::findOrFail($panelId);
+            if (!$this->login($panel->id)) {
+                return null;
+            }
+            $res = $this->performRequest($panel, 'GET', '/inbounds/list');
+            $list = $res['obj'] ?? [];
+            foreach ($list as $inbound) {
+                $settings = $inbound['settings'] ?? null;
+                if (is_string($settings)) {
+                    $settings = json_decode($settings, true);
+                }
+                $clients = $settings['clients'] ?? [];
+                foreach ($clients as $client) {
+                    if (($client['id'] ?? '') === $uuid) {
+                        return ['inbound' => $inbound, 'client' => $client];
+                    }
+                }
+            }
+            return null;
+        } catch (\Throwable $th) {
+            \Log::error('findClientByUUID error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Returns structured status for a client by uuid: enable, current_usage_GB, usage_limit_GB, start_date, package_days
+     */
+    public function getClientStatus($panelId, $uuid)
+    {
+        try {
+            $found = $this->findClientByUUID($panelId, $uuid);
+            if (!$found)
+                return null;
+            $inbound = $found['inbound'];
+            $client = $found['client'];
+
+            // usage from traffics endpoint
+            $usageObj = $this->getClientTrafficsByEmail($panelId, $client['email'] ?? '');
+            $usageBytes = 0;
+            if (is_array($usageObj) && isset($usageObj['traffic'])) {
+                $usageBytes = (int) $usageObj['traffic'];
+            }
+
+            $limitBytes = (int) ($client['totalGB'] ?? 0);
+            $current_usage_GB = round($usageBytes / 1024 / 1024 / 1024, 2);
+            $usage_limit_GB = round($limitBytes / 1024 / 1024 / 1024, 2);
+
+            // dates
+            $createdMs = $client['created_at'] ?? null;
+            $expiryMs = $client['expiryTime'] ?? ($client['expiry_time'] ?? null);
+            $startDate = null;
+            $package_days = 0;
+            if ($createdMs) {
+                $startSec = intval($createdMs / 1000);
+                $startDate = Carbon::createFromTimestamp($startSec)->toIso8601String();
+            }
+            if ($createdMs && $expiryMs) {
+                $startSec = intval($createdMs / 1000);
+                $expirySec = intval($expiryMs / 1000);
+                $diffDays = max(0, ceil(($expirySec - $startSec) / 86400));
+                $package_days = intval($diffDays);
+            }
+
+            return [
+                'enable' => ($client['enable'] ?? true),
+                'current_usage_GB' => $current_usage_GB,
+                'usage_limit_GB' => $usage_limit_GB,
+                'start_date' => $startDate,
+                'package_days' => $package_days,
+                'inbound' => $inbound,
+                'client' => $client,
+            ];
+        } catch (\Throwable $th) {
+            \Log::error('getClientStatus error: ' . $th->getMessage());
             return null;
         }
     }

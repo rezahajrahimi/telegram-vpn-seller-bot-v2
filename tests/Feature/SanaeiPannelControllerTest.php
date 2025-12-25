@@ -214,4 +214,85 @@ class SanaeiPannelControllerTest extends TestCase
         // Delete by client id
         $this->assertTrue($ctrl->deleteClient($panel->id, 1, 'client-1'));
     }
+
+    public function test_subscription_history_sanaei_flow()
+    {
+        Http::fake([
+            '*/login' => Http::response(["success" => true, "msg" => "logged in", "obj" => null], 200, ['Set-Cookie' => '3x-ui=abcd']),
+            '*/inbounds/list' => Http::response([
+                "success" => true,
+                "msg" => "",
+                "obj" => [
+                    [
+                        'id' => 1,
+                        'settings' => json_encode([
+                            'clients' => [
+                                [
+                                    'id' => 'uuid-123',
+                                    'email' => 'bot-test-1',
+                                    'created_at' => 1766600000000,
+                                    'expiryTime' => 1766700000000,
+                                    'enable' => true,
+                                    'totalGB' => 1073741824
+                                ]
+                            ]
+                        ]),
+                        'streamSettings' => json_encode(['network' => 'tcp']),
+                        'protocol' => 'vless',
+                        'port' => 37191
+                    ]
+                ]
+            ], 200),
+            '*/inbounds/getClientTraffics/*' => Http::response(["success" => true, "obj" => ['traffic' => 536870912]], 200),
+        ]);
+
+        $panel = Pannel::create([
+            'admin_url' => 'http://127.0.0.1:2053',
+            'username' => 'admin',
+            'password' => 'admin',
+            'inbound_id' => 1,
+            'type' => 'sanaei'
+        ]);
+
+        $prCat = \App\Models\ProductCategory::create([
+            'category_name' => 'Sanaei Test',
+            'pannel_id' => $panel->id,
+            'price' => 10,
+            'is_active' => 1,
+            'expire_day' => 30,
+        ]);
+
+        $product = \App\Models\Product::create([
+            'product_categories_id' => $prCat->id,
+            'remark' => 'test-prod',
+            'subscription_link' => '',
+            'panel_link' => '',
+            'configs' => json_encode(['uuid' => 'uuid-123', 'links' => ['vless://...']]),
+        ]);
+
+        // Fake TelegramService subclass to avoid actual network calls
+        class FakeTelegramService extends \App\Services\TelegramService
+        {
+            public function __construct()
+            {
+            }
+            public function sendPhotoFile($chatId, $image, $text)
+            {
+            }
+            public function formatText($text)
+            {
+                return is_array($text) ? implode("\n", $text) : $text;
+            }
+            public function sendMessage($chatId, $text, $opts = null)
+            {
+            }
+        }
+
+        $fakeTelegram = new FakeTelegramService();
+        $subCtrl = new \App\Http\Controllers\SubscriptionProcessController($fakeTelegram);
+
+        // Should not throw and should return string (empty)
+        $res = $subCtrl->subBuyHistory(12345, $product->id);
+        $this->assertIsString($res);
+    }
 }
