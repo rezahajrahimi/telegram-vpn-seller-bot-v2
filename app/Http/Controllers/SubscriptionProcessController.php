@@ -280,32 +280,14 @@ class SubscriptionProcessController extends Controller
                 return " پنل مرزبان";
             } elseif ($pannel->type == 'sanaei') {
                 \Log::info("sanaei pannel");
-                $sn = new SanaeiPannelController();
-                $uuid = $sn->addUserToSanaeiPanel(new Request([
-                    'pannelID' => $this->selectedPrCat->pannel_id,
-                    'vol' => $volume,
-                    'day' => $day,
-                    'accountId' => "$this->chatId-" . ($lastProductId + 1),
-                ]));
-                if ($uuid === false) {
-                    $resualt = false;
-                } else {
-                    // ایجاد کانفیگ کامل برای Sanaei مشابه Hiddify
-                    $configs = $this->generalCntrl->new_sanaei_config_telegram_text(
-                        $this->selectedPrCat,
-                        $pannel,
-                        $volume,
-                        $day,
-                        $this->chatId,
-                        $lastProductId + 1
-                    );
-
-                    if ($configs) {
-                        $resualt = $uuid;
-                    } else {
-                        $resualt = false;
-                    }
-                }
+                $resualt = $this->generalCntrl->new_sanaei_config_telegram_text(
+                    $this->selectedPrCat,
+                    $pannel,
+                    $volume,
+                    $day,
+                    $this->chatId,
+                    $lastProductId + 1
+                );
             }
             \Log::info("resualt response buoght from sanaei: " . $resualt);
 
