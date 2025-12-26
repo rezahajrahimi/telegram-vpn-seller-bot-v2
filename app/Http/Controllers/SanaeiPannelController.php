@@ -567,42 +567,67 @@ class SanaeiPannelController extends Controller
                 \Log::error("Login failed for updateClient on panel $panelId");
                 return false;
             }
-            $path = "/inbounds/updateClient/$clientId";
-            // The Sanaei panel's updateClient prefers form-encoded payloads (not raw JSON)
-            $res = $this->performRequest($panel, 'POST', $path, $data, false);
-            if ($res !== null) {
-                return true;
+
+            // Fetch current client data to ensure we don't overwrite other fields with defaults
+            $found = $this->findClientByUUID($panelId, $clientId);
+            if (!$found) {
+                \Log::error("updateClient: client $clientId not found on panel $panelId");
+                return false;
             }
 
-            // Fallback: some panel setups expect a full 'settings' payload (JSON string)
-            // Build settings from the inbound and replace the target client with merged data
+            $inbound = $found['inbound'];
+            $inboundId = $inbound['id'] ?? ($inbound['listen'] ?? 0);
+            $currentClient = $found['client'];
+            $mergedClient = array_merge($currentClient, $data);
+
+            // Standard Sanaei/x-ui updateClient payload:
+            // id: Inbound ID (integer)
+            // settings: JSON string containing the client(s) to update
+            $body = [
+                'id' => $inboundId,
+                'settings' => json_encode(['clients' => [$mergedClient]])
+            ];
+
+            // Try different URL patterns
+            $paths = [
+                "/inbounds/updateClient/$clientId", // UUID in URL
+                "/inbounds/updateClient/$inboundId", // Inbound ID in URL (fixes strconv.ParseInt error)
+                "/inbounds/updateClient",            // No ID in URL
+            ];
+
+            foreach ($paths as $path) {
+                \Log::debug("Trying updateClient at $path");
+                $res = $this->performRequest($panel, 'POST', $path, $body, false);
+                if ($res !== null) {
+                    return true;
+                }
+            }
+
+            // Final Fallback: Try sending the full settings object (fixing the reference bug)
             try {
-                $found = $this->findClientByUUID($panelId, $clientId);
-                if ($found) {
-                    $inbound = $found['inbound'];
-                    $settings = $inbound['settings'] ?? null;
-                    if (is_string($settings)) {
-                        $settings = json_decode($settings, true);
-                    }
-                    $clients = $settings['clients'] ?? [];
-                    foreach ($clients as &$c) {
+                $settings = $inbound['settings'] ?? null;
+                if (is_string($settings)) {
+                    $settings = json_decode($settings, true);
+                }
+                if (isset($settings['clients']) && is_array($settings['clients'])) {
+                    foreach ($settings['clients'] as &$c) {
                         if (($c['id'] ?? '') === $clientId) {
-                            // merge provided fields
                             $c = array_merge($c, $data);
                         }
                     }
-                    $body = [
-                        'id' => $inbound['id'] ?? ($inbound['listen'] ?? 0),
+                    $fullBody = [
+                        'id' => $inboundId,
                         'settings' => json_encode($settings),
                     ];
-                    \Log::info("updateClient fallback: sending settings payload for client $clientId");
-                    $res2 = $this->performRequest($panel, 'POST', $path, $body, false);
+                    \Log::info("updateClient final fallback: sending full settings payload for client $clientId");
+                    // Try with the most likely working path (Inbound ID)
+                    $res2 = $this->performRequest($panel, 'POST', "/inbounds/updateClient/$inboundId", $fullBody, false);
                     if ($res2 !== null) {
                         return true;
                     }
                 }
             } catch (\Throwable $th) {
-                \Log::warning('updateClient fallback failed: ' . $th->getMessage());
+                \Log::warning('updateClient final fallback failed: ' . $th->getMessage());
             }
 
             return false;
@@ -652,6 +677,38 @@ class SanaeiPannelController extends Controller
             return $this->updateClient($panelId, $clientId, $data);
         } catch (\Throwable $th) {
             \Log::error('rechargeClient error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Update the client's email (used as the 'remark' / package name in products)
+     */
+    public function updateClientEmail($panelId, $uuid, string $newEmail)
+    {
+        try {
+            $found = $this->findClientByUUID($panelId, $uuid);
+            if (!$found) {
+                \Log::error("updateClientEmail: client $uuid not found in panel $panelId");
+                return false;
+            }
+
+            $client = $found['client'];
+            $clientId = $client['id'] ?? null;
+            if (!$clientId) {
+                \Log::error("updateClientEmail: client id missing for uuid $uuid on panel $panelId");
+                return false;
+            }
+
+            $ok = $this->updateClient($panelId, $clientId, ['email' => $newEmail]);
+            if ($ok) {
+                \Log::info("updateClientEmail: updated email for client $clientId on panel $panelId to $newEmail");
+                return true;
+            }
+            \Log::warning("updateClientEmail: updateClient returned false for client $clientId on panel $panelId");
+            return false;
+        } catch (\Throwable $th) {
+            \Log::error('updateClientEmail error: ' . $th->getMessage());
             return false;
         }
     }

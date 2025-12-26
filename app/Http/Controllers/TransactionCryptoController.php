@@ -52,57 +52,49 @@ class TransactionCryptoController extends Controller
         // DB::beginTransaction();
         // try {
 
-            if ($gateway === 'nowpayments') {
-                // Call the refactored NowPayments logic
-                $response = $this->createNowPaymentsInvoice($accountId, $invoiceID, $amountDollar);
-            } elseif ($gateway === 'cryptomus') {
-                // Prepare request for CryptomusController
-<<<<<<< HEAD
-                // $cryptomusCurrency = $validated['currency'] ?? 'USDT'; // Default to USDT if not provided
-=======
-                $cryptomusCurrency = $validated['currency'] ?? 'USDT'; // Default to USDT if not provided
->>>>>>> 7f64362 (به‌روزرسانی و بهینه‌سازی کنترلرهای Cryptomus و GeneralController)
-                // convert $amountDollar to numberic
-                $amountDollar = (float) $amountDollar;
-                $cryptomusRequest = new Request([
-                    'amount' => $amountDollar,
-<<<<<<< HEAD
-                    'currency' => null,
-=======
-                    'currency' => $cryptomusCurrency,
->>>>>>> 7f64362 (به‌روزرسانی و بهینه‌سازی کنترلرهای Cryptomus و GeneralController)
-                    'order_id' => "$invoiceID", // Using the same invoiceID
-                    'account_id' => $accountId,
-                ]);
+        if ($gateway === 'nowpayments') {
+            // Call the refactored NowPayments logic
+            $response = $this->createNowPaymentsInvoice($accountId, $invoiceID, $amountDollar);
+        } elseif ($gateway === 'cryptomus') {
+            // Prepare request for CryptomusController
+            $cryptomusCurrency = $validated['currency'] ?? 'USDT'; // Default to USDT if not provided
+            // convert $amountDollar to numberic
+            $amountDollar = (float) $amountDollar;
+            $cryptomusRequest = new Request([
+                'amount' => $amountDollar,
+                'currency' => $cryptomusCurrency,
+                'order_id' => "$invoiceID", // Using the same invoiceID
+                'account_id' => $accountId,
+            ]);
 
-                $cryptomusController = new CryptomusController();
-                $response = $cryptomusController->createPayment($cryptomusRequest);
-            } else {
-                // DB::rollBack(); // Rollback if using DB transaction
-                return response()->json(['success' => false, 'message' => 'درگاه پرداخت نامعتبر است.'], 400);
-            }
+            $cryptomusController = new CryptomusController();
+            $response = $cryptomusController->createPayment($cryptomusRequest);
+        } else {
+            // DB::rollBack(); // Rollback if using DB transaction
+            return response()->json(['success' => false, 'message' => 'درگاه پرداخت نامعتبر است.'], 400);
+        }
 
-            // Check if the gateway call was successful before committing
-            // This depends on the structure of the response from createNowPaymentsInvoice and createPayment
-            // Example check assuming JsonResponse with a 'success' key in data
-            // if ($response instanceof \Illuminate\Http\JsonResponse) {
-            //     $responseData = $response->getData();
-            //     if (isset($responseData->success) && !$responseData->success) {
-            //          DB::rollBack();
-            //          return $response; // Return the error response from the gateway controller
-            //     }
-            // } elseif ($response->isRedirect()) {
-            //     // Handle redirects if NowPayments returns a redirect
-            // } else {
-            //     // Handle unexpected response types
-            //     DB::rollBack();
-            //     Log::error('Unexpected response type from gateway controller.', ['gateway' => $gateway, 'invoiceID' => $invoiceID]);
-            //     return response()->json(['success' => false, 'message' => 'خطای غیرمنتظره در پردازش پاسخ درگاه.'], 500);
-            // }
+        // Check if the gateway call was successful before committing
+        // This depends on the structure of the response from createNowPaymentsInvoice and createPayment
+        // Example check assuming JsonResponse with a 'success' key in data
+        // if ($response instanceof \Illuminate\Http\JsonResponse) {
+        //     $responseData = $response->getData();
+        //     if (isset($responseData->success) && !$responseData->success) {
+        //          DB::rollBack();
+        //          return $response; // Return the error response from the gateway controller
+        //     }
+        // } elseif ($response->isRedirect()) {
+        //     // Handle redirects if NowPayments returns a redirect
+        // } else {
+        //     // Handle unexpected response types
+        //     DB::rollBack();
+        //     Log::error('Unexpected response type from gateway controller.', ['gateway' => $gateway, 'invoiceID' => $invoiceID]);
+        //     return response()->json(['success' => false, 'message' => 'خطای غیرمنتظره در پردازش پاسخ درگاه.'], 500);
+        // }
 
 
-            // DB::commit();
-            return $response; // Return the success response (e.g., with payment URL or redirect)
+        // DB::commit();
+        return $response; // Return the success response (e.g., with payment URL or redirect)
 
         // } catch (\Exception $e) {
         //     DB::rollBack();
@@ -125,8 +117,8 @@ class TransactionCryptoController extends Controller
         // Fetch settings only if needed, maybe cache them?
         $nowpaymentSettings = $cryptoPaymentCtrl->getNovPaymentData();
         if (!$nowpaymentSettings) {
-             Log::error('Failed to fetch NowPayments settings for invoice creation.', ['invoiceID' => $invoiceID]);
-             return response()->json(['success' => false, 'message' => 'خطا در خواندن تنظیمات NowPayments.'], 500);
+            Log::error('Failed to fetch NowPayments settings for invoice creation.', ['invoiceID' => $invoiceID]);
+            return response()->json(['success' => false, 'message' => 'خطا در خواندن تنظیمات NowPayments.'], 500);
         }
 
         $settingCntrl = new SettingController();
@@ -135,11 +127,11 @@ class TransactionCryptoController extends Controller
         // Assuming NowPaymentsController exists and works as intended
         // If NowPaymentsController doesn't exist, you might need to use the PrevailExcel\Nowpayments facade directly
         if (!class_exists(NowPaymentsController::class)) {
-             Log::error('NowPaymentsController class not found.');
-             // Fallback or error handling needed here
-             // Maybe use the facade directly? Example:
-             // $payment = Nowpayments::createInvoice([...]);
-             return response()->json(['success' => false, 'message' => 'کنترلر NowPayments یافت نشد.'], 500);
+            Log::error('NowPaymentsController class not found.');
+            // Fallback or error handling needed here
+            // Maybe use the facade directly? Example:
+            // $payment = Nowpayments::createInvoice([...]);
+            return response()->json(['success' => false, 'message' => 'کنترلر NowPayments یافت نشد.'], 500);
         }
         $npwPaymentCntrl = new NowPaymentsController();
 
@@ -174,12 +166,12 @@ class TransactionCryptoController extends Controller
             );
             Log::info('Initial NowPayments transaction record saved/updated.', ['transaction_id' => $transaction->id, 'order_id' => $invoiceID]);
         } catch (\Exception $e) {
-             Log::error('Failed to save initial NowPayments transaction', [
-                 'order_id' => $invoiceID,
-                 'error' => $e->getMessage()
-             ]);
-             // Don't proceed if saving fails
-             return response()->json(['success' => false, 'message' => 'خطا در ذخیره تراکنش اولیه.'], 500);
+            Log::error('Failed to save initial NowPayments transaction', [
+                'order_id' => $invoiceID,
+                'error' => $e->getMessage()
+            ]);
+            // Don't proceed if saving fails
+            return response()->json(['success' => false, 'message' => 'خطا در ذخیره تراکنش اولیه.'], 500);
         }
 
         // Call the NowPayments invoice creation
@@ -221,7 +213,7 @@ class TransactionCryptoController extends Controller
 
 
                 // return pay url
-                return  $location;
+                return $location;
 
                 // Return a success response to your frontend, including the payment details/URL
 
@@ -259,7 +251,7 @@ class TransactionCryptoController extends Controller
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString() // More detailed trace
             ]);
-             // Update transaction status to 'failed'
+            // Update transaction status to 'failed'
             if (isset($transaction)) {
                 $transaction->status = 'failed';
                 $transaction->save();
@@ -274,17 +266,17 @@ class TransactionCryptoController extends Controller
         // Check if config is already set or needs refreshing
         // Consider caching the settings for a short period to avoid repeated DB calls
         if (!Config::get('nowpayments.apiKey')) {
-             $cryptoPaymentCtrl = new CryptoPaymentController();
-             $nowpayment = $cryptoPaymentCtrl->getNovPaymentData();
-             if ($nowpayment && $nowpayment->api_key) { // Check if api_key is actually retrieved
-                 Config::set('nowpayments.apiKey', $nowpayment->api_key);
-                 // Assuming 'env' holds the URL like 'https://api.nowpayments.io/v1'
-                 Config::set('nowpayments.liveUrl', $nowpayment->env ?? 'https://api.nowpayments.io/v1');
-                 Log::info('NowPayments config set.');
-             } else {
-                 Log::error('Failed to fetch NowPayments settings or API key is missing.');
-                 // Potentially throw an exception or handle this critical failure
-             }
+            $cryptoPaymentCtrl = new CryptoPaymentController();
+            $nowpayment = $cryptoPaymentCtrl->getNovPaymentData();
+            if ($nowpayment && $nowpayment->api_key) { // Check if api_key is actually retrieved
+                Config::set('nowpayments.apiKey', $nowpayment->api_key);
+                // Assuming 'env' holds the URL like 'https://api.nowpayments.io/v1'
+                Config::set('nowpayments.liveUrl', $nowpayment->env ?? 'https://api.nowpayments.io/v1');
+                Log::info('NowPayments config set.');
+            } else {
+                Log::error('Failed to fetch NowPayments settings or API key is missing.');
+                // Potentially throw an exception or handle this critical failure
+            }
         }
     }
 
@@ -339,8 +331,8 @@ class TransactionCryptoController extends Controller
             // Find the local transaction using the NowPayments payment_id
             // Ensure user_id is loaded if needed later
             $transaction = TransactionCrypto::where('payment_id', $paymentId)
-                                            ->where('gateway', 'nowpayments')
-                                            ->first();
+                ->where('gateway', 'nowpayments')
+                ->first();
 
             if (!$transaction) {
                 Log::error('NowPayments callback: Local transaction not found for payment_id.', ['payment_id' => $paymentId]);
@@ -400,8 +392,8 @@ class TransactionCryptoController extends Controller
                 $balanceUpdated = $accBlCtrl->incUserAccuntBalanceInDollar($userID, $amountToAdd);
 
                 if (!$balanceUpdated) {
-                     // Handle balance update failure
-                     throw new \Exception("Failed to update balance for user {$userID}");
+                    // Handle balance update failure
+                    throw new \Exception("Failed to update balance for user {$userID}");
                 }
 
                 // Mark the associated Bill as paid
@@ -411,7 +403,7 @@ class TransactionCryptoController extends Controller
                     $bill->save();
                     Log::info('Associated bill marked as paid (NowPayments).', ['bill_id' => $bill->id]);
                 } else {
-                     Log::warning('Could not find associated bill for NowPayments transaction.', ['order_id' => $transaction->order_id]);
+                    Log::warning('Could not find associated bill for NowPayments transaction.', ['order_id' => $transaction->order_id]);
                 }
 
                 // Send message to user
@@ -430,11 +422,11 @@ class TransactionCryptoController extends Controller
                         Log::warning('Telegram bot service not available.');
                     }
                 } catch (\Exception $telegramError) {
-                     Log::error('Failed to send Telegram success message.', [
-                         'user_id' => $userID,
-                         'error' => $telegramError->getMessage()
-                     ]);
-                     // Continue even if Telegram fails
+                    Log::error('Failed to send Telegram success message.', [
+                        'user_id' => $userID,
+                        'error' => $telegramError->getMessage()
+                    ]);
+                    // Continue even if Telegram fails
                 }
 
                 // Mark transaction as fully confirmed internally
@@ -476,8 +468,8 @@ class TransactionCryptoController extends Controller
         try {
             // Ensure Nowpayments facade is correctly configured and working
             if (!class_exists(Nowpayments::class)) {
-                 Log::error('Nowpayments facade/class not found.');
-                 return ['isValid' => false, 'reason' => 'Nowpayments library not configured correctly', 'status' => 'failed', 'api_data' => null];
+                Log::error('Nowpayments facade/class not found.');
+                return ['isValid' => false, 'reason' => 'Nowpayments library not configured correctly', 'status' => 'failed', 'api_data' => null];
             }
 
             $data = Nowpayments::getPaymentStatus($paymentId);
@@ -500,24 +492,24 @@ class TransactionCryptoController extends Controller
             // 2. Check Status (consider 'finished', 'partially_paid' might need handling)
             // 'confirmed' and 'sending' might also be relevant depending on flow
             if ($status !== 'finished') {
-                 // Map other statuses if needed (e.g., 'expired', 'failed')
-                 $localStatus = match ($status) {
-                     'waiting' => 'pending',
-                     'confirming' => 'pending',
-                     'confirmed' => 'pending', // Still waiting for 'finished'
-                     'sending' => 'pending',
-                     'partially_paid' => 'failed', // Or handle partial payments
-                     'failed' => 'failed',
-                     'refunded' => 'failed',
-                     'expired' => 'expired',
-                     default => 'failed', // Unknown status
-                 };
+                // Map other statuses if needed (e.g., 'expired', 'failed')
+                $localStatus = match ($status) {
+                    'waiting' => 'pending',
+                    'confirming' => 'pending',
+                    'confirmed' => 'pending', // Still waiting for 'finished'
+                    'sending' => 'pending',
+                    'partially_paid' => 'failed', // Or handle partial payments
+                    'failed' => 'failed',
+                    'refunded' => 'failed',
+                    'expired' => 'expired',
+                    default => 'failed', // Unknown status
+                };
                 return ['isValid' => false, 'reason' => "Payment status is not 'finished' (it's '{$status}')", 'status' => $localStatus, 'api_data' => $data];
             }
 
             // 3. Check Amount (Compare price_amount with expected amount in USD)
             // Use a small tolerance for floating point comparisons
-            if (abs((float)$priceAmount - (float)$expectedAmount) > 0.001) {
+            if (abs((float) $priceAmount - (float) $expectedAmount) > 0.001) {
                 Log::warning('NowPayments amount mismatch.', [
                     'payment_id' => $paymentId,
                     'expected' => $expectedAmount,
@@ -675,7 +667,7 @@ class TransactionCryptoController extends Controller
     }
 
     // This method seems unused based on routes
-    
+
     public function getCurrentUrl()
     {
         // Get the current URL
@@ -687,5 +679,5 @@ class TransactionCryptoController extends Controller
         // Return the current URL
         return $currentUrl;
     }
-    
+
 }

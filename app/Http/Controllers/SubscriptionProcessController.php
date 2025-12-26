@@ -830,6 +830,27 @@ class SubscriptionProcessController extends Controller
                     $this->addNewBotLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', 'show');
                     return "";
                 }
+            } elseif ($pannel->type == 'sanaei') {
+                \Log::info("remarkReply: Sanaei panel detected for product " . $product->id);
+                $sn = new SanaeiPannelController();
+                $configs = json_decode($product->configs ?? '{}', true);
+                $uuid = $configs['uuid'] ?? null;
+                if ($uuid) {
+                    \Log::info("remarkReply: Updating Sanaei client $uuid to new email: $prID");
+                    $ok = $sn->updateClientEmail($pannel->id, $uuid, $prID);
+                    if ($ok) {
+                        \Log::info("remarkReply: Sanaei panel update success. Updating database remark.");
+                        $product->remark = $prID;
+                        $product->update();
+                        $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.success'));
+                        $this->addNewBotLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', 'show');
+                        return "";
+                    } else {
+                        \Log::error("remarkReply: Sanaei panel update failed for client $uuid");
+                    }
+                } else {
+                    \Log::warning("remarkReply: No UUID found in configs for product " . $product->id);
+                }
             }
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";

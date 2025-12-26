@@ -21,16 +21,11 @@ class CryptomusController extends Controller
 
     public function __construct()
     {
-<<<<<<< HEAD
         $data = CryptoPayment::where('name', 'cryptomus')->first();
         if ($data != null) {
             $this->merchantId = $data->password;
             $this->apiKey = $data->api_key;
         }
-=======
-        $this->merchantId = "86905aee-7d8d-45a7-9f41-0cd8bcf9e3fd";
-        $this->apiKey = "vnM40jmQDzdaoLhlZwPnHYC9oW7SEeJnlbXpDqnQQBz8HJNqMcWs90eFIJdanN89z2bXaMiQ7W4c5xiZOyWmd1p2jAKiv9QI6gkPheQI7OLxccYl5vBoQJXweNMgRClN";
->>>>>>> 7f64362 (به‌روزرسانی و بهینه‌سازی کنترلرهای Cryptomus و GeneralController)
         // use sandbox
         // $this->baseUrl = "https://sandbox.cryptomus.com/api/v2";
         // $this->merchantId = config('cryptomus.merchant_id');
@@ -167,14 +162,14 @@ class CryptomusController extends Controller
         $data = json_decode($payload, true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-             Log::error('Cryptomus callback JSON decode error:', ['payload' => $payload]);
-             return response()->json(['message' => 'Invalid JSON payload'], 400);
+            Log::error('Cryptomus callback JSON decode error:', ['payload' => $payload]);
+            return response()->json(['message' => 'Invalid JSON payload'], 400);
         }
 
 
         // 2. Find the transaction in your database
         $transaction = TransactionCrypto::Where('order_id', $data['order_id'] ?? null)
-                                       ->first();
+            ->first();
 
         if (!$transaction) {
             Log::error('Cryptomus callback: Transaction not found.', [
@@ -187,8 +182,8 @@ class CryptomusController extends Controller
 
         // 3. Check if the transaction is already processed
         if ($transaction->status === 'paid' || $transaction->status === 'confirmed') {
-             Log::info('Cryptomus callback: Transaction already processed.', ['transaction_id' => $transaction->id, 'status' => $transaction->status]);
-             return response()->json(['message' => 'Transaction already processed.'], 200);
+            Log::info('Cryptomus callback: Transaction already processed.', ['transaction_id' => $transaction->id, 'status' => $transaction->status]);
+            return response()->json(['message' => 'Transaction already processed.'], 200);
         }
 
 
@@ -227,16 +222,16 @@ class CryptomusController extends Controller
                     );
 
                     // Assuming the payment was for dollar balance
-                    $accountBalance->account_ballance_in_dollar += (float)$amountToAdd;
+                    $accountBalance->account_ballance_in_dollar += (float) $amountToAdd;
                     $accountBalance->save();
-                    try{
+                    try {
                         Log::info('User balance updated successfully for Cryptomus payment.', [
                             'account_id' => $user->account_id,
                             'transaction_id' => $transaction->id,
                             'amount_added' => $amountToAdd,
                         ]);
                     } catch (\Exception $e) {
-                    \Log::info("error in save log on cryptomus");
+                        \Log::info("error in save log on cryptomus");
                     }
 
                     // Mark the associated Bill as paid (if applicable)
@@ -279,7 +274,7 @@ class CryptomusController extends Controller
                 'transaction_id' => $transaction->id,
                 'status' => $newStatus,
             ]);
-             // Mark the associated Bill as failed/cancelled (if applicable)
+            // Mark the associated Bill as failed/cancelled (if applicable)
             $bill = Bill::where('bill_id', $transaction->order_id)->first();
             if ($bill && ($newStatus === 'cancel' || $newStatus === 'fail' || $newStatus === 'system_fail')) {
                 $bill->status = $newStatus; // Or map to your own 'failed'/'cancelled' status
