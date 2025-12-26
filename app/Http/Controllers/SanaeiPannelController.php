@@ -71,9 +71,18 @@ class SanaeiPannelController extends Controller
         return $req;
     }
 
-    public function login($pannelID)
+    public function login($panelOrId)
     {
-        $panel = Pannel::findOrFail($pannelID);
+        if ($panelOrId instanceof Pannel) {
+            $panel = $panelOrId;
+        } else {
+            $panel = Pannel::find($panelOrId);
+        }
+        if (!$panel) {
+            \Log::error("login: panel not found for ID " . (is_object($panelOrId) ? 'OBJECT' : $panelOrId));
+            return false;
+        }
+        $pannelID = $panel->id;
 
         // If a token exists, validate it before assuming we're authenticated.
         $token = trim((string) ($panel->token ?? ''));
@@ -98,6 +107,26 @@ class SanaeiPannelController extends Controller
             return false;
         }
 
+        // Check if cookies are valid and not expired
+        if (!empty($panel->cookie_session)) {
+            try {
+                // Try a known endpoint to validate session
+                // We try both common prefixes
+                $prefixes = ['/panel/api', '/xui/API'];
+                foreach ($prefixes as $prefix) {
+                    $r = $this->httpWithAuth($panel)->get($base . $prefix . '/inbounds/list');
+                    $json = $r->json();
+                    if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
+                        $this->apiPrefix = $prefix;
+                        return true;
+                    }
+                }
+                \Log::info("Existing session invalid or expired for panel $pannelID. Proceeding to login.");
+            } catch (\Throwable $th) {
+                \Log::warning("Session check exception for panel $pannelID: " . $th->getMessage());
+            }
+        }
+
         // Diagnostic: Check what server we are talking to
         try {
             $rootRes = Http::get($base);
@@ -105,25 +134,6 @@ class SanaeiPannelController extends Controller
         } catch (\Throwable $e) {
             \Log::error("Server check failed for $base: " . $e->getMessage());
         }
-
-        // Force login every time as requested, ignoring existing session check
-        /*
-        // Check if cookies are valid
-        if (!empty($panel->cookie_session)) {
-            try {
-                // Try a known endpoint to validate session
-                $r = $this->httpWithAuth($panel)->get($base . '/panel/api/inbounds/list');
-                $json = $r->json();
-                // Must check for success: true, because panel might return 200 OK with login page or error
-                if ($r->ok() && ($json['success'] ?? false)) {
-                    return true;
-                }
-                \Log::warning("Existing session invalid. Status: " . $r->status() . ", Success: " . ($json['success'] ?? 'false'));
-            } catch (\Throwable $th) {
-                \Log::warning("Session check exception: " . $th->getMessage());
-            }
-        }
-        */
 
         try {
             $loginUrl = $base . '/login';
@@ -166,14 +176,19 @@ class SanaeiPannelController extends Controller
             $volGb = (int) $request->vol;
             $accountId = (string) ($request->accountId ?? 'bot');
 
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
+            $panel = Pannel::find($pannelID);
+            if (!$panel) {
+                \Log::error("Panel $pannelID not found");
+                return false;
+            }
+            if (!$this->login($panel)) {
                 \Log::error("Login failed for panel $pannelID");
                 return false;
             }
 
-            // Refresh panel to get new cookies from DB
-            $panel->refresh();
+            // Refresh panel to get new cookies from DB if login updated them
+            // (Though passing by reference/object should already have them)
+            // $panel->refresh(); 
 
             $inboundId = $panel->inbound_id ?: 1;
             $inbound = $this->getInboundFromPanel($panel, $inboundId);
@@ -253,11 +268,14 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function getUserLinks($pannelID, $uuid, $remark = '')
+    public function getUserLinks($panelOrId, $uuid, $remark = '')
     {
         try {
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return [];
+
+            if (!$this->login($panel)) {
                 return [];
             }
 
@@ -542,12 +560,35 @@ class SanaeiPannelController extends Controller
 
     // --- High-level API wrappers ---
 
-    public function deleteClient($panelId, $inboundId, $clientId)
+    public function deleteUser($panelOrId, $uuid)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
-                \Log::error("Login failed for deleteClient on panel $panelId");
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            $found = $this->findClientByUUID($panel, $uuid);
+            if (!$found) {
+                \Log::warning("deleteUser: client $uuid not found on panel {$panel->id}");
+                return false;
+            }
+            $inboundId = $found['inbound']['id'] ?? 1;
+            return $this->deleteClient($panel, $inboundId, $uuid);
+        } catch (\Throwable $th) {
+            \Log::error('deleteUser error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    public function deleteClient($panelOrId, $inboundId, $clientId)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for deleteClient on panel {$panel->id}");
                 return false;
             }
             $path = "/inbounds/$inboundId/delClient/$clientId";
@@ -559,19 +600,22 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function updateClient($panelId, $clientId, array $data)
+    public function updateClient($panelOrId, $clientId, array $data)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
-                \Log::error("Login failed for updateClient on panel $panelId");
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for updateClient on panel {$panel->id}");
                 return false;
             }
 
             // Fetch current client data to ensure we don't overwrite other fields with defaults
-            $found = $this->findClientByUUID($panelId, $clientId);
+            $found = $this->findClientByUUID($panel, $clientId);
             if (!$found) {
-                \Log::error("updateClient: client $clientId not found on panel $panelId");
+                \Log::error("updateClient: client $clientId not found on panel {$panel->id}");
                 return false;
             }
 
@@ -640,14 +684,22 @@ class SanaeiPannelController extends Controller
     /**
      * Recharge a client by UUID: add days to expiry and add GB to total quota.
      * $addDays: integer days to add
+    /**
+     * $addDays: integer days to add
      * $addGb: integer GB to add
      */
-    public function rechargeClient($panelId, $uuid, int $addDays = 0, int $addGb = 0)
+    public function rechargeClient($panelOrId, $uuid, int $addDays = 0, int $addGb = 0)
     {
         try {
-            $found = $this->findClientByUUID($panelId, $uuid);
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel) {
+                \Log::error("rechargeClient: panel not found");
+                return false;
+            }
+
+            $found = $this->findClientByUUID($panel, $uuid);
             if (!$found) {
-                \Log::error("rechargeClient: client $uuid not found in panel $panelId");
+                \Log::error("rechargeClient: client $uuid not found in panel {$panel->id}");
                 return false;
             }
 
@@ -674,7 +726,7 @@ class SanaeiPannelController extends Controller
                 'totalGB' => $newTotal,
             ];
 
-            return $this->updateClient($panelId, $clientId, $data);
+            return $this->updateClient($panel, $clientId, $data);
         } catch (\Throwable $th) {
             \Log::error('rechargeClient error: ' . $th->getMessage());
             return false;
@@ -684,28 +736,34 @@ class SanaeiPannelController extends Controller
     /**
      * Update the client's email (used as the 'remark' / package name in products)
      */
-    public function updateClientEmail($panelId, $uuid, string $newEmail)
+    public function updateClientEmail($panelOrId, $uuid, string $newEmail)
     {
         try {
-            $found = $this->findClientByUUID($panelId, $uuid);
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel) {
+                \Log::error("updateClientEmail: panel not found");
+                return false;
+            }
+
+            $found = $this->findClientByUUID($panel, $uuid);
             if (!$found) {
-                \Log::error("updateClientEmail: client $uuid not found in panel $panelId");
+                \Log::error("updateClientEmail: client $uuid not found in panel {$panel->id}");
                 return false;
             }
 
             $client = $found['client'];
             $clientId = $client['id'] ?? null;
             if (!$clientId) {
-                \Log::error("updateClientEmail: client id missing for uuid $uuid on panel $panelId");
+                \Log::error("updateClientEmail: client id missing for uuid $uuid on panel {$panel->id}");
                 return false;
             }
 
-            $ok = $this->updateClient($panelId, $clientId, ['email' => $newEmail]);
+            $ok = $this->updateClient($panel, $clientId, ['email' => $newEmail]);
             if ($ok) {
-                \Log::info("updateClientEmail: updated email for client $clientId on panel $panelId to $newEmail");
+                \Log::info("updateClientEmail: updated email for client $clientId on panel {$panel->id} to $newEmail");
                 return true;
             }
-            \Log::warning("updateClientEmail: updateClient returned false for client $clientId on panel $panelId");
+            \Log::warning("updateClientEmail: updateClient returned false for client $clientId on panel {$panel->id}");
             return false;
         } catch (\Throwable $th) {
             \Log::error('updateClientEmail error: ' . $th->getMessage());
@@ -713,12 +771,15 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function resetClientTraffic($panelId, $inboundId, $email)
+    public function resetClientTraffic($panelOrId, $inboundId, $email)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
-                \Log::error("Login failed for resetClientTraffic on panel $panelId");
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for resetClientTraffic on panel {$panel->id}");
                 return false;
             }
             $path = "/inbounds/$inboundId/resetClientTraffic/$email";
@@ -730,12 +791,15 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function resetAllTraffics($panelId)
+    public function resetAllTraffics($panelOrId)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
-                \Log::error("Login failed for resetAllTraffics on panel $panelId");
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for resetAllTraffics on panel {$panel->id}");
                 return false;
             }
             $path = "/inbounds/resetAllTraffics";
@@ -747,12 +811,15 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function delDepletedClients($panelId, $inboundId)
+    public function delDepletedClients($panelOrId, $inboundId)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
-                \Log::error("Login failed for delDepletedClients on panel $panelId");
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for delDepletedClients on panel {$panel->id}");
                 return false;
             }
             $path = "/inbounds/delDepletedClients/$inboundId";
@@ -764,11 +831,14 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function getClientTrafficsByEmail($panelId, $email)
+    public function getClientTrafficsByEmail($panelOrId, $email)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
                 return null;
             }
             $path = "/inbounds/getClientTraffics/$email";
@@ -780,11 +850,14 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function getClientTrafficsById($panelId, $id)
+    public function getClientTrafficsById($panelOrId, $id)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
                 return null;
             }
             $path = "/inbounds/getClientTrafficsById/$id";
@@ -796,11 +869,14 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function onlines($panelId)
+    public function onlines($panelOrId)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
                 return null;
             }
             $path = "/inbounds/onlines";
@@ -812,11 +888,14 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function lastOnline($panelId)
+    public function lastOnline($panelOrId)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
                 return null;
             }
             $path = "/inbounds/lastOnline";
@@ -828,11 +907,14 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function clientIps($panelId, $email)
+    public function clientIps($panelOrId, $email)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
                 return null;
             }
             $path = "/inbounds/clientIps/$email";
@@ -844,11 +926,14 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function clearClientIps($panelId, $email)
+    public function clearClientIps($panelOrId, $email)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
                 return false;
             }
             $path = "/inbounds/clearClientIps/$email";
@@ -860,11 +945,14 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function delClientByEmail($panelId, $inboundId, $email)
+    public function delClientByEmail($panelOrId, $inboundId, $email)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
                 return false;
             }
             $path = "/inbounds/$inboundId/delClientByEmail/$email";
@@ -880,11 +968,14 @@ class SanaeiPannelController extends Controller
      * Find a client in an inbound by email and return client data and inbound id
      * Returns array ['inbound' => <inbound>, 'client' => <client>] or null
      */
-    public function findClientByEmail($panelId, $email)
+    public function findClientByEmail($panelOrId, $email)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
                 return null;
             }
             // Get list of inbounds
@@ -912,11 +1003,14 @@ class SanaeiPannelController extends Controller
     /**
      * Find a client by UUID across inbounds. Returns ['inbound'=>..., 'client'=>...] or null
      */
-    public function findClientByUUID($panelId, $uuid)
+    public function findClientByUUID($panelOrId, $uuid)
     {
         try {
-            $panel = Pannel::findOrFail($panelId);
-            if (!$this->login($panel->id)) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
                 return null;
             }
             $res = $this->performRequest($panel, 'GET', '/inbounds/list');
@@ -943,17 +1037,21 @@ class SanaeiPannelController extends Controller
     /**
      * Returns structured status for a client by uuid: enable, current_usage_GB, usage_limit_GB, start_date, package_days
      */
-    public function getClientStatus($panelId, $uuid)
+    public function getClientStatus($panelOrId, $uuid)
     {
         try {
-            $found = $this->findClientByUUID($panelId, $uuid);
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            $found = $this->findClientByUUID($panel, $uuid);
             if (!$found)
                 return null;
             $inbound = $found['inbound'];
             $client = $found['client'];
 
             // usage from traffics endpoint
-            $usageObj = $this->getClientTrafficsByEmail($panelId, $client['email'] ?? '');
+            $usageObj = $this->getClientTrafficsByEmail($panel, $client['email'] ?? '');
             $usageBytes = 0;
             if (is_array($usageObj) && isset($usageObj['traffic'])) {
                 $usageBytes = (int) $usageObj['traffic'];

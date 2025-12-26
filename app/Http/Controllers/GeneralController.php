@@ -384,7 +384,7 @@ class GeneralController extends Controller
             }
 
             // Generate client links and QR codes
-            $links = $snCtrl->getUserLinks($selectedPrCat->pannel_id, $uuid, "$chat_id-$productID");
+            $links = $snCtrl->getUserLinks($pannel, $uuid, "$chat_id-$productID");
             if (!empty($links)) {
                 $text = $this->customTextCtrl->getText('action.subscription.sanaei_with_links', [
                     'uuid' => $uuid,
@@ -527,7 +527,7 @@ class GeneralController extends Controller
             if (is_array($text)) {
                 $formatter = new TelegramMessageFormatter($this->telegramService);
                 $text = $formatter->addFormattedText('', $text)->getMessage();
-			}
+            }
             $this->telegramService->sendMessage($chat_id, $text);
             $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar);
             return true;
