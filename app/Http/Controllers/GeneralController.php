@@ -101,8 +101,14 @@ class GeneralController extends Controller
             $logCntrl = new LogController();
             $getTop20Log = $logCntrl->getAllLogs(20);
             $transactionCntrl = new TransactionController();
-            $last10ConfirmedTransaction = $transactionCntrl->getConfirmedTransactions(10);
-            $unConfirmedTransaction = $transactionCntrl->getUnConfirmedTransactions(1000);
+            $last10ConfirmedTransaction = $transactionCntrl->getConfirmedTransactions(request(), 10);
+            if (method_exists($last10ConfirmedTransaction, 'items')) {
+                $last10ConfirmedTransaction = $last10ConfirmedTransaction->items();
+            }
+            $unConfirmedTransaction = $transactionCntrl->getUnConfirmedTransactions(request(), 1000);
+            if (method_exists($unConfirmedTransaction, 'items')) {
+                $unConfirmedTransaction = $unConfirmedTransaction->items();
+            }
             $productCatCntrl = new ProductCategoryController();
             $mostSelledProductCategory = $productCatCntrl->mostSelledProductCategory(10);
             $prCntrl = new ProductController();
