@@ -150,6 +150,13 @@ class HiddifyPannelController extends Controller
     public function getHiddifyPanelUsersByPannelID($pannelID)
     {
         $pannel = Pannel::find($pannelID);
+        if (!$pannel)
+            return response()->json([], 404);
+
+        if ($pannel->type == 'sanaei') {
+            $sn = new SanaeiPannelController();
+            return $sn->getAllClients($pannel);
+        }
 
         $adminUUID = $pannel->admin_url;
 

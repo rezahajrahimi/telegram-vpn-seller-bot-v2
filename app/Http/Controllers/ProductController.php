@@ -108,7 +108,7 @@ class ProductController extends Controller
             $botUser = BotUser::where('id', $userId)->first();
             $accountID = $botUser->account_id;
             $data = Product::where('account_id', $accountID)
-                ->with('product_category')
+                ->with('product_category.pannel')
                 ->paginate(10, ['*'], 'page');
             return $data;
         } catch (\Throwable $th) {

@@ -1069,6 +1069,60 @@ class SanaeiPannelController extends Controller
     }
 
     /**
+     * Returns all clients from all inbounds in a format compatible with HiddifyConfig model
+     */
+    public function getAllClients($panelOrId)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return [];
+
+            if (!$this->login($panel))
+                return [];
+
+            $res = $this->performRequest($panel, 'GET', '/inbounds/list');
+            $list = $res['obj'] ?? [];
+            $allClients = [];
+
+            foreach ($list as $inbound) {
+                $settings = $inbound['settings'] ?? null;
+                if (is_string($settings)) {
+                    $settings = json_decode($settings, true);
+                }
+                $clients = $settings['clients'] ?? [];
+                foreach ($clients as $client) {
+                    $uuid = $client['id'] ?? ($client['uuid'] ?? '');
+                    $email = $client['email'] ?? '';
+
+                    // Basic info
+                    $total = (int) ($client['totalGB'] ?? ($client['total'] ?? 0));
+                    $expiry = $client['expiryTime'] ?? ($client['expiry_time'] ?? 0);
+                    $enable = $client['enable'] ?? true;
+
+                    // We might want to fetch traffic for each, but that's many requests.
+                    // For the list view, maybe just basic info is enough or we use what's in the client object.
+                    $up = (int) ($client['up'] ?? 0);
+                    $down = (int) ($client['down'] ?? 0);
+
+                    $allClients[] = [
+                        'uuid' => $uuid,
+                        'name' => $email,
+                        'current_usage_GB' => round(($up + $down) / 1024 / 1024 / 1024, 2),
+                        'usage_limit_GB' => round($total / 1024 / 1024 / 1024, 2),
+                        'package_days' => 0, // Hard to calculate without start_date
+                        'is_active' => $enable,
+                    ];
+                }
+            }
+            return $allClients;
+        } catch (\Throwable $th) {
+            \Log::error('getAllClients error: ' . $th->getMessage());
+            return [];
+        }
+    }
+
+    /**
      * Returns structured status for a client by uuid: enable, current_usage_GB, usage_limit_GB, start_date, package_days
      */
     public function getClientStatus($panelOrId, $uuid)
@@ -1086,39 +1140,53 @@ class SanaeiPannelController extends Controller
 
             // usage from traffics endpoint
             $usageObj = $this->getClientTrafficsByEmail($panel, $client['email'] ?? '');
-            $usageBytes = 0;
-            if (is_array($usageObj) && isset($usageObj['traffic'])) {
-                $usageBytes = (int) $usageObj['traffic'];
+
+            $up = (int) ($client['up'] ?? 0);
+            $down = (int) ($client['down'] ?? 0);
+            $limitBytes = (int) ($client['totalGB'] ?? ($client['total'] ?? 0));
+            $expiryMs = $client['expiryTime'] ?? ($client['expiry_time'] ?? 0);
+
+            if (is_array($usageObj)) {
+                if ($up <= 0)
+                    $up = (int) ($usageObj['up'] ?? 0);
+                if ($down <= 0)
+                    $down = (int) ($usageObj['down'] ?? 0);
+                if ($expiryMs <= 0) {
+                    $expiryMs = (int) ($usageObj['expiryTime'] ?? 0);
+                }
             }
 
-            $limitBytes = (int) ($client['totalGB'] ?? 0);
+            $usageBytes = $up + $down;
             $current_usage_GB = round($usageBytes / 1024 / 1024 / 1024, 2);
             $usage_limit_GB = round($limitBytes / 1024 / 1024 / 1024, 2);
 
             // dates
             $createdMs = $client['created_at'] ?? null;
-            $expiryMs = $client['expiryTime'] ?? ($client['expiry_time'] ?? null);
             $startDate = null;
             $package_days = 0;
             if ($createdMs) {
                 $startSec = intval($createdMs / 1000);
                 $startDate = Carbon::createFromTimestamp($startSec)->toIso8601String();
             }
-            if ($createdMs && $expiryMs) {
+            if ($createdMs && $expiryMs > 0) {
                 $startSec = intval($createdMs / 1000);
                 $expirySec = intval($expiryMs / 1000);
                 $diffDays = max(0, ceil(($expirySec - $startSec) / 86400));
                 $package_days = intval($diffDays);
             }
 
+            $isEnabled = ($client['enable'] ?? ($usageObj['enable'] ?? true));
+
             return [
-                'enable' => ($client['enable'] ?? true),
+                'enable' => $isEnabled,
+                'is_active' => $isEnabled, // for compatibility with Hiddify models
                 'current_usage_GB' => $current_usage_GB,
                 'usage_limit_GB' => $usage_limit_GB,
                 'start_date' => $startDate,
                 'package_days' => $package_days,
                 'inbound' => $inbound,
                 'client' => $client,
+                'traffic' => $usageObj,
             ];
         } catch (\Throwable $th) {
             \Log::error('getClientStatus error: ' . $th->getMessage());
