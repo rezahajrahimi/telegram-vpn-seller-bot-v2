@@ -964,13 +964,36 @@ class AgentProductController extends Controller
                     return response()->json(false, 400);
                 }
                 $sn = new SanaeiPannelController();
-                $res = $sn->updateUser($pannel->id, $uuid, ['email' => $request->name]);
-                if ($res->getStatusCode() == 200) {
+                $res = $sn->updateClient($pannel->id, $uuid, ['email' => $request->name]);
+                if ($res) {
                     $data->remark = $request->name;
                     $data->update();
                     return response()->json(true, 200);
                 }
-                return response()->json(false, 401);
+                return response()->json(false, 400);
+            }
+            if ($pannel && $pannel->type == 'marzban') {
+                $panelUrl = $pannel->url_port;
+                $panelUrl = str_replace('/dashboard/', '', $panelUrl);
+                $panelUrl = str_replace('/dashboard', '', $panelUrl);
+
+                $headers = [
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                    'authorization' => $pannel->token,
+                ];
+
+                $url = "{$panelUrl}/api/user/{$data->remark}";
+                $response = Http::withHeaders($headers)->put($url, [
+                    'username' => $request->name
+                ]);
+
+                if ($response->ok()) {
+                    $data->remark = $request->name;
+                    $data->update();
+                    return response()->json(true, 200);
+                }
+                return response()->json(false, 400);
             }
             $hiddifcCntrl = new HiddifyPannelController();
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);

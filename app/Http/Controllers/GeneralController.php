@@ -107,6 +107,64 @@ class GeneralController extends Controller
             $mostSelledProductCategory = $productCatCntrl->mostSelledProductCategory(10);
             $prCntrl = new ProductController();
             $last10ProductSelled = $prCntrl->getLastProductSelled(10);
+
+            // Financial Summary
+            $todaySales = \App\Models\Transaction::where('confirmed', true)
+                ->whereDate('created_at', \Carbon\Carbon::today())
+                ->sum('amount');
+            $weekSales = \App\Models\Transaction::where('confirmed', true)
+                ->whereBetween('created_at', [\Carbon\Carbon::now()->startOfWeek(), \Carbon\Carbon::now()->endOfWeek()])
+                ->sum('amount');
+            $monthSales = \App\Models\Transaction::where('confirmed', true)
+                ->whereMonth('created_at', \Carbon\Carbon::now()->month)
+                ->sum('amount');
+
+            // Panel Status
+            $pannels = \App\Models\Pannel::all();
+            $pannelsStatus = [];
+            foreach ($pannels as $pannel) {
+                $totalUsers = \App\Models\Product::whereHas('product_category', function ($query) use ($pannel) {
+                    $query->where('pannel_id', $pannel->id);
+                })->count();
+
+                $onlineUsers = 0;
+                $isOnline = false;
+
+                try {
+                    if ($pannel->type == 'sanaei') {
+                        $sanaei = new SanaeiPannelController();
+                        $onlines = $sanaei->onlines($pannel);
+                        if ($onlines !== null) {
+                            $onlineUsers = count($onlines);
+                            $isOnline = true;
+                        }
+                    } elseif ($pannel->type == 'hiddify') {
+                        // Hiddify status check
+                        $url = $pannel->admin_url . "/api/v2/admin/server_status/";
+                        $response = \Illuminate\Support\Facades\Http::withHeaders([
+                            'Hiddify-API-Key' => $pannel->secret_code,
+                        ])->timeout(2)->get($url);
+
+                        if ($response->ok()) {
+                            $isOnline = true;
+                            // Hiddify doesn't directly give online count in server_status usually, 
+                            // but we can at least confirm it's up.
+                        }
+                    }
+                } catch (\Throwable $th) {
+                    // Silent fail for status check
+                }
+
+                $pannelsStatus[] = [
+                    'id' => $pannel->id,
+                    'type' => $pannel->type,
+                    'location' => $pannel->location,
+                    'total_users' => $totalUsers,
+                    'online_users' => $onlineUsers,
+                    'is_online' => $isOnline,
+                ];
+            }
+
             return response()->json(
                 [
                     'Last10User' => $getLast10Users,
@@ -115,6 +173,12 @@ class GeneralController extends Controller
                     'UnConfirmedTransaction' => $unConfirmedTransaction,
                     'MostSelledProductCategory' => $mostSelledProductCategory,
                     'last10ProductSelled' => $last10ProductSelled,
+                    'PannelsStatus' => $pannelsStatus,
+                    'FinancialSummary' => [
+                        'today' => $todaySales,
+                        'week' => $weekSales,
+                        'month' => $monthSales,
+                    ],
                 ],
                 200,
             );
