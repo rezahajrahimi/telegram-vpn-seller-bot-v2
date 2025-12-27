@@ -791,6 +791,40 @@ class SanaeiPannelController extends Controller
         }
     }
 
+    public function changeUserActivation($panelOrId, $uuid, bool $enable)
+    {
+        return $this->updateClient($panelOrId, $uuid, ['enable' => $enable]);
+    }
+
+    public function updateLimits($panelOrId, $uuid, int $days, int $gb)
+    {
+        $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+        if (!$panel) {
+            return false;
+        }
+
+        $found = $this->findClientByUUID($panel, $uuid);
+        if (!$found) {
+            return false;
+        }
+
+        $client = $found['client'];
+        $inboundId = $found['inbound']['id'] ?? 1;
+
+        // 1. Reset traffic
+        $this->resetClientTraffic($panel, $inboundId, $client['email']);
+
+        // 2. Update expiry and totalGB
+        $newExpiry = now('UTC')->addDays($days)->timestamp * 1000;
+        $newTotal = $gb * 1024 * 1024 * 1024;
+
+        return $this->updateClient($panel, $uuid, [
+            'expiryTime' => $newExpiry,
+            'totalGB' => $newTotal,
+            'enable' => true
+        ]);
+    }
+
     public function resetAllTraffics($panelOrId)
     {
         try {
