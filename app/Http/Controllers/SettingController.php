@@ -45,26 +45,61 @@ class SettingController extends Controller
     }
     public function updateBotSetting(Request $request)
     {
-        $data = Setting::All()->first();
+        $request->validate([
+            'bot_token' => 'required|string',
+            'bot_name' => 'required|string',
+            'admin_id' => 'required',
+            'panel_address' => 'required|string',
+        ]);
+
+        $data = Setting::first();
+        if (!$data) {
+            $data = new Setting();
+        }
+
         $data->bot_name = $request->bot_name;
         $data->admin_id = $request->admin_id;
         $data->bot_token = $request->bot_token;
-        $data->welcome_message = " ";
         $data->panel_address = $request->panel_address;
-        if ($data->update()) {
+
+        // Only set welcome message if it's empty
+        if (empty($data->welcome_message)) {
+            $data->welcome_message = "خوش آمدید";
+        }
+
+        if ($data->save()) {
             // تغییر مقادیر در فایل .env
             $path = base_path('.env');
-            $envContent = file_get_contents($path);
-            
-            $envContent = preg_replace('/TELEGRAM_BOT_TOKEN=.*/', 'TELEGRAM_BOT_TOKEN=' . $request->bot_token, $envContent);
-            $envContent = preg_replace('/TELEGRAM_ADMIN_ID=.*/', 'TELEGRAM_ADMIN_ID=' . $request->admin_id, $envContent);
-            $envContent = preg_replace('/APP_URL=.*/', 'APP_URL=' . $request->panel_address, $envContent);
-            
-            file_put_contents($path, $envContent);
-            
-            return true;
+            if (file_exists($path) && is_writable($path)) {
+                $envContent = file_get_contents($path);
+
+                $replacements = [
+                    'TELEGRAM_BOT_TOKEN' => $request->bot_token,
+                    'TELEGRAM_ADMIN_ID' => $request->admin_id,
+                    'APP_URL' => $request->panel_address,
+                ];
+
+                foreach ($replacements as $key => $value) {
+                    if (preg_match("/^{$key}=/m", $envContent)) {
+                        $envContent = preg_replace("/^{$key}=.*/m", "{$key}=\"{$value}\"", $envContent);
+                    } else {
+                        $envContent .= "\n{$key}=\"{$value}\"";
+                    }
+                }
+
+                file_put_contents($path, $envContent);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'تنظیمات با موفقیت بروزرسانی شد',
+                'data' => $data
+            ]);
         } else {
-            return false;
+            return response()->json([
+                'status' => false,
+                'message' => 'خطا در بروزرسانی تنظیمات'
+            ], 500);
         }
     }
     public function getMainUrl()
