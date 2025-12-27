@@ -5,6 +5,7 @@ use App\Http\Controllers\AccountProcessController;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Models\User;
+use App\Models\Transaction;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
@@ -259,7 +260,7 @@ class TelegramWebhookController extends Controller
             $imageTrCntrl = new TransactionImageController();
             $imageTrCntrl->saveNewTransactionImage($request);
             \Log::info("processPhotoMessage received 44");
-            $this->sendMessageToAdmin($chatId, $fileId, $message, 'image');
+            $this->sendMessageToAdmin($chatId, $fileId, $request->transaction_id, 'image');
             // tell user that image is received
             $text = $this->customTextCtrl->getText('action.send_photo.success', [
                 'name' => $this->getCurrentChatFirstName(),
@@ -533,6 +534,8 @@ class TelegramWebhookController extends Controller
             'charge' => $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]),
             'shetabVerify' => $this->accountProcessCtrl->handleActionAddBalanceShetabVerify($chatId, $actionList[1]),
             'shetabVerifyAuto' => $this->accountProcessCtrl->processShetabVerification($chatId, $actionList[1]),
+            'confirmReceipt' => $this->handleConfirmReceipt($chatId, $actionList[1], $callbackQueryId),
+            'cancelReceipt' => $this->handleCancelReceipt($chatId, $actionList[1], $callbackQueryId),
 
             default => $this->customTextCtrl->getText('error.action.not_found')
         };
@@ -596,6 +599,12 @@ class TelegramWebhookController extends Controller
     {
         $awaitingType = $this->getAwaitingReplyType($chatId);
 
+        if ($awaitingType && str_starts_with($awaitingType, 'awaiting_receipt_amount:')) {
+            $transactionId = str_replace('awaiting_receipt_amount:', '', $awaitingType);
+            $this->processAdminReceiptAmount($chatId, $transactionId, $text);
+            return;
+        }
+
         switch ($awaitingType) {
             case 'action_1_reply':
                 $this->telegramService->sendMessage($chatId, "نام شما با موفقیت ثبت شد");
@@ -651,33 +660,109 @@ class TelegramWebhookController extends Controller
     {
         return request()->input('message.from.username') ?? '';
     }
-    public function sendMessageToAdmin($chat_id, $image_url, $text, $messageType)
+    public function sendMessageToAdmin($chat_id, $image_url, $transaction_id, $messageType)
     {
         try {
-            $settingCtrl = new SettingController();
+            $admins = User::where('role', 'admin')->get();
 
-            $admin_id = $settingCtrl->getAdminId();
-            \Log::info("sendMessageToAdmin received 11 " . $admin_id);
-            if ($messageType == 'image') {
-                \Log::info("sendMessageToAdmin received admin_id: " . $admin_id);
-                \Log::info("sendMessageToAdmin received image_url: " . $image_url);
-                $text = $this->customTextCtrl->getText('action.send_photo.success.admin', [
-                    'account_id' => $chat_id,
-                ]);
-
-                $result = $this->telegramService->sendPhoto($admin_id, $image_url, $text);
-                \Log::info(["sendMessageToAdmin received 2222: " . json_encode($result)]);
-                return "";
-            } else {
-                $result = $this->telegramService->sendMessage($admin_id, $text);
-                \Log::info("sendMessageToAdmin received 33 " . $result);
+            if ($admins->isEmpty()) {
+                \Log::warning("No admins found to send message.");
                 return "";
             }
+
+            foreach ($admins as $admin) {
+                $admin_id = $admin->account_id;
+                if ($messageType == 'image') {
+                    $text = $this->customTextCtrl->getText('action.send_photo.success.admin', [
+                        'account_id' => $chat_id,
+                    ]);
+
+                    $buttons = [
+                        [
+                            'تایید ✅' => "confirmReceipt-{$transaction_id}",
+                            'لغو ❌' => "cancelReceipt-{$transaction_id}"
+                        ]
+                    ];
+
+                    $this->telegramService->sendPhoto($admin_id, $image_url, $text, [
+                        'reply_markup' => json_encode([
+                            'inline_keyboard' => $this->telegramService->formatInlineKeyboardButtons($buttons)
+                        ])
+                    ]);
+                } else {
+                    // For other message types, transaction_id might be the text
+                    $this->telegramService->sendMessage($admin_id, $transaction_id);
+                }
+            }
+            return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در پردازش sendMessageToAdmin: " . $th);
             return "";
         }
     }
+    private function handleConfirmReceipt($adminChatId, $transactionId, $callbackQueryId)
+    {
+        if (Cache::has("receipt_processed_{$transactionId}")) {
+            $this->telegramService->answerCallbackQuery($callbackQueryId, "این رسید قبلاً توسط مدیر دیگری بررسی شده است.", true);
+            return "";
+        }
+
+        $transaction = Transaction::find($transactionId);
+        if (!$transaction) {
+            $this->telegramService->answerCallbackQuery($callbackQueryId, "تراکنش یافت نشد.", true);
+            return "";
+        }
+
+        // Set state for admin to wait for amount
+        $this->setAwaitingReply($adminChatId, "awaiting_receipt_amount:{$transactionId}");
+
+        $this->telegramService->sendMessage($adminChatId, "لطفاً مبلغ شارژ برای کاربر {$transaction->account_id} را به تومان وارد کنید:");
+        return "";
+    }
+
+    private function handleCancelReceipt($adminChatId, $transactionId, $callbackQueryId)
+    {
+        if (Cache::has("receipt_processed_{$transactionId}")) {
+            $this->telegramService->answerCallbackQuery($callbackQueryId, "این رسید قبلاً توسط مدیر دیگری بررسی شده است.", true);
+            return "";
+        }
+
+        Cache::put("receipt_processed_{$transactionId}", true, now()->addDays(1));
+
+        $transaction = Transaction::find($transactionId);
+        if ($transaction) {
+            $this->telegramService->sendMessage($transaction->account_id, "رسید تراکنش شما توسط مدیریت رد شد.");
+        }
+
+        $this->telegramService->sendMessage($adminChatId, "رسید با موفقیت رد شد.");
+        return "";
+    }
+
+    private function processAdminReceiptAmount($adminChatId, $transactionId, $amount)
+    {
+        if (Cache::has("receipt_processed_{$transactionId}")) {
+            $this->telegramService->sendMessage($adminChatId, "این رسید قبلاً توسط مدیر دیگری بررسی شده است.");
+            $this->clearAwaitingReply($adminChatId);
+            return;
+        }
+
+        if (!is_numeric($amount) || $amount <= 0) {
+            $this->telegramService->sendMessage($adminChatId, "لطفاً یک مبلغ معتبر وارد کنید:");
+            return;
+        }
+
+        Cache::put("receipt_processed_{$transactionId}", true, now()->addDays(1));
+
+        $transaction = Transaction::find($transactionId);
+        if ($transaction) {
+            $this->accountProcessCtrl->adminFastCharge($adminChatId, $amount, $transaction->account_id);
+            $this->clearAwaitingReply($adminChatId);
+        } else {
+            $this->telegramService->sendMessage($adminChatId, "تراکنش یافت نشد.");
+            $this->clearAwaitingReply($adminChatId);
+        }
+    }
+
     private function addNewBotLog($type, $message, $event)
     {
         $logCtrl = new LogController();
