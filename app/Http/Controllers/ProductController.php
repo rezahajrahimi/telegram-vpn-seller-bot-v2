@@ -47,36 +47,55 @@ class ProductController extends Controller
     public function syncUserProductsHistoryByAccountIDwithPanels($userID)
     {
         try {
-            $accountId= BotUser::find($userID)->account_id;
+            $botUser = BotUser::find($userID);
+            if (!$botUser) {
+                return response()->json(false, 404);
+            }
+            $accountId = $botUser->account_id;
             // first get all products by account id
             $products = Product::where('account_id', $accountId)
                 ->with('product_category_and_panel')
                 ->get();
-                // log count of products
+            // log count of products
             foreach ($products as $product) {
                 // secend check product is avaliable in panel
                 $pannel = Pannel::find($product->product_category_and_panel->pannel_id);
-
-                $hiddifcCntrl = new HiddifyPannelController();
-
-                $uuid = $hiddifcCntrl->extractUUID($product->subscription_link);
-                $url = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
-                $url = "{$url}/api/v2/admin/user/$uuid";
-
-                $secretValue = $pannel->secret_code;
-                // $subsequentResponse = Http::get($url);
-                $subsequentResponse = Http::withHeaders([
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'application/json',
-                    'Hiddify-API-Key' => $secretValue,
-                ])->get($url);
-                \Log::info("subsequentResponse->getStatusCode: ". $subsequentResponse->getStatusCode());
-                if ($subsequentResponse->getStatusCode() != 200) {
-                    $product->delete();
+                if (!$pannel) {
+                    continue;
                 }
 
+                if ($pannel->type == 'sanaei') {
+                    $configs = json_decode($product->configs, true) ?? [];
+                    $uuid = $configs['uuid'] ?? null;
+                    if ($uuid == null) {
+                        continue;
+                    }
+                    $sn = new SanaeiPannelController();
+                    $found = $sn->findClientByUUID($pannel, $uuid);
+                    if (!$found) {
+                        $product->delete();
+                    }
+                } else {
+                    $hiddifcCntrl = new HiddifyPannelController();
+
+                    $uuid = $hiddifcCntrl->extractUUID($product->subscription_link);
+                    $url = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
+                    $url = "{$url}/api/v2/admin/user/$uuid";
+
+                    $secretValue = $pannel->secret_code;
+                    // $subsequentResponse = Http::get($url);
+                    $subsequentResponse = Http::withHeaders([
+                        'Content-Type' => 'application/json',
+                        'Accept' => 'application/json',
+                        'Hiddify-API-Key' => $secretValue,
+                    ])->get($url);
+                    \Log::info("subsequentResponse->getStatusCode: " . $subsequentResponse->getStatusCode());
+                    if ($subsequentResponse->getStatusCode() != 200) {
+                        $product->delete();
+                    }
+                }
             }
-            return response()->json(true,200);
+            return response()->json(true, 200);
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
 
