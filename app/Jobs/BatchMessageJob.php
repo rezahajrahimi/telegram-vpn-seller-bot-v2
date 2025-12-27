@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\App;
 
 
-class BatchMessageHob implements ShouldQueue
+class BatchMessageJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -50,6 +50,8 @@ class BatchMessageHob implements ShouldQueue
             $telegramService = App::make(\App\Services\TelegramService::class);
             foreach ($this->usersID as $userId) {
                 $telegramService->sendMessage($userId, $this->message, $this->extra);
+                // Small delay to avoid hitting Telegram rate limits
+                usleep(50000); // 0.05 seconds
             }
             Log::info("Batch message sent successfully to users: " . implode(', ', $this->usersID));
 

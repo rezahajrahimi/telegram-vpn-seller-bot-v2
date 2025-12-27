@@ -5,6 +5,7 @@ use App\Models\BotUser;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use App\Services\TelegramService;
+use App\Jobs\BatchMessageJob;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -117,17 +118,17 @@ class BotUserController extends Controller
             return response()->json('get_users_with_zero_ballance error', 500);
         }
     }
-  
+
     public function get_agent_role_bot_users()
     {
         try {
             $data = BotUser::with('user')
                 ->get();
-                $data = $data->filter(function ($user) {
-                    if (isset($user->user)) {
-                        return $user->user->role === 'agent';
-                    }
-                })->values();
+            $data = $data->filter(function ($user) {
+                if (isset($user->user)) {
+                    return $user->user->role === 'agent';
+                }
+            })->values();
             if ($data != null) {
                 return $data;
             } else {
@@ -186,7 +187,7 @@ class BotUserController extends Controller
             \Log::info("Throwable:  $th");
         }
     }
- 
+
     public function getUserIDByAccountID($accountID)
     {
         $data = BotUser::where('account_id', $accountID)->first();
@@ -199,46 +200,93 @@ class BotUserController extends Controller
     public function send_Admin_message_to_All_users(Request $request)
     {
         try {
-            $data = BotUser::all();
-            $telegramService = new TelegramService();
             $message = $request->message;
-            foreach ($data as $key => $value) {
-                try {
-                    //$telegramService->sendMessage($value->account_id,  $message);
-                    \Log::info($message . " " . $value->account_id);
+            $scheduledAt = $request->scheduled_at; // Optional: ISO 8601 date string
 
-                } catch (\Throwable $th) {
-                    \Log::debug('seng_message_to_all_user => ' . $th->getMessage());
+            $userIds = BotUser::pluck('account_id')->toArray();
+
+            if (empty($userIds)) {
+                return response()->json(['message' => 'No users found'], 404);
+            }
+
+            $job = new BatchMessageJob('send_to_all', $userIds, $message);
+
+            if ($scheduledAt) {
+                $delay = Carbon::parse($scheduledAt);
+                if ($delay->isFuture()) {
+                    $job->delay($delay);
                 }
             }
+
+            dispatch($job);
+
             return response()->json(true, 200);
         } catch (\Throwable $th) {
-            \Log::debug('seng_message_to_all_user' . $th->getMessage());
+            \Log::error('send_Admin_message_to_All_users: ' . $th->getMessage());
+            return response()->json(['message' => 'Server Error'], 500);
         }
     }
+
+    public function send_Admin_message_to_Selected_users(Request $request)
+    {
+        try {
+            $message = $request->message;
+            $userIds = $request->user_ids; // Array of account_ids
+            $scheduledAt = $request->scheduled_at; // Optional
+
+            if (empty($userIds)) {
+                return response()->json(['message' => 'No users selected'], 400);
+            }
+
+            $job = new BatchMessageJob('send_to_selected', $userIds, $message);
+
+            if ($scheduledAt) {
+                $delay = Carbon::parse($scheduledAt);
+                if ($delay->isFuture()) {
+                    $job->delay($delay);
+                }
+            }
+
+            dispatch($job);
+
+            return response()->json(true, 200);
+        } catch (\Throwable $th) {
+            \Log::error('send_Admin_message_to_Selected_users: ' . $th->getMessage());
+            return response()->json(['message' => 'Server Error'], 500);
+        }
+    }
+
     public function send_admin_message_to_all_users_without_configs(Request $request)
     {
         try {
             $data = BotUser::with('products')->get();
             // get all $data which have zero count of products
-            $data = $data->filter(function ($user) {
+            $userIds = $data->filter(function ($user) {
                 return $user->products->count() === 0;
-            })->values();
+            })->pluck('account_id')->toArray();
 
-            $telegramService = new TelegramService();
+            if (empty($userIds)) {
+                return response()->json(['message' => 'No users found'], 404);
+            }
+
             $message = $request->message;
-            foreach ($data as $key => $value) {
-                try {
-                    //$telegramService->sendMessage($value->account_id,  $message);
-                    \Log::info($message . " " . $value->account_id);
+            $scheduledAt = $request->scheduled_at;
 
-                } catch (\Throwable $th) {
-                    \Log::debug('send_admin_message_to_all_users_without_configs => ' . $th->getMessage());
+            $job = new BatchMessageJob('send_to_no_configs', $userIds, $message);
+
+            if ($scheduledAt) {
+                $delay = Carbon::parse($scheduledAt);
+                if ($delay->isFuture()) {
+                    $job->delay($delay);
                 }
             }
+
+            dispatch($job);
+
             return response()->json(true, 200);
         } catch (\Throwable $th) {
-            \Log::debug('seng_message_to_all_user' . $th->getMessage());
+            \Log::error('send_admin_message_to_all_users_without_configs: ' . $th->getMessage());
+            return response()->json(['message' => 'Server Error'], 500);
         }
     }
 

@@ -294,6 +294,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
     Route::post('sendAdminMessageToAllUsers', [BotUserController::class, 'send_Admin_message_to_All_users']);
+    Route::post('sendAdminMessageToSelectedUsers', [BotUserController::class, 'send_Admin_message_to_Selected_users']);
     Route::post('sendAdminMessageToAllUsersWithoutConfigs', [BotUserController::class, 'send_admin_message_to_all_users_without_configs']);
 
     Route::get('getLast10Users', [BotUserController::class, 'getLast10Users']);
