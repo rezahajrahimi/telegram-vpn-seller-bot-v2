@@ -731,6 +731,9 @@ class TelegramWebhookController extends Controller
 
         $transaction = Transaction::find($transactionId);
         if ($transaction) {
+            $transaction->confirmed = 0;
+            $transaction->recipe_number = 'REJECTED';
+            $transaction->save();
             $this->telegramService->sendMessage($transaction->account_id, "رسید تراکنش شما توسط مدیریت رد شد.");
         }
 
@@ -755,6 +758,10 @@ class TelegramWebhookController extends Controller
 
         $transaction = Transaction::find($transactionId);
         if ($transaction) {
+            $transaction->amount = $amount;
+            $transaction->confirmed = 1;
+            $transaction->save();
+
             $this->accountProcessCtrl->adminFastCharge($adminChatId, $amount, $transaction->account_id);
             $this->clearAwaitingReply($adminChatId);
         } else {
