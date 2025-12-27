@@ -121,12 +121,14 @@ class AgentProductController extends Controller
 
             $agentPremissionCntrl = new AgentPermissonController();
             $reqPermission = new Request();
-            $reqPermission->user_id = $userID;
-            $reqPermission->minus_ballance = $request['minusBallance'];
-            $reqPermission->create_products = $request['createProducts'];
-            $reqPermission->delete_products = $request['deleteProducts'];
-            $reqPermission->traffic_limitation_tb = $request['trafficLimitationTB'] ? $request['trafficLimitationTB'] : 10;
-            $reqPermission->product_limitation = $request['productLimitation'] ? $request['productLimitation'] : 1000;
+            $reqPermission->merge([
+                'user_id' => $userID,
+                'minus_ballance' => $request['minusBallance'],
+                'create_products' => $request['createProducts'],
+                'delete_products' => $request['deleteProducts'],
+                'traffic_limitation_tb' => $request['trafficLimitationTB'] ? $request['trafficLimitationTB'] : 10,
+                'product_limitation' => $request['productLimitation'] ? $request['productLimitation'] : 1000,
+            ]);
             $agentPremissionCntrl->updateAgentPremisson($reqPermission);
             $userCntrl->changeUserRoleToAgent($userID);
             return response()->json(true, 200);
@@ -284,21 +286,26 @@ class AgentProductController extends Controller
     public function deleteAllAgentProductsByUserIDAndAssignToBotAdmin($userID)
     {
         try {
-            $agentProduct = AgentProduct::where('user_id', $userID)->get();
-            if (!$agentProduct) {
-                return;
+            $agentUser = User::find($userID);
+            if (!$agentUser) {
+                return false;
             }
-            $adminId = auth('sanctum')->user()->id;
 
-            foreach ($agentProduct as $value) {
-                $value->user_id = $adminId;
-                $value->update();
+            $adminUser = auth('sanctum')->user();
+            if (!$adminUser) {
+                return false;
             }
+
+            // Transfer sold products (VPN accounts) to admin
+            Product::where('account_id', $agentUser->account_id)->update(['account_id' => $adminUser->account_id]);
+
+            // Delete agent's custom price list
+            AgentProduct::where('user_id', $userID)->delete();
 
             return true;
         } catch (\Throwable $th) {
             \Log::info("throw $th");
-            return response()->json(false, 500);
+            return false;
         }
     }
     public function getAgentProductsByUserID($userID)
