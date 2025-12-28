@@ -268,6 +268,27 @@ class SanaeiPannelController extends Controller
         }
     }
 
+    public function changeUserActivationOfSanaeiPanelApi(Request $request)
+    {
+        try {
+            $client = $this->findClientByUUID($request->pannelID, $request->uuid);
+            if (!$client) {
+                return response()->json(['success' => false, 'msg' => 'Client not found'], 404);
+            }
+
+            $client['enable'] = (bool) $request->enable;
+
+            $res = $this->updateClient($request->pannelID, $client['id'], $client);
+            if ($res) {
+                return response()->json(['success' => true], 200);
+            }
+            return response()->json(['success' => false], 400);
+        } catch (\Throwable $th) {
+            \Log::error('changeUserActivationOfSanaeiPanelApi error: ' . $th->getMessage());
+            return response()->json(['success' => false, 'msg' => $th->getMessage()], 500);
+        }
+    }
+
     public function getUserLinks($panelOrId, $uuid, $remark = '')
     {
         try {

@@ -78,7 +78,8 @@ class AuthController extends Controller
 
             return $accountType;
         }
-        return "false";
+
+        return "gold";
     }
 
     public function createFirstAdminUser()
