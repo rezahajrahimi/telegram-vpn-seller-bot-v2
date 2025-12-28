@@ -24,6 +24,8 @@ class TelegramWebhookController extends Controller
     private AuthController $authCntrl;
     private BlockedUserController $blockedUserCtrl;
     private UserController $userCtrl;
+    private $chatId;
+
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService = $telegramService;
@@ -45,12 +47,14 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'success']);
             }
             $update = $request->all();
+            $this->chatId = $update['message']['chat']['id'] ?? $update['callback_query']['from']['id'] ?? null;
+
             try {
                 if (isset($update['message'])) {
-                    $isBlocked = $this->blockedUserCtrl->isBlocked($update['message']['chat']['id']);
+                    $isBlocked = $this->blockedUserCtrl->isBlocked($this->chatId);
                     if ($isBlocked) {
                         $text = $this->customTextCtrl->getText('error.blocked_user');
-                        $this->telegramService->sendMessage($update['message']['chat']['id'], $text);
+                        $this->telegramService->sendMessage($this->chatId, $text);
                         return response()->json(['status' => 'success']);
                     }
                 }
@@ -69,7 +73,7 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'success']);
             }
 
-            $chatId = $message['chat']['id'];
+            $chatId = $this->chatId;
 
             // check the chatId is exist in users on account_id
             $isChannelMember = $this->checkChannelLock();
@@ -78,35 +82,35 @@ class TelegramWebhookController extends Controller
             }
 
             // نمایش وضعیت تایپ کردن
-            $this->telegramService->sendChatAction($chatId, 'typing');
+            $this->telegramService->sendChatAction($this->chatId, 'typing');
 
             // پردازش انواع مختلف پیام
             if (isset($message['text'])) {
                 $response = $this->processTextMessage($message);
                 // بررسی وضعیت کاربر برای دریافت پاسخ اجباری
-                if ($this->awaitingReply($chatId)) {
-                    $this->handleAwaitingReply($chatId, $message['text']);
+                if ($this->awaitingReply($this->chatId)) {
+                    $this->handleAwaitingReply($this->chatId, $message['text']);
                     return response()->json(['status' => 'success']);
                 }
-                $this->telegramService->sendMessage($chatId, $response);
+                $this->telegramService->sendMessage($this->chatId, $response);
             } elseif (isset($message['photo'])) {
                 $response = $this->processPhotoMessage($message);
-                $this->telegramService->sendMessage($chatId, $response);
+                $this->telegramService->sendMessage($this->chatId, $response);
             } elseif (isset($message['document'])) {
                 $response = $this->processDocumentMessage($message);
-                $this->telegramService->sendMessage($chatId, $response);
+                $this->telegramService->sendMessage($this->chatId, $response);
             } elseif (isset($message['location'])) {
                 $response = $this->processLocationMessage($message);
-                $this->telegramService->sendMessage($chatId, $response);
+                $this->telegramService->sendMessage($this->chatId, $response);
             } elseif (isset($message['voice'])) {
                 $response = $this->processVoiceMessage($message);
-                $this->telegramService->sendMessage($chatId, $response);
+                $this->telegramService->sendMessage($this->chatId, $response);
             } elseif (isset($message['video'])) {
                 $response = $this->processVideoMessage($message);
-                $this->telegramService->sendMessage($chatId, $response);
+                $this->telegramService->sendMessage($this->chatId, $response);
             } elseif (isset($message['contact'])) {
                 $response = $this->processContactMessage($message);
-                $this->telegramService->sendMessage($chatId, $response);
+                $this->telegramService->sendMessage($this->chatId, $response);
             }
 
             return response()->json(['status' => 'success']);
@@ -116,7 +120,7 @@ class TelegramWebhookController extends Controller
         }
     }
 
-    private function processTextMessage(array $message): string
+    private function processTextMessage(array $message): string|array
     {
         try {
             $text = $message['text'];
@@ -187,7 +191,7 @@ class TelegramWebhookController extends Controller
             return "پیام متنی شما دریافت شد: " . $text;
         } catch (\Throwable $th) {
             \Log::error("خطا در پردازش processTextMessage: " . $th->getMessage());
-            $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+            $this->telegramService->sendMessage($this->chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }
     }
@@ -234,7 +238,7 @@ class TelegramWebhookController extends Controller
         return $this->customTextCtrl->getText('error.menu.not_found');
     }
 
-    private function processPhotoMessage(array $message): string
+    private function processPhotoMessage(array $message): string|array
     {
         try {
             $photos = $message['photo'];
@@ -273,7 +277,7 @@ class TelegramWebhookController extends Controller
         }
     }
 
-    private function processDocumentMessage(array $message): string
+    private function processDocumentMessage(array $message): string|array
     {
         $document = $message['document'];
         $fileId = $document['file_id'];
@@ -283,7 +287,7 @@ class TelegramWebhookController extends Controller
         return "فایل شما با نام {$fileName} و نوع {$mimeType} دریافت شد.";
     }
 
-    private function processLocationMessage(array $message): string
+    private function processLocationMessage(array $message): string|array
     {
         $location = $message['location'];
         $latitude = $location['latitude'];
@@ -292,7 +296,7 @@ class TelegramWebhookController extends Controller
         return "موقعیت مکانی شما در مختصات {$latitude}, {$longitude} دریافت شد.";
     }
 
-    private function processVoiceMessage(array $message): string
+    private function processVoiceMessage(array $message): string|array
     {
         $voice = $message['voice'];
         $fileId = $voice['file_id'];
@@ -308,7 +312,7 @@ class TelegramWebhookController extends Controller
         return "پیام صوتی شما با مدت زمان {$duration} ثانیه دریافت شد.";
     }
 
-    private function processVideoMessage(array $message): string
+    private function processVideoMessage(array $message): string|array
     {
         $video = $message['video'];
         $fileId = $video['file_id'];
@@ -326,7 +330,7 @@ class TelegramWebhookController extends Controller
             ($caption ? "\nکپشن: {$caption}" : '');
     }
 
-    private function processContactMessage(array $message): string
+    private function processContactMessage(array $message): string|array
     {
         $contact = $message['contact'];
         $phoneNumber = $contact['phone_number'];
@@ -336,7 +340,7 @@ class TelegramWebhookController extends Controller
         return "اطلاعات تماس دریافت شد:\nنام: {$firstName} {$lastName}\nشماره تماس: {$phoneNumber}";
     }
 
-    private function processCommand(string $text): string
+    private function processCommand(string $text): string|array
     {
         $parts = explode(' ', $text);
         $command = $parts[0];
@@ -407,7 +411,7 @@ class TelegramWebhookController extends Controller
         }
     }
 
-    private function handleStartCommand(string $message, ): string
+    private function handleStartCommand(string $message, ): string|array
     {
         try {
             $chatId = $this->getCurrentChatId();
@@ -436,7 +440,7 @@ class TelegramWebhookController extends Controller
 
         }
     }
-    public function handleHelpCommand($action = null): string
+    public function handleHelpCommand($action = null): string|array
     {
         if ($action == 'faqs') {
             return $this->generalCntrl->getFaqs($this->getCurrentChatId());
@@ -449,7 +453,7 @@ class TelegramWebhookController extends Controller
         return "";
     }
 
-    public function handleReferralCommand($text): string
+    public function handleReferralCommand($text): string|array
     {
         try {
             $parts = explode('=', $text);
@@ -474,7 +478,7 @@ class TelegramWebhookController extends Controller
         }
     }
 
-    private function handleMenuCommand(): string
+    private function handleMenuCommand(): string|array
     {
         $chatId = $this->getCurrentChatId();
 
@@ -646,7 +650,7 @@ class TelegramWebhookController extends Controller
 
     private function getCurrentChatId(): string
     {
-        return request()->input('message.chat.id');
+        return $this->chatId ?? request()->input('message.chat.id') ?? request()->input('callback_query.from.id');
     }
     private function getCurrentChatFirstName(): string
     {
