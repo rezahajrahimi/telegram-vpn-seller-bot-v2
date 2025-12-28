@@ -18,13 +18,13 @@ class ProductCategoryController extends Controller
     }
     public function deleteProductCategoryByID($id)
     {
-       // delete productCategory by id with cascade if have not any product relation
+        // delete productCategory by id with cascade if have not any product relation
 
         $data = ProductCategory::where('id', $id)->first();
         if ($data != null) {
-            if( $data->delete() != null){
+            if ($data->delete() != null) {
                 return $this->getAllProdctCategory();
-            }else{
+            } else {
                 return response()->json(false, 404);
             }
         }
@@ -41,20 +41,20 @@ class ProductCategoryController extends Controller
     public function getAllActiveProdctCategoryOrderByPrice()
     {
         $panelCntrl = new PannelController();
-            $panels = $panelCntrl->get_all_panells_Id_by_location_capacity_mode();
+        $panels = $panelCntrl->get_all_panells_Id_by_location_capacity_mode();
         return ProductCategory::orderBy('price')->where('is_active', true)
-        ->where('category_name', '!=', 'اکانت آزمایشی')
-        ->whereIn('pannel_id', $panels)
+            ->where('category_name', '!=', 'اکانت آزمایشی')
+            ->whereIn('pannel_id', $panels)
 
-        ->get();
+            ->get();
 
     }
     public function get_all_active_prodct_category_by_pannel_id_order_by_price($pannel_id)
     {
 
         return ProductCategory::where('pannel_id', $pannel_id)
-        ->where('category_name', '!=', 'اکانت آزمایشی')
-        ->orderBy('price')->where('is_active', true)->get();
+            ->where('category_name', '!=', 'اکانت آزمایشی')
+            ->orderBy('price')->where('is_active', true)->get();
 
     }
     public function getProdctPannelID($name, $pannel_id)
@@ -164,7 +164,7 @@ class ProductCategoryController extends Controller
 
     public function getProdctPrice($name, $servicetypeID)
     {
-        $data = ProductCategory::where('pannel_id', $pannel_id)->where('category_name', $name)->first();
+        $data = ProductCategory::where('pannel_id', $servicetypeID)->where('category_name', $name)->first();
         if ($data != null) {
             return $data->price;
         } else {
