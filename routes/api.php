@@ -371,6 +371,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('/usage-more-than-85-percent', [CronJobController::class, 'execute_send_useage_more_than_85_percent']);
     Route::get('/auto-delete-expired-configs', [CronJobController::class, 'execute_auto_delete_expired_configs']);
     Route::get('/less-than-3-days', [CronJobController::class, 'execute_send_lass_there_than_3_days']);
+    Route::post('/updatePricesByTether', [CronJobController::class, 'calculate_product_category_price_by_tether']);
 
     // ReferralSettingController
     Route::get('/getReferralSetting', [ReferralSettingController::class, 'get_referral_setting']);
