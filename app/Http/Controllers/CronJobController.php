@@ -510,6 +510,8 @@ class CronJobController extends Controller
                     $price = $data['lastTradePrice'];
                     // change price from Rial to Toman
                     $intPrice = (int) ($price / 10);
+                    // دو رقم آخر را 0 قرار بده
+                    $intPrice = round($intPrice, -3);
                     return $intPrice;
                 }
             }
