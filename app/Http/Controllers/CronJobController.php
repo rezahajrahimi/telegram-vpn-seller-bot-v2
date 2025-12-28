@@ -500,22 +500,20 @@ class CronJobController extends Controller
     public function get_tether_price_by_nobitex()
     {
         try {
-            // gest Irt usdt by nobitex
+            // get USDT price by nobitex v3 api
+            $response = Http::connectTimeout(30)->get('https://apiv2.nobitex.ir/v3/orderbook/USDTIRT');
 
-            $response = Http::connectTimeout(30)->get('https://api.nobitex.ir/v2/trades/USDTIRT');
-            // Decode the response JSON into an array of data.
             if ($response->ok()) {
-                $data = json_decode($response->getBody()->getContents(), true);
+                $data = $response->json();
 
-                $price = $data['trades'][0]['price'];
-                // change price to toman
-                $price = mb_substr($price, 0, -1);
-
-                $intPrice = (int) $price;
-                return $intPrice;
-            } else {
-                return null;
+                if (isset($data['lastTradePrice'])) {
+                    $price = $data['lastTradePrice'];
+                    // change price from Rial to Toman
+                    $intPrice = (int) ($price / 10);
+                    return $intPrice;
+                }
             }
+            return null;
         } catch (\Exception $e) {
             \Log::error($e->getMessage());
 
