@@ -105,10 +105,8 @@ class GeneralController extends Controller
             if (method_exists($last10ConfirmedTransaction, 'items')) {
                 $last10ConfirmedTransaction = $last10ConfirmedTransaction->items();
             }
-            $unConfirmedTransaction = $transactionCntrl->getUnConfirmedTransactions(request(), 1000);
-            if (method_exists($unConfirmedTransaction, 'items')) {
-                $unConfirmedTransaction = $unConfirmedTransaction->items();
-            }
+            $unConfirmedTransaction = $transactionCntrl->getUnConfirmedTransactions(request(), 10);
+
             $productCatCntrl = new ProductCategoryController();
             $mostSelledProductCategory = $productCatCntrl->mostSelledProductCategory(10);
             $prCntrl = new ProductController();
