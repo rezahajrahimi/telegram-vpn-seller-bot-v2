@@ -584,7 +584,7 @@ class SubscriptionProcessController extends Controller
                         return "";
                     }
 
-                    $links = $sn->getUserLinks($pannel->id, $uuid, $product->remark);
+                    $links = $sn->getUserLinks($pannel->id, $uuid, $product->remark, $product->product_category->inbound_id ?? null);
                     $panelLink = $links[0] ?? '';
                     $pnlCntrl = new PannelController();
                     $image = $pnlCntrl->generateQrMOC($panelLink);

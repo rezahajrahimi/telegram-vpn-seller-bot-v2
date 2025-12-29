@@ -686,13 +686,15 @@ class AgentProductController extends Controller
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
+                $req->inbound_id = $selectedPrCat->inbound_id;
+                $req->ip_limit = $selectedPrCat->ip_limit;
 
                 $uuid = $snCtrl->addUserToSanaeiPanel($req);
                 if ($uuid === false) {
                     return response()->json('Error in creating user in panel', 500);
                 }
 
-                $links = $snCtrl->getUserLinks($pannel, $uuid, $remark);
+                $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
                 $userPannelLink = $links[0] ?? '';
 
                 $reqProductDetails = new Request();
@@ -777,13 +779,15 @@ class AgentProductController extends Controller
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
+                $req->inbound_id = $selectedPrCat->inbound_id;
+                $req->ip_limit = $selectedPrCat->ip_limit;
 
                 $uuid = $snCtrl->addUserToSanaeiPanel($req);
                 if ($uuid === false) {
                     return response()->json('Error in creating user in panel', 500);
                 }
 
-                $links = $snCtrl->getUserLinks($pannel, $uuid, $remark);
+                $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
                 $userPannelLink = $links[0] ?? '';
 
                 $reqProductDetails = new Request();
@@ -955,13 +959,15 @@ class AgentProductController extends Controller
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
+            $req->inbound_id = $selectedPrCat->inbound_id;
+            $req->ip_limit = $selectedPrCat->ip_limit;
 
             $uuid = $snCtrl->addUserToSanaeiPanel($req);
             if ($uuid === false) {
                 return response()->json('Error in creating user in panel', 500);
             }
 
-            $links = $snCtrl->getUserLinks($pannel, $uuid, $remark);
+            $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
             $userPannelLink = $links[0] ?? '';
 
             $reqProductDetails = new Request();

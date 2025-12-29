@@ -100,6 +100,8 @@ class ProductCategoryController extends Controller
         $data->rechargable = $request->rechargable;
         $data->show_subscription_link = $request->show_subscription_link;
         $data->show_pannel_link = $request->show_pannel_link;
+        $data->inbound_id = $request->inbound_id;
+        $data->ip_limit = $request->ip_limit ?? 0;
         if ($request->price_in_dollar != null && $request->price_in_dollar >= 0.00) {
             $data->price_in_dollar = $request->price_in_dollar;
         } else {
@@ -124,6 +126,8 @@ class ProductCategoryController extends Controller
             $data->rechargable = $request->rechargable;
             $data->show_subscription_link = $request->show_subscription_link;
             $data->show_pannel_link = $request->show_pannel_link;
+            $data->inbound_id = $request->inbound_id;
+            $data->ip_limit = $request->ip_limit ?? 0;
             $data->is_active = $request->is_active;
             if ($request->price_in_dollar != null && $request->price_in_dollar >= 0.00) {
                 $data->price_in_dollar = $request->price_in_dollar;

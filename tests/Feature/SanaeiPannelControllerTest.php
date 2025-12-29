@@ -63,7 +63,9 @@ class SanaeiPannelControllerTest extends TestCase
             'pannelID' => $panel->id,
             'day' => 1,
             'vol' => 1,
-            'accountId' => 'test-1'
+            'accountId' => 'test-1',
+            'inbound_id' => 1,
+            'ip_limit' => 2
         ]);
 
         $uuid = $controller->addUserToSanaeiPanel($req);

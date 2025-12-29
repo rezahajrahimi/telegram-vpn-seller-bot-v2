@@ -190,7 +190,7 @@ class SanaeiPannelController extends Controller
             // (Though passing by reference/object should already have them)
             // $panel->refresh(); 
 
-            $inboundId = $panel->inbound_id ?: 1;
+            $inboundId = $request->inbound_id ?: ($panel->inbound_id ?: 1);
             $inbound = $this->getInboundFromPanel($panel, $inboundId);
 
             if (!$inbound) {
@@ -212,7 +212,7 @@ class SanaeiPannelController extends Controller
             $client = [
                 'id' => $uuid,
                 'email' => "bot-" . $accountId . "-" . Random::generate(4),
-                'limitIp' => 0,
+                'limitIp' => (int) ($request->ip_limit ?? 0),
                 'totalGB' => $totalBytes,
                 'expiryTime' => $expiryMs,
                 'enable' => true,
@@ -289,7 +289,7 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function getUserLinks($panelOrId, $uuid, $remark = '')
+    public function getUserLinks($panelOrId, $uuid, $remark = '', $inboundId = null)
     {
         try {
             $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
@@ -303,7 +303,7 @@ class SanaeiPannelController extends Controller
             // Refresh panel to get new cookies from DB
             $panel->refresh();
 
-            $inboundId = $panel->inbound_id ?: 1;
+            $inboundId = $inboundId ?: ($panel->inbound_id ?: 1);
             $inbound = $this->getInboundFromPanel($panel, $inboundId);
             if (!$inbound)
                 return [];

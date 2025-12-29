@@ -444,6 +444,8 @@ class GeneralController extends Controller
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
+            $req->inbound_id = $selectedPrCat->inbound_id;
+            $req->ip_limit = $selectedPrCat->ip_limit;
 
             $uuid = $snCtrl->addUserToSanaeiPanel($req);
             \Log::info("addUserToSanaeiPanel uuid: $uuid");
@@ -452,7 +454,7 @@ class GeneralController extends Controller
             }
 
             // Generate client links and QR codes
-            $links = $snCtrl->getUserLinks($pannel, $uuid, "$chat_id-$productID");
+            $links = $snCtrl->getUserLinks($pannel, $uuid, "$chat_id-$productID", $selectedPrCat->inbound_id);
             if (!empty($links)) {
                 $text = $this->customTextCtrl->getText('action.subscription.sanaei_with_links', [
                     'uuid' => $uuid,
