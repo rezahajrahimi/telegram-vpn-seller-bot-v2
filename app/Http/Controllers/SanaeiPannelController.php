@@ -57,7 +57,7 @@ class SanaeiPannelController extends Controller
 
     private function httpWithAuth(Pannel $panel)
     {
-        $req = Http::withHeaders($this->headers($panel));
+        $req = Http::withoutVerifying()->withHeaders($this->headers($panel));
         if (empty($panel->token) && !empty($panel->cookie_session)) {
             $cookies = json_decode($panel->cookie_session, true) ?? [];
             foreach ($cookies as $cookie) {
@@ -89,7 +89,7 @@ class SanaeiPannelController extends Controller
         if ($token !== '' && $token !== 'Bearer') {
             try {
                 $checkUrl = $this->baseUrl($panel) . $this->apiPrefix . '/server/status';
-                $r = Http::withHeaders(['Authorization' => $token, 'Accept' => 'application/json'])->get($checkUrl);
+                $r = Http::withoutVerifying()->withHeaders(['Authorization' => $token, 'Accept' => 'application/json'])->get($checkUrl);
                 $json = $r->json();
                 if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
                     \Log::info("Token validated for panel $pannelID");
@@ -129,7 +129,7 @@ class SanaeiPannelController extends Controller
 
         // Diagnostic: Check what server we are talking to
         try {
-            $rootRes = Http::get($base);
+            $rootRes = Http::withoutVerifying()->get($base);
             \Log::info("Server check for $base: Status=" . $rootRes->status() . ", ServerHeader=" . ($rootRes->header('Server') ?? 'Unknown'));
         } catch (\Throwable $e) {
             \Log::error("Server check failed for $base: " . $e->getMessage());
@@ -138,7 +138,7 @@ class SanaeiPannelController extends Controller
         try {
             $loginUrl = $base . '/login';
             // include our headers on login (some panels expect AJAX headers)
-            $res = Http::asForm()->withHeaders($this->headers($panel))->post($loginUrl, [
+            $res = Http::withoutVerifying()->asForm()->withHeaders($this->headers($panel))->post($loginUrl, [
                 'username' => $panel->username ?? 'admin',
                 'password' => $panel->password ?? 'admin',
                 // Ask the panel to set the remember cookie like browsers do
@@ -197,6 +197,9 @@ class SanaeiPannelController extends Controller
                 \Log::error("Inbound $inboundId not found in panel $pannelID");
                 return false;
             }
+            
+            // Update inboundId to the actual ID found (in case of fallback)
+            $inboundId = $inbound['id'];
 
             $uuid = (new HiddifyPannelController())->generateUUID();
             $expireSec = now('UTC')->addDays($day)->timestamp;
@@ -464,7 +467,7 @@ class SanaeiPannelController extends Controller
         $headers['Cookie'] = $cookieHeader;
         // Marker header to indicate this is the raw-cookie attempt
         $headers['X-Raw-Cookie-Retry'] = '1';
-        return Http::withHeaders($headers)->get($url);
+        return Http::withoutVerifying()->withHeaders($headers)->get($url);
     }
 
     private function rawPostWithCookie(Pannel $panel, $url, $body, $asJson = true)
@@ -485,11 +488,11 @@ class SanaeiPannelController extends Controller
         $headers['X-Raw-Cookie-Retry'] = '1';
 
         if ($asJson) {
-            return Http::withHeaders($headers)->asJson()->post($url, $body);
+            return Http::withoutVerifying()->withHeaders($headers)->asJson()->post($url, $body);
         }
 
         // form encoded
-        return Http::withHeaders($headers)->asForm()->post($url, $body);
+        return Http::withoutVerifying()->withHeaders($headers)->asForm()->post($url, $body);
     }
 
     /**

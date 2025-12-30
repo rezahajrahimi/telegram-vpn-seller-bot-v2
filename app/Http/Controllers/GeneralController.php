@@ -455,7 +455,25 @@ class GeneralController extends Controller
 
             // Generate client links and QR codes
             $links = $snCtrl->getUserLinks($pannel, $uuid, "$chat_id-$productID", $selectedPrCat->inbound_id);
-            if (!empty($links)) {
+
+            if ($selectedPrCat->show_subscription_link) {
+                $baseUrl = $pannel->user_link;
+                if (empty($baseUrl)) {
+                    $baseUrl = $pannel->url_port;
+                }
+                if (substr($baseUrl, -1) == '/') {
+                    $baseUrl = substr($baseUrl, 0, -1);
+                }
+                $subLink = "$baseUrl/sub/$uuid";
+
+                $text = "لینک اشتراک شما:\n" . $subLink;
+                $this->telegramService->sendMessage($chat_id, $text);
+
+                $pnlCntrl = new PannelController();
+                $image = $pnlCntrl->generateQrMOC($subLink);
+                $this->telegramService->sendPhotoFile($chat_id, $image, $subLink);
+
+            } elseif (!empty($links)) {
                 $text = $this->customTextCtrl->getText('action.subscription.sanaei_with_links', [
                     'uuid' => $uuid,
                 ]);

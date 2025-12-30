@@ -695,7 +695,19 @@ class AgentProductController extends Controller
                 }
 
                 $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
-                $userPannelLink = $links[0] ?? '';
+
+                if ($selectedPrCat->show_subscription_link) {
+                    $baseUrl = $pannel->user_link;
+                    if (empty($baseUrl)) {
+                        $baseUrl = $pannel->url_port;
+                    }
+                    if (substr($baseUrl, -1) == '/') {
+                        $baseUrl = substr($baseUrl, 0, -1);
+                    }
+                    $userPannelLink = "$baseUrl/sub/$uuid";
+                } else {
+                    $userPannelLink = $links[0] ?? '';
+                }
 
                 $reqProductDetails = new Request();
                 $reqProductDetails->account_id = $accountID;
@@ -788,7 +800,19 @@ class AgentProductController extends Controller
                 }
 
                 $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
-                $userPannelLink = $links[0] ?? '';
+
+                if ($selectedPrCat->show_subscription_link) {
+                    $baseUrl = $pannel->user_link;
+                    if (empty($baseUrl)) {
+                        $baseUrl = $pannel->url_port;
+                    }
+                    if (substr($baseUrl, -1) == '/') {
+                        $baseUrl = substr($baseUrl, 0, -1);
+                    }
+                    $userPannelLink = "$baseUrl/sub/$uuid";
+                } else {
+                    $userPannelLink = $links[0] ?? '';
+                }
 
                 $reqProductDetails = new Request();
                 $reqProductDetails->account_id = $accountID;
@@ -968,7 +992,19 @@ class AgentProductController extends Controller
             }
 
             $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
-            $userPannelLink = $links[0] ?? '';
+
+            if ($selectedPrCat->show_subscription_link) {
+                $baseUrl = $pannel->user_link;
+                if (empty($baseUrl)) {
+                    $baseUrl = $pannel->url_port;
+                }
+                if (substr($baseUrl, -1) == '/') {
+                    $baseUrl = substr($baseUrl, 0, -1);
+                }
+                $userPannelLink = "$baseUrl/sub/$uuid";
+            } else {
+                $userPannelLink = $links[0] ?? '';
+            }
 
             $reqProductDetails = new Request();
             $reqProductDetails->account_id = $accountID;
