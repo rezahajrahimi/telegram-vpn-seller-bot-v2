@@ -48,8 +48,9 @@ use App\Http\Controllers\BlockedUserController;
 use App\Http\Controllers\ShetabVerifyController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Http\Controllers\AppInfoController;
-use App\Http\Controllers\SanaeiPannelController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\InboundTemplateController;
+use App\Http\Controllers\SanaeiPannelController;
 
 
 use Illuminate\Http\Request;
@@ -419,6 +420,13 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
 
     // ShetabVerifyController
     Route::post('/shetab-verify', [ShetabVerifyController::class, 'shetabVerify']);
+
+    // Reports
+    Route::get('getDashboardStats', [ReportController::class, 'getDashboardStats']);
+    Route::get('getFinancialReport', [ReportController::class, 'getFinancialReport']);
+    Route::get('getUserReport', [ReportController::class, 'getUserReport']);
+    Route::get('getProductReport', [ReportController::class, 'getProductReport']);
+    Route::get('getLastProductSelled/{count}', [ProductController::class, 'getLastProductSelled']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User
