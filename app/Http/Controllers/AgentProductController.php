@@ -689,9 +689,16 @@ class AgentProductController extends Controller
                 $req->inbound_id = $selectedPrCat->inbound_id;
                 $req->ip_limit = $selectedPrCat->ip_limit;
 
-                $uuid = $snCtrl->addUserToSanaeiPanel($req);
-                if ($uuid === false) {
+                $result = $snCtrl->addUserToSanaeiPanel($req);
+                if ($result === false) {
                     return response()->json('Error in creating user in panel', 500);
+                }
+                if (is_array($result)) {
+                    $uuid = $result['uuid'];
+                    $subId = $result['subId'];
+                } else {
+                    $uuid = $result;
+                    $subId = $uuid;
                 }
 
                 $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
@@ -701,10 +708,18 @@ class AgentProductController extends Controller
                     if (empty($baseUrl)) {
                         $baseUrl = $pannel->url_port;
                     }
+                    if (!empty($pannel->sub_port)) {
+                        $parsed = parse_url($baseUrl);
+                        $host = $parsed['host'] ?? '';
+                        $scheme = $parsed['scheme'] ?? 'http';
+                        if ($host) {
+                            $baseUrl = "$scheme://$host:{$pannel->sub_port}";
+                        }
+                    }
                     if (substr($baseUrl, -1) == '/') {
                         $baseUrl = substr($baseUrl, 0, -1);
                     }
-                    $userPannelLink = "$baseUrl/sub/$uuid";
+                    $userPannelLink = "$baseUrl/sub/$subId";
                 } else {
                     $userPannelLink = $links[0] ?? '';
                 }
@@ -794,9 +809,16 @@ class AgentProductController extends Controller
                 $req->inbound_id = $selectedPrCat->inbound_id;
                 $req->ip_limit = $selectedPrCat->ip_limit;
 
-                $uuid = $snCtrl->addUserToSanaeiPanel($req);
-                if ($uuid === false) {
+                $result = $snCtrl->addUserToSanaeiPanel($req);
+                if ($result === false) {
                     return response()->json('Error in creating user in panel', 500);
+                }
+                if (is_array($result)) {
+                    $uuid = $result['uuid'];
+                    $subId = $result['subId'];
+                } else {
+                    $uuid = $result;
+                    $subId = $uuid;
                 }
 
                 $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
@@ -806,10 +828,18 @@ class AgentProductController extends Controller
                     if (empty($baseUrl)) {
                         $baseUrl = $pannel->url_port;
                     }
+                    if (!empty($pannel->sub_port)) {
+                        $parsed = parse_url($baseUrl);
+                        $host = $parsed['host'] ?? '';
+                        $scheme = $parsed['scheme'] ?? 'http';
+                        if ($host) {
+                            $baseUrl = "$scheme://$host:{$pannel->sub_port}";
+                        }
+                    }
                     if (substr($baseUrl, -1) == '/') {
                         $baseUrl = substr($baseUrl, 0, -1);
                     }
-                    $userPannelLink = "$baseUrl/sub/$uuid";
+                    $userPannelLink = "$baseUrl/sub/$subId";
                 } else {
                     $userPannelLink = $links[0] ?? '';
                 }
@@ -986,9 +1016,16 @@ class AgentProductController extends Controller
             $req->inbound_id = $selectedPrCat->inbound_id;
             $req->ip_limit = $selectedPrCat->ip_limit;
 
-            $uuid = $snCtrl->addUserToSanaeiPanel($req);
-            if ($uuid === false) {
+            $result = $snCtrl->addUserToSanaeiPanel($req);
+            if ($result === false) {
                 return response()->json('Error in creating user in panel', 500);
+            }
+            if (is_array($result)) {
+                $uuid = $result['uuid'];
+                $subId = $result['subId'];
+            } else {
+                $uuid = $result;
+                $subId = $uuid;
             }
 
             $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
@@ -998,10 +1035,18 @@ class AgentProductController extends Controller
                 if (empty($baseUrl)) {
                     $baseUrl = $pannel->url_port;
                 }
+                if (!empty($pannel->sub_port)) {
+                    $parsed = parse_url($baseUrl);
+                    $host = $parsed['host'] ?? '';
+                    $scheme = $parsed['scheme'] ?? 'http';
+                    if ($host) {
+                        $baseUrl = "$scheme://$host:{$pannel->sub_port}";
+                    }
+                }
                 if (substr($baseUrl, -1) == '/') {
                     $baseUrl = substr($baseUrl, 0, -1);
                 }
-                $userPannelLink = "$baseUrl/sub/$uuid";
+                $userPannelLink = "$baseUrl/sub/$subId";
             } else {
                 $userPannelLink = $links[0] ?? '';
             }

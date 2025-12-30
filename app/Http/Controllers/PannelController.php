@@ -26,6 +26,7 @@ class PannelController extends Controller
             $pannel->token = $request->token ?? 'Bearer ';
             $pannel->location = $request->location ?? null;
             $pannel->url_port = $request->url_port ?? null;
+            $pannel->sub_port = $request->sub_port ?? null;
             $pannel->admin_url = $request->admin_url ?? null;
             $pannel->user_link = $request->user_link ?? null;
             $pannel->capacity = $request->capacity ?? 1333333;
@@ -250,6 +251,7 @@ class PannelController extends Controller
                 $pannel->token = $request->token ?? 'Bearer ';
                 $pannel->location = $request->location ?? null;
                 $pannel->url_port = $request->url_port ?? null;
+                $pannel->sub_port = $request->sub_port ?? null;
                 $pannel->admin_url = $request->admin_url ?? null;
                 $pannel->user_link = $request->user_link ?? null;
                 $pannel->capacity = $request->capacity ?? 1333333;

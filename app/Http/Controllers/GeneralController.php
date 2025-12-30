@@ -447,10 +447,17 @@ class GeneralController extends Controller
             $req->inbound_id = $selectedPrCat->inbound_id;
             $req->ip_limit = $selectedPrCat->ip_limit;
 
-            $uuid = $snCtrl->addUserToSanaeiPanel($req);
-            \Log::info("addUserToSanaeiPanel uuid: $uuid");
-            if ($uuid === false) {
+            $result = $snCtrl->addUserToSanaeiPanel($req);
+            \Log::info("addUserToSanaeiPanel result: " . json_encode($result));
+            if ($result === false) {
                 return false;
+            }
+            if (is_array($result)) {
+                $uuid = $result['uuid'];
+                $subId = $result['subId'];
+            } else {
+                $uuid = $result;
+                $subId = $uuid;
             }
 
             // Generate client links and QR codes
@@ -461,10 +468,18 @@ class GeneralController extends Controller
                 if (empty($baseUrl)) {
                     $baseUrl = $pannel->url_port;
                 }
+                if (!empty($pannel->sub_port)) {
+                    $parsed = parse_url($baseUrl);
+                    $host = $parsed['host'] ?? '';
+                    $scheme = $parsed['scheme'] ?? 'http';
+                    if ($host) {
+                        $baseUrl = "$scheme://$host:{$pannel->sub_port}";
+                    }
+                }
                 if (substr($baseUrl, -1) == '/') {
                     $baseUrl = substr($baseUrl, 0, -1);
                 }
-                $subLink = "$baseUrl/sub/$uuid";
+                $subLink = "$baseUrl/sub/$subId";
 
                 $text = "لینک اشتراک شما:\n" . $subLink;
                 $this->telegramService->sendMessage($chat_id, $text);

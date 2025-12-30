@@ -197,7 +197,7 @@ class SanaeiPannelController extends Controller
                 \Log::error("Inbound $inboundId not found in panel $pannelID");
                 return false;
             }
-            
+
             // Update inboundId to the actual ID found (in case of fallback)
             $inboundId = $inbound['id'];
 
@@ -259,7 +259,7 @@ class SanaeiPannelController extends Controller
             $json = $r->json();
             if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
                 \Log::info("User created: $uuid");
-                return $uuid;
+                return ['uuid' => $uuid, 'subId' => $client['subId']];
             }
 
             \Log::error("Failed to add client. URL: $url, Status: " . $r->status() . ", Body: " . $r->body());
