@@ -464,7 +464,7 @@ class GeneralController extends Controller
             $links = $snCtrl->getUserLinks($pannel, $uuid, "$chat_id-$productID", $selectedPrCat->inbound_id);
 
             if ($selectedPrCat->show_subscription_link) {
-                $baseUrl = $pannel->user_link;
+                $baseUrl = $pannel->admin_url;
                 if (empty($baseUrl)) {
                     $baseUrl = $pannel->url_port;
                 }

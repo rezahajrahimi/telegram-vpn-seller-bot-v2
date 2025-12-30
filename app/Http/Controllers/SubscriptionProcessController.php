@@ -585,7 +585,31 @@ class SubscriptionProcessController extends Controller
                     }
 
                     $links = $sn->getUserLinks($pannel->id, $uuid, $product->remark, $product->product_category->inbound_id ?? null);
-                    $panelLink = $links[0] ?? '';
+
+                    $subId = $status['client']['subId'] ?? $uuid;
+                    $userSubscriptionLink = "";
+                    if ($prCat->show_subscription_link) {
+                        $baseUrl = $pannel->user_link;
+                        if (empty($baseUrl)) {
+                            $baseUrl = $pannel->url_port;
+                        }
+                        if (!empty($pannel->sub_port)) {
+                            $parsed = parse_url($baseUrl);
+                            $host = $parsed['host'] ?? '';
+                            $scheme = $parsed['scheme'] ?? 'http';
+                            if ($host) {
+                                $baseUrl = "$scheme://$host:{$pannel->sub_port}";
+                            }
+                        }
+                        if (substr($baseUrl, -1) == '/') {
+                            $baseUrl = substr($baseUrl, 0, -1);
+                        }
+                        $userSubscriptionLink = "$baseUrl/sub/$subId";
+                    } else {
+                        $userSubscriptionLink = $links[0] ?? '';
+                    }
+
+                    $panelLink = $userSubscriptionLink;
                     $pnlCntrl = new PannelController();
                     $image = $pnlCntrl->generateQrMOC($panelLink);
 
@@ -612,7 +636,7 @@ class SubscriptionProcessController extends Controller
                         'name' => $product->remark,
                         'category_name' => $prCat->category_name,
                         'panel_link' => $panelLink,
-                        'subscription_link' => $panelLink,
+                        'subscription_link' => $userSubscriptionLink,
                         'start_date' => $startDate,
                         'expire_date' => $expireDate,
                         'usage_limit_GB' => $limitGB,
