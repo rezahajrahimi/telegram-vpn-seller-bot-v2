@@ -541,4 +541,35 @@ class TelegramService
         ]);
         return $response;
     }
+
+    public function editMessageText(string $chatId, int $messageId, string $text, array $options = []): array
+    {
+        return $this->makeRequest('editMessageText', array_merge([
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $text,
+            'parse_mode' => 'HTML',
+        ], $options));
+    }
+
+    public function editMessageReplyMarkup(string $chatId, int $messageId, array $replyMarkup = []): array
+    {
+        return $this->makeRequest('editMessageReplyMarkup', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'reply_markup' => json_encode($replyMarkup),
+        ]);
+    }
+
+    public function editMessageWithInlineKeyboard(string $chatId, int $messageId, string|array $text, array $buttons): array
+    {
+        if (is_array($text)) {
+            $text = $this->formatText($text);
+        }
+        return $this->editMessageText($chatId, $messageId, $text, [
+            'reply_markup' => json_encode([
+                'inline_keyboard' => $this->formatInlineKeyboardButtons($buttons),
+            ]),
+        ]);
+    }
 }

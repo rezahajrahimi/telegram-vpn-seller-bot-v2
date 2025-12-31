@@ -834,7 +834,7 @@ class GeneralController extends Controller
 
         ];
     }
-    public function getFaqs($chatId)
+    public function getFaqs($chatId, $messageId = null)
     {
         $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId, 'show');
         $faqCtrl = new FaqController();
@@ -848,7 +848,12 @@ class GeneralController extends Controller
             }
         }
         $text = $this->customTextCtrl->getText('action.help.faq');
-        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        if ($messageId) {
+            $this->telegramService->editMessageWithInlineKeyboard($chatId, $messageId, $text, $opr);
+        } else {
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        }
         return "";
 
     }
@@ -860,7 +865,7 @@ class GeneralController extends Controller
         $this->telegramService->sendMessage($chatId, $faq->answer);
         return "";
     }
-    public function appDownload($chatId)
+    public function appDownload($chatId, $messageId = null)
     {
         $appCtrl = new ApplicationController();
         $oses = $appCtrl->getApplicationOSes();
@@ -873,10 +878,15 @@ class GeneralController extends Controller
             }
         }
         $text = $this->customTextCtrl->getText('action.help.appDownload.os');
-        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        if ($messageId) {
+            $this->telegramService->editMessageWithInlineKeyboard($chatId, $messageId, $text, $opr);
+        } else {
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        }
         return "";
     }
-    public function subAppDownloadOs($chatId, $selectedOsID)
+    public function subAppDownloadOs($chatId, $selectedOsID, $messageId = null)
     {
         $appCtrl = new ApplicationController();
         $app = $appCtrl->getAllActiveAplicationListByOS($selectedOsID);
@@ -894,10 +904,15 @@ class GeneralController extends Controller
             // use format text service
             $text = $this->telegramService->formatText($text);
         }
-        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        if ($messageId) {
+            $this->telegramService->editMessageWithInlineKeyboard($chatId, $messageId, $text, $opr);
+        } else {
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        }
         return "";
     }
-    public function subAppDownloadApp($chatId, $selectedAppID)
+    public function subAppDownloadApp($chatId, $selectedAppID, $messageId = null)
     {
         $appCtrl = new ApplicationController();
         $app = $appCtrl->getActiveAplicationByID($selectedAppID);
@@ -919,7 +934,11 @@ class GeneralController extends Controller
             $text = $this->telegramService->formatText($text);
         }
 
-        $this->telegramService->sendMessage($chatId, $text);
+        if ($messageId) {
+            $this->telegramService->editMessageText($chatId, $messageId, $text);
+        } else {
+            $this->telegramService->sendMessage($chatId, $text);
+        }
         return "";
     }
     public function support($chatId)

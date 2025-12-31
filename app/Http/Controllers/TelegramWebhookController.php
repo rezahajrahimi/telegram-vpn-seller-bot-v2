@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Transaction;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
+use App\Services\TelegramCallbackHandler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -24,9 +25,10 @@ class TelegramWebhookController extends Controller
     private AuthController $authCntrl;
     private BlockedUserController $blockedUserCtrl;
     private UserController $userCtrl;
+    private TelegramCallbackHandler $callbackHandler;
     private $chatId;
 
-    public function __construct(TelegramService $telegramService)
+    public function __construct(TelegramService $telegramService, TelegramCallbackHandler $callbackHandler)
     {
         $this->telegramService = $telegramService;
         $this->customTextCtrl = new CustomTextController();
@@ -37,6 +39,8 @@ class TelegramWebhookController extends Controller
         $this->authCntrl = new AuthController();
         $this->blockedUserCtrl = new BlockedUserController();
         $this->userCtrl = new UserController();
+        $this->callbackHandler = $callbackHandler;
+        $this->callbackHandler->setWebhookController($this);
     }
 
     public function handle(Request $request)
@@ -502,56 +506,36 @@ class TelegramWebhookController extends Controller
         $chatId = $callbackQuery['from']['id'];
         $data = $callbackQuery['data'];
         $callbackQueryId = $callbackQuery['id'];
+        $messageId = $callbackQuery['message']['message_id'] ?? null;
+
         \Log::info("handleCallbackQuery data=> {$data}");
         // checl is force replay
         $this->handleAwaitingReply($chatId, $data);
 
         // explode the data to get the action
         $actionList = explode('-', $data);
+        $action = array_shift($actionList); // Get action and remove it from list
+        $params = $actionList; // Remaining items are params
 
-        $action = $actionList[0];
-        $response = match ($action) {
-            'buySubscription' => $this->subscriptionProcessCtrl->buySubscriptionAction($chatId, $actionList[1]),
-            'buySubscriptionByLocation' => $this->subscriptionProcessCtrl->buySubscriptionByLocationAction($chatId, $actionList[1]),
-            'offlineGateway' => $this->subscriptionProcessCtrl->handle_offline_add_balance($chatId, $actionList[1]),
-            'buyHistory' => $this->subscriptionProcessCtrl->subBuyHistory($chatId, $actionList[1]),
-            'buyHistoryNext' => $this->subscriptionProcessCtrl->buyHistory($chatId, $actionList[1]),
-            'recharge' => $this->subscriptionProcessCtrl->recharge($chatId, $actionList[1]),
-            'remark' => $this->subscriptionProcessCtrl->remark($chatId, $actionList[1]),
-            'accountTransactions' => $this->accountProcessCtrl->accountTransactions($chatId),
-            'accountSubAccounts' => $this->accountProcessCtrl->accountSubAccounts($chatId),
-            'accountAddBalance' => $this->accountProcessCtrl->accountAddBalance($chatId),
-            'accountSubAccountsZarinpal' => $this->accountProcessCtrl->handleActionAddBalanceZarinpal($chatId),
-            'accountSubAccountsNowpayment' => $this->accountProcessCtrl->handleActionAddBalanceNowpayments($chatId),
-            'accountSubAccountsCryptomus' => $this->accountProcessCtrl->handleActionAddBalanceCryptomus($chatId),
+        $response = $this->callbackHandler->handle($chatId, $action, $params, $messageId, $callbackQueryId);
 
-            'addBalanceReply' => $this->accountProcessCtrl->addBalanceReply($chatId, $actionList[1]),
-            'toturial' => $actionList[1] == 'appDownload' ? $this->generalCntrl->appDownload($chatId) : $this->generalCntrl->getFaqs($chatId),
-            'help' => $this->handleHelpCommand(),
-            'faq' => $this->generalCntrl->subFaq($chatId, $actionList[1]),
-            'appDownload' => $this->generalCntrl->appDownload($chatId),
-            'subAppDownloadOs' => $this->generalCntrl->subAppDownloadOs($chatId, $actionList[1]),
-            'subAppDownloadApp' => $this->generalCntrl->subAppDownloadApp($chatId, $actionList[1]),
-            'support' => $this->generalCntrl->subSupport($chatId, $actionList[1]),
-            'giftCard' => $this->generalCntrl->subGiftCard($chatId, $actionList[1]),
-            'referral' => $this->generalCntrl->subReferral($chatId),
-            'charge' => $this->accountProcessCtrl->adminFastCharge($chatId, $actionList[1], $actionList[2]),
-            'shetabVerify' => $this->accountProcessCtrl->handleActionAddBalanceShetabVerify($chatId, $actionList[1]),
-            'shetabVerifyAuto' => $this->accountProcessCtrl->processShetabVerification($chatId, $actionList[1]),
-            'confirmReceipt' => $this->handleConfirmReceipt($chatId, $actionList[1], $callbackQueryId),
-            'cancelReceipt' => $this->handleCancelReceipt($chatId, $actionList[1], $callbackQueryId),
+        $alertText = $this->customTextCtrl->getText('action.process.on_progress');
+        $showAlert = false;
 
-            default => $this->customTextCtrl->getText('error.action.not_found')
-        };
+        if (is_array($response) && isset($response['alert'])) {
+            $alertText = $response['alert'];
+            $showAlert = $response['show_alert'] ?? true;
+            $response = null;
+        }
 
         // ارسال پاسخ به callback query
         $this->telegramService->answerCallbackQuery(
             $callbackQueryId,
-            $this->customTextCtrl->getText('action.process.on_progress'),
-            false
+            $alertText,
+            $showAlert
         );
 
-        if ($response != "" || $response != null || $response != " ") {
+        if ($response && ($response != "" || $response != null || $response != " ")) {
             $this->telegramService->sendMessage($chatId, $response);
         }
         return response()->json(['status' => 'success']);

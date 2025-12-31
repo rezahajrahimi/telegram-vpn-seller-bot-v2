@@ -15,6 +15,7 @@ use Hekmatinasser\Verta\Verta;
 // add cache
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use App\Jobs\ProcessSubscriptionPurchase;
 
 class SubscriptionProcessController extends Controller
 {
@@ -59,6 +60,7 @@ class SubscriptionProcessController extends Controller
     public function buySubscriptionMenu($chatId)
     {
         try {
+            $this->telegramService->sendChatAction($chatId, 'typing');
             $this->chatId = $chatId;
             // get the chat user name from user table with chatId
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
@@ -92,6 +94,32 @@ class SubscriptionProcessController extends Controller
 
         } catch (\Throwable $th) {
             \Log::error("خطا در خرید اشتراک: " . $th->getMessage());
+            $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
+    }
+
+    public function buySubscriptionAction($chatId, $categoryId)
+    {
+        try {
+            $this->chatId = $chatId;
+            $this->botUser = $this->botUser->getUserByAccountID($chatId);
+
+            if (!$categoryId) {
+                $this->telegramService->sendMessage($chatId, "دسته‌بندی نامعتبر است.");
+                return "";
+            }
+
+            // Dispatch the job to handle the purchase asynchronously
+            ProcessSubscriptionPurchase::dispatch($chatId, $categoryId);
+
+            // Send a typing action to indicate processing
+            $this->telegramService->sendChatAction($chatId, 'typing');
+
+            return "";
+
+        } catch (\Throwable $th) {
+            \Log::error("Error in buySubscriptionAction: " . $th->getMessage());
             $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }
@@ -170,37 +198,6 @@ class SubscriptionProcessController extends Controller
 
         $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
         return "";
-    }
-
-    public function buySubscriptionAction($chatId, $subscriptionId)
-    {
-        try {
-            $this->chatId = $chatId;
-            $this->selectedPrCat = $this->selectedPrCat->getProdctCategorByID($subscriptionId);
-            // check if selectedPrCat is null
-            if ($this->selectedPrCat == null) {
-                return $this->customTextCtrl->getText('action.process.failed_buy');
-            }
-            // بررسی موجودی کاربر
-            $productPrice = $this->selectedPrCat->price;
-            $productPriceInDollar = $this->selectedPrCat->price_in_dollar;
-
-            $hasBallance = $this->accBlCtrl->checkUserHasBalance($chatId, $productPrice, $productPriceInDollar);
-            // بررسی کیف پول ارجاع
-            $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $this->selectedPrCat->price);
-
-            if ($hasRefballance == true || $hasBallance == true || $hasBallance == 1 || $hasRefballance == 1) {
-                return $this->processSubscriptionPurchase();
-                // return $this->customTextCtrl->getText('action.process.success_buy');
-            } else {
-                $this->generalCntrl->send_insufficient_balance_message($this->chatId, $this->selectedPrCat->id);
-                return "";
-            }
-
-        } catch (\Throwable $th) {
-            \Log::error("خطا در خرید بسته: " . $th->getMessage());
-            return $this->customTextCtrl->getText('action.process.failed_buy');
-        }
     }
 
     private function processPayment($productPrice, $productPriceInDollar, $hasRefballance)
