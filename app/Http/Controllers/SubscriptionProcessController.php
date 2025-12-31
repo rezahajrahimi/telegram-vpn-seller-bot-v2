@@ -16,6 +16,7 @@ use Hekmatinasser\Verta\Verta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use App\Jobs\ProcessSubscriptionPurchase;
+use App\Jobs\ProcessRemarkJob;
 
 class SubscriptionProcessController extends Controller
 {
@@ -797,68 +798,33 @@ class SubscriptionProcessController extends Controller
             return $this->customTextCtrl->getText('error.server_error');
         }
     }
-    public function remarkReply($chatId, $prID)
+    public function remarkReply($chatId, $newName)
     {
         try {
-            if ($prID == null || trim($prID) == 'لغو' || trim($prID) == 'cancel') {
+            if ($newName == null || trim($newName) == 'لغو' || trim($newName) == 'cancel') {
                 $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.cancel'));
                 return "";
             }
-            $this->chatId = $chatId;
+
             $user_state = UserState::where('chat_id', $chatId)->latest()->first();
-            $product = Product::where('id', $user_state->data)
-                ->with('product_category_and_panel')
-                ->first();
-            if ($product == null) {
+
+            if (!$user_state || !$user_state->data) {
                 $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
                 return "";
             }
 
-            $pannel = Pannel::find($product->product_category_and_panel->pannel_id);
-            if ($pannel->type == 'hiddify') {
+            $productId = $user_state->data;
 
-                $hiddifcCntrl = new HiddifyPannelController();
-                $uuid = $hiddifcCntrl->extractUUID($product->subscription_link);
-                $req = new Request();
-                $req->pannelID = $pannel->id;
-                $req->name = $prID;
-                $req->uuid = $uuid;
-                $req->comment = "تغییر نام بسته در " . Verta::now();
+            // Dispatch the job
+            ProcessRemarkJob::dispatch($chatId, $productId, $newName);
 
-                $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelApi($req);
-                if ($updateRemark !== false) {
-                    $product->remark = $prID;
-                    $product->update();
-                    $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.success'));
-                    $this->addNewBotLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', 'show');
-                    return "";
-                }
-            } elseif ($pannel->type == 'sanaei') {
-                \Log::info("remarkReply: Sanaei panel detected for product " . $product->id);
-                $sn = new SanaeiPannelController();
-                $configs = json_decode($product->configs ?? '{}', true);
-                $uuid = $configs['uuid'] ?? null;
-                if ($uuid) {
-                    \Log::info("remarkReply: Updating Sanaei client $uuid to new email: $prID");
-                    $ok = $sn->updateClientEmail($pannel->id, $uuid, $prID);
-                    if ($ok) {
-                        \Log::info("remarkReply: Sanaei panel update success. Updating database remark.");
-                        $product->remark = $prID;
-                        $product->update();
-                        $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.success'));
-                        $this->addNewBotLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', 'show');
-                        return "";
-                    } else {
-                        \Log::error("remarkReply: Sanaei panel update failed for client $uuid");
-                    }
-                } else {
-                    \Log::warning("remarkReply: No UUID found in configs for product " . $product->id);
-                }
-            }
-            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            $this->telegramService->sendChatAction($chatId, 'typing');
+            $this->telegramService->sendMessage($chatId, "در حال تغییر نام بسته، لطفاً صبر کنید...");
+
             return "";
+
         } catch (\Throwable $th) {
-            \Log::error("خطا در تغییر نام بسته: " . $th->getMessage());
+            \Log::error("Error in remarkReply: " . $th->getMessage());
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }
