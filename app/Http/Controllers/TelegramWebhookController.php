@@ -688,7 +688,7 @@ class TelegramWebhookController extends Controller
             return "";
         }
     }
-    private function handleConfirmReceipt($adminChatId, $transactionId, $callbackQueryId)
+    public function handleConfirmReceipt($adminChatId, $transactionId, $callbackQueryId)
     {
         if (Cache::has("receipt_processed_{$transactionId}")) {
             $this->telegramService->answerCallbackQuery($callbackQueryId, "این رسید قبلاً توسط مدیر دیگری بررسی شده است.", true);
@@ -708,7 +708,7 @@ class TelegramWebhookController extends Controller
         return "";
     }
 
-    private function handleCancelReceipt($adminChatId, $transactionId, $callbackQueryId)
+    public function handleCancelReceipt($adminChatId, $transactionId, $callbackQueryId)
     {
         if (Cache::has("receipt_processed_{$transactionId}")) {
             $this->telegramService->answerCallbackQuery($callbackQueryId, "این رسید قبلاً توسط مدیر دیگری بررسی شده است.", true);

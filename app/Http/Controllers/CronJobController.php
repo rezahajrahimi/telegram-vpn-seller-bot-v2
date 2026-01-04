@@ -571,4 +571,18 @@ class CronJobController extends Controller
         $cronJob->save();
         return $cronJob;
     }
+
+    public function clear_laravel_log()
+    {
+        try {
+            $logPath = storage_path('logs/laravel.log');
+            if (file_exists($logPath)) {
+                file_put_contents($logPath, '');
+            }
+            return true;
+        } catch (\Throwable $th) {
+            \Log::error("Error clearing laravel log: " . $th->getMessage());
+            return false;
+        }
+    }
 }

@@ -916,9 +916,16 @@ class CustomTextController extends Controller
                 'description' => 'متن این بسته قابلیت شارژ ندارد'
             ],
             [
-                'key' => 'action.subscription.sanaei_with_links',
+                'key' => 'action.subscription.hiddify',
                 'default_text' => json_encode([
                     ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:"],
+                    ['type' => 'link', 'text' => "لینک پنل", 'url' => "{panel_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{subscription_link}"],
                     ['type' => 'newline'],
                     ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
                 ]),
