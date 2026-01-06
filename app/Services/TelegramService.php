@@ -56,6 +56,22 @@ class TelegramService
             'parse_mode' => 'HTML',
         ], $options));
     }
+
+    public function sendPhotoUrl(string $chatId, string $photo, ?string $caption = null, array $options = []): array
+    {
+        $params = array_merge([
+            'chat_id' => $chatId,
+            'photo' => $photo,
+            'parse_mode' => 'HTML',
+        ], $options);
+
+        if ($caption !== null) {
+            $params['caption'] = $caption;
+        }
+
+        return $this->makeRequest('sendPhoto', $params);
+    }
+
     // check that the chatId is channel member
     public function checkChatIdIsChannelMember(string $chatId, $channelId): bool
     {
@@ -479,10 +495,16 @@ class TelegramService
         curl_close($ch);
 
         if ($error) {
+            \Log::error("Telegram API Curl Error ($method): $error");
             throw new \Exception('خطا در ارتباط با تلگرام: ' . $error);
         }
 
-        return json_decode($response, true) ?? [];
+        $decoded = json_decode($response, true) ?? [];
+        if (isset($decoded['ok']) && !$decoded['ok']) {
+            \Log::error("Telegram API Error ($method): " . json_encode($decoded) . " | Params: " . json_encode($params));
+        }
+
+        return $decoded;
     }
 
     private function makeRequestFile(string $method, array $params = []): array

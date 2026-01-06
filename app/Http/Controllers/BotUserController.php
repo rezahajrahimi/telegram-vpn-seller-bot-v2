@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 use App\Models\BotUser;
 use App\Models\User;
+use App\Models\AdminMessage;
 use Illuminate\Support\Facades\Hash;
 use App\Services\TelegramService;
 use App\Jobs\BatchMessageJob;
@@ -202,6 +203,18 @@ class BotUserController extends Controller
         try {
             $message = $request->message;
             $scheduledAt = $request->scheduled_at; // Optional: ISO 8601 date string
+            $imagePath = null;
+
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $directory = public_path('storage/admin_messages');
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0777, true);
+                }
+                $file->move($directory, $filename);
+                $imagePath = 'storage/admin_messages/' . $filename;
+            }
 
             $userIds = BotUser::pluck('account_id')->toArray();
 
@@ -209,7 +222,16 @@ class BotUserController extends Controller
                 return response()->json(['message' => 'No users found'], 404);
             }
 
-            $job = new BatchMessageJob('send_to_all', $userIds, $message);
+            $adminMessage = AdminMessage::create([
+                'message' => $message,
+                'image_path' => $imagePath,
+                'type' => $imagePath ? 'photo' : 'text',
+                'status' => 'pending',
+                'total_users' => count($userIds),
+                'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt) : null,
+            ]);
+
+            $job = new BatchMessageJob('send_to_all', $userIds, $message, [], $adminMessage->id);
 
             if ($scheduledAt) {
                 $delay = Carbon::parse($scheduledAt);
@@ -223,7 +245,7 @@ class BotUserController extends Controller
             return response()->json(true, 200);
         } catch (\Throwable $th) {
             \Log::error('send_Admin_message_to_All_users: ' . $th->getMessage());
-            return response()->json(['message' => 'Server Error'], 500);
+            return response()->json(['message' => 'Server Error: ' . $th->getMessage()], 500);
         }
     }
 
@@ -232,13 +254,37 @@ class BotUserController extends Controller
         try {
             $message = $request->message;
             $userIds = $request->user_ids; // Array of account_ids
+            if (is_string($userIds)) {
+                $userIds = json_decode($userIds, true);
+            }
             $scheduledAt = $request->scheduled_at; // Optional
+            $imagePath = null;
+
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $directory = public_path('storage/admin_messages');
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0777, true);
+                }
+                $file->move($directory, $filename);
+                $imagePath = 'storage/admin_messages/' . $filename;
+            }
 
             if (empty($userIds)) {
                 return response()->json(['message' => 'No users selected'], 400);
             }
 
-            $job = new BatchMessageJob('send_to_selected', $userIds, $message);
+            $adminMessage = AdminMessage::create([
+                'message' => $message,
+                'image_path' => $imagePath,
+                'type' => $imagePath ? 'photo' : 'text',
+                'status' => 'pending',
+                'total_users' => count($userIds),
+                'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt) : null,
+            ]);
+
+            $job = new BatchMessageJob('send_to_selected', $userIds, $message, [], $adminMessage->id);
 
             if ($scheduledAt) {
                 $delay = Carbon::parse($scheduledAt);
@@ -252,7 +298,7 @@ class BotUserController extends Controller
             return response()->json(true, 200);
         } catch (\Throwable $th) {
             \Log::error('send_Admin_message_to_Selected_users: ' . $th->getMessage());
-            return response()->json(['message' => 'Server Error'], 500);
+            return response()->json(['message' => 'Server Error: ' . $th->getMessage()], 500);
         }
     }
 
@@ -271,8 +317,29 @@ class BotUserController extends Controller
 
             $message = $request->message;
             $scheduledAt = $request->scheduled_at;
+            $imagePath = null;
 
-            $job = new BatchMessageJob('send_to_no_configs', $userIds, $message);
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $directory = public_path('storage/admin_messages');
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0777, true);
+                }
+                $file->move($directory, $filename);
+                $imagePath = 'storage/admin_messages/' . $filename;
+            }
+
+            $adminMessage = AdminMessage::create([
+                'message' => $message,
+                'image_path' => $imagePath,
+                'type' => $imagePath ? 'photo' : 'text',
+                'status' => 'pending',
+                'total_users' => count($userIds),
+                'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt) : null,
+            ]);
+
+            $job = new BatchMessageJob('send_to_no_configs', $userIds, $message, [], $adminMessage->id);
 
             if ($scheduledAt) {
                 $delay = Carbon::parse($scheduledAt);
@@ -286,6 +353,29 @@ class BotUserController extends Controller
             return response()->json(true, 200);
         } catch (\Throwable $th) {
             \Log::error('send_admin_message_to_all_users_without_configs: ' . $th->getMessage());
+            return response()->json(['message' => 'Server Error: ' . $th->getMessage()], 500);
+        }
+    }
+
+    public function get_admin_messages()
+    {
+        try {
+            return AdminMessage::orderBy('id', 'desc')->paginate(20);
+        } catch (\Throwable $th) {
+            return response()->json(['message' => 'Server Error'], 500);
+        }
+    }
+
+    public function delete_admin_message($id)
+    {
+        try {
+            $msg = AdminMessage::find($id);
+            if ($msg) {
+                $msg->delete();
+                return response()->json(true, 200);
+            }
+            return response()->json(false, 404);
+        } catch (\Throwable $th) {
             return response()->json(['message' => 'Server Error'], 500);
         }
     }
