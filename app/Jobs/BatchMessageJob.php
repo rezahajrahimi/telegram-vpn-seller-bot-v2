@@ -58,8 +58,16 @@ class BatchMessageJob implements ShouldQueue
             foreach ($this->usersID as $userId) {
                 $response = null;
                 if ($adminMessage && $adminMessage->image_path) {
-                    // Send photo
-                    $response = $telegramService->sendPhotoUrl($userId, url($adminMessage->image_path), $adminMessage->message);
+                    // Send photo directly from local storage
+                    $localPath = public_path($adminMessage->image_path);
+                    Log::info("Attempting to send photo from: $localPath for user: $userId");
+                    if (file_exists($localPath)) {
+                        $response = $telegramService->sendPhotoFile($userId, $localPath, $adminMessage->message);
+                    } else {
+                        Log::error("Photo file not found at: $localPath");
+                        // Fallback to text if photo missing
+                        $response = $telegramService->sendMessage($userId, $this->message, $this->extra);
+                    }
                 } else {
                     // Send text
                     $response = $telegramService->sendMessage($userId, $this->message, $this->extra);

@@ -291,11 +291,6 @@ class TelegramService
             'parse_mode' => 'HTML',
         ], $options));
 
-        // پاک کردن فایل موقت بعد از ارسال
-        if (file_exists($photoPath)) {
-            unlink($photoPath);
-        }
-
         return $result;
     }
 
@@ -500,6 +495,7 @@ class TelegramService
         }
 
         $decoded = json_decode($response, true) ?? [];
+        \Log::info("Telegram API Response ($method): " . json_encode($decoded));
         if (isset($decoded['ok']) && !$decoded['ok']) {
             \Log::error("Telegram API Error ($method): " . json_encode($decoded) . " | Params: " . json_encode($params));
         }
@@ -524,10 +520,24 @@ class TelegramService
         curl_close($ch);
 
         if ($error) {
+            \Log::error("Telegram API Curl Error ($method): $error");
             throw new \Exception('خطا در ارتباط با تلگرام: ' . $error);
         }
 
-        return json_decode($response, true) ?? [];
+        $decoded = json_decode($response, true) ?? [];
+        \Log::info("Telegram API Response ($method): " . json_encode($decoded));
+        if (isset($decoded['ok']) && !$decoded['ok']) {
+            // Remove the actual file object from params for logging to avoid clutter and potential issues
+            $logParams = $params;
+            foreach ($logParams as $key => $value) {
+                if ($value instanceof \CURLFile) {
+                    $logParams[$key] = '[CURLFile: ' . $value->getFilename() . ']';
+                }
+            }
+            \Log::error("Telegram API Error ($method): " . json_encode($decoded) . " | Params: " . json_encode($logParams));
+        }
+
+        return $decoded;
     }
 
     /**
