@@ -228,6 +228,7 @@ class BotUserController extends Controller
                 'type' => $imagePath ? 'photo' : 'text',
                 'status' => 'pending',
                 'total_users' => count($userIds),
+                'recipient_ids' => $userIds,
                 'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt) : null,
             ]);
 
@@ -281,6 +282,7 @@ class BotUserController extends Controller
                 'type' => $imagePath ? 'photo' : 'text',
                 'status' => 'pending',
                 'total_users' => count($userIds),
+                'recipient_ids' => $userIds,
                 'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt) : null,
             ]);
 
@@ -336,6 +338,7 @@ class BotUserController extends Controller
                 'type' => $imagePath ? 'photo' : 'text',
                 'status' => 'pending',
                 'total_users' => count($userIds),
+                'recipient_ids' => $userIds,
                 'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt) : null,
             ]);
 
@@ -360,7 +363,113 @@ class BotUserController extends Controller
     public function get_admin_messages()
     {
         try {
-            return AdminMessage::orderBy('id', 'desc')->paginate(20);
+            $paginated = AdminMessage::orderBy('id', 'desc')->paginate(20);
+
+            // Transform each item to include user details for sent and failed lists
+            $items = $paginated->items();
+            $transformed = [];
+            foreach ($items as $msg) {
+                $arr = $msg->toArray();
+
+                // Sent users detail
+                $sentDetails = [];
+                if (!empty($msg->sent_ids) && is_array($msg->sent_ids)) {
+                    $users = \App\Models\BotUser::whereIn('account_id', $msg->sent_ids)
+                        ->get(['account_id', 'username', 'first_name', 'last_name'])
+                        ->keyBy('account_id');
+
+                    foreach ($msg->sent_ids as $id) {
+                        if (isset($users[$id])) {
+                            $u = $users[$id];
+                            $sentDetails[] = [
+                                'account_id' => $u->account_id,
+                                'username' => $u->username,
+                                'first_name' => $u->first_name,
+                                'last_name' => $u->last_name,
+                            ];
+                        } else {
+                            $sentDetails[] = ['account_id' => $id];
+                        }
+                    }
+                }
+
+                // Failed users detail
+                $failedDetails = [];
+                if (!empty($msg->failed_ids) && is_array($msg->failed_ids)) {
+                    $failedIds = array_map(function ($f) {
+                        return $f['user_id'] ?? null;
+                    }, $msg->failed_ids);
+
+                    $users = \App\Models\BotUser::whereIn('account_id', $failedIds)
+                        ->get(['account_id', 'username', 'first_name', 'last_name'])
+                        ->keyBy('account_id');
+
+                    foreach ($msg->failed_ids as $f) {
+                        $uid = $f['user_id'] ?? null;
+                        $err = $f['error'] ?? null;
+                        if ($uid && isset($users[$uid])) {
+                            $u = $users[$uid];
+                            $failedDetails[] = [
+                                'account_id' => $u->account_id,
+                                'username' => $u->username,
+                                'first_name' => $u->first_name,
+                                'last_name' => $u->last_name,
+                                'error' => $err,
+                            ];
+                        } else {
+                            $failedDetails[] = ['account_id' => $uid, 'error' => $err];
+                        }
+                    }
+                }
+
+                $arr['sent_users_detail'] = $sentDetails;
+                $arr['failed_users_detail'] = $failedDetails;
+
+                // Recipient details (if stored)
+                $recipientDetails = [];
+                if (!empty($msg->recipient_ids) && is_array($msg->recipient_ids)) {
+                    $recUsers = \App\Models\BotUser::whereIn('account_id', $msg->recipient_ids)
+                        ->get(['account_id', 'username', 'first_name', 'last_name'])
+                        ->keyBy('account_id');
+
+                    foreach ($msg->recipient_ids as $id) {
+                        $status = 'pending';
+                        // check failed
+                        foreach ($failedDetails as $f) {
+                            if (($f['user_id'] ?? null) == $id) {
+                                $status = 'failed';
+                                break;
+                            }
+                        }
+                        // check sent
+                        if ($status !== 'failed' && in_array($id, $msg->sent_ids ?? [])) {
+                            $status = 'sent';
+                        }
+
+                        if (isset($recUsers[$id])) {
+                            $u = $recUsers[$id];
+                            $recipientDetails[] = [
+                                'account_id' => $u->account_id,
+                                'username' => $u->username,
+                                'first_name' => $u->first_name,
+                                'last_name' => $u->last_name,
+                                'status' => $status,
+                            ];
+                        } else {
+                            $recipientDetails[] = ['account_id' => $id, 'status' => $status];
+                        }
+                    }
+                }
+
+                $arr['recipient_details'] = $recipientDetails;
+
+                $transformed[] = $arr;
+            }
+
+            $paginatedArray = $paginated->toArray();
+            $paginatedArray['data'] = $transformed;
+
+            return response()->json($paginatedArray);
         } catch (\Throwable $th) {
             return response()->json(['message' => 'Server Error'], 500);
         }

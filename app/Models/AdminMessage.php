@@ -18,6 +18,7 @@ class AdminMessage extends Model
         'sent_users',
         'sent_ids',
         'failed_ids',
+        'recipient_ids',
         'scheduled_at',
     ];
 
@@ -25,5 +26,6 @@ class AdminMessage extends Model
         'scheduled_at' => 'datetime',
         'sent_ids' => 'array',
         'failed_ids' => 'array',
+        'recipient_ids' => 'array',
     ];
 }

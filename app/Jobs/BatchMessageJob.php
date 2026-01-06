@@ -79,15 +79,19 @@ class BatchMessageJob implements ShouldQueue
                 if (isset($response['ok']) && $response['ok']) {
                     $sentCount++;
                     $sentIds[] = $userId;
+                    Log::info("Marked sent: $userId (sentCount=$sentCount)");
                 } else {
+                    $err = $response['description'] ?? 'Unknown error';
                     $failedIds[] = [
                         'user_id' => $userId,
-                        'error' => $response['description'] ?? 'Unknown error'
+                        'error' => $err
                     ];
+                    Log::info("Marked failed: $userId (error=$err)");
                     Log::error("Failed to send message to $userId: " . json_encode($response));
                 }
 
                 if ($adminMessage && ($sentCount + count($failedIds)) % 5 == 0) {
+                    Log::info("Partial update for AdminMessage {$adminMessage->id}: sent_count=$sentCount, sent_ids_count=" . count($sentIds) . ", failed_ids_count=" . count($failedIds));
                     $adminMessage->update([
                         'sent_users' => $sentCount,
                         'sent_ids' => $sentIds,
@@ -100,6 +104,7 @@ class BatchMessageJob implements ShouldQueue
             }
 
             if ($adminMessage) {
+                Log::info("Final update for AdminMessage {$adminMessage->id}: sent_count=$sentCount, sent_ids_count=" . count($sentIds) . ", failed_ids_count=" . count($failedIds));
                 $adminMessage->update([
                     'status' => 'completed',
                     'sent_users' => $sentCount,
