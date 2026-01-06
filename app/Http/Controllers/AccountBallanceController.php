@@ -31,7 +31,7 @@ class AccountBallanceController extends Controller
             // check agent
             if ($user->role == 'agent') {
                 $agentPremissionCntrl = new AgentPermissonController();
-                $agentPr              = $agentPremissionCntrl->getUserPremission();
+                $agentPr = $agentPremissionCntrl->getUserPremission();
                 if ($agentPr != null) {
                     if ($agentPr->minus_ballance === 1 || $agentPr->minus_ballance === true) {
 
@@ -54,9 +54,9 @@ class AccountBallanceController extends Controller
                 }
                 return false;
             } else {
-                $newAcc                             = new AccountBallance();
-                $newAcc->account_id                 = $userID;
-                $newAcc->ballance                   = 0;
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = $userID;
+                $newAcc->ballance = 0;
                 $newAcc->account_ballance_in_dollar = 0;
                 $newAcc->save();
                 return false;
@@ -72,9 +72,9 @@ class AccountBallanceController extends Controller
         if ($data != null) {
             return $data->ballance;
         } else {
-            $newAcc                             = new AccountBallance();
-            $newAcc->account_id                 = $userID;
-            $newAcc->ballance                   = 0;
+            $newAcc = new AccountBallance();
+            $newAcc->account_id = $userID;
+            $newAcc->ballance = 0;
             $newAcc->account_ballance_in_dollar = 0;
             $newAcc->save();
 
@@ -87,9 +87,9 @@ class AccountBallanceController extends Controller
         if ($data != null) {
             return $data->account_ballance_in_dollar;
         } else {
-            $newAcc                             = new AccountBallance();
-            $newAcc->account_id                 = $userID;
-            $newAcc->ballance                   = 0;
+            $newAcc = new AccountBallance();
+            $newAcc->account_id = $userID;
+            $newAcc->ballance = 0;
             $newAcc->account_ballance_in_dollar = 0;
             $newAcc->save();
 
@@ -106,9 +106,9 @@ class AccountBallanceController extends Controller
                 $data->update();
                 return true;
             } else {
-                $newAcc                             = new AccountBallance();
-                $newAcc->account_id                 = $userID;
-                $newAcc->ballance                   = $ballance;
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = $userID;
+                $newAcc->ballance = $ballance;
                 $newAcc->account_ballance_in_dollar = 0;
                 $newAcc->save();
 
@@ -126,8 +126,8 @@ class AccountBallanceController extends Controller
 
             if ($user != null) {
                 $userAccountID = $user->account_id;
-                $ballance      = $request->ballance;
-                $type          = $request->type;
+                $ballance = $request->ballance;
+                $type = $request->type;
 
                 if ($type == 'toman') {
                     $this->incUserAccuntBalance($userAccountID, $ballance);
@@ -152,12 +152,12 @@ class AccountBallanceController extends Controller
     public function decreaseUserAccuntBalanceByUserID(Request $request)
     {
         try {
-            $user                      = BotUser::where('id', $request->userID)->first();
-            $is_admin                  = false;
-            $is_agent                  = false;
+            $user = BotUser::where('id', $request->userID)->first();
+            $is_admin = false;
+            $is_agent = false;
             $minus_ballance_permission = false;
             $minus_ballance_permission = $request->is_request_by_admin ?? false;
-            $isReqByAdmin              = $request->is_request_by_admin ?? false;
+            $isReqByAdmin = $request->is_request_by_admin ?? false;
             if ($user == null) {
                 $user = BotUser::where('account_id', $request->userID)->first();
                 if ($user == null) {
@@ -170,7 +170,7 @@ class AccountBallanceController extends Controller
                     $is_admin = true;
                 }
                 if ($user_role->role == 'agent') {
-                    $is_agent         = true;
+                    $is_agent = true;
                     $agent_permission = AgentPermisson::where('user_id', $user->account_id)->first();
                     if (isset($agent_permission)) {
                         if ($agent_permission->minus_ballance == 1 || $agent_permission->minus_ballance == true) {
@@ -184,14 +184,14 @@ class AccountBallanceController extends Controller
             }
 
             $userAccountID = $user->account_id;
-            $ballance      = $request->ballance;
-            
-            $type          = $request->type;
-            $accBallance   = AccountBallance::where('account_id', $userAccountID)->first();
+            $ballance = $request->ballance;
+
+            $type = $request->type;
+            $accBallance = AccountBallance::where('account_id', $userAccountID)->first();
             if (!isset($accBallance)) {
-                $newAcc                             = new AccountBallance();
-                $newAcc->account_id                 = $request->userID;
-                $newAcc->ballance                   = 0;
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = $request->userID;
+                $newAcc->ballance = 0;
                 $newAcc->account_ballance_in_dollar = 0;
                 $newAcc->save();
                 if ($is_admin) {
@@ -206,8 +206,8 @@ class AccountBallanceController extends Controller
                     $accBallance->update();
                     $logCtrl = new LogController();
                     $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
-                    $res =  $accBallance->ballance;
-                    if($res == 0){
+                    $res = $accBallance->ballance;
+                    if ($res == 0) {
                         return true;
                     }
                     return $res;
@@ -218,8 +218,8 @@ class AccountBallanceController extends Controller
                         $accBallance->update();
                         $logCtrl = new LogController();
                         $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' تومان کاهش یافت', $userAccountID, '', 'edit');
-                        $res =  $accBallance->ballance;
-                        if($res == 0){
+                        $res = $accBallance->ballance;
+                        if ($res == 0) {
                             return true;
                         }
                         return $res;
@@ -245,7 +245,7 @@ class AccountBallanceController extends Controller
                     $logCtrl = new LogController();
                     $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
                     $res = $accBallance->account_ballance_in_dollar;
-                    if($res == 0){
+                    if ($res == 0) {
                         return true;
                     }
                     return $res;
@@ -256,7 +256,7 @@ class AccountBallanceController extends Controller
                         $logCtrl = new LogController();
                         $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر به مقدار ' . $request->ballance . ' دلار کاهش یافت', $userAccountID, '', 'edit');
                         $res = $accBallance->account_ballance_in_dollar;
-                        if($res == 0){
+                        if ($res == 0) {
                             return true;
                         }
                         return $res;
@@ -286,10 +286,10 @@ class AccountBallanceController extends Controller
                 $data->update();
                 return true;
             } else {
-                $newAcc                             = new AccountBallance();
-                $newAcc->account_id                 = $userID;
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = $userID;
                 $newAcc->account_ballance_in_dollar = $ballance;
-                $newAcc->ballance                   = 0;
+                $newAcc->ballance = 0;
                 $newAcc->save();
 
                 return true;
@@ -313,7 +313,7 @@ class AccountBallanceController extends Controller
                 return true;
             } else {
                 $agentPremissionCntrl = new AgentPermissonController();
-                $agentPr              = $agentPremissionCntrl->getUserPremission();
+                $agentPr = $agentPremissionCntrl->getUserPremission();
                 if ($agentPr != null) {
                     if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
                         $data->ballance -= $ballance;
@@ -331,19 +331,20 @@ class AccountBallanceController extends Controller
     {
         try {
             $data = AccountBallance::where('account_id', $request->userID)->first();
+            $logCtrl = new LogController();
+
             if ($data != null) {
                 $data->ballance = $request->ballance;
 
                 $data->update();
 
-                $logCtrl = new LogController();
                 $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر بصورت دستی به ' . $request->ballance . ' تومان تغییر کرد', $request->userID, '', 'edit');
 
                 return true;
             } else {
-                $newAcc             = new AccountBallance();
+                $newAcc = new AccountBallance();
                 $newAcc->account_id = $request->userID;
-                $newAcc->ballance   = $request->ballance;
+                $newAcc->ballance = $request->ballance;
                 $newAcc->save();
                 $logCtrl->addNewLog('ballance', 'میزان موجودی کاربر بصورت دستی به ' . $request->ballance . ' تومان تغییر کرد', $request->userID, '', 'edit');
 
@@ -358,6 +359,8 @@ class AccountBallanceController extends Controller
     {
         try {
             $data = AccountBallance::where('account_id', $request->userID)->first();
+            $logCtrl = new LogController();
+
             if ($data != null) {
                 $data->account_ballance_in_dollar = $request->ballance;
 
@@ -368,8 +371,8 @@ class AccountBallanceController extends Controller
 
                 return true;
             } else {
-                $newAcc                             = new AccountBallance();
-                $newAcc->account_id                 = $request->userID;
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = $request->userID;
                 $newAcc->account_ballance_in_dollar = $request->ballance;
                 $newAcc->save();
                 $logCtrl->addNewLog('ballance', 'میزان موجودی دلاری کاربر بصورت دستی به ' . $request->ballance . ' دلار تغییر کرد', $request->userID, '', 'edit');
@@ -392,11 +395,11 @@ class AccountBallanceController extends Controller
                 $userId = $account_id;
             }
             $data = AccountBallance::where('account_id', $userId)->first();
-            if (! $data) {
-                $newAcc                             = new AccountBallance();
-                $newAcc->account_id                 = $userId;
+            if (!$data) {
+                $newAcc = new AccountBallance();
+                $newAcc->account_id = $userId;
                 $newAcc->account_ballance_in_dollar = 0;
-                $newAcc->ballance                   = 0;
+                $newAcc->ballance = 0;
                 $newAcc->save();
                 return $newAcc;
             }
@@ -411,8 +414,8 @@ class AccountBallanceController extends Controller
     {
         $paymnetSettingCntrl = new PaymentSettingController();
         $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
-        
-        if($dollarTransaction == 1 || $dollarTransaction == true){ 
+
+        if ($dollarTransaction == 1 || $dollarTransaction == true) {
             \Log::info("dollar transaction is true");
             return true;
         } else {

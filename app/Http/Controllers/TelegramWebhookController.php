@@ -658,6 +658,7 @@ class TelegramWebhookController extends Controller
                 return "";
             }
 
+            $adminMessages = [];
             foreach ($admins as $admin) {
                 $admin_id = $admin->account_id;
                 if ($messageType == 'image') {
@@ -672,34 +673,63 @@ class TelegramWebhookController extends Controller
                         ]
                     ];
 
-                    $this->telegramService->sendPhoto($admin_id, $image_url, $text, [
+                    $result = $this->telegramService->sendPhoto($admin_id, $image_url, $text, [
                         'reply_markup' => json_encode([
                             'inline_keyboard' => $this->telegramService->formatInlineKeyboardButtons($buttons)
                         ])
                     ]);
+
+                    if (isset($result['ok']) && $result['ok'] && isset($result['result']['message_id'])) {
+                        $adminMessages[] = [
+                            'chat_id' => $admin_id,
+                            'message_id' => $result['result']['message_id']
+                        ];
+                    }
                 } else {
                     // For other message types, transaction_id might be the text
                     $this->telegramService->sendMessage($admin_id, $transaction_id);
                 }
             }
+
+            if (!empty($adminMessages)) {
+                Cache::put("admin_receipt_messages_{$transaction_id}", $adminMessages, now()->addDays(1));
+            }
+
             return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در پردازش sendMessageToAdmin: " . $th);
             return "";
         }
     }
-    public function handleConfirmReceipt($adminChatId, $transactionId, $callbackQueryId)
+    private function removeReceiptButtonsFromAllAdmins($transactionId)
+    {
+        $messages = Cache::get("admin_receipt_messages_{$transactionId}", []);
+        foreach ($messages as $msg) {
+            try {
+                $this->telegramService->editMessageReplyMarkup($msg['chat_id'], $msg['message_id'], ['inline_keyboard' => []]);
+            } catch (\Throwable $th) {
+                \Log::error("Error removing buttons for admin {$msg['chat_id']}: " . $th->getMessage());
+            }
+        }
+    }
+
+    public function handleConfirmReceipt($adminChatId, $transactionId, $callbackQueryId, $messageId = null)
     {
         if (Cache::has("receipt_processed_{$transactionId}")) {
             $this->telegramService->answerCallbackQuery($callbackQueryId, "این رسید قبلاً توسط مدیر دیگری بررسی شده است.", true);
+            $this->removeReceiptButtonsFromAllAdmins($transactionId);
             return "";
         }
 
         $transaction = Transaction::find($transactionId);
         if (!$transaction) {
             $this->telegramService->answerCallbackQuery($callbackQueryId, "تراکنش یافت نشد.", true);
+            $this->removeReceiptButtonsFromAllAdmins($transactionId);
             return "";
         }
+
+        // Remove buttons for ALL admins
+        $this->removeReceiptButtonsFromAllAdmins($transactionId);
 
         // Set state for admin to wait for amount
         $this->setAwaitingReply($adminChatId, "awaiting_receipt_amount:{$transactionId}");
@@ -708,12 +738,16 @@ class TelegramWebhookController extends Controller
         return "";
     }
 
-    public function handleCancelReceipt($adminChatId, $transactionId, $callbackQueryId)
+    public function handleCancelReceipt($adminChatId, $transactionId, $callbackQueryId, $messageId = null)
     {
         if (Cache::has("receipt_processed_{$transactionId}")) {
             $this->telegramService->answerCallbackQuery($callbackQueryId, "این رسید قبلاً توسط مدیر دیگری بررسی شده است.", true);
+            $this->removeReceiptButtonsFromAllAdmins($transactionId);
             return "";
         }
+
+        // Remove buttons for ALL admins
+        $this->removeReceiptButtonsFromAllAdmins($transactionId);
 
         Cache::put("receipt_processed_{$transactionId}", true, now()->addDays(1));
 

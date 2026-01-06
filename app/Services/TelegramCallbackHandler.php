@@ -67,8 +67,8 @@ class TelegramCallbackHandler
             'giftCard' => $this->generalCntrl->subGiftCard($chatId, $params[0] ?? null),
             'referral' => $this->generalCntrl->subReferral($chatId),
 
-            'confirmReceipt' => $this->webhookCtrl ? $this->webhookCtrl->handleConfirmReceipt($chatId, $params[0] ?? null, $callbackQueryId) : '',
-            'cancelReceipt' => $this->webhookCtrl ? $this->webhookCtrl->handleCancelReceipt($chatId, $params[0] ?? null, $callbackQueryId) : '',
+            'confirmReceipt' => $this->webhookCtrl ? $this->webhookCtrl->handleConfirmReceipt($chatId, $params[0] ?? null, $callbackQueryId, $messageId) : '',
+            'cancelReceipt' => $this->webhookCtrl ? $this->webhookCtrl->handleCancelReceipt($chatId, $params[0] ?? null, $callbackQueryId, $messageId) : '',
 
             default => $this->customTextCtrl->getText('error.action.not_found')
         };
