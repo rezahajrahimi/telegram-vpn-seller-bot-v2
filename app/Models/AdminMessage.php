@@ -16,10 +16,14 @@ class AdminMessage extends Model
         'status',
         'total_users',
         'sent_users',
+        'sent_ids',
+        'failed_ids',
         'scheduled_at',
     ];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
+        'sent_ids' => 'array',
+        'failed_ids' => 'array',
     ];
 }

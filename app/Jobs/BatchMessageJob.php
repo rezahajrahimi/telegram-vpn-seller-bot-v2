@@ -55,6 +55,9 @@ class BatchMessageJob implements ShouldQueue
             $telegramService = App::make(\App\Services\TelegramService::class);
 
             $sentCount = 0;
+            $sentIds = [];
+            $failedIds = [];
+
             foreach ($this->usersID as $userId) {
                 $response = null;
                 if ($adminMessage && $adminMessage->image_path) {
@@ -75,12 +78,21 @@ class BatchMessageJob implements ShouldQueue
 
                 if (isset($response['ok']) && $response['ok']) {
                     $sentCount++;
+                    $sentIds[] = $userId;
                 } else {
+                    $failedIds[] = [
+                        'user_id' => $userId,
+                        'error' => $response['description'] ?? 'Unknown error'
+                    ];
                     Log::error("Failed to send message to $userId: " . json_encode($response));
                 }
 
-                if ($adminMessage && $sentCount % 10 == 0) {
-                    $adminMessage->update(['sent_users' => $sentCount]);
+                if ($adminMessage && ($sentCount + count($failedIds)) % 5 == 0) {
+                    $adminMessage->update([
+                        'sent_users' => $sentCount,
+                        'sent_ids' => $sentIds,
+                        'failed_ids' => $failedIds,
+                    ]);
                 }
 
                 // Small delay to avoid hitting Telegram rate limits
@@ -90,7 +102,9 @@ class BatchMessageJob implements ShouldQueue
             if ($adminMessage) {
                 $adminMessage->update([
                     'status' => 'completed',
-                    'sent_users' => $sentCount
+                    'sent_users' => $sentCount,
+                    'sent_ids' => $sentIds,
+                    'failed_ids' => $failedIds,
                 ]);
             }
 
