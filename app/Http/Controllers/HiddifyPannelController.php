@@ -93,18 +93,23 @@ class HiddifyPannelController extends Controller
     {
         try {
             $authCntrl = new AuthController();
-            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
+            $license = $authCntrl->getPowerPsLicenseType();
+            // normalize license (handle boolean false and case)
+            if ($license === false) {
+                $license = 'false';
+            }
+            $license = strtolower((string) $license);
+
             // check license
-            $panelCount = pannel::where('type', 'hiddify')->count();
-            $hasAccountLimitation = false;
-            if ($panelCount >= 2 && $getPowerPsLicenseType == 'silver') {
-                $hasAccountLimitation = true;
-            }
-            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
-                $hasAccountLimitation = true;
-            }
-            if ($hasAccountLimitation == true) {
-                return response()->json('به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.', 201);
+            $panelCount = Pannel::count();
+            $limitedLicenses = ['false', 'trial', 'bronze'];
+            $hasAccountLimitation = in_array($license, $limitedLicenses, true) || ($license === 'silver' && $panelCount >= 2);
+
+            if ($hasAccountLimitation && $panelCount >= 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.'
+                ], 403);
             }
             // add pannel
             $pannel = new Pannel();
@@ -150,6 +155,13 @@ class HiddifyPannelController extends Controller
     public function getHiddifyPanelUsersByPannelID($pannelID)
     {
         $pannel = Pannel::find($pannelID);
+        if (!$pannel)
+            return response()->json([], 404);
+
+        if ($pannel->type == 'sanaei') {
+            $sn = new SanaeiPannelController();
+            return $sn->getAllClients($pannel);
+        }
 
         $adminUUID = $pannel->admin_url;
 

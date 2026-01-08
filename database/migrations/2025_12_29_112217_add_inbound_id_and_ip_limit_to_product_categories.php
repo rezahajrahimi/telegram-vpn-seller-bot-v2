@@ -10,10 +10,9 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            if (!Schema::hasColumn('products', 'deactive_by_admin')) {
-                $table->boolean('deactive_by_admin')->default(false);
-            }
+        Schema::table('product_categories', function (Blueprint $table) {
+            $table->unsignedBigInteger('inbound_id')->nullable()->after('pannel_id');
+            $table->integer('ip_limit')->default(0)->after('volume');
         });
     }
 
@@ -22,8 +21,8 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::table('products', function (Blueprint $table) {
-            $table->dropColumn('deactive_by_admin');
+        Schema::table('product_categories', function (Blueprint $table) {
+            $table->dropColumn(['inbound_id', 'ip_limit']);
         });
     }
 };

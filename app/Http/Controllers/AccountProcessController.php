@@ -38,49 +38,49 @@ class AccountProcessController extends Controller
     private ShetabVerifyController $shetabVerifyCntrl;
     public function __construct(TelegramService $telegramService)
     {
-        $this->telegramService         = $telegramService;
-        $this->customTextCtrl          = new CustomTextController();
+        $this->telegramService = $telegramService;
+        $this->customTextCtrl = new CustomTextController();
         $this->subscriptionProcessCtrl = new SubscriptionProcessController($this->telegramService);
-        $this->transactionCntrl        = new TransactionController($this->telegramService);
-        $this->generalCntrl            = new GeneralController();
-        $this->referralWalletCtrl      = new ReferralWalletController();
-        $this->accBlCtrl               = new AccountBallanceController();
-        $this->botUser                 = new BotUser();
-        $this->logCtrl                 = new LogController();
-        $this->pymntCntrl              = new PaymentTypeController();
-        $this->pymMenCntrl             = new PaymentMenuItemController();
-        $this->trCntrl                 = new TransactionController();
-        $this->paymnetSettingCntrl     = new PaymentSettingController();
-        $this->shetabVerifyCntrl       = new ShetabVerifyController();
+        $this->transactionCntrl = new TransactionController($this->telegramService);
+        $this->generalCntrl = new GeneralController();
+        $this->referralWalletCtrl = new ReferralWalletController();
+        $this->accBlCtrl = new AccountBallanceController();
+        $this->botUser = new BotUser();
+        $this->logCtrl = new LogController();
+        $this->pymntCntrl = new PaymentTypeController();
+        $this->pymMenCntrl = new PaymentMenuItemController();
+        $this->trCntrl = new TransactionController();
+        $this->paymnetSettingCntrl = new PaymentSettingController();
+        $this->shetabVerifyCntrl = new ShetabVerifyController();
     }
     public function accountDetails($chatId)
     {
         try {
             $this->chatId = $chatId;
-            $botUser      = BotUser::where('account_id', $chatId)->first();
+            $botUser = BotUser::where('account_id', $chatId)->first();
             if ($botUser == null) {
                 return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.user_not_found'));
             }
 
-            $ballance         = $this->accBlCtrl->getUserAccuntBalance($chatId);
+            $ballance = $this->accBlCtrl->getUserAccuntBalance($chatId);
             $ballanceInDollar = $this->accBlCtrl->getUserAccuntBalanceInDollar($chatId);
-            $referralAmount   = $this->referralWalletCtrl->get_amount_of_ref_wallet_by_account_id($chatId);
-            $ballance         = number_format($ballance, 0, '.', ',');
+            $referralAmount = $this->referralWalletCtrl->get_amount_of_ref_wallet_by_account_id($chatId);
+            $ballance = number_format($ballance, 0, '.', ',');
             $ballanceInDollar = number_format($ballanceInDollar, 0, '.', ',');
-            $referralAmount   = number_format($referralAmount, 0, '.', ',');
-            $text             = $this->customTextCtrl->getText('action.account.details', [
-                'username'          => $botUser->username,
-                'name'              => $botUser->first_name,
-                'last_name'         => $botUser->last_name,
-                'account_id'        => $botUser->account_id,
-                'balance'           => "$ballance تومان",
+            $referralAmount = number_format($referralAmount, 0, '.', ',');
+            $text = $this->customTextCtrl->getText('action.account.details', [
+                'username' => $botUser->username,
+                'name' => $botUser->first_name,
+                'last_name' => $botUser->last_name,
+                'account_id' => $botUser->account_id,
+                'balance' => "$ballance تومان",
                 'balance_in_dollar' => "$ballanceInDollar دلار",
-                'referral_balance'  => "$referralAmount تومان",
+                'referral_balance' => "$referralAmount تومان",
             ]);
 
             $formatter = new TelegramMessageFormatter($this->telegramService);
             try {
-            $text      = $formatter->addFormattedText('', $text)->getMessage();
+                $text = $formatter->addFormattedText('', $text)->getMessage();
             } catch (\Throwable $th) {
                 \Log::error(["unable to format text: "]);
             }
@@ -98,7 +98,7 @@ class AccountProcessController extends Controller
     private function show_additional_options($chatId)
     {
         try {
-            $opr  = [];
+            $opr = [];
             $text = $this->customTextCtrl->getText('action.account.additional_options.transactions');
             if (is_array($text)) {
                 // use format text service
@@ -137,6 +137,7 @@ class AccountProcessController extends Controller
     public function accountTransactions($chatId)
     {
         try {
+            $this->telegramService->sendChatAction($chatId, 'typing');
             $this->chatId = $chatId;
             // $this->show_additional_options($chatId);
             $this->addNewBotLog('account', 'وارد بخش سابقه تراکنش‌ها شد.', 'show');
@@ -148,7 +149,7 @@ class AccountProcessController extends Controller
             $transactions = Transaction::where('account_id', $botUser->account_id)->get();
             $transactions = $transactions->sortByDesc('created_at');
             $transactions = $transactions->take(10);
-            $text         = $this->customTextCtrl->getText('action.account.transactions.title');
+            $text = $this->customTextCtrl->getText('action.account.transactions.title');
             $this->telegramService->sendMessage($chatId, $text);
             $text = "";
             if ($transactions->count() > 0) {
@@ -179,7 +180,7 @@ class AccountProcessController extends Controller
                 return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.server_error'));
             }
             $subAccounts = ReferralLogs::where('referral_user_id', $botUser->id)->get();
-            $text        = $this->customTextCtrl->getText('action.account.sub_accounts.title');
+            $text = $this->customTextCtrl->getText('action.account.sub_accounts.title');
             $this->telegramService->sendMessage($chatId, $text);
             $text = "";
 
@@ -271,7 +272,7 @@ class AccountProcessController extends Controller
                     array_push($opr, $newOpr);
                 }
 
-           
+
             }
             if (count($opr) > 0) {
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance');
@@ -280,7 +281,7 @@ class AccountProcessController extends Controller
                 $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
             }
 
-// send offline item
+            // send offline item
             $opr = [];
             // check payment setting for shetab verify
             $shetabVerifyStatus = $this->shetabVerifyCntrl->check_shetab_verify_status();
@@ -366,7 +367,7 @@ class AccountProcessController extends Controller
     {
         try {
             // check if text is valid int or float
-            if (! is_numeric($text)) {
+            if (!is_numeric($text)) {
                 $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invalid_amount'));
                 return "";
             }
@@ -374,11 +375,11 @@ class AccountProcessController extends Controller
                 $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.reply.cancel'));
                 return "";
             }
-            $user_state  = UserState::where('chat_id', $chatId)->latest()->first();
+            $user_state = UserState::where('chat_id', $chatId)->latest()->first();
             $paymentType = $user_state->data;
             if ($paymentType == 'zarinpal') {
                 // zarinpal => create a new invoice with amount
-                $opr  = [];
+                $opr = [];
                 $link = $this->generalCntrl->createZarinpalPaymentLink($chatId, $text);
                 array_push($opr, $link);
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invoice'), $opr);
@@ -391,7 +392,7 @@ class AccountProcessController extends Controller
                 $this->clearAwaitingReply($chatId, $text);
                 return "";
             } elseif ($paymentType == "nowpayments") {
-                $opr  = [];
+                $opr = [];
                 $link = $this->generalCntrl->createNowPaymentsLink($chatId, $text);
                 array_push($opr, $link);
 
@@ -399,7 +400,7 @@ class AccountProcessController extends Controller
                 return "";
 
             } else if ($paymentType == "cryptomus") {
-                $opr  = [];
+                $opr = [];
                 $link = $this->generalCntrl->createCryptomusLink($chatId, $text);
                 array_push($opr, $link);
 
@@ -409,11 +410,7 @@ class AccountProcessController extends Controller
                 // create a new invoice with amount
                 $this->generalCntrl->createDollarPayPaymentLink($chatId, $text);
                 return "";
-            }
-            
-            
-            
-            elseif ($paymentType == "shetab_verify") {
+            } elseif ($paymentType == "shetab_verify") {
                 // create a new invoice with amount
                 $this->processShetabVerification($chatId, $text);
                 return "";
@@ -431,7 +428,7 @@ class AccountProcessController extends Controller
     {
         try {
             $this->chatId = $chat_id;
-            $user         = User::where('account_id', $chat_id)->first();
+            $user = User::where('account_id', $chat_id)->first();
             if ($user == null) {
                 return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.user_not_found'));
             }
@@ -439,7 +436,7 @@ class AccountProcessController extends Controller
                 return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.user_not_found'));
             }
             // بررسی معتبر بودن مقدار
-            if (! is_numeric($amount) || $amount <= 0) {
+            if (!is_numeric($amount) || $amount <= 0) {
                 return $this->telegramService->sendMessage($chat_id, $this->customTextCtrl->getText('error.invalid_amount'));
             }
             // پیدا کردن کاربر
@@ -487,10 +484,10 @@ class AccountProcessController extends Controller
     public function setAwaitingReply(string $chatId, string $type, string $paymentType): void
     {
         try {
-            $user_state          = new UserState();
+            $user_state = new UserState();
             $user_state->chat_id = $chatId;
-            $user_state->state   = 'add_balance_reply';
-            $user_state->data    = $paymentType;
+            $user_state->state = 'add_balance_reply';
+            $user_state->data = $paymentType;
             $user_state->save();
 
             // می‌توانید از کش یا دیتابیس استفاده کنید
@@ -507,7 +504,7 @@ class AccountProcessController extends Controller
     {
         return Cache::get("awaiting_reply_{$chatId}");
     }
-    private function clearAwaitingReply(string $chatId, string | array $text): void
+    private function clearAwaitingReply(string $chatId, string|array $text): void
     {
         try {
             if (is_array($text)) {

@@ -101,12 +101,74 @@ class GeneralController extends Controller
             $logCntrl = new LogController();
             $getTop20Log = $logCntrl->getAllLogs(20);
             $transactionCntrl = new TransactionController();
-            $last10ConfirmedTransaction = $transactionCntrl->getConfirmedTransactions(10);
-            $unConfirmedTransaction = $transactionCntrl->getUnConfirmedTransactions(1000);
+            $last10ConfirmedTransaction = $transactionCntrl->getConfirmedTransactions(request(), 10);
+            if (method_exists($last10ConfirmedTransaction, 'items')) {
+                $last10ConfirmedTransaction = $last10ConfirmedTransaction->items();
+            }
+            $unConfirmedTransaction = $transactionCntrl->getUnConfirmedTransactions(request(), 10);
+
             $productCatCntrl = new ProductCategoryController();
             $mostSelledProductCategory = $productCatCntrl->mostSelledProductCategory(10);
             $prCntrl = new ProductController();
             $last10ProductSelled = $prCntrl->getLastProductSelled(10);
+
+            // Financial Summary
+            $todaySales = \App\Models\Transaction::where('confirmed', true)
+                ->whereDate('created_at', \Carbon\Carbon::today())
+                ->sum('amount');
+            $weekSales = \App\Models\Transaction::where('confirmed', true)
+                ->whereBetween('created_at', [\Carbon\Carbon::now()->startOfWeek(), \Carbon\Carbon::now()->endOfWeek()])
+                ->sum('amount');
+            $monthSales = \App\Models\Transaction::where('confirmed', true)
+                ->whereMonth('created_at', \Carbon\Carbon::now()->month)
+                ->sum('amount');
+
+            // Panel Status
+            $pannels = \App\Models\Pannel::all();
+            $pannelsStatus = [];
+            foreach ($pannels as $pannel) {
+                $totalUsers = \App\Models\Product::whereHas('product_category', function ($query) use ($pannel) {
+                    $query->where('pannel_id', $pannel->id);
+                })->count();
+
+                $onlineUsers = 0;
+                $isOnline = false;
+
+                try {
+                    if ($pannel->type == 'sanaei') {
+                        $sanaei = new SanaeiPannelController();
+                        $onlines = $sanaei->onlines($pannel);
+                        if ($onlines !== null) {
+                            $onlineUsers = count($onlines);
+                            $isOnline = true;
+                        }
+                    } elseif ($pannel->type == 'hiddify') {
+                        // Hiddify status check
+                        $url = $pannel->admin_url . "/api/v2/admin/server_status/";
+                        $response = \Illuminate\Support\Facades\Http::withHeaders([
+                            'Hiddify-API-Key' => $pannel->secret_code,
+                        ])->timeout(2)->get($url);
+
+                        if ($response->ok()) {
+                            $isOnline = true;
+                            // Hiddify doesn't directly give online count in server_status usually, 
+                            // but we can at least confirm it's up.
+                        }
+                    }
+                } catch (\Throwable $th) {
+                    // Silent fail for status check
+                }
+
+                $pannelsStatus[] = [
+                    'id' => $pannel->id,
+                    'type' => $pannel->type,
+                    'location' => $pannel->location,
+                    'total_users' => $totalUsers,
+                    'online_users' => $onlineUsers,
+                    'is_online' => $isOnline,
+                ];
+            }
+
             return response()->json(
                 [
                     'Last10User' => $getLast10Users,
@@ -115,6 +177,12 @@ class GeneralController extends Controller
                     'UnConfirmedTransaction' => $unConfirmedTransaction,
                     'MostSelledProductCategory' => $mostSelledProductCategory,
                     'last10ProductSelled' => $last10ProductSelled,
+                    'PannelsStatus' => $pannelsStatus,
+                    'FinancialSummary' => [
+                        'today' => $todaySales,
+                        'week' => $weekSales,
+                        'month' => $monthSales,
+                    ],
                 ],
                 200,
             );
@@ -376,16 +444,51 @@ class GeneralController extends Controller
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
+            $req->inbound_id = $selectedPrCat->inbound_id;
+            $req->ip_limit = $selectedPrCat->ip_limit;
 
-            $uuid = $snCtrl->addUserToSanaeiPanel($req);
-            \Log::info("addUserToSanaeiPanel uuid: $uuid");
-            if ($uuid === false) {
+            $result = $snCtrl->addUserToSanaeiPanel($req);
+            \Log::info("addUserToSanaeiPanel result: " . json_encode($result));
+            if ($result === false) {
                 return false;
+            }
+            if (is_array($result)) {
+                $uuid = $result['uuid'];
+                $subId = $result['subId'];
+            } else {
+                $uuid = $result;
+                $subId = $uuid;
             }
 
             // Generate client links and QR codes
-            $links = $snCtrl->getUserLinks($selectedPrCat->pannel_id, $uuid, "$chat_id-$productID");
-            if (!empty($links)) {
+            $links = $snCtrl->getUserLinks($pannel, $uuid, "$chat_id-$productID", $selectedPrCat->inbound_id);
+
+            if ($selectedPrCat->show_subscription_link) {
+                $baseUrl = $pannel->admin_url;
+                if (empty($baseUrl)) {
+                    $baseUrl = $pannel->url_port;
+                }
+                if (!empty($pannel->sub_port)) {
+                    $parsed = parse_url($baseUrl);
+                    $host = $parsed['host'] ?? '';
+                    $scheme = $parsed['scheme'] ?? 'http';
+                    if ($host) {
+                        $baseUrl = "$scheme://$host:{$pannel->sub_port}";
+                    }
+                }
+                if (substr($baseUrl, -1) == '/') {
+                    $baseUrl = substr($baseUrl, 0, -1);
+                }
+                $subLink = "$baseUrl/sub/$subId";
+
+                $text = "لینک اشتراک شما:\n" . $subLink;
+                $this->telegramService->sendMessage($chat_id, $text);
+
+                $pnlCntrl = new PannelController();
+                $image = $pnlCntrl->generateQrMOC($subLink);
+                $this->telegramService->sendPhotoFile($chat_id, $image, $subLink);
+
+            } elseif (!empty($links)) {
                 $text = $this->customTextCtrl->getText('action.subscription.sanaei_with_links', [
                     'uuid' => $uuid,
                 ]);
@@ -527,7 +630,7 @@ class GeneralController extends Controller
             if (is_array($text)) {
                 $formatter = new TelegramMessageFormatter($this->telegramService);
                 $text = $formatter->addFormattedText('', $text)->getMessage();
-			}
+            }
             $this->telegramService->sendMessage($chat_id, $text);
             $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar);
             return true;
@@ -731,7 +834,7 @@ class GeneralController extends Controller
 
         ];
     }
-    public function getFaqs($chatId)
+    public function getFaqs($chatId, $messageId = null)
     {
         $this->addNewBotLog('faq', 'نمایش سوالات متداول به کاربر.', $chatId, 'show');
         $faqCtrl = new FaqController();
@@ -745,7 +848,12 @@ class GeneralController extends Controller
             }
         }
         $text = $this->customTextCtrl->getText('action.help.faq');
-        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        if ($messageId) {
+            $this->telegramService->editMessageWithInlineKeyboard($chatId, $messageId, $text, $opr);
+        } else {
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        }
         return "";
 
     }
@@ -757,7 +865,7 @@ class GeneralController extends Controller
         $this->telegramService->sendMessage($chatId, $faq->answer);
         return "";
     }
-    public function appDownload($chatId)
+    public function appDownload($chatId, $messageId = null)
     {
         $appCtrl = new ApplicationController();
         $oses = $appCtrl->getApplicationOSes();
@@ -770,10 +878,15 @@ class GeneralController extends Controller
             }
         }
         $text = $this->customTextCtrl->getText('action.help.appDownload.os');
-        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        if ($messageId) {
+            $this->telegramService->editMessageWithInlineKeyboard($chatId, $messageId, $text, $opr);
+        } else {
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        }
         return "";
     }
-    public function subAppDownloadOs($chatId, $selectedOsID)
+    public function subAppDownloadOs($chatId, $selectedOsID, $messageId = null)
     {
         $appCtrl = new ApplicationController();
         $app = $appCtrl->getAllActiveAplicationListByOS($selectedOsID);
@@ -791,10 +904,15 @@ class GeneralController extends Controller
             // use format text service
             $text = $this->telegramService->formatText($text);
         }
-        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        if ($messageId) {
+            $this->telegramService->editMessageWithInlineKeyboard($chatId, $messageId, $text, $opr);
+        } else {
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+        }
         return "";
     }
-    public function subAppDownloadApp($chatId, $selectedAppID)
+    public function subAppDownloadApp($chatId, $selectedAppID, $messageId = null)
     {
         $appCtrl = new ApplicationController();
         $app = $appCtrl->getActiveAplicationByID($selectedAppID);
@@ -816,7 +934,11 @@ class GeneralController extends Controller
             $text = $this->telegramService->formatText($text);
         }
 
-        $this->telegramService->sendMessage($chatId, $text);
+        if ($messageId) {
+            $this->telegramService->editMessageText($chatId, $messageId, $text);
+        } else {
+            $this->telegramService->sendMessage($chatId, $text);
+        }
         return "";
     }
     public function support($chatId)

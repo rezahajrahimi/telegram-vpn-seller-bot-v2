@@ -500,22 +500,22 @@ class CronJobController extends Controller
     public function get_tether_price_by_nobitex()
     {
         try {
-            // gest Irt usdt by nobitex
+            // get USDT price by nobitex v3 api
+            $response = Http::connectTimeout(30)->get('https://apiv2.nobitex.ir/v3/orderbook/USDTIRT');
 
-            $response = Http::connectTimeout(30)->get('https://api.nobitex.ir/v2/trades/USDTIRT');
-            // Decode the response JSON into an array of data.
             if ($response->ok()) {
-                $data = json_decode($response->getBody()->getContents(), true);
+                $data = $response->json();
 
-                $price = $data['trades'][0]['price'];
-                // change price to toman
-                $price = mb_substr($price, 0, -1);
-
-                $intPrice = (int) $price;
-                return $intPrice;
-            } else {
-                return null;
+                if (isset($data['lastTradePrice'])) {
+                    $price = $data['lastTradePrice'];
+                    // change price from Rial to Toman
+                    $intPrice = (int) ($price / 10);
+                    // دو رقم آخر را 0 قرار بده
+                    $intPrice = round($intPrice, -3);
+                    return $intPrice;
+                }
             }
+            return null;
         } catch (\Exception $e) {
             \Log::error($e->getMessage());
 
@@ -570,5 +570,19 @@ class CronJobController extends Controller
         $cronJob->description = 'ایجاد نسخه پشتیبان روزانه از پایگاه داده هر روز در ساعت 08:00';
         $cronJob->save();
         return $cronJob;
+    }
+
+    public function clear_laravel_log()
+    {
+        try {
+            $logPath = storage_path('logs/laravel.log');
+            if (file_exists($logPath)) {
+                file_put_contents($logPath, '');
+            }
+            return true;
+        } catch (\Throwable $th) {
+            \Log::error("Error clearing laravel log: " . $th->getMessage());
+            return false;
+        }
     }
 }

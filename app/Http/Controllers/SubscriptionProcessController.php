@@ -15,6 +15,8 @@ use Hekmatinasser\Verta\Verta;
 // add cache
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use App\Jobs\ProcessSubscriptionPurchase;
+use App\Jobs\ProcessRemarkJob;
 
 class SubscriptionProcessController extends Controller
 {
@@ -59,6 +61,7 @@ class SubscriptionProcessController extends Controller
     public function buySubscriptionMenu($chatId)
     {
         try {
+            $this->telegramService->sendChatAction($chatId, 'typing');
             $this->chatId = $chatId;
             // get the chat user name from user table with chatId
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
@@ -92,6 +95,32 @@ class SubscriptionProcessController extends Controller
 
         } catch (\Throwable $th) {
             \Log::error("خطا در خرید اشتراک: " . $th->getMessage());
+            $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
+    }
+
+    public function buySubscriptionAction($chatId, $categoryId)
+    {
+        try {
+            $this->chatId = $chatId;
+            $this->botUser = $this->botUser->getUserByAccountID($chatId);
+
+            if (!$categoryId) {
+                $this->telegramService->sendMessage($chatId, "دسته‌بندی نامعتبر است.");
+                return "";
+            }
+
+            // Dispatch the job to handle the purchase asynchronously
+            ProcessSubscriptionPurchase::dispatch($chatId, $categoryId);
+
+            // Send a typing action to indicate processing
+            $this->telegramService->sendChatAction($chatId, 'typing');
+
+            return "";
+
+        } catch (\Throwable $th) {
+            \Log::error("Error in buySubscriptionAction: " . $th->getMessage());
             $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }
@@ -172,37 +201,6 @@ class SubscriptionProcessController extends Controller
         return "";
     }
 
-    public function buySubscriptionAction($chatId, $subscriptionId)
-    {
-        try {
-            $this->chatId = $chatId;
-            $this->selectedPrCat = $this->selectedPrCat->getProdctCategorByID($subscriptionId);
-            // check if selectedPrCat is null
-            if ($this->selectedPrCat == null) {
-                return $this->customTextCtrl->getText('action.process.failed_buy');
-            }
-            // بررسی موجودی کاربر
-            $productPrice = $this->selectedPrCat->price;
-            $productPriceInDollar = $this->selectedPrCat->price_in_dollar;
-
-            $hasBallance = $this->accBlCtrl->checkUserHasBalance($chatId, $productPrice, $productPriceInDollar);
-            // بررسی کیف پول ارجاع
-            $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $this->selectedPrCat->price);
-
-            if ($hasRefballance == true || $hasBallance == true || $hasBallance == 1 || $hasRefballance == 1) {
-                return $this->processSubscriptionPurchase();
-                // return $this->customTextCtrl->getText('action.process.success_buy');
-            } else {
-                $this->generalCntrl->send_insufficient_balance_message($this->chatId, $this->selectedPrCat->id);
-                return "";
-            }
-
-        } catch (\Throwable $th) {
-            \Log::error("خطا در خرید بسته: " . $th->getMessage());
-            return $this->customTextCtrl->getText('action.process.failed_buy');
-        }
-    }
-
     private function processPayment($productPrice, $productPriceInDollar, $hasRefballance)
     {
         try {
@@ -280,32 +278,14 @@ class SubscriptionProcessController extends Controller
                 return " پنل مرزبان";
             } elseif ($pannel->type == 'sanaei') {
                 \Log::info("sanaei pannel");
-                $sn = new SanaeiPannelController();
-                $uuid = $sn->addUserToSanaeiPanel(new Request([
-                    'pannelID' => $this->selectedPrCat->pannel_id,
-                    'vol' => $volume,
-                    'day' => $day,
-                    'accountId' => "$this->chatId-" . ($lastProductId + 1),
-                ]));
-                if ($uuid === false) {
-                    $resualt = false;
-                } else {
-                    // ایجاد کانفیگ کامل برای Sanaei مشابه Hiddify
-                    $configs = $this->generalCntrl->new_sanaei_config_telegram_text(
-                        $this->selectedPrCat,
-                        $pannel,
-                        $volume,
-                        $day,
-                        $this->chatId,
-                        $lastProductId + 1
-                    );
-                    
-                    if ($configs) {
-                        $resualt = $uuid;
-                    } else {
-                        $resualt = false;
-                    }
-                }
+                $resualt = $this->generalCntrl->new_sanaei_config_telegram_text(
+                    $this->selectedPrCat,
+                    $pannel,
+                    $volume,
+                    $day,
+                    $this->chatId,
+                    $lastProductId + 1
+                );
             }
             \Log::info("resualt response buoght from sanaei: " . $resualt);
 
@@ -588,7 +568,88 @@ class SubscriptionProcessController extends Controller
                     $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
                     return "";
 
+                } elseif ($pannel->type == 'sanaei') {
+                    // Sanaei panel: retrieve client status using UUID stored in product->configs
+                    $configs = json_decode($product->configs ?? '', true) ?? [];
+                    $uuid = $configs['uuid'] ?? null;
+                    $sn = new SanaeiPannelController();
+                    if (!$uuid) {
+                        return "";
+                    }
+
+                    $status = $sn->getClientStatus($pannel->id, $uuid);
+                    if (!$status) {
+                        return "";
+                    }
+
+                    $links = $sn->getUserLinks($pannel->id, $uuid, $product->remark, $product->product_category->inbound_id ?? null);
+
+                    $subId = $status['client']['subId'] ?? $uuid;
+                    $userSubscriptionLink = "";
+                    if ($prCat->show_subscription_link) {
+                        $baseUrl = $pannel->user_link;
+                        if (empty($baseUrl)) {
+                            $baseUrl = $pannel->url_port;
+                        }
+                        if (!empty($pannel->sub_port)) {
+                            $parsed = parse_url($baseUrl);
+                            $host = $parsed['host'] ?? '';
+                            $scheme = $parsed['scheme'] ?? 'http';
+                            if ($host) {
+                                $baseUrl = "$scheme://$host:{$pannel->sub_port}";
+                            }
+                        }
+                        if (substr($baseUrl, -1) == '/') {
+                            $baseUrl = substr($baseUrl, 0, -1);
+                        }
+                        $userSubscriptionLink = "$baseUrl/sub/$subId";
+                    } else {
+                        $userSubscriptionLink = $links[0] ?? '';
+                    }
+
+                    $panelLink = $userSubscriptionLink;
+                    $pnlCntrl = new PannelController();
+                    $image = $pnlCntrl->generateQrMOC($panelLink);
+
+                    $enableText = $status['enable'] == true ? 'فعال' : 'غیر فعال';
+                    $usageGB = $status['current_usage_GB'];
+                    $usageGB = round($usageGB, 2);
+                    $limitGB = $status['usage_limit_GB'];
+
+                    $startDate = $status['start_date'];
+                    if ($startDate) {
+                        $startDate = Carbon::parse($startDate);
+                        $package_days = $status['package_days'] ?? 0;
+                        $expireDate = Carbon::parse($startDate);
+                        $expireDate->addDays($package_days);
+
+                        $expireDate = $expireDate->toJalali()->format('Y.m.d');
+                        $startDate = $startDate->toJalali()->format('Y.m.d');
+                    } else {
+                        $expireDate = '-';
+                        $startDate = '-';
+                    }
+
+                    $text = $this->customTextCtrl->getText('action.buy_history.history', [
+                        'name' => $product->remark,
+                        'category_name' => $prCat->category_name,
+                        'panel_link' => $panelLink,
+                        'subscription_link' => $userSubscriptionLink,
+                        'start_date' => $startDate,
+                        'expire_date' => $expireDate,
+                        'usage_limit_GB' => $limitGB,
+                        'usage_GB' => $usageGB,
+                        'enable' => $enableText,
+                    ]);
+                    $formatter = new TelegramMessageFormatter($this->telegramService);
+                    $text = $formatter->addFormattedText('', $text)->getMessage();
+
+                    $this->telegramService->sendPhotoFile($chatId, $image, $text);
+                    $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
+                    return "";
+
                 }
+
 
             }
             return "";
@@ -668,6 +729,29 @@ class SubscriptionProcessController extends Controller
                 return $this->customTextCtrl->getText('error.server_error');
             }
 
+            if ($pannel->type == 'sanaei') {
+                $sn = new SanaeiPannelController();
+                $uuid = json_decode($product->configs ?? '{}', true)['uuid'] ?? null;
+                if (!$uuid) {
+                    return $this->customTextCtrl->getText('error.server_error');
+                }
+
+                $day = $prCat->expire_day;
+                $volume = $prCat->volume;
+
+                $ok = $sn->rechargeClient($pannel->id, $uuid, $day, $volume);
+                if ($ok) {
+                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+                    if ($paymentSuccess) {
+                        $text = $this->customTextCtrl->getText('action.recharge.success');
+                        $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
+                        $this->telegramService->sendMessage($this->chatId, $text);
+                        return "";
+                    }
+                }
+                return $this->customTextCtrl->getText('error.server_error');
+            }
+
             return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در شارژ مجدد: " . $th->getMessage());
@@ -714,44 +798,33 @@ class SubscriptionProcessController extends Controller
             return $this->customTextCtrl->getText('error.server_error');
         }
     }
-    public function remarkReply($chatId, $prID)
+    public function remarkReply($chatId, $newName)
     {
         try {
-            if ($prID == null || trim($prID) == 'لغو' || trim($prID) == 'cancel') {
+            if ($newName == null || trim($newName) == 'لغو' || trim($newName) == 'cancel') {
                 $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.cancel'));
                 return "";
             }
-            $this->chatId = $chatId;
+
             $user_state = UserState::where('chat_id', $chatId)->latest()->first();
-            $product = Product::where('id', $user_state->data)
-                ->with('product_category_and_panel')
-                ->first();
-            if ($product == null) {
+
+            if (!$user_state || !$user_state->data) {
                 $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
                 return "";
             }
 
-            $pannel = Pannel::find($product->product_category_and_panel->pannel_id);
-            $hiddifcCntrl = new HiddifyPannelController();
-            $uuid = $hiddifcCntrl->extractUUID($product->subscription_link);
-            $req = new Request();
-            $req->pannelID = $pannel->id;
-            $req->name = $prID;
-            $req->uuid = $uuid;
-            $req->comment = "تغییر نام بسته در " . Verta::now();
+            $productId = $user_state->data;
 
-            $updateRemark = $hiddifcCntrl->updateUserNameOfHiddifyPanelApi($req);
-            if ($updateRemark !== false) {
-                $product->remark = $prID;
-                $product->update();
-                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.remark.success'));
-                $this->addNewBotLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', 'show');
-                return "";
-            }
-            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            // Dispatch the job
+            ProcessRemarkJob::dispatch($chatId, $productId, $newName);
+
+            $this->telegramService->sendChatAction($chatId, 'typing');
+            $this->telegramService->sendMessage($chatId, "در حال تغییر نام بسته، لطفاً صبر کنید...");
+
             return "";
+
         } catch (\Throwable $th) {
-            \Log::error("خطا در تغییر نام بسته: " . $th->getMessage());
+            \Log::error("Error in remarkReply: " . $th->getMessage());
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }

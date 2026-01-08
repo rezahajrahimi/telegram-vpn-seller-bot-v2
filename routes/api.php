@@ -48,8 +48,9 @@ use App\Http\Controllers\BlockedUserController;
 use App\Http\Controllers\ShetabVerifyController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Http\Controllers\AppInfoController;
-use App\Http\Controllers\SanaeiPannelController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\InboundTemplateController;
+use App\Http\Controllers\SanaeiPannelController;
 
 
 use Illuminate\Http\Request;
@@ -294,7 +295,10 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
     Route::post('sendAdminMessageToAllUsers', [BotUserController::class, 'send_Admin_message_to_All_users']);
+    Route::post('sendAdminMessageToSelectedUsers', [BotUserController::class, 'send_Admin_message_to_Selected_users']);
     Route::post('sendAdminMessageToAllUsersWithoutConfigs', [BotUserController::class, 'send_admin_message_to_all_users_without_configs']);
+    Route::get('getAdminMessages', [BotUserController::class, 'get_admin_messages']);
+    Route::delete('deleteAdminMessage/{id}', [BotUserController::class, 'delete_admin_message']);
 
     Route::get('getLast10Users', [BotUserController::class, 'getLast10Users']);
     Route::get('getProductBoughtedByProductId/{id}', [AgentProductController::class, 'getBoughtProductsStatusFromServerById']);
@@ -370,6 +374,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('/usage-more-than-85-percent', [CronJobController::class, 'execute_send_useage_more_than_85_percent']);
     Route::get('/auto-delete-expired-configs', [CronJobController::class, 'execute_auto_delete_expired_configs']);
     Route::get('/less-than-3-days', [CronJobController::class, 'execute_send_lass_there_than_3_days']);
+    Route::post('/updatePricesByTether', [CronJobController::class, 'calculate_product_category_price_by_tether']);
 
     // ReferralSettingController
     Route::get('/getReferralSetting', [ReferralSettingController::class, 'get_referral_setting']);
@@ -417,6 +422,13 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
 
     // ShetabVerifyController
     Route::post('/shetab-verify', [ShetabVerifyController::class, 'shetabVerify']);
+
+    // Reports
+    Route::get('getDashboardStats', [ReportController::class, 'getDashboardStats']);
+    Route::get('getFinancialReport', [ReportController::class, 'getFinancialReport']);
+    Route::get('getUserReport', [ReportController::class, 'getUserReport']);
+    Route::get('getProductReport', [ReportController::class, 'getProductReport']);
+    Route::get('getLastProductSelled/{count}', [ProductController::class, 'getLastProductSelled']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User

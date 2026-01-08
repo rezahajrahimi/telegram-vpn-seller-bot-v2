@@ -1,0 +1,197 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Http\Controllers\AccountBallanceController;
+use App\Http\Controllers\CustomTextController;
+use App\Http\Controllers\GeneralController;
+use App\Http\Controllers\HiddifyPannelController;
+use App\Http\Controllers\LogController;
+use App\Http\Controllers\PannelController;
+use App\Http\Controllers\PaymentSettingController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ReferralWalletController;
+use App\Http\Controllers\SanaeiPannelController;
+use App\Models\Product;
+use App\Models\ProductCategory;
+use App\Models\BotUser;
+use App\Services\TelegramService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Http\Request;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+
+class ProcessSubscriptionPurchase implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    protected $chatId;
+    protected $productCategoryId;
+
+    /**
+     * Create a new job instance.
+     */
+    public function __construct($chatId, $productCategoryId)
+    {
+        $this->chatId = $chatId;
+        $this->productCategoryId = $productCategoryId;
+    }
+
+    /**
+     * Execute the job.
+     */
+    public function handle(): void
+    {
+        $generalCntrl = new GeneralController();
+        $customTextCtrl = new CustomTextController();
+        $accBlCtrl = new AccountBallanceController();
+        $referralCntrl = new ReferralWalletController();
+        $panelCntrl = new PannelController();
+        $logCtrl = new LogController();
+        $hiddifyPannelCntrl = new HiddifyPannelController();
+        $paymnetSettingCntrl = new PaymentSettingController();
+        $telegramService = new TelegramService();
+
+        // Fetch user for logging
+        $botUser = BotUser::where('account_id', $this->chatId)->first();
+        $username = $botUser ? $botUser->username : 'Unknown';
+
+        try {
+            $selectedPrCat = ProductCategory::find($this->productCategoryId);
+            if (!$selectedPrCat) {
+                \Log::error("Product Category not found: " . $this->productCategoryId);
+                return;
+            }
+
+            // بررسی موجودی کاربر
+            $productPrice = $selectedPrCat->price;
+            $productPriceInDollar = $selectedPrCat->price_in_dollar;
+            $hasBallance = $accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
+            // بررسی کیف پول ارجاع
+            $hasRefballance = $referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $selectedPrCat->price);
+
+            if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
+                $generalCntrl->send_insufficient_balance_message($this->chatId, $selectedPrCat->id);
+                return;
+            }
+
+            $pannel = $panelCntrl->getPannelById($selectedPrCat->pannel_id);
+            $day = $selectedPrCat->expire_day;
+            $volume = $selectedPrCat->volume;
+            $resualt = false;
+            // get id of last inserted product id
+            $lastProductId = Product::latest()->first()->id ?? 1;
+
+            if ($pannel->type == 'hiddify') {
+                $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chatId, $lastProductId + 1);
+            } elseif ($pannel->type == 'marzban') {
+                // create marzban user
+                // return " پنل مرزبان";
+            } elseif ($pannel->type == 'sanaei') {
+                \Log::info("sanaei pannel");
+                $resualt = $generalCntrl->new_sanaei_config_telegram_text(
+                    $selectedPrCat,
+                    $pannel,
+                    $volume,
+                    $day,
+                    $this->chatId,
+                    $lastProductId + 1
+                );
+            }
+            \Log::info("resualt response buoght from sanaei: " . $resualt);
+
+            if ($resualt == false || $resualt == null) {
+                $logCtrl->addNewLog('subscription', 'خرید اشتراک با شکست مواجه شد.', $this->chatId, $username, 'failed');
+                $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
+                return;
+            }
+
+            // پردازش پرداخت
+            $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance, $accBlCtrl, $paymnetSettingCntrl, $referralCntrl, $logCtrl, $username);
+
+            \Log::info("paymentSuccess: " . $paymentSuccess);
+
+            if ($paymentSuccess == false || $paymentSuccess == null) {
+                if ($pannel->type == 'hiddify') {
+                    // remove created product from database and panel
+                    $uuid = $resualt;
+                    $hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
+                    // delete product from database
+                    $prCntrl = new ProductController();
+                    $res = $prCntrl->delete_product_by_uuid($uuid);
+                    if ($res) {
+                        $logCtrl->addNewLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل و دیتابیس', $this->chatId, $username, 'failed');
+                    }
+                } elseif ($pannel->type == 'sanaei') {
+                    // remove created product from Sanaei panel and database
+                    $uuid = $resualt;
+                    $sn = new SanaeiPannelController();
+                    $sn->deleteUser($pannel->id, $uuid);
+                    // delete product from database
+                    $prCntrl = new ProductController();
+                    $res = $prCntrl->delete_sanaei_product_by_uuid($uuid);
+                    if ($res) {
+                        $logCtrl->addNewLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل سنایی و دیتابیس', $this->chatId, $username, 'failed');
+                    }
+                }
+                $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
+                return;
+            }
+
+            // send useful
+            $generalCntrl->send_using_subscription_manual_message($this->chatId);
+            $logCtrl->addNewLog('subscription', 'خرید اشتراک با موفقیت انجام شد.', $this->chatId, $username, 'success');
+
+        } catch (\Throwable $th) {
+            \Log::error("خطا در خرید بسته (Job): " . $th->getMessage());
+            $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
+        }
+    }
+
+    private function processPayment($productPrice, $productPriceInDollar, $hasRefballance, $accBlCtrl, $paymnetSettingCntrl, $referralCntrl, $logCtrl, $username)
+    {
+        try {
+            $request = new Request();
+            $request->userID = $this->chatId;
+            $request->ballance = $productPrice;
+            $request->type = 'toman';
+
+            // تلاش برای کسر از کیف پول تومانی
+            $balance = $accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+            \Log::info("processPayment balance: " . $balance);
+            if ($balance != false || $balance != 0 || $balance != null) {
+                $logCtrl->addNewLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPrice . ' تومان', $this->chatId, $username, 'success');
+                return true;
+            }
+
+            // بررسی پرداخت دلاری
+            $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+            \Log::info("dollarTransaction: " . $dollarTransaction);
+            if ($dollarTransaction == true || $dollarTransaction == 1) {
+                $request->ballance = $productPriceInDollar;
+                $request->type = 'dollar';
+                $balance = $accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
+                if ($balance != false || $balance != 0 || $balance != null) {
+                    $logCtrl->addNewLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPriceInDollar . ' دلار', $this->chatId, $username, 'success');
+                    return true;
+                }
+            }
+
+            // بررسی کیف پول ارجاع
+            if ($hasRefballance == true || $hasRefballance == 1) {
+                $balance = $referralCntrl->dec_user_ref_wallet_ballance($this->chatId, $productPrice);
+                \Log::info("processPayment referral balance: " . $balance);
+                if ($balance != false || $balance != 0 || $balance != null) {
+                    $logCtrl->addNewLog('subscription', 'کسر موجودی از کیف پول همکاری به مقدار ' . $productPrice . ' تومان', $this->chatId, $username, 'success');
+                    return true;
+                }
+            }
+            return false;
+        } catch (\Throwable $th) {
+            \Log::error("خطا در پرداخت (Job): " . $th->getMessage());
+            return false;
+        }
+    }
+}

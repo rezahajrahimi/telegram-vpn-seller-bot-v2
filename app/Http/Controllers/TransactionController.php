@@ -288,28 +288,26 @@ class TransactionController extends Controller
         }
     }
 
-    public function getConfirmedTransactions($count = 10)
+    public function getConfirmedTransactions(Request $request, $count = 10)
     {
         try {
             return Transaction::where('confirmed', true)
                 ->with(['payment_types', 'transaction_image', 'user'])
-                ->take($count)
                 ->orderBy('id', 'desc')
-                ->get();
+                ->paginate($count);
         } catch (\Throwable $th) {
-            return response()->json($data, 404);
+            return response()->json(['error' => $th->getMessage()], 500);
         }
     }
-    public function getUnConfirmedTransactions($count = 10)
+    public function getUnConfirmedTransactions(Request $request, $count = 10)
     {
         try {
             return Transaction::where('confirmed', false)
                 ->with(['payment_types', 'transaction_image', 'user'])
-                ->take($count)
                 ->orderBy('id', 'desc')
-                ->get();
+                ->paginate($count);
         } catch (\Throwable $th) {
-            return response()->json($data, 404);
+            return response()->json(['error' => $th->getMessage()], 500);
         }
     }
 }

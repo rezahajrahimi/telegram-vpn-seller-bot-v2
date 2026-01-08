@@ -78,6 +78,7 @@ class AuthController extends Controller
 
             return $accountType;
         }
+
         return "false";
     }
 

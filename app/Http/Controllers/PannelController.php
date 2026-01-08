@@ -19,6 +19,25 @@ class PannelController extends Controller
     public function addNewPannel(Request $request)
     {
         try {
+            $authCntrl = new AuthController();
+            $license = $authCntrl->getPowerPsLicenseType();
+            // normalize license (handle boolean false and case)
+            if ($license === false) {
+                $license = 'false';
+            }
+            $license = strtolower((string) $license);
+
+            // check license
+            $panelCount = Pannel::count();
+            $limitedLicenses = ['false', 'trial', 'bronze'];
+            $hasAccountLimitation = in_array($license, $limitedLicenses, true) || ($license === 'silver' && $panelCount >= 2);
+
+            if ($hasAccountLimitation && $panelCount >= 2) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.'
+                ], 403);
+            }
             $pannel = new Pannel();
             $pannel->type = $request->type;
             $pannel->username = $request->username ?? 'admin';
@@ -26,6 +45,7 @@ class PannelController extends Controller
             $pannel->token = $request->token ?? 'Bearer ';
             $pannel->location = $request->location ?? null;
             $pannel->url_port = $request->url_port ?? null;
+            $pannel->sub_port = $request->sub_port ?? null;
             $pannel->admin_url = $request->admin_url ?? null;
             $pannel->user_link = $request->user_link ?? null;
             $pannel->capacity = $request->capacity ?? 1333333;
@@ -250,6 +270,7 @@ class PannelController extends Controller
                 $pannel->token = $request->token ?? 'Bearer ';
                 $pannel->location = $request->location ?? null;
                 $pannel->url_port = $request->url_port ?? null;
+                $pannel->sub_port = $request->sub_port ?? null;
                 $pannel->admin_url = $request->admin_url ?? null;
                 $pannel->user_link = $request->user_link ?? null;
                 $pannel->capacity = $request->capacity ?? 1333333;
@@ -326,7 +347,8 @@ class PannelController extends Controller
         }
     }
 
-    public function get_all_panells_by_location_capacity_mode(){
+    public function get_all_panells_by_location_capacity_mode()
+    {
 
         // get all stored products conts with the pannel_id seperation
 
@@ -340,7 +362,7 @@ class PannelController extends Controller
                 if (!empty($value->product_category_and_count_products) && isset($value->product_category_and_count_products[0]->products_count)) {
                     $rrr = $value->product_category_and_count_products[0]->products_count;
                 }
-                if ($rrr >= $value->capacity  ) {
+                if ($rrr >= $value->capacity) {
                     $pannels->forget($key);
                 }
             }
@@ -351,7 +373,8 @@ class PannelController extends Controller
         }
 
     }
-    public function get_all_panells_Id_by_location_capacity_mode(){
+    public function get_all_panells_Id_by_location_capacity_mode()
+    {
 
         // get all stored products conts with the pannel_id seperation
 
@@ -362,7 +385,7 @@ class PannelController extends Controller
             foreach ($pannels as $key => $value) {
                 // remove each pannel wich capacity is above or equal to the products count
                 $rrr = $value->product_category_and_count_products[0]->products_count;
-                if ($value->product_category_and_count_products[0]->products_count >= $value->capacity  ) {
+                if ($value->product_category_and_count_products[0]->products_count >= $value->capacity) {
                     $pannels->forget($key);
                 }
             }

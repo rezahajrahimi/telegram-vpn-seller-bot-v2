@@ -9,7 +9,7 @@ class Pannel extends Model
 {
     use HasFactory;
     protected $guarded = ['id'];
-    protected $fillable = ['type', 'username', 'password', 'token', 'location', 'url_port', 'admin_url', 'capacity','secret_code','cookie_session','user_link'];
+    protected $fillable = ['type', 'username', 'password', 'token', 'location', 'url_port', 'sub_port', 'admin_url', 'capacity', 'secret_code', 'cookie_session', 'user_link'];
 
     /**
      * Get all of the comments for the Pannel
@@ -26,8 +26,8 @@ class Pannel extends Model
     }
     public function product_category_and_count_products()
     {
-     // get count of products count by realation of product category
-     return $this->hasMany(ProductCategory::class, 'pannel_id')->withCount('products');
+        // get count of products count by realation of product category
+        return $this->hasMany(ProductCategory::class, 'pannel_id')->withCount('products');
 
     }
 }

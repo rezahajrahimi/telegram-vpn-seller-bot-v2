@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 use App\Models\BotUser;
 use App\Models\User;
+use App\Models\AdminMessage;
 use Illuminate\Support\Facades\Hash;
 use App\Services\TelegramService;
+use App\Jobs\BatchMessageJob;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -117,17 +119,17 @@ class BotUserController extends Controller
             return response()->json('get_users_with_zero_ballance error', 500);
         }
     }
-  
+
     public function get_agent_role_bot_users()
     {
         try {
             $data = BotUser::with('user')
                 ->get();
-                $data = $data->filter(function ($user) {
-                    if (isset($user->user)) {
-                        return $user->user->role === 'agent';
-                    }
-                })->values();
+            $data = $data->filter(function ($user) {
+                if (isset($user->user)) {
+                    return $user->user->role === 'agent';
+                }
+            })->values();
             if ($data != null) {
                 return $data;
             } else {
@@ -186,7 +188,7 @@ class BotUserController extends Controller
             \Log::info("Throwable:  $th");
         }
     }
- 
+
     public function getUserIDByAccountID($accountID)
     {
         $data = BotUser::where('account_id', $accountID)->first();
@@ -199,46 +201,291 @@ class BotUserController extends Controller
     public function send_Admin_message_to_All_users(Request $request)
     {
         try {
-            $data = BotUser::all();
-            $telegramService = new TelegramService();
             $message = $request->message;
-            foreach ($data as $key => $value) {
-                try {
-                    //$telegramService->sendMessage($value->account_id,  $message);
-                    \Log::info($message . " " . $value->account_id);
+            $scheduledAt = $request->scheduled_at; // Optional: ISO 8601 date string
+            $imagePath = null;
 
-                } catch (\Throwable $th) {
-                    \Log::debug('seng_message_to_all_user => ' . $th->getMessage());
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $directory = public_path('storage/admin_messages');
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0777, true);
+                }
+                $file->move($directory, $filename);
+                $imagePath = 'storage/admin_messages/' . $filename;
+            }
+
+            $userIds = BotUser::pluck('account_id')->toArray();
+
+            if (empty($userIds)) {
+                return response()->json(['message' => 'No users found'], 404);
+            }
+
+            $adminMessage = AdminMessage::create([
+                'message' => $message,
+                'image_path' => $imagePath,
+                'type' => $imagePath ? 'photo' : 'text',
+                'status' => 'pending',
+                'total_users' => count($userIds),
+                'recipient_ids' => $userIds,
+                'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt) : null,
+            ]);
+
+            $job = new BatchMessageJob('send_to_all', $userIds, $message, [], $adminMessage->id);
+
+            if ($scheduledAt) {
+                $delay = Carbon::parse($scheduledAt);
+                if ($delay->isFuture()) {
+                    $job->delay($delay);
                 }
             }
+
+            dispatch($job);
+
             return response()->json(true, 200);
         } catch (\Throwable $th) {
-            \Log::debug('seng_message_to_all_user' . $th->getMessage());
+            \Log::error('send_Admin_message_to_All_users: ' . $th->getMessage());
+            return response()->json(['message' => 'Server Error: ' . $th->getMessage()], 500);
         }
     }
+
+    public function send_Admin_message_to_Selected_users(Request $request)
+    {
+        try {
+            $message = $request->message;
+            $userIds = $request->user_ids; // Array of account_ids
+            if (is_string($userIds)) {
+                $userIds = json_decode($userIds, true);
+            }
+            $scheduledAt = $request->scheduled_at; // Optional
+            $imagePath = null;
+
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $directory = public_path('storage/admin_messages');
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0777, true);
+                }
+                $file->move($directory, $filename);
+                $imagePath = 'storage/admin_messages/' . $filename;
+            }
+
+            if (empty($userIds)) {
+                return response()->json(['message' => 'No users selected'], 400);
+            }
+
+            $adminMessage = AdminMessage::create([
+                'message' => $message,
+                'image_path' => $imagePath,
+                'type' => $imagePath ? 'photo' : 'text',
+                'status' => 'pending',
+                'total_users' => count($userIds),
+                'recipient_ids' => $userIds,
+                'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt) : null,
+            ]);
+
+            $job = new BatchMessageJob('send_to_selected', $userIds, $message, [], $adminMessage->id);
+
+            if ($scheduledAt) {
+                $delay = Carbon::parse($scheduledAt);
+                if ($delay->isFuture()) {
+                    $job->delay($delay);
+                }
+            }
+
+            dispatch($job);
+
+            return response()->json(true, 200);
+        } catch (\Throwable $th) {
+            \Log::error('send_Admin_message_to_Selected_users: ' . $th->getMessage());
+            return response()->json(['message' => 'Server Error: ' . $th->getMessage()], 500);
+        }
+    }
+
     public function send_admin_message_to_all_users_without_configs(Request $request)
     {
         try {
             $data = BotUser::with('products')->get();
             // get all $data which have zero count of products
-            $data = $data->filter(function ($user) {
+            $userIds = $data->filter(function ($user) {
                 return $user->products->count() === 0;
-            })->values();
+            })->pluck('account_id')->toArray();
 
-            $telegramService = new TelegramService();
+            if (empty($userIds)) {
+                return response()->json(['message' => 'No users found'], 404);
+            }
+
             $message = $request->message;
-            foreach ($data as $key => $value) {
-                try {
-                    //$telegramService->sendMessage($value->account_id,  $message);
-                    \Log::info($message . " " . $value->account_id);
+            $scheduledAt = $request->scheduled_at;
+            $imagePath = null;
 
-                } catch (\Throwable $th) {
-                    \Log::debug('send_admin_message_to_all_users_without_configs => ' . $th->getMessage());
+            if ($request->hasFile('image')) {
+                $file = $request->file('image');
+                $filename = time() . '_' . $file->getClientOriginalName();
+                $directory = public_path('storage/admin_messages');
+                if (!file_exists($directory)) {
+                    mkdir($directory, 0777, true);
+                }
+                $file->move($directory, $filename);
+                $imagePath = 'storage/admin_messages/' . $filename;
+            }
+
+            $adminMessage = AdminMessage::create([
+                'message' => $message,
+                'image_path' => $imagePath,
+                'type' => $imagePath ? 'photo' : 'text',
+                'status' => 'pending',
+                'total_users' => count($userIds),
+                'recipient_ids' => $userIds,
+                'scheduled_at' => $scheduledAt ? Carbon::parse($scheduledAt) : null,
+            ]);
+
+            $job = new BatchMessageJob('send_to_no_configs', $userIds, $message, [], $adminMessage->id);
+
+            if ($scheduledAt) {
+                $delay = Carbon::parse($scheduledAt);
+                if ($delay->isFuture()) {
+                    $job->delay($delay);
                 }
             }
+
+            dispatch($job);
+
             return response()->json(true, 200);
         } catch (\Throwable $th) {
-            \Log::debug('seng_message_to_all_user' . $th->getMessage());
+            \Log::error('send_admin_message_to_all_users_without_configs: ' . $th->getMessage());
+            return response()->json(['message' => 'Server Error: ' . $th->getMessage()], 500);
+        }
+    }
+
+    public function get_admin_messages()
+    {
+        try {
+            $paginated = AdminMessage::orderBy('id', 'desc')->paginate(20);
+
+            // Transform each item to include user details for sent and failed lists
+            $items = $paginated->items();
+            $transformed = [];
+            foreach ($items as $msg) {
+                $arr = $msg->toArray();
+
+                // Sent users detail
+                $sentDetails = [];
+                if (!empty($msg->sent_ids) && is_array($msg->sent_ids)) {
+                    $users = \App\Models\BotUser::whereIn('account_id', $msg->sent_ids)
+                        ->get(['account_id', 'username', 'first_name', 'last_name'])
+                        ->keyBy('account_id');
+
+                    foreach ($msg->sent_ids as $id) {
+                        if (isset($users[$id])) {
+                            $u = $users[$id];
+                            $sentDetails[] = [
+                                'account_id' => $u->account_id,
+                                'username' => $u->username,
+                                'first_name' => $u->first_name,
+                                'last_name' => $u->last_name,
+                            ];
+                        } else {
+                            $sentDetails[] = ['account_id' => $id];
+                        }
+                    }
+                }
+
+                // Failed users detail
+                $failedDetails = [];
+                if (!empty($msg->failed_ids) && is_array($msg->failed_ids)) {
+                    $failedIds = array_map(function ($f) {
+                        return $f['user_id'] ?? null;
+                    }, $msg->failed_ids);
+
+                    $users = \App\Models\BotUser::whereIn('account_id', $failedIds)
+                        ->get(['account_id', 'username', 'first_name', 'last_name'])
+                        ->keyBy('account_id');
+
+                    foreach ($msg->failed_ids as $f) {
+                        $uid = $f['user_id'] ?? null;
+                        $err = $f['error'] ?? null;
+                        if ($uid && isset($users[$uid])) {
+                            $u = $users[$uid];
+                            $failedDetails[] = [
+                                'account_id' => $u->account_id,
+                                'username' => $u->username,
+                                'first_name' => $u->first_name,
+                                'last_name' => $u->last_name,
+                                'error' => $err,
+                            ];
+                        } else {
+                            $failedDetails[] = ['account_id' => $uid, 'error' => $err];
+                        }
+                    }
+                }
+
+                $arr['sent_users_detail'] = $sentDetails;
+                $arr['failed_users_detail'] = $failedDetails;
+
+                // Recipient details (if stored)
+                $recipientDetails = [];
+                if (!empty($msg->recipient_ids) && is_array($msg->recipient_ids)) {
+                    $recUsers = \App\Models\BotUser::whereIn('account_id', $msg->recipient_ids)
+                        ->get(['account_id', 'username', 'first_name', 'last_name'])
+                        ->keyBy('account_id');
+
+                    foreach ($msg->recipient_ids as $id) {
+                        $status = 'pending';
+                        // check failed
+                        foreach ($failedDetails as $f) {
+                            if (($f['user_id'] ?? null) == $id) {
+                                $status = 'failed';
+                                break;
+                            }
+                        }
+                        // check sent
+                        if ($status !== 'failed' && in_array($id, $msg->sent_ids ?? [])) {
+                            $status = 'sent';
+                        }
+
+                        if (isset($recUsers[$id])) {
+                            $u = $recUsers[$id];
+                            $recipientDetails[] = [
+                                'account_id' => $u->account_id,
+                                'username' => $u->username,
+                                'first_name' => $u->first_name,
+                                'last_name' => $u->last_name,
+                                'status' => $status,
+                            ];
+                        } else {
+                            $recipientDetails[] = ['account_id' => $id, 'status' => $status];
+                        }
+                    }
+                }
+
+                $arr['recipient_details'] = $recipientDetails;
+
+                $transformed[] = $arr;
+            }
+
+            $paginatedArray = $paginated->toArray();
+            $paginatedArray['data'] = $transformed;
+
+            return response()->json($paginatedArray);
+        } catch (\Throwable $th) {
+            return response()->json(['message' => 'Server Error'], 500);
+        }
+    }
+
+    public function delete_admin_message($id)
+    {
+        try {
+            $msg = AdminMessage::find($id);
+            if ($msg) {
+                $msg->delete();
+                return response()->json(true, 200);
+            }
+            return response()->json(false, 404);
+        } catch (\Throwable $th) {
+            return response()->json(['message' => 'Server Error'], 500);
         }
     }
 

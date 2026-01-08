@@ -8,11 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class AgentProduct extends Model
 {
     use HasFactory;
-    protected $fillable = ['product_categories_id', 'user_id', 'is_active', 'price','price_in_dollar'];
+    protected $fillable = ['product_categories_id', 'user_id', 'is_active', 'price', 'price_in_dollar'];
     public function user()
     {
-        return $this->belongsTo(Pannel::class, 'user_id');
-
+        return $this->belongsTo(User::class, 'user_id');
     }
     public function product_categories()
     {

@@ -11,31 +11,31 @@ class TelegramService
     public function __construct()
     {
         $this->baseUrl = 'https://api.telegram.org/';
-        $token         = config('services.telegram.bot_token');
+        $token = config('services.telegram.bot_token');
 
         // تمیز کردن توکن
         $token = preg_replace('/bot:?bot/i', 'bot', $token);
-        if (! str_starts_with($token, 'bot')) {
+        if (!str_starts_with($token, 'bot')) {
             $token = 'bot' . $token;
         }
 
         $this->botToken = $token;
     }
 
-    public function sendMessage(string $chatId, string | array $text, array $options = []): array
+    public function sendMessage(string $chatId, string|array $text, array $options = []): array
     {
         if (is_array($text)) {
             // use format text service
             $text = $this->formatText($text);
         }
         return $this->makeRequest('sendMessage', array_merge([
-            'chat_id'    => $chatId,
-            'text'       => $text,
+            'chat_id' => $chatId,
+            'text' => $text,
             'parse_mode' => 'HTML',
         ], $options));
     }
 
-    public function sendMarkdownMessage(string $chatId, string | array $text, array $options = []): array
+    public function sendMarkdownMessage(string $chatId, string|array $text, array $options = []): array
     {
         if (is_array($text)) {
             // use format text service
@@ -46,7 +46,7 @@ class TelegramService
         ], $options));
     }
 
-    public function sendHTMLMessage(string $chatId, string | array $text, array $options = []): array
+    public function sendHTMLMessage(string $chatId, string|array $text, array $options = []): array
     {
         if (is_array($text)) {
             // use format text service
@@ -56,11 +56,27 @@ class TelegramService
             'parse_mode' => 'HTML',
         ], $options));
     }
+
+    public function sendPhotoUrl(string $chatId, string $photo, ?string $caption = null, array $options = []): array
+    {
+        $params = array_merge([
+            'chat_id' => $chatId,
+            'photo' => $photo,
+            'parse_mode' => 'HTML',
+        ], $options);
+
+        if ($caption !== null) {
+            $params['caption'] = $caption;
+        }
+
+        return $this->makeRequest('sendPhoto', $params);
+    }
+
     // check that the chatId is channel member
     public function checkChatIdIsChannelMember(string $chatId, $channelId): bool
     {
         try {
-            $url    = $this->baseUrl . $this->botToken . '/getChatMember';
+            $url = $this->baseUrl . $this->botToken . '/getChatMember';
             $params = [
                 'chat_id' => "@" . $channelId, // اضافه کردن @ برای اطمینان
                 'user_id' => $chatId,
@@ -177,7 +193,8 @@ class TelegramService
     public function preHTML(string $text, string $language = ''): string
     {
         if ($language) {
-            return sprintf('<pre><code class="language-%s">%s</code></pre>',
+            return sprintf(
+                '<pre><code class="language-%s">%s</code></pre>',
                 $this->formatHTML($language),
                 $this->formatHTML($text)
             );
@@ -190,13 +207,14 @@ class TelegramService
      */
     public function preMarkdown(string $text, string $language = ''): string
     {
-        return sprintf('```%s\n%s\n```',
+        return sprintf(
+            '```%s\n%s\n```',
             $language,
             $this->formatMarkdown($text)
         );
     }
 
-    public function sendMessageWithKeyboard(string $chatId, string | array $text, array $buttons, bool $resize = true): array
+    public function sendMessageWithKeyboard(string $chatId, string|array $text, array $buttons, bool $resize = true): array
     {
         if (is_array($text)) {
             // use format text service
@@ -204,14 +222,14 @@ class TelegramService
         }
         $response = $this->sendMessage($chatId, $text, [
             'reply_markup' => json_encode([
-                'keyboard'        => $this->formatKeyboardButtons($buttons),
+                'keyboard' => $this->formatKeyboardButtons($buttons),
                 'resize_keyboard' => $resize,
             ]),
         ]);
         return $response;
     }
 
-    public function sendMessageWithInlineKeyboard(string $chatId, string | array $text, array $buttons): array
+    public function sendMessageWithInlineKeyboard(string $chatId, string|array $text, array $buttons): array
     {
         try {
             if (is_array($text)) {
@@ -240,7 +258,7 @@ class TelegramService
         ]);
     }
 
-    public function forceReply(string $chatId, string | array $text): array
+    public function forceReply(string $chatId, string|array $text): array
     {
         if (is_array($text)) {
             // use format text service
@@ -250,15 +268,15 @@ class TelegramService
 
         return $this->sendMessage($chatId, $text, [
             'reply_markup' => json_encode([
-                'force_reply'             => true,
-                'selective'               => true,
+                'force_reply' => true,
+                'selective' => true,
                 'input_field_placeholder' => $text,
-                'keyboard'                => $buttons,
+                'keyboard' => $buttons,
             ]),
         ]);
     }
 
-    public function sendPhotoFile(string $chatId, string $photoPath, string | array $caption = '', array $options = []): array
+    public function sendPhotoFile(string $chatId, string $photoPath, string|array $caption = '', array $options = []): array
     {
         // ایجاد CURLFile از فایل تصویر
         $photo = new \CURLFile($photoPath);
@@ -267,35 +285,30 @@ class TelegramService
             $caption = $this->formatText($caption);
         }
         $result = $this->makeRequestFile('sendPhoto', array_merge([
-            'chat_id'    => $chatId,
-            'photo'      => $photo,
-            'caption'    => $caption,
+            'chat_id' => $chatId,
+            'photo' => $photo,
+            'caption' => $caption,
             'parse_mode' => 'HTML',
         ], $options));
-
-        // پاک کردن فایل موقت بعد از ارسال
-        if (file_exists($photoPath)) {
-            unlink($photoPath);
-        }
 
         return $result;
     }
 
-    public function sendPhoto(string $chatId, string $photo, string | array $caption = '', array $options = []): array
+    public function sendPhoto(string $chatId, string $photo, string|array $caption = '', array $options = []): array
     {
         if (is_array($caption)) {
             // use format text service
             $caption = $this->formatText($caption);
         }
         return $this->makeRequest('sendPhoto', array_merge([
-            'chat_id'    => $chatId,
-            'photo'      => $photo,
-            'caption'    => $caption,
+            'chat_id' => $chatId,
+            'photo' => $photo,
+            'caption' => $caption,
             'parse_mode' => 'HTML',
         ], $options));
     }
 
-    public function sendDocument(string $chatId, string $document, string | array $caption = '', array $options = []): array
+    public function sendDocument(string $chatId, string $document, string|array $caption = '', array $options = []): array
     {
         if (is_array($caption)) {
             // use format text service
@@ -303,9 +316,9 @@ class TelegramService
         }
         try {
             $result = $this->makeRequest('sendDocument', array_merge([
-                'chat_id'    => $chatId,
-                'document'   => $document,
-                'caption'    => $caption,
+                'chat_id' => $chatId,
+                'document' => $document,
+                'caption' => $caption,
                 'parse_mode' => 'HTML',
             ], $options));
             // \Log::info("sendDocument result=> $result");
@@ -315,7 +328,7 @@ class TelegramService
             return [];
         }
     }
-    public function sendDocumentFile(string $chatId, string $document, string | array $caption = '', array $options = []): array
+    public function sendDocumentFile(string $chatId, string $document, string|array $caption = '', array $options = []): array
     {
         if (is_array($caption)) {
             // use format text service
@@ -323,10 +336,10 @@ class TelegramService
         }
         try {
             $document = new \CURLFile($document);
-            $result   = $this->makeRequestFile('sendDocument', array_merge([
-                'chat_id'    => $chatId,
-                'document'   => $document,
-                'caption'    => $caption,
+            $result = $this->makeRequestFile('sendDocument', array_merge([
+                'chat_id' => $chatId,
+                'document' => $document,
+                'caption' => $caption,
                 'parse_mode' => 'HTML',
             ], $options));
             // \Log::info("sendDocument result=> $result");
@@ -340,8 +353,8 @@ class TelegramService
     public function sendLocation(string $chatId, float $latitude, float $longitude): array
     {
         return $this->makeRequest('sendLocation', [
-            'chat_id'   => $chatId,
-            'latitude'  => $latitude,
+            'chat_id' => $chatId,
+            'latitude' => $latitude,
             'longitude' => $longitude,
         ]);
     }
@@ -364,30 +377,30 @@ class TelegramService
         // $url = "https://api.telegram.org/file/bot" . $this->botToken . "/" . $file_path;
         return file_get_contents($url);
     }
-    public function sendVoice(string $chatId, string $voice, string | array $caption = '', array $options = []): array
+    public function sendVoice(string $chatId, string $voice, string|array $caption = '', array $options = []): array
     {
         if (is_array($caption)) {
             // use format text service
             $caption = $this->formatText($caption);
         }
         return $this->makeRequest('sendVoice', array_merge([
-            'chat_id'    => $chatId,
-            'voice'      => $voice,
-            'caption'    => $caption,
+            'chat_id' => $chatId,
+            'voice' => $voice,
+            'caption' => $caption,
             'parse_mode' => 'HTML',
         ], $options));
     }
 
-    public function sendVideo(string $chatId, string $video, string | array $caption = '', array $options = []): array
+    public function sendVideo(string $chatId, string $video, string|array $caption = '', array $options = []): array
     {
         if (is_array($caption)) {
             // use format text service
             $caption = $this->formatText($caption);
         }
         return $this->makeRequest('sendVideo', array_merge([
-            'chat_id'    => $chatId,
-            'video'      => $video,
-            'caption'    => $caption,
+            'chat_id' => $chatId,
+            'video' => $video,
+            'caption' => $caption,
             'parse_mode' => 'HTML',
         ], $options));
     }
@@ -395,10 +408,10 @@ class TelegramService
     public function sendContact(string $chatId, string $phoneNumber, string $firstName, string $lastName = ''): array
     {
         return $this->makeRequest('sendContact', [
-            'chat_id'      => $chatId,
+            'chat_id' => $chatId,
             'phone_number' => $phoneNumber,
-            'first_name'   => $firstName,
-            'last_name'    => $lastName,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
         ]);
     }
 
@@ -406,11 +419,11 @@ class TelegramService
     {
         return $this->makeRequest('sendChatAction', [
             'chat_id' => $chatId,
-            'action'  => $action, // typing, upload_photo, record_video, upload_video, record_voice, upload_voice, upload_document
+            'action' => $action, // typing, upload_photo, record_video, upload_video, record_voice, upload_voice, upload_document
         ]);
     }
 
-    public function answerCallbackQuery(string $callbackQueryId, string | array $text = '', bool $showAlert = false): array
+    public function answerCallbackQuery(string $callbackQueryId, string|array $text = '', bool $showAlert = false): array
     {
         if (is_array($text)) {
             // use format text service
@@ -418,8 +431,8 @@ class TelegramService
         }
         return $this->makeRequest('answerCallbackQuery', [
             'callback_query_id' => $callbackQueryId,
-            'text'              => $text,
-            'show_alert'        => $showAlert,
+            'text' => $text,
+            'show_alert' => $showAlert,
         ]);
     }
 
@@ -429,7 +442,7 @@ class TelegramService
         foreach ($buttons as $row) {
             $keyboardRow = [];
             foreach ($row as $button) {
-                if (! isset($button['callback_data'])) {
+                if (!isset($button['callback_data'])) {
                     $button['callback_data'] = '';
                 }
                 $keyboardRow[] = $button;
@@ -441,18 +454,18 @@ class TelegramService
     public function formatText(array $text): string
     {
         $formatter = new TelegramMessageFormatter($this);
-        $text      = $formatter->addFormattedText('', $text)->getMessage();
+        $text = $formatter->addFormattedText('', $text)->getMessage();
         return $text;
     }
 
-    private function formatInlineKeyboardButtons(array $buttons): array
+    public function formatInlineKeyboardButtons(array $buttons): array
     {
         $keyboard = [];
         foreach ($buttons as $row) {
             $keyboardRow = [];
             foreach ($row as $text => $callbackData) {
                 $keyboardRow[] = [
-                    'text'          => $text,
+                    'text' => $text,
                     'callback_data' => $callbackData,
                 ];
             }
@@ -473,14 +486,21 @@ class TelegramService
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
 
         $response = curl_exec($ch);
-        $error    = curl_error($ch);
+        $error = curl_error($ch);
         curl_close($ch);
 
         if ($error) {
+            \Log::error("Telegram API Curl Error ($method): $error");
             throw new \Exception('خطا در ارتباط با تلگرام: ' . $error);
         }
 
-        return json_decode($response, true) ?? [];
+        $decoded = json_decode($response, true) ?? [];
+        \Log::info("Telegram API Response ($method): " . json_encode($decoded));
+        if (isset($decoded['ok']) && !$decoded['ok']) {
+            \Log::error("Telegram API Error ($method): " . json_encode($decoded) . " | Params: " . json_encode($params));
+        }
+
+        return $decoded;
     }
 
     private function makeRequestFile(string $method, array $params = []): array
@@ -496,14 +516,28 @@ class TelegramService
         // CURL به صورت خودکار Content-Type: multipart/form-data را تنظیم می‌کند
 
         $response = curl_exec($ch);
-        $error    = curl_error($ch);
+        $error = curl_error($ch);
         curl_close($ch);
 
         if ($error) {
+            \Log::error("Telegram API Curl Error ($method): $error");
             throw new \Exception('خطا در ارتباط با تلگرام: ' . $error);
         }
 
-        return json_decode($response, true) ?? [];
+        $decoded = json_decode($response, true) ?? [];
+        \Log::info("Telegram API Response ($method): " . json_encode($decoded));
+        if (isset($decoded['ok']) && !$decoded['ok']) {
+            // Remove the actual file object from params for logging to avoid clutter and potential issues
+            $logParams = $params;
+            foreach ($logParams as $key => $value) {
+                if ($value instanceof \CURLFile) {
+                    $logParams[$key] = '[CURLFile: ' . $value->getFilename() . ']';
+                }
+            }
+            \Log::error("Telegram API Error ($method): " . json_encode($decoded) . " | Params: " . json_encode($logParams));
+        }
+
+        return $decoded;
     }
 
     /**
@@ -514,7 +548,7 @@ class TelegramService
      * @param array $buttonsList Array of buttons [ ['text' => 'Button Text', 'url' => 'Button URL'] ]
      * @return array
      */
-    public function sendMessageWithLinkButtons(string $chatId, string | array $text, array $buttonsList): array
+    public function sendMessageWithLinkButtons(string $chatId, string|array $text, array $buttonsList): array
     {
         if (is_array($text)) {
             // use format text service
@@ -525,18 +559,49 @@ class TelegramService
             $buttons[] = [
                 [
                     'text' => $button['text'],
-                    'url'  => trim($button['url']),
+                    'url' => trim($button['url']),
                 ],
             ];
         }
 
         $response = $this->makeRequest('sendMessage', [
-            'chat_id'      => $chatId,
-            'text'         => $text,
+            'chat_id' => $chatId,
+            'text' => $text,
             'reply_markup' => json_encode([
                 'inline_keyboard' => $buttons,
             ]),
         ]);
         return $response;
+    }
+
+    public function editMessageText(string $chatId, int $messageId, string $text, array $options = []): array
+    {
+        return $this->makeRequest('editMessageText', array_merge([
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'text' => $text,
+            'parse_mode' => 'HTML',
+        ], $options));
+    }
+
+    public function editMessageReplyMarkup(string $chatId, int $messageId, array $replyMarkup = []): array
+    {
+        return $this->makeRequest('editMessageReplyMarkup', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'reply_markup' => json_encode($replyMarkup),
+        ]);
+    }
+
+    public function editMessageWithInlineKeyboard(string $chatId, int $messageId, string|array $text, array $buttons): array
+    {
+        if (is_array($text)) {
+            $text = $this->formatText($text);
+        }
+        return $this->editMessageText($chatId, $messageId, $text, [
+            'reply_markup' => json_encode([
+                'inline_keyboard' => $this->formatInlineKeyboardButtons($buttons),
+            ]),
+        ]);
     }
 }

@@ -2,17 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Inbound;
 use App\Models\Pannel;
-use App\Models\Proxy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Nette\Utils\Random;
+use Carbon\Carbon;
 
 class SanaeiPannelController extends Controller
 {
-
-
+    private $apiPrefix = '/panel/api';
 
     private function baseUrl(Pannel $panel): string
     {
@@ -28,9 +26,17 @@ class SanaeiPannelController extends Controller
         $headers = [
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
+            // Common AJAX header used by the panel UI
+            'X-Requested-With' => 'XMLHttpRequest',
+            // Provide a Referer similar to browser requests (helps some panel configs)
+            'Referer' => $this->baseUrl($panel) . '/panel/inbounds',
+            // Friendly UA
+            'User-Agent' => '3x-ui-bot/1.0',
         ];
-        if (!empty($panel->token)) {
-            $headers['Authorization'] = $panel->token;
+        $token = trim((string) ($panel->token ?? ''));
+        // Avoid sending meaningless tokens like 'Bearer' or empty strings
+        if ($token !== '' && $token !== 'Bearer') {
+            $headers['Authorization'] = $token;
         }
         return $headers;
     }
@@ -49,80 +55,9 @@ class SanaeiPannelController extends Controller
         return $value === null ? '' : rawurlencode($value);
     }
 
-    private function buildVlessLink(string $host, int $port, string $uuid, string $network, ?string $security, ?string $path, ?string $sni, ?array $alpn, ?array $reality, string $remark): string
-    {
-        $params = [];
-        if ($network !== '') {
-            $params[] = 'type=' . $this->urlencodeIfNotNull($network);
-        }
-        if (!empty($security)) {
-            $params[] = 'security=' . $this->urlencodeIfNotNull($security);
-        }
-        if (!empty($path)) {
-            $params[] = 'path=' . $this->urlencodeIfNotNull($path);
-        }
-        if (!empty($sni)) {
-            $params[] = 'sni=' . $this->urlencodeIfNotNull($sni);
-        }
-        if (!empty($alpn)) {
-            $params[] = 'alpn=' . $this->urlencodeIfNotNull(implode(',', $alpn));
-        }
-        if (!empty($reality)) {
-            if (!empty($reality['publicKey'])) {
-                $params[] = 'pbk=' . $this->urlencodeIfNotNull($reality['publicKey']);
-            }
-            if (!empty($reality['shortId'])) {
-                $params[] = 'sid=' . $this->urlencodeIfNotNull($reality['shortId']);
-            }
-            if (!empty($reality['fingerprint'])) {
-                $params[] = 'fp=' . $this->urlencodeIfNotNull($reality['fingerprint']);
-            }
-        }
-        $query = implode('&', $params);
-        return "vless://{$uuid}@{$host}:{$port}?{$query}#" . rawurlencode($remark);
-    }
-
-    private function buildVmessLink(string $host, int $port, string $uuid, string $network, ?string $tls, ?string $path, ?string $hostHeader, string $remark): string
-    {
-        $vmess = [
-            'v' => '2',
-            'ps' => $remark,
-            'add' => $host,
-            'port' => (string) $port,
-            'id' => $uuid,
-            'aid' => '0',
-            'net' => $network ?: 'tcp',
-            'type' => 'none',
-            'host' => $hostHeader ?? '',
-            'path' => $path ?? '',
-            'tls' => $tls ? 'tls' : '',
-        ];
-        $b64 = base64_encode(json_encode($vmess));
-        return 'vmess://' . $b64;
-    }
-
-    private function buildTrojanLink(string $host, int $port, string $password, string $network, ?string $tls, ?string $path, ?string $sni, string $remark): string
-    {
-        $params = [];
-        if ($network !== '') {
-            $params[] = 'type=' . $this->urlencodeIfNotNull($network);
-        }
-        if (!empty($tls)) {
-            $params[] = 'security=' . $this->urlencodeIfNotNull($tls);
-        }
-        if (!empty($path)) {
-            $params[] = 'path=' . $this->urlencodeIfNotNull($path);
-        }
-        if (!empty($sni)) {
-            $params[] = 'sni=' . $this->urlencodeIfNotNull($sni);
-        }
-        $query = implode('&', $params);
-        return "trojan://{$password}@{$host}:{$port}?{$query}#" . rawurlencode($remark);
-    }
-
     private function httpWithAuth(Pannel $panel)
     {
-        $req = Http::withHeaders($this->headers($panel));
+        $req = Http::withoutVerifying()->withHeaders($this->headers($panel));
         if (empty($panel->token) && !empty($panel->cookie_session)) {
             $cookies = json_decode($panel->cookie_session, true) ?? [];
             foreach ($cookies as $cookie) {
@@ -136,229 +71,101 @@ class SanaeiPannelController extends Controller
         return $req;
     }
 
-    /**
-     * Parse a raw Cookie header string (e.g. "lang=en-US; 3x-ui=...") into an array of
-     * structures compatible with stored cookie format (Name/Value).
-     */
-    private function parseCookieHeader(string $cookieHeader): array
+    public function login($panelOrId)
     {
-        $raw = trim($cookieHeader);
-        if ($raw === '') {
-            return [];
+        if ($panelOrId instanceof Pannel) {
+            $panel = $panelOrId;
+        } else {
+            $panel = Pannel::find($panelOrId);
         }
-        if (stripos($raw, 'Cookie:') === 0) {
-            $raw = trim(substr($raw, 7));
-        }
-        $raw = trim($raw, " \t\n\r\0\x0B\"'");
-        $parts = preg_split('/;\s*/', $raw, -1, PREG_SPLIT_NO_EMPTY) ?: [];
-        $cookies = [];
-        foreach ($parts as $part) {
-            $eqPos = strpos($part, '=');
-            if ($eqPos === false) {
-                continue;
-            }
-            $name = trim(substr($part, 0, $eqPos));
-            $value = substr($part, $eqPos + 1);
-            if ($name === '') {
-                continue;
-            }
-            $cookies[] = [
-                'Name' => $name,
-                'Value' => $value,
-            ];
-        }
-        return $cookies;
-    }
-
-    /**
-     * Set raw cookie header string for a panel, store into cookie_session, and validate.
-     */
-    public function setRawCookie(Request $request, $pannelID)
-    {
-        try {
-            $panel = Pannel::findOrFail((int) $pannelID);
-            $raw = (string) ($request->input('cookie') ?? $request->input('cookie_raw') ?? '');
-            if ($raw === '') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'cookie is required',
-                ], 422);
-            }
-            $cookiesArray = $this->parseCookieHeader($raw);
-            if (empty($cookiesArray)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'invalid cookie format',
-                ], 422);
-            }
-            $panel->cookie_session = json_encode($cookiesArray);
-            $panel->save();
-            $valid = $this->isCookieValid($panel);
-            \Log::info('setRawCookie applied', ['panel_id' => (int) $pannelID, 'valid' => $valid]);
-            return response()->json([
-                'success' => true,
-                'valid' => $valid,
-            ]);
-        } catch (\Throwable $th) {
-            \Log::error('setRawCookie error: ' . $th->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'server error',
-            ], 500);
-        }
-    }
-
-    /**
-     * Check if current cookies are still valid
-     */
-    private function isCookieValid(Pannel $panel): bool
-    {
-        if (empty($panel->cookie_session)) {
+        if (!$panel) {
+            \Log::error("login: panel not found for ID " . (is_object($panelOrId) ? 'OBJECT' : $panelOrId));
             return false;
         }
+        $pannelID = $panel->id;
 
-        try {
-            // Try to make a simple API call to check if cookies are valid
-            $base = $this->baseUrl($panel);
-            $testPaths = ['/panel/api/inbounds'];
-
-            foreach ($testPaths as $path) {
-                try {
-                    $response = $this->httpWithAuth($panel)->get($base . $path);
-                    if ($response->ok()) {
-                        return true; // Cookies are still valid
-                    }
-                } catch (\Throwable $th) {
-                    continue;
+        // If a token exists, validate it before assuming we're authenticated.
+        $token = trim((string) ($panel->token ?? ''));
+        if ($token !== '' && $token !== 'Bearer') {
+            try {
+                $checkUrl = $this->baseUrl($panel) . $this->apiPrefix . '/server/status';
+                $r = Http::withoutVerifying()->withHeaders(['Authorization' => $token, 'Accept' => 'application/json'])->get($checkUrl);
+                $json = $r->json();
+                if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
+                    \Log::info("Token validated for panel $pannelID");
+                    return true;
                 }
+                \Log::warning("Token present but validation failed for panel $pannelID. Status: " . $r->status());
+            } catch (\Throwable $th) {
+                \Log::warning("Token validation exception: " . $th->getMessage());
             }
-
-            return false; // All test paths failed
-        } catch (\Throwable $th) {
-            return false;
-        }
-    }
-
-    public function login($pannelID)
-    {
-        $panel = Pannel::findOrFail($pannelID);
-
-        // If we have a token, assume we're authenticated
-        if (!empty($panel->token)) {
-            return true;
-        }
-
-        // If we have cookies, check if they're still valid
-        if (!empty($panel->cookie_session) && $this->isCookieValid($panel)) {
-            \Log::info("cook valid");
-            return true;
-        }
-
-        // If cookies are invalid or expired, clear them
-        if (!empty($panel->cookie_session)) {
-            \Log::info("If cookies are invalid or expired, clear them");
-            $panel->cookie_session = null;
-            $panel->update();
         }
 
         $base = $this->baseUrl($panel);
         if ($base === '') {
+            \Log::error("Panel $pannelID has no base URL");
             return false;
         }
 
-        $loginCandidates = ['/login'];
-        foreach ($loginCandidates as $path) {
+        // Check if cookies are valid and not expired
+        if (!empty($panel->cookie_session)) {
             try {
-                $res = Http::asForm()->post($base . $path, [
-                    'username' => $panel->username ?? 'admin',
-                    'password' => $panel->password ?? '123456',
-                ]);
-                if ($res->status() === 200 || $res->status() === 302) {
-                    $cookies = $res->cookies()->toArray();
-                    if (!empty($cookies)) {
-                        $panel->cookie_session = json_encode($cookies); // Always store as JSON
-                        \Log::info($cookies);
-                        $panel->update();
-                        \Log::info('Successfully logged in to Sanaei panel', ['panel_id' => $pannelID]);
+                // Try a known endpoint to validate session
+                // We try both common prefixes
+                $prefixes = ['/panel/api', '/xui/API'];
+                foreach ($prefixes as $prefix) {
+                    $r = $this->httpWithAuth($panel)->get($base . $prefix . '/inbounds/list');
+                    $json = $r->json();
+                    if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
+                        $this->apiPrefix = $prefix;
                         return true;
                     }
                 }
+                \Log::info("Existing session invalid or expired for panel $pannelID. Proceeding to login.");
             } catch (\Throwable $th) {
-                \Log::warning('Login attempt failed for path', ['panel_id' => $pannelID, 'path' => $path, 'error' => $th->getMessage()]);
-                // try next endpoint
+                \Log::warning("Session check exception for panel $pannelID: " . $th->getMessage());
             }
         }
 
-        \Log::error('Failed to login to Sanaei panel', ['panel_id' => $pannelID]);
-        return false;
-    }
-
-    public function syncInbounds($pannelID)
-    {
+        // Diagnostic: Check what server we are talking to
         try {
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
-                return response()->json(false, 401);
-            }
-
-            $base = $this->baseUrl($panel);
-            $paths = [
-                '/panel/api/inbounds',
-            ];
-            $list = null;
-            foreach ($paths as $path) {
-                try {
-                    $r = $this->httpWithAuth($panel)->get($base . $path);
-                    if ($r->ok()) {
-                        $list = $r->json();
-                        break;
-                    }
-                } catch (\Throwable $th) {
-                    // continue
-                }
-            }
-            if (!$list || !is_array($list)) {
-                return response()->json(false, 404);
-            }
-
-            // Normalize structure to array of inbounds
-            // Some APIs wrap payload inside {inbounds: [...]} or {obj: [...]} or similar
-            if (isset($list['inbounds']) && is_array($list['inbounds'])) {
-                $list = $list['inbounds'];
-            }
-
-            foreach ($list as $in) {
-                $protocol = $in['protocol'] ?? ($in['type'] ?? 'vless');
-                $remark = $in['remark'] ?? ($in['tag'] ?? ('inbound-' . ($in['id'] ?? 'unknown')));
-                $proxy = Proxy::firstOrCreate(
-                    ['pannel_id' => $panel->id, 'type' => $protocol],
-                    ['is_active' => true]
-                );
-
-                Inbound::updateOrCreate(
-                    ['proxy_id' => $proxy->id, 'name' => $remark],
-                    [
-                        'is_active' => true,
-                        'port' => $in['port'] ?? null,
-                        'protocol' => $protocol,
-                        'data' => json_encode([
-                            'id' => $in['id'] ?? null,
-                            'protocol' => $protocol,
-                            'port' => $in['port'] ?? null,
-                            'settings' => $in['settings'] ?? null,
-                            'streamSettings' => $in['streamSettings'] ?? null,
-                        ]),
-                        'settings' => json_encode($in['settings'] ?? []),
-                        'stream_settings' => json_encode($in['streamSettings'] ?? []),
-                        'tag' => $in['tag'] ?? null,
-                    ]
-                );
-            }
-            return response()->json(true, 200);
-        } catch (\Throwable $th) {
-            \Log::info('syncInbounds error: ' . $th->getMessage());
-            return response()->json(false, 500);
+            $rootRes = Http::withoutVerifying()->get($base);
+            \Log::info("Server check for $base: Status=" . $rootRes->status() . ", ServerHeader=" . ($rootRes->header('Server') ?? 'Unknown'));
+        } catch (\Throwable $e) {
+            \Log::error("Server check failed for $base: " . $e->getMessage());
         }
+
+        try {
+            $loginUrl = $base . '/login';
+            // include our headers on login (some panels expect AJAX headers)
+            $res = Http::withoutVerifying()->asForm()->withHeaders($this->headers($panel))->post($loginUrl, [
+                'username' => $panel->username ?? 'admin',
+                'password' => $panel->password ?? 'admin',
+                // Ask the panel to set the remember cookie like browsers do
+                'remember' => 'on',
+            ]);
+
+            \Log::info("Login attempt to $loginUrl. Status: " . $res->status());
+            \Log::debug("Login response body: " . substr($res->body(), 0, 2000));
+
+            if ($res->status() === 200 || $res->status() === 302) {
+                $cookies = $res->cookies()->toArray();
+                \Log::info("Login cookies received: " . json_encode($cookies));
+
+                if (!empty($cookies)) {
+                    $panel->cookie_session = json_encode($cookies);
+                    $panel->update();
+                    return true;
+                } else {
+                    \Log::error("Login succeeded but no cookies returned. URL: $loginUrl");
+                }
+            } else {
+                \Log::error("Login failed. URL: $loginUrl, Status: " . $res->status() . ", Body: " . $res->body());
+            }
+        } catch (\Throwable $th) {
+            \Log::error('Login failed', ['panel_id' => $pannelID, 'error' => $th->getMessage()]);
+        }
+        return false;
     }
 
     public function addUserToSanaeiPanel(Request $request)
@@ -368,1059 +175,1046 @@ class SanaeiPannelController extends Controller
             $day = (int) $request->day;
             $volGb = (int) $request->vol;
             $accountId = (string) ($request->accountId ?? 'bot');
-            $templateId = (int) ($request->template_id ?? 0);
 
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
+            $panel = Pannel::find($pannelID);
+            if (!$panel) {
+                \Log::error("Panel $pannelID not found");
                 return false;
             }
-            \Log::info("addUserToSanaeiPanel request: " . json_encode($request));
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for panel $pannelID");
+                return false;
+            }
+
+            // Refresh panel to get new cookies from DB if login updated them
+            // (Though passing by reference/object should already have them)
+            // $panel->refresh(); 
+
+            $inboundId = $request->inbound_id ?: ($panel->inbound_id ?: 1);
+            $inbound = $this->getInboundFromPanel($panel, $inboundId);
+
+            if (!$inbound) {
+                \Log::error("Inbound $inboundId not found in panel $pannelID");
+                return false;
+            }
+
+            // Update inboundId to the actual ID found (in case of fallback)
+            $inboundId = $inbound['id'];
 
             $uuid = (new HiddifyPannelController())->generateUUID();
             $expireSec = now('UTC')->addDays($day)->timestamp;
             $totalBytes = $volGb * 1024 * 1024 * 1024;
             $expiryMs = $expireSec * 1000;
 
-            // Select the best available inbound source
-            $source = $this->selectBestInboundSource($pannelID, $templateId);
-            \Log::info("Selected inbound source", $source);
-
-            if ($source['source_type'] === 'none') {
-                \Log::error("No inbound source available", ['panel_id' => $pannelID]);
-                return false;
+            $flow = '';
+            $streamSettings = json_decode($inbound['streamSettings'], true);
+            if (isset($streamSettings['security']) && $streamSettings['security'] === 'reality') {
+                $flow = 'xtls-rprx-vision';
             }
 
-            // If we have a template, use it
-            if (in_array($source['source_type'], ['specific_template', 'auto_template'])) {
-                $request->merge(['template_id' => $source['template_id']]);
-                \Log::info("Using template for user creation", ['template_id' => $source['template_id']]);
-                return $this->addUserWithTemplate($request);
+            $client = [
+                'id' => $uuid,
+                'email' => "bot-" . $accountId . "-" . Random::generate(4),
+                'limitIp' => (int) ($request->ip_limit ?? 0),
+                'totalGB' => $totalBytes,
+                'expiryTime' => $expiryMs,
+                'enable' => true,
+                'tgId' => '',
+                'subId' => Random::generate(16),
+            ];
+            if ($flow) {
+                $client['flow'] = $flow;
             }
 
-            // Otherwise, use inbounds table
-            if ($source['source_type'] === 'inbounds_table') {
-                return $this->createUserWithInbounds($panel, $uuid, $totalBytes, $expiryMs, $accountId, $source['inbounds']);
+            $base = $this->baseUrl($panel);
+            $body = [
+                'id' => $inboundId,
+                'settings' => json_encode(['clients' => [$client]])
+            ];
+
+            $url = $base . $this->apiPrefix . '/inbounds/addClient';
+            $r = $this->httpWithAuth($panel)->post($url, $body);
+
+            // If addClient returned 404, try raw POST with Cookie header and different encodings
+            if ($r->status() === 404) {
+                try {
+                    \Log::debug("addClient initial POST returned 404, trying raw JSON POST with Cookie header");
+                    $raw = $this->rawPostWithCookie($panel, $url, $body, true);
+                    \Log::debug("Raw JSON POST returned status " . $raw->status() . ", body=" . substr($raw->body(), 0, 2000));
+                    if ($raw->ok()) {
+                        $r = $raw;
+                    } else {
+                        \Log::debug("Raw JSON POST did not work, trying raw form POST");
+                        $raw = $this->rawPostWithCookie($panel, $url, $body, false);
+                        \Log::debug("Raw Form POST returned status " . $raw->status() . ", body=" . substr($raw->body(), 0, 2000));
+                        if ($raw->ok()) {
+                            $r = $raw;
+                        }
+                    }
+                } catch (\Throwable $th) {
+                    \Log::warning('rawPostWithCookie failed: ' . $th->getMessage());
+                }
             }
 
+            $json = $r->json();
+            if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
+                \Log::info("User created: $uuid");
+                return ['uuid' => $uuid, 'subId' => $client['subId']];
+            }
+
+            \Log::error("Failed to add client. URL: $url, Status: " . $r->status() . ", Body: " . $r->body());
             return false;
+
         } catch (\Throwable $th) {
             \Log::error('addUserToSanaeiPanel error: ' . $th->getMessage());
             return false;
         }
     }
 
-    /**
-     * Create user using inbounds from the table
-     */
-    private function createUserWithInbounds(Pannel $panel, string $uuid, int $totalBytes, int $expiryMs, string $accountId, $inbounds): bool
+    public function changeUserActivationOfSanaeiPanelApi(Request $request)
     {
         try {
-            $base = $this->baseUrl($panel);
-            $paths = ['/xui/inbound/add', '/panel/api/inbounds/add'];
-            $success = false;
+            $client = $this->findClientByUUID($request->pannelID, $request->uuid);
+            if (!$client) {
+                return response()->json(['success' => false, 'msg' => 'Client not found'], 404);
+            }
 
-            foreach ($inbounds as $in) {
-                $inboundId = $in->getInboundId();
-                if (!$inboundId) {
-                    \Log::warning("Could not get inbound ID", ['inbound' => $in->toArray()]);
-                    continue;
+            $client['enable'] = (bool) $request->enable;
+
+            $res = $this->updateClient($request->pannelID, $client['id'], $client);
+            if ($res) {
+                return response()->json(['success' => true], 200);
+            }
+            return response()->json(['success' => false], 400);
+        } catch (\Throwable $th) {
+            \Log::error('changeUserActivationOfSanaeiPanelApi error: ' . $th->getMessage());
+            return response()->json(['success' => false, 'msg' => $th->getMessage()], 500);
+        }
+    }
+
+    public function getUserLinks($panelOrId, $uuid, $remark = '', $inboundId = null)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return [];
+
+            if (!$this->login($panel)) {
+                return [];
+            }
+
+            // Refresh panel to get new cookies from DB
+            $panel->refresh();
+
+            $inboundId = $inboundId ?: ($panel->inbound_id ?: 1);
+            $inbound = $this->getInboundFromPanel($panel, $inboundId);
+            if (!$inbound)
+                return [];
+
+            return $this->generateLinksFromInboundData($inbound, $uuid, $remark, $this->getServerHost($panel));
+
+        } catch (\Throwable $th) {
+            \Log::error('getUserLinks error: ' . $th->getMessage());
+            return [];
+        }
+    }
+
+    private function getInboundFromPanel($panel, $id)
+    {
+        $base = $this->baseUrl($panel);
+        $prefixes = ['/panel/api', '/xui/API'];
+
+        foreach ($prefixes as $prefix) {
+            $url = $base . $prefix . "/inbounds/get/$id";
+
+            // Try direct get
+            // Debug: log headers and cookies we're sending
+            \Log::debug('Request headers: ' . json_encode($this->headers($panel)));
+            $cookieLog = json_encode(json_decode($panel->cookie_session ?? '[]', true));
+            \Log::debug('Request cookies: ' . $cookieLog);
+
+            $r = $this->httpWithAuth($panel)->get($url);
+            // If not found, try a raw Cookie header (some panels require explicit cookie header)
+            if ($r->status() === 404 && !empty($panel->cookie_session)) {
+                try {
+                    $raw = $this->rawGetWithCookie($panel, $url);
+                    \Log::debug("Raw GET $url returned status " . $raw->status() . ", body=" . substr($raw->body(), 0, 2000));
+                    if ($raw->ok()) {
+                        $r = $raw;
+                    }
+                } catch (\Throwable $th) {
+                    \Log::warning("Raw cookie GET failed: " . $th->getMessage());
+                }
+            }
+            // Log body on failures to help debug why we get 404
+            if (!$r->ok()) {
+                \Log::debug("GET $url returned status " . $r->status() . ", body=" . substr($r->body(), 0, 2000));
+            } else {
+                \Log::debug("GET $url returned OK. Response preview: " . substr($r->body(), 0, 500));
+            }
+            $json = $r->json();
+
+            if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
+                $this->apiPrefix = $prefix;
+                return $json['obj'];
+            }
+
+            \Log::warning("Direct get inbound $id failed with prefix $prefix. URL: $url, Status: " . $r->status());
+        }
+
+        // Fallback to list
+        foreach ($prefixes as $prefix) {
+            $listUrl = $base . $prefix . "/inbounds/list";
+            $r = $this->httpWithAuth($panel)->get($listUrl);
+            if ($r->status() === 404 && !empty($panel->cookie_session)) {
+                try {
+                    $raw = $this->rawGetWithCookie($panel, $listUrl);
+                    \Log::debug("Raw GET $listUrl returned status " . $raw->status() . ", body=" . substr($raw->body(), 0, 2000));
+                    if ($raw->ok()) {
+                        $r = $raw;
+                    }
+                } catch (\Throwable $th) {
+                    \Log::warning("Raw cookie GET failed for list: " . $th->getMessage());
+                }
+            }
+            $json = $r->json();
+
+            if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
+                $this->apiPrefix = $prefix;
+                $list = $json['obj'];
+
+                // Log available IDs
+                $ids = array_column($list, 'id');
+                \Log::info("Available inbounds in panel: " . implode(', ', $ids));
+
+                foreach ($list as $item) {
+                    if ($item['id'] == $id) {
+                        return $item;
+                    }
                 }
 
-                $bodies = [
-                    [
-                        'id' => $inboundId,
-                        'client' => [
-                            'id' => $uuid,
-                            'email' => "bot{$accountId}",
-                            'flow' => '',
-                            'limitIp' => 0,
-                            'totalGB' => $totalBytes,
-                            'expiryTime' => $expiryMs,
-                            'enable' => true,
-                        ],
-                    ],
-                    [
-                        'id' => $inboundId,
-                        'settings' => [
-                            'clients' => [
-                                [
-                                    'id' => $uuid,
-                                    'email' => "bot{$accountId}",
-                                    'flow' => '',
-                                    'limitIp' => 0,
-                                    'totalGB' => $totalBytes,
-                                    'expiryTime' => $expiryMs,
-                                    'enable' => true,
-                                ]
-                            ],
-                        ],
-                    ],
-                ];
+                // If specific ID not found, return the first one as fallback
+                if (count($list) > 0) {
+                    $first = $list[0];
+                    \Log::warning("Inbound $id not found. Using first available inbound: " . $first['id']);
+                    return $first;
+                }
+            } else {
+                \Log::warning("List inbounds failed with prefix $prefix. URL: $listUrl, Status: " . $r->status());
+            }
+        }
 
-                foreach ($paths as $path) {
-                    foreach ($bodies as $body) {
-                        try {
-                            \Log::info("Creating user with inbound", [
-                                'inbound_id' => $inboundId,
-                                'body' => $body
-                            ]);
+        \Log::error("Inbound $id not found and no fallbacks available.");
+        return null;
+    }
+    private function generateLinksFromInboundData($inbound, $uuid, $remark, $host)
+    {
+        $links = [];
+        $protocol = $inbound['protocol'];
+        $port = $inbound['port'];
+        $stream = $inbound['streamSettings'];
+        if (is_string($stream)) {
+            $stream = json_decode($stream, true);
+        }
+        $network = $stream['network'] ?? 'tcp';
+        $security = $stream['security'] ?? 'none';
 
-                            $r = $this->httpWithAuth($panel)->post($base . $path, $body);
+        $sni = '';
+        if (isset($stream['tlsSettings']['serverName']))
+            $sni = $stream['tlsSettings']['serverName'];
+        if (isset($stream['realitySettings']['serverNames'][0]))
+            $sni = $stream['realitySettings']['serverNames'][0];
 
-                            if ($r->ok()) {
-                                $success = true;
-                                \Log::info("User created successfully with inbound", [
-                                    'inbound_id' => $inboundId,
-                                    'uuid' => $uuid
-                                ]);
-                                break 2;
-                            } else {
-                                \Log::warning("Failed to create user with inbound", [
-                                    'inbound_id' => $inboundId,
-                                    'response_status' => $r->status(),
-                                    'response_body' => $r->body()
-                                ]);
-                            }
-                        } catch (\Throwable $th) {
-                            \Log::error("Error creating user with inbound", [
-                                'inbound_id' => $inboundId,
-                                'error' => $th->getMessage()
-                            ]);
+        if ($protocol === 'vless') {
+            $query = ['type' => $network, 'security' => $security];
+            if ($sni)
+                $query['sni'] = $sni;
+            if (isset($stream['realitySettings']['publicKey']))
+                $query['pbk'] = $stream['realitySettings']['publicKey'];
+            if (isset($stream['realitySettings']['fingerprint']))
+                $query['fp'] = $stream['realitySettings']['fingerprint'];
+            if (isset($stream['realitySettings']['shortId']))
+                $query['sid'] = $stream['realitySettings']['shortId'];
+            if ($network === 'ws' && isset($stream['wsSettings']['path']))
+                $query['path'] = $stream['wsSettings']['path'];
+            if ($network === 'grpc' && isset($stream['grpcSettings']['serviceName']))
+                $query['serviceName'] = $stream['grpcSettings']['serviceName'];
+
+            $q = http_build_query($query);
+            $links[] = "vless://$uuid@$host:$port?$q#" . rawurlencode($remark);
+        }
+
+        return $links;
+    }
+
+    /**
+     * Perform a GET request to $url using a raw Cookie header built from panel->cookie_session
+     * Some panel setups require the Cookie header to be present exactly as a single header.
+     */
+    private function rawGetWithCookie(Pannel $panel, $url)
+    {
+        $cookies = json_decode($panel->cookie_session ?? '[]', true) ?? [];
+        $parts = [];
+        foreach ($cookies as $c) {
+            $name = $c['Name'] ?? ($c['name'] ?? null);
+            $value = $c['Value'] ?? ($c['value'] ?? null);
+            if ($name !== null && $value !== null) {
+                $parts[] = $name . '=' . $value;
+            }
+        }
+        $cookieHeader = implode('; ', $parts);
+        $headers = $this->headers($panel);
+        $headers['Cookie'] = $cookieHeader;
+        // Marker header to indicate this is the raw-cookie attempt
+        $headers['X-Raw-Cookie-Retry'] = '1';
+        return Http::withoutVerifying()->withHeaders($headers)->get($url);
+    }
+
+    private function rawPostWithCookie(Pannel $panel, $url, $body, $asJson = true)
+    {
+        $cookies = json_decode($panel->cookie_session ?? '[]', true) ?? [];
+        $parts = [];
+        foreach ($cookies as $c) {
+            $name = $c['Name'] ?? ($c['name'] ?? null);
+            $value = $c['Value'] ?? ($c['value'] ?? null);
+            if ($name !== null && $value !== null) {
+                $parts[] = $name . '=' . $value;
+            }
+        }
+        $cookieHeader = implode('; ', $parts);
+        $headers = $this->headers($panel);
+        $headers['Cookie'] = $cookieHeader;
+        // Marker header to indicate this is the raw-cookie attempt
+        $headers['X-Raw-Cookie-Retry'] = '1';
+
+        if ($asJson) {
+            return Http::withoutVerifying()->withHeaders($headers)->asJson()->post($url, $body);
+        }
+
+        // form encoded
+        return Http::withoutVerifying()->withHeaders($headers)->asForm()->post($url, $body);
+    }
+
+    /**
+     * Generic request helper that tries known API prefixes and falls back to raw cookie requests when needed.
+     * Returns decoded JSON array on success, or null on failure.
+     */
+    private function performRequest(Pannel $panel, string $method, string $path, $body = null, $asJson = true)
+    {
+        $base = $this->baseUrl($panel);
+        $prefixes = ['/panel/api', '/xui/API'];
+
+        foreach ($prefixes as $prefix) {
+            $url = $base . $prefix . $path;
+            try {
+                if (strtoupper($method) === 'GET') {
+                    $r = $this->httpWithAuth($panel)->get($url);
+                    if ($r->status() === 404 && !empty($panel->cookie_session)) {
+                        $raw = $this->rawGetWithCookie($panel, $url);
+                        if ($raw->ok()) {
+                            $r = $raw;
+                        }
+                    }
+                } else { // POST
+                    // Log what we are about to send for debugging (truncate large bodies)
+                    try {
+                        $preview = json_encode($body ?? []);
+                    } catch (\Throwable $th) {
+                        $preview = "[unserializable body]";
+                    }
+                    \Log::debug("POST $url asJson=" . ($asJson ? '1' : '0') . " body_preview=" . substr($preview, 0, 2000));
+
+                    if ($asJson) {
+                        $r = $this->httpWithAuth($panel)->asJson()->post($url, $body ?? []);
+                    } else {
+                        $r = $this->httpWithAuth($panel)->asForm()->post($url, $body ?? []);
+                    }
+                    if ($r->status() === 404 && !empty($panel->cookie_session)) {
+                        $raw = $this->rawPostWithCookie($panel, $url, $body ?? [], $asJson);
+                        if ($raw->ok()) {
+                            $r = $raw;
                         }
                     }
                 }
-            }
 
-            if ($success) {
-                \Log::info("User created successfully using inbounds table", [
-                    'uuid' => $uuid,
-                    'panel_id' => $panel->id
-                ]);
-            } else {
-                \Log::error("Failed to create user using inbounds table", [
-                    'panel_id' => $panel->id,
-                    'inbound_count' => $inbounds->count()
-                ]);
-            }
+                $json = null;
+                try {
+                    $json = $r->json();
+                } catch (\Throwable $th) {
+                    // ignore json parse errors
+                }
 
-            return $success;
+                // If the request returned OK but the JSON indicates failure (e.g., unexpected end of JSON on server side),
+                // try a raw-cookie retry which some panel setups require.
+                if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
+                    // remember working prefix
+                    $this->apiPrefix = $prefix;
+                    return $json;
+                } elseif ($r->ok() && !($json['success'] ?? false) && !empty($panel->cookie_session)) {
+                    // Try raw fallback (single Cookie header) in case the server couldn't parse our body
+                    try {
+                        if (strtoupper($method) === 'GET') {
+                            $raw = $this->rawGetWithCookie($panel, $url);
+                        } else {
+                            $raw = $this->rawPostWithCookie($panel, $url, $body ?? [], $asJson);
+                        }
+                        $rawJson = null;
+                        try {
+                            $rawJson = $raw->json();
+                        } catch (\Throwable $th) {
+                        }
+                        if ($raw->ok() && is_array($rawJson) && ($rawJson['success'] ?? false)) {
+                            $this->apiPrefix = $prefix;
+                            return $rawJson;
+                        }
+                        \Log::warning("Raw cookie retry for $url returned Status: " . $raw->status() . ", Body: " . substr($raw->body(), 0, 2000));
+                    } catch (\Throwable $th) {
+                        \Log::warning("Raw cookie retry exception for $url: " . $th->getMessage());
+                    }
+                }
+
+                \Log::warning("Request to $url failed. Status: " . $r->status() . ", Body: " . substr($r->body(), 0, 2000));
+            } catch (\Throwable $th) {
+                \Log::warning("Request exception for $url: " . $th->getMessage());
+            }
+        }
+
+        return null;
+    }
+
+    // --- High-level API wrappers ---
+
+    public function deleteUser($panelOrId, $uuid)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            $found = $this->findClientByUUID($panel, $uuid);
+            if (!$found) {
+                \Log::warning("deleteUser: client $uuid not found on panel {$panel->id}");
+                return false;
+            }
+            $inboundId = $found['inbound']['id'] ?? 1;
+            return $this->deleteClient($panel, $inboundId, $uuid);
         } catch (\Throwable $th) {
-            \Log::error("createUserWithInbounds error: " . $th->getMessage());
+            \Log::error('deleteUser error: ' . $th->getMessage());
             return false;
         }
     }
 
-    public function getUserLinks($pannelID, $uuid, $remark = '')
+    public function deleteClient($panelOrId, $inboundId, $clientId)
     {
         try {
-            $panel = Pannel::findOrFail($pannelID);
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
 
-            // Check if we're logged in
-            if (!$this->login($panel->id)) {
-                \Log::warning('getUserLinks: Failed to login to panel', ['panel_id' => $pannelID]);
-                return [];
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for deleteClient on panel {$panel->id}");
+                return false;
+            }
+            $path = "/inbounds/$inboundId/delClient/$clientId";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
+        } catch (\Throwable $th) {
+            \Log::error('deleteClient error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    public function updateClient($panelOrId, $clientId, array $data)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for updateClient on panel {$panel->id}");
+                return false;
             }
 
-            $host = $this->getServerHost($panel);
-            $inbounds = Proxy::where('pannel_id', $panel->id)
-                ->where('is_active', true)
-                ->with([
-                    'inbounds' => function ($q) {
-                        $q->where('is_active', true);
-                    }
-                ])
-                ->get()->flatMap->inbounds;
+            // Fetch current client data to ensure we don't overwrite other fields with defaults
+            $found = $this->findClientByUUID($panel, $clientId);
+            if (!$found) {
+                \Log::error("updateClient: client $clientId not found on panel {$panel->id}");
+                return false;
+            }
 
-            $links = [];
-            foreach ($inbounds as $in) {
-                // Use new model fields and methods
-                $protocol = $in->protocol ?? 'vless';
-                $port = $in->port ?? 0;
-                $stream = $in->parsed_stream_settings;
-                $network = $stream['network'] ?? 'tcp';
-                $security = $stream['security'] ?? null; // tls or reality
-                $sni = null;
-                $alpn = null;
-                $wsPath = null;
-                $hostHeader = null;
-                if ($network === 'ws') {
-                    $ws = $stream['wsSettings'] ?? [];
-                    $wsPath = $ws['path'] ?? null;
-                    $headers = $ws['headers'] ?? [];
-                    $hostHeader = $headers['Host'] ?? null;
+            $inbound = $found['inbound'];
+            $inboundId = $inbound['id'] ?? ($inbound['listen'] ?? 0);
+            $currentClient = $found['client'];
+            $mergedClient = array_merge($currentClient, $data);
+
+            // Standard Sanaei/x-ui updateClient payload:
+            // id: Inbound ID (integer)
+            // settings: JSON string containing the client(s) to update
+            $body = [
+                'id' => $inboundId,
+                'settings' => json_encode(['clients' => [$mergedClient]])
+            ];
+
+            // Try different URL patterns
+            $paths = [
+                "/inbounds/updateClient/$clientId", // UUID in URL
+                "/inbounds/updateClient/$inboundId", // Inbound ID in URL (fixes strconv.ParseInt error)
+                "/inbounds/updateClient",            // No ID in URL
+            ];
+
+            foreach ($paths as $path) {
+                \Log::debug("Trying updateClient at $path");
+                $res = $this->performRequest($panel, 'POST', $path, $body, false);
+                if ($res !== null) {
+                    return true;
                 }
-                if ($security === 'tls') {
-                    $tlsSet = $stream['tlsSettings'] ?? [];
-                    $sni = $tlsSet['serverName'] ?? null;
-                    $alpn = $tlsSet['alpn'] ?? null;
+            }
+
+            // Final Fallback: Try sending the full settings object (fixing the reference bug)
+            try {
+                $settings = $inbound['settings'] ?? null;
+                if (is_string($settings)) {
+                    $settings = json_decode($settings, true);
                 }
-                $reality = null;
-                if ($security === 'reality') {
-                    $realitySet = $stream['realitySettings'] ?? [];
-                    $reality = [
-                        'publicKey' => $realitySet['publicKey'] ?? null,
-                        'shortId' => is_array($realitySet['shortId'] ?? null) ? (($realitySet['shortId'][0] ?? null)) : ($realitySet['shortId'] ?? null),
-                        'fingerprint' => $realitySet['fingerprint'] ?? null,
+                if (isset($settings['clients']) && is_array($settings['clients'])) {
+                    foreach ($settings['clients'] as &$c) {
+                        if (($c['id'] ?? '') === $clientId) {
+                            $c = array_merge($c, $data);
+                        }
+                    }
+                    $fullBody = [
+                        'id' => $inboundId,
+                        'settings' => json_encode($settings),
                     ];
-                    $sni = null;
-                    $serverNames = $realitySet['serverNames'] ?? null;
-                    if (is_array($serverNames) && count($serverNames) > 0) {
-                        $sni = $serverNames[0];
+                    \Log::info("updateClient final fallback: sending full settings payload for client $clientId");
+                    // Try with the most likely working path (Inbound ID)
+                    $res2 = $this->performRequest($panel, 'POST', "/inbounds/updateClient/$inboundId", $fullBody, false);
+                    if ($res2 !== null) {
+                        return true;
                     }
                 }
-
-                if ($protocol === 'vless') {
-                    $links[] = $this->buildVlessLink($host, $port, $uuid, $network, $security, $wsPath, $sni, $alpn, $reality, $remark);
-                } elseif ($protocol === 'vmess') {
-                    $links[] = $this->buildVmessLink($host, $port, $uuid, $network, $security, $wsPath, $hostHeader, $remark);
-                } elseif ($protocol === 'trojan') {
-                    $links[] = $this->buildTrojanLink($host, $port, $uuid, $network, $security, $wsPath, $sni, $remark);
-                }
+            } catch (\Throwable $th) {
+                \Log::warning('updateClient final fallback failed: ' . $th->getMessage());
             }
-            return $links;
+
+            return false;
         } catch (\Throwable $th) {
-            \Log::info('getUserLinks error: ' . $th->getMessage());
-            return [];
+            \Log::error('updateClient error: ' . $th->getMessage());
+            return false;
         }
     }
 
-    public function generateClientLinks(int $pannelID, string $uuid, string $remark): array
+    /**
+     * Recharge a client by UUID: add days to expiry and add GB to total quota.
+     * $addDays: integer days to add
+    /**
+     * $addDays: integer days to add
+     * $addGb: integer GB to add
+     */
+    public function rechargeClient($panelOrId, $uuid, int $addDays = 0, int $addGb = 0)
     {
         try {
-            $panel = Pannel::findOrFail($pannelID);
-
-            // Check if we're logged in
-            if (!$this->login($panel->id)) {
-                \Log::warning('generateClientLinks: Failed to login to panel', ['panel_id' => $pannelID]);
-                return [];
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel) {
+                \Log::error("rechargeClient: panel not found");
+                return false;
             }
 
-            $host = parse_url($this->baseUrl($panel), PHP_URL_HOST) ?? ($panel->url_port ?? '');
-            $links = [];
-            $inbounds = Proxy::where('pannel_id', $panel->id)
-                ->where('is_active', true)
-                ->with([
-                    'inbounds' => function ($q) {
-                        $q->where('is_active', true);
-                    }
-                ])
-                ->get()->flatMap->inbounds;
-
-            foreach ($inbounds as $in) {
-                // Use new model fields
-                $protocol = $in->protocol ?? 'vless';
-                $port = $in->port ?? null;
-                $stream = $in->parsed_stream_settings;
-                $network = $stream['network'] ?? 'tcp';
-                $security = $stream['security'] ?? '';
-                $sni = '';
-                if (isset($stream['tlsSettings']['serverName'])) {
-                    $sni = $stream['tlsSettings']['serverName'];
-                }
-                if (isset($stream['realitySettings']['serverNames'][0])) {
-                    $sni = $stream['realitySettings']['serverNames'][0];
-                }
-
-                if ($protocol === 'vless') {
-                    $query = [];
-                    $query['type'] = $network;
-                    if ($network === 'ws') {
-                        $ws = $stream['wsSettings'] ?? [];
-                        if (isset($ws['path'])) {
-                            $query['path'] = $ws['path'];
-                        }
-                        $hostHeader = $ws['headers']['Host'] ?? null;
-                        if ($hostHeader) {
-                            $query['host'] = $hostHeader;
-                        }
-                    } elseif ($network === 'grpc') {
-                        $grpc = $stream['grpcSettings'] ?? [];
-                        if (isset($grpc['serviceName'])) {
-                            $query['serviceName'] = $grpc['serviceName'];
-                        }
-                    }
-                    if ($security === 'tls' || $security === 'reality') {
-                        $query['security'] = $security;
-                    }
-                    if ($sni) {
-                        $query['sni'] = $sni;
-                    }
-                    $q = http_build_query($query);
-                    $links[] = sprintf('vless://%s@%s:%s?%s#%s', $uuid, $host, $port, $q, rawurlencode($remark));
-                } elseif ($protocol === 'vmess') {
-                    $conf = [
-                        'v' => '2',
-                        'ps' => $remark,
-                        'add' => $host,
-                        'port' => (string) $port,
-                        'id' => $uuid,
-                        'aid' => '0',
-                        'scy' => 'auto',
-                        'net' => $network,
-                        'type' => 'none',
-                        'host' => '',
-                        'path' => '',
-                        'tls' => ($security === 'tls' ? 'tls' : ''),
-                        'sni' => $sni,
-                    ];
-                    if ($network === 'ws') {
-                        $ws = $stream['wsSettings'] ?? [];
-                        $conf['path'] = $ws['path'] ?? '';
-                        $conf['host'] = $ws['headers']['Host'] ?? '';
-                    }
-                    $json = json_encode($conf, JSON_UNESCAPED_SLASHES);
-                    $links[] = 'vmess://' . base64_encode($json);
-                } elseif ($protocol === 'trojan') {
-                    // Best-effort: use uuid as password
-                    $query = [];
-                    if ($security === 'tls') {
-                        $query['security'] = 'tls';
-                    }
-                    if ($sni) {
-                        $query['sni'] = $sni;
-                    }
-                    if ($network === 'ws') {
-                        $query['type'] = 'ws';
-                        $ws = $stream['wsSettings'] ?? [];
-                        if (isset($ws['path'])) {
-                            $query['path'] = $ws['path'];
-                        }
-                        $hostHeader = $ws['headers']['Host'] ?? null;
-                        if ($hostHeader) {
-                            $query['host'] = $hostHeader;
-                        }
-                    }
-                    $q = http_build_query($query);
-                    $links[] = sprintf('trojan://%s@%s:%s?%s#%s', $uuid, $host, $port, $q, rawurlencode($remark));
-                }
+            $found = $this->findClientByUUID($panel, $uuid);
+            if (!$found) {
+                \Log::error("rechargeClient: client $uuid not found in panel {$panel->id}");
+                return false;
             }
 
-            return $links;
+            $client = $found['client'];
+            $clientId = $client['id'];
+
+            // compute new expiry
+            $nowMs = now('UTC')->timestamp * 1000;
+            $currentExpiry = (int) ($client['expiryTime'] ?? 0);
+            if ($currentExpiry <= 0) {
+                $currentExpiry = $nowMs;
+            }
+            $addMs = $addDays * 86400 * 1000;
+            $newExpiry = $currentExpiry + $addMs;
+
+            // compute new totalGB (stored as bytes in this project)
+            $currentTotal = (int) ($client['totalGB'] ?? 0);
+            $addBytes = $addGb * 1024 * 1024 * 1024;
+            $newTotal = $currentTotal + $addBytes;
+
+            $data = [
+                // Sanaei API uses updateClient by clientId
+                'expiryTime' => $newExpiry,
+                'totalGB' => $newTotal,
+            ];
+
+            return $this->updateClient($panel, $clientId, $data);
         } catch (\Throwable $th) {
-            \Log::error('generateClientLinks error: ' . $th->getMessage());
-            return [];
+            \Log::error('rechargeClient error: ' . $th->getMessage());
+            return false;
         }
     }
 
-    // New methods for deletion, activation, updating and limits
-    public function deleteUser($pannelID, $uuid)
+    /**
+     * Update the client's email (used as the 'remark' / package name in products)
+     */
+    public function updateClientEmail($panelOrId, $uuid, string $newEmail)
     {
         try {
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
-                return response()->json(false, 401);
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel) {
+                \Log::error("updateClientEmail: panel not found");
+                return false;
             }
-            $base = $this->baseUrl($panel);
-            $paths = ['/xui/inbound/delClient', '/panel/api/inbounds/delClient'];
 
-            $inbounds = Proxy::where('pannel_id', $panel->id)
-                ->with('inbounds')
-                ->get()->flatMap->inbounds;
-
-            $ok = false;
-            foreach ($inbounds as $in) {
-                $meta = json_decode($in->data, true);
-                $inboundId = is_array($meta) ? ($meta['id'] ?? null) : (is_numeric($in->data) ? (int) $in->data : null);
-                if (!$inboundId)
-                    continue;
-
-                $bodies = [
-                    ['id' => $inboundId, 'client' => ['id' => $uuid]],
-                    ['id' => $inboundId, 'uuid' => $uuid],
-                ];
-                foreach ($paths as $path) {
-                    foreach ($bodies as $body) {
-                        try {
-                            $r = $this->httpWithAuth($panel)->post($base . $path, $body);
-                            if ($r->ok()) {
-                                $ok = true;
-                                break 2;
-                            }
-                        } catch (\Throwable $th) {
-                        }
-                    }
-                }
+            $found = $this->findClientByUUID($panel, $uuid);
+            if (!$found) {
+                \Log::error("updateClientEmail: client $uuid not found in panel {$panel->id}");
+                return false;
             }
-            return $ok ? response()->json(true, 200) : response()->json(false, 401);
+
+            $client = $found['client'];
+            $clientId = $client['id'] ?? null;
+            if (!$clientId) {
+                \Log::error("updateClientEmail: client id missing for uuid $uuid on panel {$panel->id}");
+                return false;
+            }
+
+            $ok = $this->updateClient($panel, $clientId, ['email' => $newEmail]);
+            if ($ok) {
+                \Log::info("updateClientEmail: updated email for client $clientId on panel {$panel->id} to $newEmail");
+                return true;
+            }
+            \Log::warning("updateClientEmail: updateClient returned false for client $clientId on panel {$panel->id}");
+            return false;
         } catch (\Throwable $th) {
-            \Log::info('deleteUser error: ' . $th->getMessage());
-            return response()->json(false, 500);
+            \Log::error('updateClientEmail error: ' . $th->getMessage());
+            return false;
         }
     }
 
-    public function changeUserActivation($pannelID, $uuid, bool $enable)
+    public function resetClientTraffic($panelOrId, $inboundId, $email)
     {
         try {
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
-                return response()->json(false, 401);
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for resetClientTraffic on panel {$panel->id}");
+                return false;
             }
-            $base = $this->baseUrl($panel);
-            $paths = ['/xui/inbound/updateClient', '/panel/api/inbounds/updateClient'];
-
-            $inbounds = Proxy::where('pannel_id', $panel->id)
-                ->with('inbounds')
-                ->get()->flatMap->inbounds;
-
-            $ok = false;
-            foreach ($inbounds as $in) {
-                $meta = json_decode($in->data, true);
-                $inboundId = is_array($meta) ? ($meta['id'] ?? null) : (is_numeric($in->data) ? (int) $in->data : null);
-                if (!$inboundId)
-                    continue;
-
-                $body = [
-                    'id' => $inboundId,
-                    'client' => [
-                        'id' => $uuid,
-                        'enable' => $enable,
-                    ],
-                ];
-                foreach ($paths as $path) {
-                    try {
-                        $r = $this->httpWithAuth($panel)->post($base . $path, $body);
-                        if ($r->ok()) {
-                            $ok = true;
-                            break;
-                        }
-                    } catch (\Throwable $th) {
-                    }
-                }
-                if ($ok)
-                    break;
-            }
-            return $ok ? response()->json(true, 200) : response()->json(false, 401);
+            $path = "/inbounds/$inboundId/resetClientTraffic/$email";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
         } catch (\Throwable $th) {
-            \Log::info('changeUserActivation error: ' . $th->getMessage());
-            return response()->json(false, 500);
+            \Log::error('resetClientTraffic error: ' . $th->getMessage());
+            return false;
         }
     }
 
-    public function updateUser($pannelID, $uuid, array $fields)
+    public function changeUserActivation($panelOrId, $uuid, bool $enable)
     {
-        // Generic update: can be used for rename (email) or limits
-        try {
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
-                return response()->json(false, 401);
-            }
-            $base = $this->baseUrl($panel);
-            $paths = ['/xui/inbound/updateClient', '/panel/api/inbounds/updateClient'];
-
-            $inbounds = Proxy::where('pannel_id', $panel->id)
-                ->with('inbounds')
-                ->get()->flatMap->inbounds;
-
-            $ok = false;
-            foreach ($inbounds as $in) {
-                $meta = json_decode($in->data, true);
-                $inboundId = is_array($meta) ? ($meta['id'] ?? null) : (is_numeric($in->data) ? (int) $in->data : null);
-                if (!$inboundId)
-                    continue;
-
-                $client = array_merge(['id' => $uuid], $fields);
-                $body = ['id' => $inboundId, 'client' => $client];
-                foreach ($paths as $path) {
-                    try {
-                        $r = $this->httpWithAuth($panel)->post($base . $path, $body);
-                        if ($r->ok()) {
-                            $ok = true;
-                            break;
-                        }
-                    } catch (\Throwable $th) {
-                    }
-                }
-                if ($ok)
-                    break;
-            }
-            return $ok ? response()->json(true, 200) : response()->json(false, 401);
-        } catch (\Throwable $th) {
-            \Log::info('updateUser error: ' . $th->getMessage());
-            return response()->json(false, 500);
-        }
+        return $this->updateClient($panelOrId, $uuid, ['enable' => $enable]);
     }
 
-    public function updateLimits($pannelID, $uuid, int $day, int $volGb)
+    public function updateLimits($panelOrId, $uuid, int $days, int $gb)
     {
-        $expireSec = now('UTC')->addDays($day)->timestamp;
-        $totalBytes = $volGb * 1024 * 1024 * 1024;
-        return $this->updateUser($pannelID, $uuid, [
-            'totalGB' => $totalBytes,
-            'expiryTime' => $expireSec * 1000,
+        $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+        if (!$panel) {
+            return false;
+        }
+
+        $found = $this->findClientByUUID($panel, $uuid);
+        if (!$found) {
+            return false;
+        }
+
+        $client = $found['client'];
+        $inboundId = $found['inbound']['id'] ?? 1;
+
+        // 1. Reset traffic
+        $this->resetClientTraffic($panel, $inboundId, $client['email']);
+
+        // 2. Update expiry and totalGB
+        $newExpiry = now('UTC')->addDays($days)->timestamp * 1000;
+        $newTotal = $gb * 1024 * 1024 * 1024;
+
+        return $this->updateClient($panel, $uuid, [
+            'expiryTime' => $newExpiry,
+            'totalGB' => $newTotal,
+            'enable' => true
         ]);
     }
 
-    /**
-     * Add user to Sanaei panel using a specific inbound template
-     */
-    public function addUserWithTemplate(Request $request)
+    public function resetAllTraffics($panelOrId)
     {
         try {
-            $pannelID = (int) $request->pannelID;
-            $day = (int) $request->day;
-            $volGb = (int) $request->vol;
-            $accountId = (string) ($request->accountId ?? 'bot');
-            $templateId = (int) $request->template_id;
-
-            $panel = Pannel::findOrFail($pannelID);
-            \Log::info("aaaaa1");
-            $login = $this->login($panel->id);
-            \Log::info("aaaaloginlogina1 {$login}");
-
-            if (!$login) {
-
-                return false;
-            }
-
-            // Get the template
-            $template = \App\Models\InboundTemplate::findOrFail($templateId);
-            if (!$template->is_active || $template->pannel_id !== $pannelID) {
-                \Log::info("fff2");
-
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
                 return false;
 
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for resetAllTraffics on panel {$panel->id}");
+                return false;
             }
-
-            $uuid = (new HiddifyPannelController())->generateUUID();
-            $expireSec = now('UTC')->addDays($day)->timestamp;
-            $totalBytes = $volGb * 1024 * 1024 * 1024;
-            $expiryMs = $expireSec * 1000;
-
-            // Use template configuration
-            $inboundConfig = $template->toInboundConfig();
-            $inboundId = $inboundConfig['id'];
-
-            $base = $this->baseUrl($panel);
-
-            // Per provided cURL, use the form-encoded endpoint
-            $paths = ['/panel/inbound/add', '/xui/inbound/add'];
-            $success = false;
-
-            $inboundProtocol = strtolower((string) ($inboundConfig['protocol'] ?? $template->protocol ?? ''));
-            $settingsFromTemplate = $inboundConfig['settings'] ?? $template->parsed_settings ?? [];
-            $clientRecord = [];
-            $email = Random::generate(10, 'a-z0-9') . '@example.com';  // random string
-            if (in_array($inboundProtocol, ['vless', 'vmess'], true)) {
-                $clientRecord = [
-                    'id' => $uuid,
-                    'email' => $email,
-                    'flow' => '',
-                    'limitIp' => 0,
-                    'totalGB' => $totalBytes,
-                    'expiryTime' => $expiryMs,
-                    'enable' => true,
-                    'tgId' => '',
-                    'subId' => substr(md5($uuid), 0, 16),
-                    'comment' => '',
-                    'reset' => 0,
-                ];
-            } elseif ($inboundProtocol === 'trojan') {
-                $clientRecord = [
-                    'password' => $uuid,
-                    'email' => $email,
-                    'limitIp' => 0,
-                    'totalGB' => $totalBytes,
-                    'expiryTime' => $expiryMs,
-                    'enable' => true,
-                ];
-            }
-
-            $settings = $settingsFromTemplate;
-            $settings['clients'] = [$clientRecord];
-            if ($inboundProtocol === 'vless' && empty($settings['decryption'])) {
-                $settings['decryption'] = 'none';
-            }
-
-            $streamSettings = $inboundConfig['streamSettings'] ?? $template->parsed_stream_settings ?? [];
-            if (empty($streamSettings)) {
-                $streamSettings = [
-                    'network' => 'tcp',
-                    'security' => 'none',
-                    'externalProxy' => [],
-                    'tcpSettings' => [
-                        'acceptProxyProtocol' => false,
-                        'header' => ['type' => 'none'],
-                    ],
-                ];
-            }
-
-            $sniffing = [
-                'enabled' => false,
-                'destOverride' => ['http', 'tls', 'quic', 'fakedns'],
-                'metadataOnly' => false,
-                'routeOnly' => false,
-            ];
-            $allocate = [
-                'strategy' => 'always',
-                'refresh' => 5,
-                'concurrency' => 3,
-            ];
-
-            $listen = $inboundConfig['listen'] ?? $template->listen ?? '';
-            $port = (int) ($inboundConfig['port'] ?? $template->port ?? 0);
-
-            $form = [
-                'up' => 0,
-                'down' => 0,
-                'total' => 0,
-                'remark' => (string) $accountId,
-                'enable' => true,
-                'expiryTime' => $expiryMs,
-                'listen' => (string) $listen,
-                'port' => $port,
-                'protocol' => $inboundProtocol,
-                'settings' => json_encode($settings, JSON_UNESCAPED_SLASHES),
-                'streamSettings' => json_encode($streamSettings, JSON_UNESCAPED_SLASHES),
-                'sniffing' => json_encode($sniffing, JSON_UNESCAPED_SLASHES),
-                'allocate' => json_encode($allocate, JSON_UNESCAPED_SLASHES),
-            ];
-
-            // Prepare cookies from panel->cookie_session
-            $cookies = json_decode($panel->cookie_session, true) ?? [];
-            \Log::info('ssssssssss cookies', ['cookies' => $cookies]);
-            foreach ($paths as $path) {
-                try {
-                    $req = $this->httpWithAuth($panel)
-                        ->asForm()
-                        ->withHeaders([
-                            'Accept' => 'application/json, text/plain, */*',
-                            'X-Requested-With' => 'XMLHttpRequest',
-                            'Content-Type' => 'application/x-www-form-urlencoded',
-                            'cookie' => implode('; ', array_map(fn($c) => "{$c['Name']}={$c['Value']}", $cookies))
-                        ]);
-                    // // Add all cookies if present
-                    // foreach ($cookies as $cookie) {
-                    //     $name = $cookie['Name'] ?? ($cookie['name'] ?? null);
-                    //     $value = $cookie['Value'] ?? ($cookie['value'] ?? null);
-                    //     if ($name !== null) {
-                    //         $req = $req->withCookie($name, $value);
-                    //     }
-                    // }
-                    $r = $req->post($base . $path, $form);
-                    \Log::info('addUserWithTemplate form endpoint response', [
-                        'path' => $base . $path,
-                        'status' => $r->status(),
-                        'body' => $r->body(),
-                    ]);
-                    // if cookie/session expired, refresh login and retry once
-                    if ($r->status() === 401) {
-                        try {
-                            \Log::info('401 from panel, refreshing login and retrying once', ['panel_id' => $pannelID, 'path' => $path]);
-                            // clear and re-login
-                            $panel->cookie_session = null;
-                            $panel->save();
-                            if ($this->login($panel->id)) {
-                                $panel = Pannel::findOrFail($pannelID);
-                                $cookies = json_decode($panel->cookie_session, true) ?? [];
-                                $req = $this->httpWithAuth($panel)
-                                    ->asForm()
-                                    ->withHeaders([
-                                        'Accept' => 'application/json, text/plain, */*',
-                                        'X-Requested-With' => 'XMLHttpRequest',
-                                    ]);
-                                foreach ($cookies as $cookie) {
-                                    $name = $cookie['Name'] ?? ($cookie['name'] ?? null);
-                                    $value = $cookie['Value'] ?? ($cookie['value'] ?? null);
-                                    if ($name !== null) {
-                                        $req = $req->withCookie($name, $value);
-                                    }
-                                }
-                                $r = $req->post($base . $path, $form);
-                                \Log::info('Retry after refresh response', ['status' => $r->status(), 'body' => $r->body()]);
-                            }
-                        } catch (\Throwable $th) {
-                            \Log::error('Retry after 401 failed', ['error' => $th->getMessage()]);
-                        }
-                    }
-                    \Log::info('resss', ['status' => $r->status(), 'body' => $r->body()]);
-
-                    if ($r->ok()) {
-
-                        $success = true;
-                        break;
-                    }
-                } catch (\Throwable $th) {
-                    // try next
-                }
-            }
-
-            if ($success) {
-                // \Log::info("User created with template", [
-                //     'template_id' => $templateId,
-                //     'uuid' => $uuid,
-                // ]);
-            }
-            return $success;
+            $path = "/inbounds/resetAllTraffics";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
         } catch (\Throwable $th) {
-            \Log::error('Error in user creation: ' . $th->getMessage());
+            \Log::error('resetAllTraffics error: ' . $th->getMessage());
             return false;
         }
     }
-    /**
-     * Check login status and return panel info
-     */
-    public function checkLoginStatus($pannelID)
+
+    public function delDepletedClients($panelOrId, $inboundId)
     {
         try {
-            $panel = Pannel::findOrFail($pannelID);
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
 
-            $status = [
-                'panel_id' => $panel->id,
-                'panel_name' => $panel->name ?? 'Unknown',
-                'admin_url' => $panel->admin_url,
-                'has_token' => !empty($panel->token),
-                'has_cookies' => !empty($panel->cookie_session),
-                'cookies_valid' => false,
-                'login_status' => 'unknown'
-            ];
-
-            if (!empty($panel->token)) {
-                $status['login_status'] = 'token_authenticated';
-                $status['cookies_valid'] = true;
-            } elseif (!empty($panel->cookie_session)) {
-                if ($this->isCookieValid($panel)) {
-                    $status['login_status'] = 'cookie_authenticated';
-                    $status['cookies_valid'] = true;
-                } else {
-                    $status['login_status'] = 'cookie_expired';
-                    $status['cookies_valid'] = false;
-                }
-            } else {
-                $status['login_status'] = 'not_authenticated';
+            if (!$this->login($panel)) {
+                \Log::error("Login failed for delDepletedClients on panel {$panel->id}");
+                return false;
             }
-
-            return response()->json([
-                'success' => true,
-                'data' => $status
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Check login status error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Server error occurred'
-            ], 500);
-        }
-    }
-
-    /**
-     * Select the best available template or inbound for user creation
-     */
-    private function selectBestInboundSource(int $pannelID, int $templateId = 0): array
-    {
-        $result = [
-            'source_type' => 'none',
-            'template_id' => null,
-            'inbounds' => collect(),
-            'message' => ''
-        ];
-
-        // 1. If specific template is requested, use it
-        if ($templateId > 0) {
-            $template = \App\Models\InboundTemplate::where('id', $templateId)
-                ->where('pannel_id', $pannelID)
-                ->where('is_active', true)
-                ->first();
-
-            if ($template) {
-                $result['source_type'] = 'specific_template';
-                $result['template_id'] = $template->id;
-                $result['message'] = "Using specific template: {$template->name}";
-                \Log::info("Selected specific template", ['template_id' => $template->id, 'name' => $template->name]);
-                return $result;
-            } else {
-                $result['message'] = "Requested template not found or inactive";
-                \Log::warning("Requested template not found", ['template_id' => $templateId, 'panel_id' => $pannelID]);
-            }
-        }
-
-        // 2. Try to find active templates for this panel
-        $activeTemplates = \App\Models\InboundTemplate::where('pannel_id', $pannelID)
-            ->where('is_active', true)
-            ->orderBy('created_at', 'desc') // Use newest first
-            ->get();
-
-        if ($activeTemplates->count() > 0) {
-            $bestTemplate = $activeTemplates->first();
-            $result['source_type'] = 'auto_template';
-            $result['template_id'] = $bestTemplate->id;
-            $result['message'] = "Using auto-selected template: {$bestTemplate->name}";
-            \Log::info("Selected auto template", [
-                'template_id' => $bestTemplate->id,
-                'name' => $bestTemplate->name,
-                'total_templates' => $activeTemplates->count()
-            ]);
-            return $result;
-        }
-
-        // 3. Fall back to inbounds table
-        $inbounds = Proxy::where('pannel_id', $pannelID)
-            ->where('is_active', true)
-            ->with([
-                'inbounds' => function ($q) {
-                    $q->where('is_active', true);
-                }
-            ])->get()->flatMap->inbounds;
-
-        if ($inbounds->count() === 0) {
-            // Try to sync from panel
-            \Log::info("No inbounds found, attempting to sync from panel", ['panel_id' => $pannelID]);
-            $this->syncInbounds($pannelID);
-
-            $inbounds = Proxy::where('pannel_id', $pannelID)
-                ->where('is_active', true)
-                ->with([
-                    'inbounds' => function ($q) {
-                        $q->where('is_active', true);
-                    }
-                ])->get()->flatMap->inbounds;
-        }
-
-        if ($inbounds->count() > 0) {
-            $result['source_type'] = 'inbounds_table';
-            $result['inbounds'] = $inbounds;
-            $result['message'] = "Using inbounds table with {$inbounds->count()} inbounds";
-            \Log::info("Selected inbounds table", [
-                'inbound_count' => $inbounds->count(),
-                'inbound_ids' => $inbounds->pluck('id')->toArray()
-            ]);
-            return $result;
-        }
-
-        // 4. Nothing available
-        $result['message'] = "No templates or inbounds available for this panel";
-        \Log::error("No inbound sources available", ['panel_id' => $pannelID]);
-        return $result;
-    }
-
-    /**
-     * Check available inbound sources for a panel
-     */
-    public function checkInboundSources($pannelID)
-    {
-        try {
-            $panel = Pannel::findOrFail($pannelID);
-
-            // Check login status first
-            if (!$this->login($panel->id)) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to login to panel',
-                    'data' => null
-                ], 401);
-            }
-
-            $result = [
-                'panel_id' => $panel->id,
-                'panel_name' => $panel->name ?? 'Unknown',
-                'admin_url' => $panel->admin_url,
-                'sources' => []
-            ];
-
-            // Check templates
-            $templates = \App\Models\InboundTemplate::where('pannel_id', $pannelID)
-                ->where('is_active', true)
-                ->select('id', 'name', 'description', 'protocol', 'port', 'config_type')
-                ->get();
-
-            if ($templates->count() > 0) {
-                $result['sources']['templates'] = [
-                    'count' => $templates->count(),
-                    'items' => $templates->toArray(),
-                    'recommended' => true
-                ];
-            }
-
-            // Check inbounds table
-            $inbounds = Proxy::where('pannel_id', $panel->id)
-                ->where('is_active', true)
-                ->with([
-                    'inbounds' => function ($q) {
-                        $q->where('is_active', true);
-                    }
-                ])->get()->flatMap->inbounds;
-
-            if ($inbounds->count() === 0) {
-                // Try to sync
-                $this->syncInbounds($panel->id);
-                $inbounds = Proxy::where('pannel_id', $panel->id)
-                    ->where('is_active', true)
-                    ->with([
-                        'inbounds' => function ($q) {
-                            $q->where('is_active', true);
-                        }
-                    ])->get()->flatMap->inbounds;
-            }
-
-            if ($inbounds->count() > 0) {
-                $result['sources']['inbounds_table'] = [
-                    'count' => $inbounds->count(),
-                    'items' => $inbounds->map(function ($in) {
-                        return [
-                            'id' => $in->id,
-                            'name' => $in->name,
-                            'protocol' => $in->protocol,
-                            'port' => $in->port,
-                            'tag' => $in->tag
-                        ];
-                    })->toArray(),
-                    'recommended' => !$templates->count() // Only recommended if no templates
-                ];
-            }
-
-            // Determine best source
-            if ($templates->count() > 0) {
-                $result['best_source'] = 'template';
-                $result['best_source_id'] = $templates->first()->id;
-                $result['best_source_name'] = $templates->first()->name;
-            } elseif ($inbounds->count() > 0) {
-                $result['best_source'] = 'inbounds_table';
-                $result['best_source_count'] = $inbounds->count();
-            } else {
-                $result['best_source'] = 'none';
-                $result['message'] = 'No inbound sources available';
-            }
-
-            return response()->json([
-                'success' => true,
-                'data' => $result
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('Check inbound sources error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Server error occurred'
-            ], 500);
-        }
-    }
-    /**
-     * Add a client to a specific inbound in Sanaei panel
-     */
-    public function addClientToInbound($pannelID, $inboundId, array $client)
-    {
-        try {
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
-                return response()->json(['success' => false, 'message' => 'Login failed'], 401);
-            }
-            $base = $this->baseUrl($panel);
-            $paths = ['/xui/inbound/addClient', '/panel/api/inbounds/addClient'];
-            $body = [
-                'id' => $inboundId,
-                'client' => $client
-            ];
-            foreach ($paths as $path) {
-                try {
-                    $res = $this->httpWithAuth($panel)->post($base . $path, $body);
-                    if ($res->ok()) {
-                        return response()->json(['success' => true, 'data' => $res->json()]);
-                    }
-                } catch (\Throwable $th) {
-                }
-            }
-            return response()->json(['success' => false, 'message' => 'Failed to add client'], 500);
+            $path = "/inbounds/delDepletedClients/$inboundId";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
         } catch (\Throwable $th) {
-            \Log::error('addClientToInbound error: ' . $th->getMessage());
-            return response()->json(['success' => false, 'message' => 'Server error'], 500);
+            \Log::error('delDepletedClients error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    public function getClientTrafficsByEmail($panelOrId, $email)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
+                return null;
+            }
+            $path = "/inbounds/getClientTraffics/$email";
+            $res = $this->performRequest($panel, 'GET', $path);
+            return $res['obj'] ?? null;
+        } catch (\Throwable $th) {
+            \Log::error('getClientTrafficsByEmail error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    public function getClientTrafficsById($panelOrId, $id)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
+                return null;
+            }
+            $path = "/inbounds/getClientTrafficsById/$id";
+            $res = $this->performRequest($panel, 'GET', $path);
+            return $res['obj'] ?? null;
+        } catch (\Throwable $th) {
+            \Log::error('getClientTrafficsById error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    public function onlines($panelOrId)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
+                return null;
+            }
+            $path = "/inbounds/onlines";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res['obj'] ?? null;
+        } catch (\Throwable $th) {
+            \Log::error('onlines error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    public function lastOnline($panelOrId)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
+                return null;
+            }
+            $path = "/inbounds/lastOnline";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res['obj'] ?? null;
+        } catch (\Throwable $th) {
+            \Log::error('lastOnline error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    public function clientIps($panelOrId, $email)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
+                return null;
+            }
+            $path = "/inbounds/clientIps/$email";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res['obj'] ?? null;
+        } catch (\Throwable $th) {
+            \Log::error('clientIps error: ' . $th->getMessage());
+            return null;
+        }
+    }
+
+    public function clearClientIps($panelOrId, $email)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
+                return false;
+            }
+            $path = "/inbounds/clearClientIps/$email";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
+        } catch (\Throwable $th) {
+            \Log::error('clearClientIps error: ' . $th->getMessage());
+            return false;
+        }
+    }
+
+    public function delClientByEmail($panelOrId, $inboundId, $email)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return false;
+
+            if (!$this->login($panel)) {
+                return false;
+            }
+            $path = "/inbounds/$inboundId/delClientByEmail/$email";
+            $res = $this->performRequest($panel, 'POST', $path);
+            return $res !== null;
+        } catch (\Throwable $th) {
+            \Log::error('delClientByEmail error: ' . $th->getMessage());
+            return false;
         }
     }
 
     /**
-     * Edit (update) a client in a specific inbound
+     * Find a client in an inbound by email and return client data and inbound id
+     * Returns array ['inbound' => <inbound>, 'client' => <client>] or null
      */
-    public function updateClientInInbound($pannelID, $inboundId, array $client)
+    public function findClientByEmail($panelOrId, $email)
     {
         try {
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
-                return response()->json(['success' => false, 'message' => 'Login failed'], 401);
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
+                return null;
             }
-            $base = $this->baseUrl($panel);
-            $paths = ['/xui/inbound/updateClient', '/panel/api/inbounds/updateClient'];
-            $body = [
-                'id' => $inboundId,
-                'client' => $client
-            ];
-            foreach ($paths as $path) {
-                try {
-                    $res = $this->httpWithAuth($panel)->post($base . $path, $body);
-                    if ($res->ok()) {
-                        return response()->json(['success' => true, 'data' => $res->json()]);
+            // Get list of inbounds
+            $res = $this->performRequest($panel, 'GET', '/inbounds/list');
+            $list = $res['obj'] ?? [];
+            foreach ($list as $inbound) {
+                $settings = $inbound['settings'] ?? null;
+                if (is_string($settings)) {
+                    $settings = json_decode($settings, true);
+                }
+                $clients = $settings['clients'] ?? [];
+                foreach ($clients as $client) {
+                    if (($client['email'] ?? '') === $email) {
+                        return ['inbound' => $inbound, 'client' => $client];
                     }
-                } catch (\Throwable $th) {
                 }
             }
-            return response()->json(['success' => false, 'message' => 'Failed to update client'], 500);
+            return null;
         } catch (\Throwable $th) {
-            \Log::error('updateClientInInbound error: ' . $th->getMessage());
-            return response()->json(['success' => false, 'message' => 'Server error'], 500);
+            \Log::error('findClientByEmail error: ' . $th->getMessage());
+            return null;
         }
     }
 
     /**
-     * Delete a client from a specific inbound
+     * Find a client by UUID across inbounds. Returns ['inbound'=>..., 'client'=>...] or null
      */
-    public function deleteClientFromInbound($pannelID, $inboundId, $clientId)
+    public function findClientByUUID($panelOrId, $uuid)
     {
         try {
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
-                return response()->json(['success' => false, 'message' => 'Login failed'], 401);
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            if (!$this->login($panel)) {
+                return null;
             }
-            $base = $this->baseUrl($panel);
-            $paths = ['/xui/inbound/delClient', '/panel/api/inbounds/delClient'];
-            $bodies = [
-                ['id' => $inboundId, 'client' => ['id' => $clientId]],
-                ['id' => $inboundId, 'uuid' => $clientId],
-            ];
-            foreach ($paths as $path) {
-                foreach ($bodies as $body) {
-                    try {
-                        $res = $this->httpWithAuth($panel)->post($base . $path, $body);
-                        if ($res->ok()) {
-                            return response()->json(['success' => true, 'data' => $res->json()]);
-                        }
-                    } catch (\Throwable $th) {
+            $res = $this->performRequest($panel, 'GET', '/inbounds/list');
+            $list = $res['obj'] ?? [];
+            foreach ($list as $inbound) {
+                $settings = $inbound['settings'] ?? null;
+                if (is_string($settings)) {
+                    $settings = json_decode($settings, true);
+                }
+                $clients = $settings['clients'] ?? [];
+                foreach ($clients as $client) {
+                    if (($client['id'] ?? '') === $uuid) {
+                        return ['inbound' => $inbound, 'client' => $client];
                     }
                 }
             }
-            return response()->json(['success' => false, 'message' => 'Failed to delete client'], 500);
+            return null;
         } catch (\Throwable $th) {
-            \Log::error('deleteClientFromInbound error: ' . $th->getMessage());
-            return response()->json(['success' => false, 'message' => 'Server error'], 500);
+            \Log::error('findClientByUUID error: ' . $th->getMessage());
+            return null;
         }
     }
 
     /**
-     * Reset a client's usage in a specific inbound (if supported by API)
+     * Returns all clients from all inbounds in a format compatible with HiddifyConfig model
      */
-    public function resetClientUsage($pannelID, $inboundId, $clientId)
+    public function getAllClients($panelOrId)
     {
         try {
-            $panel = Pannel::findOrFail($pannelID);
-            if (!$this->login($panel->id)) {
-                return response()->json(['success' => false, 'message' => 'Login failed'], 401);
-            }
-            $base = $this->baseUrl($panel);
-            $paths = ['/xui/inbound/resetClient', '/panel/api/inbounds/resetClient'];
-            $body = [
-                'id' => $inboundId,
-                'client' => ['id' => $clientId]
-            ];
-            foreach ($paths as $path) {
-                try {
-                    $res = $this->httpWithAuth($panel)->post($base . $path, $body);
-                    if ($res->ok()) {
-                        return response()->json(['success' => true, 'data' => $res->json()]);
-                    }
-                } catch (\Throwable $th) {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return [];
+
+            if (!$this->login($panel))
+                return [];
+
+            $res = $this->performRequest($panel, 'GET', '/inbounds/list');
+            $list = $res['obj'] ?? [];
+            $allClients = [];
+
+            foreach ($list as $inbound) {
+                $settings = $inbound['settings'] ?? null;
+                if (is_string($settings)) {
+                    $settings = json_decode($settings, true);
+                }
+                $clients = $settings['clients'] ?? [];
+                foreach ($clients as $client) {
+                    $uuid = $client['id'] ?? ($client['uuid'] ?? '');
+                    $email = $client['email'] ?? '';
+
+                    // Basic info
+                    $total = (int) ($client['totalGB'] ?? ($client['total'] ?? 0));
+                    $expiry = $client['expiryTime'] ?? ($client['expiry_time'] ?? 0);
+                    $enable = $client['enable'] ?? true;
+
+                    // We might want to fetch traffic for each, but that's many requests.
+                    // For the list view, maybe just basic info is enough or we use what's in the client object.
+                    $up = (int) ($client['up'] ?? 0);
+                    $down = (int) ($client['down'] ?? 0);
+
+                    $allClients[] = [
+                        'uuid' => $uuid,
+                        'name' => $email,
+                        'current_usage_GB' => round(($up + $down) / 1024 / 1024 / 1024, 2),
+                        'usage_limit_GB' => round($total / 1024 / 1024 / 1024, 2),
+                        'package_days' => 0, // Hard to calculate without start_date
+                        'is_active' => $enable,
+                    ];
                 }
             }
-            return response()->json(['success' => false, 'message' => 'Failed to reset client usage'], 500);
+            return $allClients;
         } catch (\Throwable $th) {
-            \Log::error('resetClientUsage error: ' . $th->getMessage());
-            return response()->json(['success' => false, 'message' => 'Server error'], 500);
+            \Log::error('getAllClients error: ' . $th->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Returns structured status for a client by uuid: enable, current_usage_GB, usage_limit_GB, start_date, package_days
+     */
+    public function getClientStatus($panelOrId, $uuid)
+    {
+        try {
+            $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
+            if (!$panel)
+                return null;
+
+            $found = $this->findClientByUUID($panel, $uuid);
+            if (!$found)
+                return null;
+            $inbound = $found['inbound'];
+            $client = $found['client'];
+
+            // usage from traffics endpoint
+            $usageObj = $this->getClientTrafficsByEmail($panel, $client['email'] ?? '');
+
+            $up = (int) ($client['up'] ?? 0);
+            $down = (int) ($client['down'] ?? 0);
+            $limitBytes = (int) ($client['totalGB'] ?? ($client['total'] ?? 0));
+            $expiryMs = $client['expiryTime'] ?? ($client['expiry_time'] ?? 0);
+
+            if (is_array($usageObj)) {
+                if ($up <= 0)
+                    $up = (int) ($usageObj['up'] ?? 0);
+                if ($down <= 0)
+                    $down = (int) ($usageObj['down'] ?? 0);
+                if ($expiryMs <= 0) {
+                    $expiryMs = (int) ($usageObj['expiryTime'] ?? 0);
+                }
+            }
+
+            $usageBytes = $up + $down;
+            $current_usage_GB = round($usageBytes / 1024 / 1024 / 1024, 2);
+            $usage_limit_GB = round($limitBytes / 1024 / 1024 / 1024, 2);
+
+            // dates
+            $createdMs = $client['created_at'] ?? null;
+            $startDate = null;
+            $package_days = 0;
+            if ($createdMs) {
+                $startSec = intval($createdMs / 1000);
+                $startDate = Carbon::createFromTimestamp($startSec)->toIso8601String();
+            }
+            if ($createdMs && $expiryMs > 0) {
+                $startSec = intval($createdMs / 1000);
+                $expirySec = intval($expiryMs / 1000);
+                $diffDays = max(0, ceil(($expirySec - $startSec) / 86400));
+                $package_days = intval($diffDays);
+            }
+
+            $isEnabled = ($client['enable'] ?? ($usageObj['enable'] ?? true));
+
+            return [
+                'enable' => $isEnabled,
+                'is_active' => $isEnabled, // for compatibility with Hiddify models
+                'current_usage_GB' => $current_usage_GB,
+                'usage_limit_GB' => $usage_limit_GB,
+                'start_date' => $startDate,
+                'package_days' => $package_days,
+                'inbound' => $inbound,
+                'client' => $client,
+                'traffic' => $usageObj,
+            ];
+        } catch (\Throwable $th) {
+            \Log::error('getClientStatus error: ' . $th->getMessage());
+            return null;
         }
     }
 }

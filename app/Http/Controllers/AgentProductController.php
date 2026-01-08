@@ -121,12 +121,14 @@ class AgentProductController extends Controller
 
             $agentPremissionCntrl = new AgentPermissonController();
             $reqPermission = new Request();
-            $reqPermission->user_id = $userID;
-            $reqPermission->minus_ballance = $request['minusBallance'];
-            $reqPermission->create_products = $request['createProducts'];
-            $reqPermission->delete_products = $request['deleteProducts'];
-            $reqPermission->traffic_limitation_tb = $request['trafficLimitationTB'] ? $request['trafficLimitationTB'] : 10;
-            $reqPermission->product_limitation = $request['productLimitation'] ? $request['productLimitation'] : 1000;
+            $reqPermission->merge([
+                'user_id' => $userID,
+                'minus_ballance' => $request['minusBallance'],
+                'create_products' => $request['createProducts'],
+                'delete_products' => $request['deleteProducts'],
+                'traffic_limitation_tb' => $request['trafficLimitationTB'] ? $request['trafficLimitationTB'] : 10,
+                'product_limitation' => $request['productLimitation'] ? $request['productLimitation'] : 1000,
+            ]);
             $agentPremissionCntrl->updateAgentPremisson($reqPermission);
             $userCntrl->changeUserRoleToAgent($userID);
             return response()->json(true, 200);
@@ -284,21 +286,26 @@ class AgentProductController extends Controller
     public function deleteAllAgentProductsByUserIDAndAssignToBotAdmin($userID)
     {
         try {
-            $agentProduct = AgentProduct::where('user_id', $userID)->get();
-            if (!$agentProduct) {
-                return;
+            $agentUser = User::find($userID);
+            if (!$agentUser) {
+                return false;
             }
-            $adminId = auth('sanctum')->user()->id;
 
-            foreach ($agentProduct as $value) {
-                $value->user_id = $adminId;
-                $value->update();
+            $adminUser = auth('sanctum')->user();
+            if (!$adminUser) {
+                return false;
             }
+
+            // Transfer sold products (VPN accounts) to admin
+            Product::where('account_id', $agentUser->account_id)->update(['account_id' => $adminUser->account_id]);
+
+            // Delete agent's custom price list
+            AgentProduct::where('user_id', $userID)->delete();
 
             return true;
         } catch (\Throwable $th) {
             \Log::info("throw $th");
-            return response()->json(false, 500);
+            return false;
         }
     }
     public function getAgentProductsByUserID($userID)
@@ -328,6 +335,22 @@ class AgentProductController extends Controller
         if ($data != null) {
             // get pannel url
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+
+            if ($pannel && $pannel->type == 'sanaei') {
+                $configs = json_decode($data->configs, true) ?? [];
+                $uuid = $configs['uuid'] ?? null;
+                if ($uuid == null) {
+                    return response()->json(false, 400);
+                }
+                $sn = new SanaeiPannelController();
+                $res = $sn->updateLimits($pannel->id, $uuid, $selectedPrCat->expire_day, $selectedPrCat->volume);
+                if ($res) {
+                    $this->addNewBotLog('product', "$data->remark توسط مدیر شارژ شد", 'charge product');
+                    return response()->json(true, 200);
+                }
+                return response()->json(false, 500);
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
 
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
@@ -365,6 +388,32 @@ class AgentProductController extends Controller
         $newPrCat = ProductCategory::find($request->newPrCatID);
 
         if ($data != null) {
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            if ($pannel && $pannel->type == 'sanaei') {
+                $configs = json_decode($data->configs, true) ?? [];
+                $uuid = $configs['uuid'] ?? null;
+                if ($uuid == null) {
+                    return response()->json(false, 400);
+                }
+                $sn = new SanaeiPannelController();
+                $res = $sn->updateLimits($pannel->id, $uuid, $newPrCat->expire_day, $newPrCat->volume);
+                if ($res) {
+                    if ($request->changeBallance == 1 || $request->changeBallance == true) {
+                        $accBalCntrl = new AccountBallanceController();
+                        $diffInToman = $newPrCat->price - $oldPrCat->price;
+                        $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
+                        if ($diffInToman != 0) {
+                            $accBalCntrl->decUserAccuntBalance($data->account_id, $diffInToman, $dissInDollar);
+                        }
+                    }
+                    $data->product_categories_id = $newPrCat->id;
+                    $data->update();
+                    $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'change product');
+                    return response()->json(true, 200);
+                }
+                return response()->json(false, 500);
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
             $day = $newPrCat->expire_day;
@@ -456,7 +505,7 @@ class AgentProductController extends Controller
                 $sn = new SanaeiPannelController();
                 $enable = ($request->enable == true || $request->enable == 1 || $request->enable == 'true');
                 $res = $sn->changeUserActivation($pannel->id, $uuid, $enable);
-                if ($res->getStatusCode() == 200) {
+                if ($res) {
                     $data->deactive_by_admin = !$enable;
                     $this->addNewBotLog('product', "$data->remark توسط مدیر " . ($enable ? 'فعال' : 'غیر فعال') . " شد.", 'change activation');
                     $data->update();
@@ -500,6 +549,10 @@ class AgentProductController extends Controller
             // get pannel url
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
 
+            if ($pannel && $pannel->type == 'sanaei') {
+                return $pannel->admin_url;
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
 
             return $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $data->panel_link);
@@ -524,7 +577,7 @@ class AgentProductController extends Controller
                 }
                 $sn = new SanaeiPannelController();
                 $res = $sn->deleteUser($pannel->id, $uuid);
-                if ($res->getStatusCode() == 200) {
+                if ($res) {
                     $data->delete();
                     $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
                     return response()->json(true, 200);
@@ -625,6 +678,67 @@ class AgentProductController extends Controller
 
                 return $userPannelLink;
             }
+
+            if ($pannel->type == 'sanaei') {
+                $snCtrl = new SanaeiPannelController();
+                $req = new Request();
+                $req->accountId = $remark;
+                $req->pannelID = $selectedPrCat->pannel_id;
+                $req->vol = $volume;
+                $req->day = $day;
+                $req->inbound_id = $selectedPrCat->inbound_id;
+                $req->ip_limit = $selectedPrCat->ip_limit;
+
+                $result = $snCtrl->addUserToSanaeiPanel($req);
+                if ($result === false) {
+                    return response()->json('Error in creating user in panel', 500);
+                }
+                if (is_array($result)) {
+                    $uuid = $result['uuid'];
+                    $subId = $result['subId'];
+                } else {
+                    $uuid = $result;
+                    $subId = $uuid;
+                }
+
+                $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
+
+                if ($selectedPrCat->show_subscription_link) {
+                    $baseUrl = $pannel->user_link;
+                    if (empty($baseUrl)) {
+                        $baseUrl = $pannel->url_port;
+                    }
+                    if (!empty($pannel->sub_port)) {
+                        $parsed = parse_url($baseUrl);
+                        $host = $parsed['host'] ?? '';
+                        $scheme = $parsed['scheme'] ?? 'http';
+                        if ($host) {
+                            $baseUrl = "$scheme://$host:{$pannel->sub_port}";
+                        }
+                    }
+                    if (substr($baseUrl, -1) == '/') {
+                        $baseUrl = substr($baseUrl, 0, -1);
+                    }
+                    $userPannelLink = "$baseUrl/sub/$subId";
+                } else {
+                    $userPannelLink = $links[0] ?? '';
+                }
+
+                $reqProductDetails = new Request();
+                $reqProductDetails->account_id = $accountID;
+                $reqProductDetails->subscription_link = '';
+                $reqProductDetails->product_categories_id = $selectedPrCat->id;
+                $reqProductDetails->panel_link = '';
+                $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
+                $reqProductDetails->remark = $remark;
+
+                $prCntrl->addAutomatedProductDetails($reqProductDetails);
+                $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+                $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
+
+                return $userPannelLink;
+            }
         }
         return response()->json('low ballance', 401);
     }
@@ -684,6 +798,67 @@ class AgentProductController extends Controller
 
                 return $userPannelLink;
             }
+
+            if ($pannel->type == 'sanaei') {
+                $snCtrl = new SanaeiPannelController();
+                $req = new Request();
+                $req->accountId = $remark;
+                $req->pannelID = $selectedPrCat->pannel_id;
+                $req->vol = $volume;
+                $req->day = $day;
+                $req->inbound_id = $selectedPrCat->inbound_id;
+                $req->ip_limit = $selectedPrCat->ip_limit;
+
+                $result = $snCtrl->addUserToSanaeiPanel($req);
+                if ($result === false) {
+                    return response()->json('Error in creating user in panel', 500);
+                }
+                if (is_array($result)) {
+                    $uuid = $result['uuid'];
+                    $subId = $result['subId'];
+                } else {
+                    $uuid = $result;
+                    $subId = $uuid;
+                }
+
+                $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
+
+                if ($selectedPrCat->show_subscription_link) {
+                    $baseUrl = $pannel->user_link;
+                    if (empty($baseUrl)) {
+                        $baseUrl = $pannel->url_port;
+                    }
+                    if (!empty($pannel->sub_port)) {
+                        $parsed = parse_url($baseUrl);
+                        $host = $parsed['host'] ?? '';
+                        $scheme = $parsed['scheme'] ?? 'http';
+                        if ($host) {
+                            $baseUrl = "$scheme://$host:{$pannel->sub_port}";
+                        }
+                    }
+                    if (substr($baseUrl, -1) == '/') {
+                        $baseUrl = substr($baseUrl, 0, -1);
+                    }
+                    $userPannelLink = "$baseUrl/sub/$subId";
+                } else {
+                    $userPannelLink = $links[0] ?? '';
+                }
+
+                $reqProductDetails = new Request();
+                $reqProductDetails->account_id = $accountID;
+                $reqProductDetails->subscription_link = '';
+                $reqProductDetails->product_categories_id = $selectedPrCat->id;
+                $reqProductDetails->panel_link = '';
+                $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
+                $reqProductDetails->remark = $remark;
+
+                $prCntrl->addAutomatedProductDetails($reqProductDetails);
+                $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+                $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
+
+                return $userPannelLink;
+            }
         }
         return response()->json('low ballance', 401);
     }
@@ -739,6 +914,25 @@ class AgentProductController extends Controller
 
                     return response()->json(true, 200);
                     // dd($subsequentResponse);
+                }
+            }
+
+            if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+                if ($pannel && $pannel->type == 'sanaei') {
+                    $configs = json_decode($data->configs, true) ?? [];
+                    $uuid = $configs['uuid'] ?? null;
+                    if ($uuid == null) {
+                        return response()->json(false, 400);
+                    }
+                    $sn = new SanaeiPannelController();
+                    $res = $sn->updateLimits($pannel->id, $uuid, $selectedPrCat->expire_day, $selectedPrCat->volume);
+                    if ($res->getStatusCode() == 200) {
+                        $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+                        $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
+                        return response()->json(true, 200);
+                    }
+                    return response()->json(false, 401);
                 }
             }
             return response()->json(false, 401);
@@ -811,6 +1005,67 @@ class AgentProductController extends Controller
 
             return $userPannelLink;
         }
+
+        if ($pannel->type == 'sanaei') {
+            $snCtrl = new SanaeiPannelController();
+            $req = new Request();
+            $req->accountId = $remark;
+            $req->pannelID = $selectedPrCat->pannel_id;
+            $req->vol = $volume;
+            $req->day = $day;
+            $req->inbound_id = $selectedPrCat->inbound_id;
+            $req->ip_limit = $selectedPrCat->ip_limit;
+
+            $result = $snCtrl->addUserToSanaeiPanel($req);
+            if ($result === false) {
+                return response()->json('Error in creating user in panel', 500);
+            }
+            if (is_array($result)) {
+                $uuid = $result['uuid'];
+                $subId = $result['subId'];
+            } else {
+                $uuid = $result;
+                $subId = $uuid;
+            }
+
+            $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
+
+            if ($selectedPrCat->show_subscription_link) {
+                $baseUrl = $pannel->user_link;
+                if (empty($baseUrl)) {
+                    $baseUrl = $pannel->url_port;
+                }
+                if (!empty($pannel->sub_port)) {
+                    $parsed = parse_url($baseUrl);
+                    $host = $parsed['host'] ?? '';
+                    $scheme = $parsed['scheme'] ?? 'http';
+                    if ($host) {
+                        $baseUrl = "$scheme://$host:{$pannel->sub_port}";
+                    }
+                }
+                if (substr($baseUrl, -1) == '/') {
+                    $baseUrl = substr($baseUrl, 0, -1);
+                }
+                $userPannelLink = "$baseUrl/sub/$subId";
+            } else {
+                $userPannelLink = $links[0] ?? '';
+            }
+
+            $reqProductDetails = new Request();
+            $reqProductDetails->account_id = $accountID;
+            $reqProductDetails->subscription_link = '';
+            $reqProductDetails->product_categories_id = $selectedPrCat->id;
+            $reqProductDetails->panel_link = '';
+            $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
+            $reqProductDetails->remark = $remark;
+
+            $prCntrl->addAutomatedProductDetails($reqProductDetails);
+            $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+            $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته بصورت دستی کم شد.", 'minus ballance');
+            $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
+
+            return $userPannelLink;
+        }
     }
     public function getAgentSelledProducts($count = 10)
     {
@@ -841,6 +1096,20 @@ class AgentProductController extends Controller
         if ($data != null) {
             // get pannel url
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+
+            if ($pannel && $pannel->type == 'sanaei') {
+                $configs = json_decode($data->configs, true) ?? [];
+                $uuid = $configs['uuid'] ?? null;
+                if ($uuid == null) {
+                    return response()->json(null, 400);
+                }
+                $sn = new SanaeiPannelController();
+                $status = $sn->getClientStatus($pannel, $uuid);
+                if ($status) {
+                    return response()->json($status, 200);
+                }
+                return response()->json(null, 404);
+            }
 
             $hiddifcCntrl = new HiddifyPannelController();
 
@@ -876,7 +1145,12 @@ class AgentProductController extends Controller
             // get pannel url
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
 
-            $hiddifcCntrl = new HiddifyPannelController();
+            if ($pannel && $pannel->type == 'sanaei') {
+                $configs = json_decode($data->configs, true) ?? [];
+                $links = $configs['links'] ?? [];
+                return $links[0] ?? '';
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
 
             return $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $data->panel_link);
@@ -904,13 +1178,41 @@ class AgentProductController extends Controller
                     return response()->json(false, 400);
                 }
                 $sn = new SanaeiPannelController();
-                $res = $sn->updateUser($pannel->id, $uuid, ['email' => $request->name]);
-                if ($res->getStatusCode() == 200) {
+                $client = $sn->findClientByUUID($pannel->id, $uuid);
+                if (!$client) {
+                    return response()->json(false, 404);
+                }
+                $client['email'] = $request->name;
+                $res = $sn->updateClient($pannel->id, $client['id'], $client);
+                if ($res) {
                     $data->remark = $request->name;
                     $data->update();
                     return response()->json(true, 200);
                 }
-                return response()->json(false, 401);
+                return response()->json(false, 400);
+            }
+            if ($pannel && $pannel->type == 'marzban') {
+                $panelUrl = $pannel->url_port;
+                $panelUrl = str_replace('/dashboard/', '', $panelUrl);
+                $panelUrl = str_replace('/dashboard', '', $panelUrl);
+
+                $headers = [
+                    'Content-Type' => 'application/json',
+                    'Accept' => 'application/json',
+                    'authorization' => $pannel->token,
+                ];
+
+                $url = "{$panelUrl}/api/user/{$data->remark}";
+                $response = Http::withHeaders($headers)->put($url, [
+                    'username' => $request->name
+                ]);
+
+                if ($response->ok()) {
+                    $data->remark = $request->name;
+                    $data->update();
+                    return response()->json(true, 200);
+                }
+                return response()->json(false, 400);
             }
             $hiddifcCntrl = new HiddifyPannelController();
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
@@ -1185,6 +1487,22 @@ class AgentProductController extends Controller
             return response()->json('This product is deactivated by admin', 401);
         }
         if ($data != null) {
+            if ($data->product_category_and_panel->pannel->type == 'sanaei') {
+                $sanaeiCntrl = new SanaeiPannelController();
+                $req = new Request();
+                $req->pannelID = $data->product_category_and_panel->pannel_id;
+                $req->uuid = $data->uuid;
+                $req->enable = ($request->enable == true || $request->enable == 1 || $request->enable == 'true');
+
+                $res = $sanaeiCntrl->changeUserActivationOfSanaeiPanelApi($req);
+                if ($res->getStatusCode() == 200) {
+                    $status = $req->enable ? 'فعال' : 'غیر فعال';
+                    $this->addNewBotLog('product', "$data->remark توسط کاربر {$status} شد.", 'change activation');
+                    return response()->json(true, 200);
+                }
+                return response()->json(false, 401);
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
 
@@ -1225,6 +1543,11 @@ class AgentProductController extends Controller
         if ($data != null) {
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
             $currentUsage = 0;
+            $currentStatus = $this->getBoughtProductsStatusFromServerById($id);
+            if ($currentStatus != null) {
+                $currentUsage = $currentStatus['current_usage_GB'];
+            }
+
             if ($pannel && $pannel->type == 'sanaei') {
                 $configs = json_decode($data->configs, true) ?? [];
                 $uuid = $configs['uuid'] ?? null;
@@ -1256,11 +1579,6 @@ class AgentProductController extends Controller
                 }
                 return response()->json(null, 500);
             } else {
-                $currentStatus = $this->getBoughtProductsStatusFromServerById($id);
-                if ($currentStatus == null) {
-                    return response()->json(null, 500);
-                }
-                $currentUsage = $currentStatus['current_usage_GB'];
                 $hiddifcCntrl = new HiddifyPannelController();
                 $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
                 $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
@@ -1311,6 +1629,23 @@ class AgentProductController extends Controller
 
             // get pannel url
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+
+            if ($pannel && $pannel->type == 'sanaei') {
+                $configs = json_decode($data->configs, true) ?? [];
+                $uuid = $configs['uuid'] ?? null;
+                if ($uuid == null) {
+                    return response()->json(null, 400);
+                }
+                $sn = new SanaeiPannelController();
+                $res = $sn->deleteUser($pannel->id, $uuid);
+                if ($res->getStatusCode() == 200) {
+                    $data->delete();
+                    $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
+                    return response()->json(true, 200);
+                }
+                return response()->json(null, 500);
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
 
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);

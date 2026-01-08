@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class ProductCategory extends Model
 {
     use HasFactory;
-    protected $guarded = ['id','pannel_id'];
-    protected $fillable = ['pannel_id','category_name','price','expire_day','volume','rechargable','show_subscription_link','show_pannel_link','is_active','price_in_dollar'];
+    protected $guarded = ['id', 'pannel_id'];
+    protected $fillable = ['pannel_id', 'category_name', 'price', 'expire_day', 'volume', 'rechargable', 'show_subscription_link', 'show_pannel_link', 'is_active', 'price_in_dollar', 'inbound_id', 'ip_limit'];
 
 
     public function getProdctCategorByID($id)
@@ -25,7 +25,7 @@ class ProductCategory extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-     public function pannel()
+    public function pannel()
     {
         return $this->belongsTo(Pannel::class, 'pannel_id');
     }
