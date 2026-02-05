@@ -489,8 +489,9 @@ class GeneralController extends Controller
                 $this->telegramService->sendPhotoFile($chat_id, $image, $subLink);
 
             } elseif (!empty($links)) {
-                $text = $this->customTextCtrl->getText('action.subscription.sanaei_with_links', [
-                    'uuid' => $uuid,
+
+                $text = $this->customTextCtrl->getText('action.subscription.sanaei_without_subscription', [
+                    'uuid' => $links[0] ?? $uuid,
                 ]);
                 $this->telegramService->sendMessage($chat_id, is_array($text) ? $this->telegramService->formatText($text) : $text);
                 foreach ($links as $link) {

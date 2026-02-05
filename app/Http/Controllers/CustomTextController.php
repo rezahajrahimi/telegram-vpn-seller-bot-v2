@@ -543,6 +543,20 @@ class CustomTextController extends Controller
                 'description' => 'متن خرید شما با موفقیت انجام شد - پارامترها: {panel_link} {subscription_link}'
             ],
             [
+                'key' => 'action.subscription.sanaei_without_subscription',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "کانفیگ شما:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{uuid}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خرید شما با موفقیت انجام شد - پارامترها: {uuid}'
+            ],
+            [
                 'key' => 'action.buy_history.title',
                 'default_text' => json_encode([
                     ['type' => 'text', 'text' => 'سابقه خرید'],

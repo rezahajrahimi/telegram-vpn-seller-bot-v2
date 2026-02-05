@@ -22,6 +22,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Http\Request;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Log;
 
 class ProcessSubscriptionPurchase implements ShouldQueue
 {
@@ -57,14 +58,13 @@ class ProcessSubscriptionPurchase implements ShouldQueue
         // Fetch user for logging
         $botUser = BotUser::where('account_id', $this->chatId)->first();
         $username = $botUser ? $botUser->username : 'Unknown';
-
         try {
             $selectedPrCat = ProductCategory::find($this->productCategoryId);
             if (!$selectedPrCat) {
                 \Log::error("Product Category not found: " . $this->productCategoryId);
                 return;
             }
-
+            \Log::info("Selected Product Category: 111111" . $selectedPrCat->name);
             // بررسی موجودی کاربر
             $productPrice = $selectedPrCat->price;
             $productPriceInDollar = $selectedPrCat->price_in_dollar;

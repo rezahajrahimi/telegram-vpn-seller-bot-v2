@@ -110,7 +110,6 @@ class SubscriptionProcessController extends Controller
                 $this->telegramService->sendMessage($chatId, "دسته‌بندی نامعتبر است.");
                 return "";
             }
-
             // Dispatch the job to handle the purchase asynchronously
             ProcessSubscriptionPurchase::dispatch($chatId, $categoryId);
 
