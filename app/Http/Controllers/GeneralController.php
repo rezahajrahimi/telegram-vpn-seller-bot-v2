@@ -448,7 +448,6 @@ class GeneralController extends Controller
             $req->ip_limit = $selectedPrCat->ip_limit;
 
             $result = $snCtrl->addUserToSanaeiPanel($req);
-            \Log::info("addUserToSanaeiPanel result: " . json_encode($result));
             if ($result === false) {
                 return false;
             }

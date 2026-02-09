@@ -257,8 +257,11 @@ class SanaeiPannelController extends Controller
             }
 
             $json = $r->json();
+            // Log the response for debugging
+            \Log::debug("addClient response: " . json_encode($json));
             if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
-                \Log::info("User created: $uuid");
+                // Success
+
                 return ['uuid' => $uuid, 'subId' => $client['subId']];
             }
 
@@ -426,7 +429,7 @@ class SanaeiPannelController extends Controller
             $sni = $stream['realitySettings']['serverNames'][0];
 
         if ($protocol === 'vless') {
-            $query = ['type' => $network, 'security' => $security];
+            $query = ['type' => $network, 'security' => $security, 'encryption' => 'none'];
             if ($sni)
                 $query['sni'] = $sni;
             if (isset($stream['realitySettings']['publicKey']))
@@ -435,10 +438,37 @@ class SanaeiPannelController extends Controller
                 $query['fp'] = $stream['realitySettings']['fingerprint'];
             if (isset($stream['realitySettings']['shortId']))
                 $query['sid'] = $stream['realitySettings']['shortId'];
-            if ($network === 'ws' && isset($stream['wsSettings']['path']))
-                $query['path'] = $stream['wsSettings']['path'];
-            if ($network === 'grpc' && isset($stream['grpcSettings']['serviceName']))
-                $query['serviceName'] = $stream['grpcSettings']['serviceName'];
+
+            // Network-specific parameters
+            if ($network === 'tcp') {
+                if (isset($stream['tcpSettings']['header']['type']) && $stream['tcpSettings']['header']['type'] === 'http') {
+                    $query['headerType'] = 'http';
+                    if (isset($stream['tcpSettings']['header']['request']['headers']['Host'][0])) {
+                        $query['host'] = $stream['tcpSettings']['header']['request']['headers']['Host'][0];
+                    }
+                    if (isset($stream['tcpSettings']['header']['request']['path'][0])) {
+                        $query['path'] = $stream['tcpSettings']['header']['request']['path'][0];
+                    }
+                }
+            } elseif ($network === 'ws') {
+                if (isset($stream['wsSettings']['path'])) {
+                    $query['path'] = $stream['wsSettings']['path'];
+                }
+                if (isset($stream['wsSettings']['headers']['Host'])) {
+                    $query['host'] = $stream['wsSettings']['headers']['Host'];
+                }
+            } elseif ($network === 'grpc') {
+                if (isset($stream['grpcSettings']['serviceName'])) {
+                    $query['serviceName'] = $stream['grpcSettings']['serviceName'];
+                }
+            } elseif ($network === 'http') {
+                if (isset($stream['httpSettings']['host'][0])) {
+                    $query['host'] = $stream['httpSettings']['host'][0];
+                }
+                if (isset($stream['httpSettings']['path'])) {
+                    $query['path'] = $stream['httpSettings']['path'];
+                }
+            }
 
             $q = http_build_query($query);
             $links[] = "vless://$uuid@$host:$port?$q#" . rawurlencode($remark);
