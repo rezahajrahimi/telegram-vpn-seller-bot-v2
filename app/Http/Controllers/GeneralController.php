@@ -489,6 +489,13 @@ class GeneralController extends Controller
 
             } elseif (!empty($links)) {
 
+                $text = "";
+                // get sample_inbound from selectedPrCat and replace uuid from text with sample_inbound if sample_inbound is not empty
+                if (!empty($selectedPrCat->sample_inbound)) {
+                    $config = preg_replace('/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i', $uuid, $selectedPrCat->sample_inbound);
+                    $links[0] = $config;
+
+                }
                 $text = $this->customTextCtrl->getText('action.subscription.sanaei_without_subscription', [
                     'uuid' => $links[0] ?? $uuid,
                 ]);
