@@ -448,7 +448,6 @@ class GeneralController extends Controller
             $req->ip_limit = $selectedPrCat->ip_limit;
 
             $result = $snCtrl->addUserToSanaeiPanel($req);
-            \Log::info("addUserToSanaeiPanel result: " . json_encode($result));
             if ($result === false) {
                 return false;
             }
@@ -489,8 +488,16 @@ class GeneralController extends Controller
                 $this->telegramService->sendPhotoFile($chat_id, $image, $subLink);
 
             } elseif (!empty($links)) {
-                $text = $this->customTextCtrl->getText('action.subscription.sanaei_with_links', [
-                    'uuid' => $uuid,
+
+                $text = "";
+                // get sample_inbound from selectedPrCat and replace uuid from text with sample_inbound if sample_inbound is not empty
+                if (!empty($selectedPrCat->sample_inbound)) {
+                    $config = preg_replace('/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i', $uuid, $selectedPrCat->sample_inbound);
+                    $links[0] = $config;
+
+                }
+                $text = $this->customTextCtrl->getText('action.subscription.sanaei_without_subscription', [
+                    'uuid' => $links[0] ?? $uuid,
                 ]);
                 $this->telegramService->sendMessage($chat_id, is_array($text) ? $this->telegramService->formatText($text) : $text);
                 foreach ($links as $link) {

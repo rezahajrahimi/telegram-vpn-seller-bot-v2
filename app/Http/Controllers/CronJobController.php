@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\SanaeiPannelController;
 use App\Models\CronJob;
 use App\Models\CronLog;
 use App\Models\Pannel;
@@ -101,13 +102,24 @@ class CronJobController extends Controller
         }
 
         $pannel = Pannel::all();
-        $hiddifyPanelCtrl = new HiddifyPannelController();
-        foreach ($pannel as $key => $value) {
-            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+        foreach ($pannel as $key => $panel) {
+            if ($panel->type == 'hiddify') {
+                $controller = new HiddifyPannelController();
+                $usersResponse = $controller->getHiddifyPanelUsersByPannelID($panel->id);
+            } elseif ($panel->type == 'sanaei') {
+                $controller = new SanaeiPannelController();
+                $usersResponse = $controller->getAllClients($panel);
+            } else {
+                continue;
+            }
             // تبدیل Response به آرایه
             // check if usersResponse is json or array
             // $users = json_decode($usersResponse->getContent(), true);
             // \Log::info("users: " . json_encode($users));
+
+            if (!is_array($usersResponse)) {
+                continue;
+            }
 
             foreach ($usersResponse as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
@@ -188,10 +200,17 @@ class CronJobController extends Controller
             }
 
             $pannel = Pannel::all();
-            $hiddifyPanelCtrl = new HiddifyPannelController();
 
             foreach ($pannel as $key => $panel) {
-                $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($panel->id);
+                if ($panel->type == 'hiddify') {
+                    $controller = new HiddifyPannelController();
+                    $usersResponse = $controller->getHiddifyPanelUsersByPannelID($panel->id);
+                } elseif ($panel->type == 'sanaei') {
+                    $controller = new SanaeiPannelController();
+                    $usersResponse = $controller->getAllClients($panel);
+                } else {
+                    continue;
+                }
                 if (!is_array($usersResponse)) {
                     continue;
                 }
@@ -260,9 +279,13 @@ class CronJobController extends Controller
 
                 }
                 Product::whereIn('id', $productsIds)->delete();
-                // delete users from hiddify panel
+                // delete users from panel
                 foreach ($productsUuids as $key => $uuid) {
-                    $hiddifyPanelCtrl->deleteUserOfHiddifyPanel($panel->id, $uuid);
+                    if ($panel->type == 'hiddify') {
+                        $controller->deleteUserOfHiddifyPanel($panel->id, $uuid);
+                    } elseif ($panel->type == 'sanaei') {
+                        $controller->deleteUser($panel, $uuid);
+                    }
                 }
 
             }
@@ -288,9 +311,16 @@ class CronJobController extends Controller
             return false;
         }
         $pannel = Pannel::all();
-        $hiddifyPanelCtrl = new HiddifyPannelController();
-        foreach ($pannel as $key => $value) {
-            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+        foreach ($pannel as $key => $panel) {
+            if ($panel->type == 'hiddify') {
+                $controller = new HiddifyPannelController();
+                $usersResponse = $controller->getHiddifyPanelUsersByPannelID($panel->id);
+            } elseif ($panel->type == 'sanaei') {
+                $controller = new SanaeiPannelController();
+                $usersResponse = $controller->getAllClients($panel);
+            } else {
+                continue;
+            }
 
             if (!is_array($usersResponse)) {
                 continue;
@@ -437,10 +467,17 @@ class CronJobController extends Controller
         }
 
         $pannel = Pannel::all();
-        $hiddifyPanelCtrl = new HiddifyPannelController();
 
-        foreach ($pannel as $key => $value) {
-            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
+        foreach ($pannel as $key => $panel) {
+            if ($panel->type == 'hiddify') {
+                $controller = new HiddifyPannelController();
+                $usersResponse = $controller->getHiddifyPanelUsersByPannelID($panel->id);
+            } elseif ($panel->type == 'sanaei') {
+                $controller = new SanaeiPannelController();
+                $usersResponse = $controller->getAllClients($panel);
+            } else {
+                continue;
+            }
             // تبدیل Response به آرایه
 
 

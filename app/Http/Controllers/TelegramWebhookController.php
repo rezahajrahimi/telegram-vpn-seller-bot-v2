@@ -460,10 +460,8 @@ class TelegramWebhookController extends Controller
     public function handleReferralCommand($text): string|array
     {
         try {
-            $parts = explode('=', $text);
-            $command_path = $parts[0];
+            $parts = explode(' ', $text);
             $ref = $parts[1] ?? null;
-            $command = strtolower(explode(' ', $text)[0]);
             $chatId = $this->getCurrentChatId();
             $firstName = $this->getCurrentChatFirstName();
             $lastName = $this->getCurrentChatLastName();
@@ -472,7 +470,7 @@ class TelegramWebhookController extends Controller
             $botUserCtrl = new BotUserController();
 
             $result = $botUserCtrl->hasRegistred($chatId, $userName, $firstName, $lastName);
-            if ($result == 1) {
+            if ($ref != null) {
                 $saveRef = $referralLogsCntrl->check_user_has_referral_and_create($chatId, $ref);
             }
             return '/start';
@@ -785,6 +783,17 @@ class TelegramWebhookController extends Controller
             $transaction->save();
 
             $this->accountProcessCtrl->adminFastCharge($adminChatId, $amount, $transaction->account_id);
+
+            // Add referral amount
+            $referralLogsCntrl = new ReferralLogsController();
+            $referralSettingCntrl = new ReferralSettingController();
+            $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
+            $referralAmount = 0;
+            if ($referral_percent !== null && $referral_percent !== 0) {
+                $referralAmount = ($amount / 100) * $referral_percent;
+            }
+            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($transaction->id, $referralAmount, false);
+
             $this->clearAwaitingReply($adminChatId);
         } else {
             $this->telegramService->sendMessage($adminChatId, "تراکنش یافت نشد.");

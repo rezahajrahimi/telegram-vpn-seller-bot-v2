@@ -46,7 +46,7 @@ class ReferralWalletController extends Controller
     {
         try {
             $user = User::where('account_id', $account_id)->first();
-            if($user == null){
+            if ($user == null) {
                 return false;
             }
             $wallet = ReferralWallet::where('referral_user_id', $user->id)->first();
@@ -66,14 +66,14 @@ class ReferralWalletController extends Controller
     {
         try {
             $user = User::where('account_id', $account_id)->first();
-            if($user == null){
+            if ($user == null) {
                 return false;
             }
             $wallet = ReferralWallet::where('referral_user_id', $user->id)->first();
-            if($wallet == null){
+            if ($wallet == null) {
                 return false;
             }
-            $wallet->amount =$wallet->amount - (float)$amount;
+            $wallet->amount = $wallet->amount - (float) $amount;
             $wallet->update();
             return true;
         } catch (\Throwable $th) {
@@ -85,8 +85,17 @@ class ReferralWalletController extends Controller
     {
         try {
             $user = User::where('account_id', $account_id)->first();
+            if ($user == null) {
+                return false;
+            }
             $wallet = ReferralWallet::where('referral_user_id', $user->id)->first();
-            $wallet->amount =$wallet->amount + (float)$amount;
+            if ($wallet == null) {
+                $wallet = new ReferralWallet();
+                $wallet->referral_user_id = $user->id;
+                $wallet->amount = 0.0;
+                $wallet->save();
+            }
+            $wallet->amount = $wallet->amount + (float) $amount;
             $wallet->update();
             return true;
         } catch (\Throwable $th) {
@@ -98,7 +107,16 @@ class ReferralWalletController extends Controller
     {
         try {
             $user = User::where('account_id', $request->account_id)->first();
+            if ($user == null) {
+                return false;
+            }
             $wallet = ReferralWallet::where('referral_user_id', $user->id)->first();
+            if ($wallet == null) {
+                $wallet = new ReferralWallet();
+                $wallet->referral_user_id = $user->id;
+                $wallet->amount = 0.0;
+                $wallet->save();
+            }
             $wallet->amount = $request->amount;
             $wallet->update();
             return true;

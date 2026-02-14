@@ -43,9 +43,10 @@ class ReferralLogsController extends Controller
     {
 
         try {
-            // $saveRef = $referralLogsCntrl->check_user_has_referral_and_create($this->from_id, $this->referralCode);
-
-
+            // اعتبارسنجی کد referral
+            if (!is_string($referralCode) || strlen($referralCode) < 1) {
+                return false;
+            }
 
             $user_id = $this->get_userId_by_accountId($account_id);
             $referral_id = $this->get_userId_by_accountId($referralCode);

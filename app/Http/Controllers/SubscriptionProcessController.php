@@ -78,11 +78,35 @@ class SubscriptionProcessController extends Controller
                 $text = $this->customTextCtrl->getText('action.buy_subscription_by_location.location');
                 $opr = [];
 
-                foreach ($panels as $key => $value) {
-                    $buttonText = $value;
-                    $opr[] = [
-                        $buttonText => "buySubscriptionByLocation-" . $value,
-                    ];
+                // Check if all panel names are short (less than 15 characters)
+                $allShort = true;
+                foreach ($panels as $value) {
+                    if (strlen($value) >= 15) {
+                        $allShort = false;
+                        break;
+                    }
+                }
+
+                if ($allShort) {
+                    $tempRow = [];
+                    foreach ($panels as $key => $value) {
+                        $buttonText = $value;
+                        $tempRow[$buttonText] = "buySubscriptionByLocation-" . $value;
+                        if (count($tempRow) == 2) {
+                            $opr[] = $tempRow;
+                            $tempRow = [];
+                        }
+                    }
+                    if (!empty($tempRow)) {
+                        $opr[] = $tempRow;
+                    }
+                } else {
+                    foreach ($panels as $key => $value) {
+                        $buttonText = $value;
+                        $opr[] = [
+                            $buttonText => "buySubscriptionByLocation-" . $value,
+                        ];
+                    }
                 }
 
                 $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
@@ -110,7 +134,6 @@ class SubscriptionProcessController extends Controller
                 $this->telegramService->sendMessage($chatId, "دسته‌بندی نامعتبر است.");
                 return "";
             }
-
             // Dispatch the job to handle the purchase asynchronously
             ProcessSubscriptionPurchase::dispatch($chatId, $categoryId);
 
