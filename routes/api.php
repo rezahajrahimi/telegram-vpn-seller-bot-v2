@@ -200,6 +200,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::post('updateGiftCard', [GiftCardController::class, 'updateGiftCard']);
     Route::get('deleteGiftCardByCode/{code}', [GiftCardController::class, 'deleteGiftCardByCode']);
     Route::get('getGiftCardList', [GiftCardController::class, 'getGiftCardList']);
+    Route::get('getGiftCardUsers/{code}', [GiftCardController::class, 'getGiftCardUsers']);
 
     // support
     Route::get('getSupporstList', [SupportController::class, 'getSupporstList']);
