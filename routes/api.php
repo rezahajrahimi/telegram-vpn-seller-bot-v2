@@ -330,6 +330,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     //  TestAccountController
     Route::get('getTestAccountDetails', [TestAccountController::class, 'getTestAccountDetails']);
     Route::post('updateTestAccountDetails', [TestAccountController::class, 'updateTestAccountDetails']);
+    Route::get('getTestUsers', [TestAccountController::class, 'getTestUsers']);
+    Route::delete('deleteTestUser/{id}', [TestAccountController::class, 'deleteTestUser']);
+    Route::delete('clearTestUsers', [TestAccountController::class, 'clearTestUsers']);
 
     // CryptoPaymentController
     Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
