@@ -113,7 +113,7 @@ class ReferralLogsController extends Controller
     public function get_all_referral_logs()
     {
         try {
-            $referralLogs = ReferralLogs::all();
+            $referralLogs = ReferralLogs::with(['referral_to', 'referral_user'])->orderBy('created_at', 'desc')->get();
             if ($referralLogs != null) {
                 return $referralLogs;
             } else {
@@ -121,6 +121,20 @@ class ReferralLogsController extends Controller
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable get_all_referral_logs: $th");
+            return response()->json(null, 500);
+        }
+    }
+    public function get_top_referrers()
+    {
+        try {
+            $topReferrers = ReferralLogs::select('referral_user_id', \DB::raw('count(*) as referral_count'))
+                ->with(['referral_user'])
+                ->groupBy('referral_user_id')
+                ->orderBy('referral_count', 'desc')
+                ->get();
+            return $topReferrers;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable get_top_referrers: $th");
             return response()->json(null, 500);
         }
     }

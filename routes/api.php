@@ -384,6 +384,10 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('/getReferralSetting', [ReferralSettingController::class, 'get_referral_setting']);
     Route::put('/updateReferralSetting', [ReferralSettingController::class, 'update_referral_setting']);
 
+    // ReferralLogsController
+    Route::get('/getAllReferralLogs', [ReferralLogsController::class, 'get_all_referral_logs']);
+    Route::get('/getTopReferrers', [ReferralLogsController::class, 'get_top_referrers']);
+
     //  ReferralWalletController
     Route::put('/editAmountOfRefWalletByAccountId', [ReferralWalletController::class, 'edit_amount_of_ref_wallet_by_account_id']);
 
