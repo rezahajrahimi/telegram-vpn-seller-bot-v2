@@ -128,6 +128,7 @@ class ProductCategoryController extends Controller
             $data->show_subscription_link = $request->show_subscription_link;
             $data->show_pannel_link = $request->show_pannel_link;
             $data->inbound_id = $request->inbound_id;
+            \Log::info("sample_inbound", [$request->sample_inbound]);
             $data->sample_inbound = $request->sample_inbound;
             $data->ip_limit = $request->ip_limit ?? 0;
             $data->is_active = $request->is_active;

@@ -11,18 +11,20 @@ class ProductCategory extends Model
     protected $guarded = ['id', 'pannel_id'];
     protected $fillable = ['pannel_id', 'category_name', 'price', 'expire_day', 'volume', 'rechargable', 'show_subscription_link', 'show_pannel_link', 'is_active', 'price_in_dollar', 'inbound_id', 'ip_limit', 'sample_inbound'];
 
-
-    public function getProdctCategorByID($id)
-    {
-        return ProductCategory::find($id);
-    }
-    public function getProdctCategorByIDWithPannel($id)
-    {
-        return ProductCategory::find($id)->with('pannel');
-    }
     public function getSampleInboundAttribute($value)
     {
-        return $value ? json_decode($value, true) : null;
+        if (!$value) {
+            return null;
+        }
+        // سعی کن JSON decode کن، اگر نتوانست خود مقدار را برگردان
+        $decoded = json_decode($value, true);
+        return $decoded !== null ? $decoded : $value;
+    }
+
+    public function setSampleInboundAttribute($value)
+    {
+        // اگر آن یک آرایه است، JSON encode کن
+        $this->attributes['sample_inbound'] = is_array($value) ? json_encode($value) : $value;
     }
     /**
      * Get the user that owns the ProductCategory
