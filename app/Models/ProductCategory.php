@@ -48,4 +48,26 @@ class ProductCategory extends Model
         return $this->hasMany(Product::class, 'product_categories_id');
     }
 
+    /**
+     * Get product category by ID
+     *
+     * @param int $id
+     * @return \App\Models\ProductCategory|null
+     */
+    public function getProdctCategorByID($id)
+    {
+        return self::find($id);
+    }
+
+    /**
+     * Get product category by ID (properly named)
+     *
+     * @param int $id
+     * @return \App\Models\ProductCategory|null
+     */
+    public function getProductCategoryByID($id)
+    {
+        return self::find($id);
+    }
+
 }
