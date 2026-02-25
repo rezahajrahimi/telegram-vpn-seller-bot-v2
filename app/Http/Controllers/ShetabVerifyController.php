@@ -44,8 +44,13 @@ class ShetabVerifyController extends Controller
         return $shetabVerify->amount;
     }
     public function create_uniqe_amount($amount){
+        $oldAmount = $amount;
         // get amount and change two last digits to random number bwtween 00 and 99
         $amount = substr($amount, 0, -2) . str_pad(rand(0, 99), 2, '0', STR_PAD_LEFT);
+        // check amoubt is not same as old amount and also be greather then old amount
+        if ($amount <= $oldAmount) {
+            $amount = $oldAmount + 10;
+        }
         // check if the amount is exist in shetab_verifies table where status is pending
         $shetabVerify = ShetabVerify::where('amount', $amount)->where('status', 'pending')->first();
         if ($shetabVerify) {
