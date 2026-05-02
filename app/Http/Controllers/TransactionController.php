@@ -68,25 +68,32 @@ class TransactionController extends Controller
     public function order(Request $request)
     {
         try {
-            $transaction_id = $request->transaction_id;
-            $status = $request->status;
+            $authority = $request->Authority; // Zarinpal returns Authority in camelCase or depends on driver, v4 uses Authority
+            $status = $request->Status;
 
-            $amount = $this->getAmountByRecipeNUmber($transaction_id);
+            if ($status !== 'OK') {
+                return 'پرداخت توسط کاربر لغو شد یا ناموفق بود.';
+            }
 
-            // Get transaction with $transaction_id
-            $transaction = Transaction::where('recipe_number', $transaction_id)->first();
+            $amount = $this->getAmountByRecipeNUmber($authority);
+
+            // Get transaction with $authority
+            $transaction = Transaction::where('recipe_number', $authority)->first();
+
+            if (!$transaction) {
+                return 'تراکنش یافت نشد.';
+            }
 
             // Check if transaction was confirmed before
             if ($transaction->confirmed == true) {
-                return 'تراکنش تکراری می باشد.';
+                return 'تراکنش قبلاً تایید شده است.';
             }
 
-            $authority = $transaction_id;
             $zarinpalMerchentID = PaymentType::where('name', 'زرین پال')->first()->merchant_id;
 
             // Use custom ZarinpalService for verification
             $zarinpal = new ZarinpalService($zarinpalMerchentID);
-            $response = $zarinpal->verify($authority, $amount);
+            $response = $zarinpal->verify($authority, (int)$amount);
 
             if (!$response['success']) {
                 return $response['error'];
@@ -105,15 +112,15 @@ class TransactionController extends Controller
 
             return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید.';
         } catch (\Exception $exception) {
-            $transaction_id = $request->transaction_id;
+            $authority = $request->Authority;
 
-            $transaction = Transaction::where('recipe_number', $transaction_id)->first();
+            $transaction = Transaction::where('recipe_number', $authority)->first();
 
             if ($transaction) {
                 $this->removeUnconfirmedTransaction($transaction->id);
             }
-            \Log::info("back from zarinpal $exception");
-            return 'خطا در انجام عملیات';
+            \Log::error("Zarinpal callback error: " . $exception->getMessage());
+            return 'خطا در پردازش بازگشت از درگاه';
         }
     }
     public function getUserTranaction($userID)

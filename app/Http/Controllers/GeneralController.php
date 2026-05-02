@@ -1140,7 +1140,7 @@ class GeneralController extends Controller
             return "";
         }
     }
-    public function block_user_command(string $type, string $chatId, string $reason = null)
+    public function block_user_command(string $type, string $chatId, ?string $reason = null)
     {
         try {
             $blockedUserCntrl = new BlockedUserController();
