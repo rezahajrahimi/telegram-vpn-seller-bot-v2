@@ -3,11 +3,18 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\AccountBallance;
+use App\Models\Product;
 use App\Models\User;
+use App\Services\PaymentAccessService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 class UserController extends Controller
 {
+    private function paymentAccessService(): PaymentAccessService
+    {
+        return app(PaymentAccessService::class);
+    }
     public function getUsers()
     {
         $users = User::all();
@@ -18,10 +25,27 @@ class UserController extends Controller
             200,
         );
     }
+    private function appendAgentStats(User $user): User
+    {
+        $balance = AccountBallance::where('account_id', $user->account_id)->first();
+        $user->balance_toman = $balance?->ballance ?? 0;
+        $user->balance_dollar = $balance?->account_ballance_in_dollar ?? 0;
+        $user->sales_count = Product::where('account_id', $user->account_id)->count();
+        $user->agent_products_count = $user->agent_products_count
+            ?? $user->agent_products()->count();
+
+        return $user;
+    }
+
     public function getAgents()
     {
         try {
-            $users = User::where('role', 'agent')->get();
+            $users = User::where('role', 'agent')
+                ->with('userGroup')
+                ->withCount('agent_products')
+                ->get()
+                ->map(fn (User $user) => $this->appendAgentStats($user));
+
             return response()->json(
                 [
                     'agents' => $users,
@@ -36,7 +60,12 @@ class UserController extends Controller
     public function getAgentByIdWithProductsAndPremissons($id)
     {
         try {
-            $users = User::where('role', 'agent')->where('id', $id)->with('agent_products', 'agent_permisson')->get();
+            $users = User::where('role', 'agent')
+                ->where('id', $id)
+                ->with(['agent_products.product_categories', 'agent_permisson', 'userGroup'])
+                ->withCount('agent_products')
+                ->get()
+                ->map(fn (User $user) => $this->appendAgentStats($user));
 
             return response()->json($users, 200);
         } catch (\Throwable $th) {
@@ -47,7 +76,7 @@ class UserController extends Controller
     public function getNormalUsers()
     {
         try {
-            $users = User::where('role', 'user')->get();
+            $users = User::where('role', 'user')->with('userGroup')->get();
             return response()->json(
                 [
                     'users' => $users,
@@ -103,6 +132,7 @@ class UserController extends Controller
         }
         $user->role = 'agent';
         $user->update();
+        $this->paymentAccessService()->assignDefaultGroup($user);
         return true;
     }
     public function changeAgentRoleToUser($id)
@@ -120,6 +150,7 @@ class UserController extends Controller
 
             $user->role = 'user';
             $user->update();
+            $this->paymentAccessService()->assignDefaultGroup($user);
             return true;
         } catch (\Throwable $th) {
             \Log::info("throw $th");
@@ -164,6 +195,8 @@ class UserController extends Controller
             'role' => $request->role,
             'password' => Hash::make($request->password),
         ]);
+
+        $this->paymentAccessService()->assignDefaultGroup($user);
 
         return response()->json(
             [
@@ -291,6 +324,77 @@ class UserController extends Controller
             return response()->json(true, 200);
         } catch (\Throwable $th) {
             \Log::info("Throwable $th");
+        }
+    }
+
+    public function updateUserVerificationStatus(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'is_verified' => 'required|boolean',
+        ]);
+
+        try {
+            $user = User::findOrFail($request->user_id);
+
+            if ($user->role !== 'user') {
+                return response()->json(['message' => 'فقط کاربران عادی قابل تایید هستند.'], 422);
+            }
+
+            $user->is_verified = $request->is_verified;
+            $user->save();
+
+            return response()->json(['user' => $user->load('userGroup')], 200);
+        } catch (\Throwable $th) {
+            \Log::error(['UserController@updateUserVerificationStatus' => $th->getMessage()]);
+            return response()->json(null, 500);
+        }
+    }
+
+    public function getNormalUsersForGrouping(Request $request)
+    {
+        try {
+            $roleType = $request->get('role_type', 'user');
+            if (!in_array($roleType, ['user', 'agent'])) {
+                return response()->json(['message' => 'نقش نامعتبر است.'], 422);
+            }
+
+            $query = User::where('role', $roleType)->with('userGroup');
+
+            if ($roleType === 'user' && $request->filled('verification_filter')) {
+                if ($request->verification_filter === 'verified') {
+                    $query->where('is_verified', true);
+                } elseif ($request->verification_filter === 'unverified') {
+                    $query->where('is_verified', false);
+                }
+            }
+
+            if ($request->filled('user_group_id')) {
+                $query->where('user_group_id', $request->user_group_id);
+            }
+
+            if ($request->filled('exclude_group_id')) {
+                $excludeId = $request->exclude_group_id;
+                $query->where(function ($q) use ($excludeId) {
+                    $q->where('user_group_id', '!=', $excludeId)
+                        ->orWhereNull('user_group_id');
+                });
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('account_id', 'like', "%{$search}%");
+                });
+            }
+
+            $users = $query->orderBy('id', 'desc')->get();
+
+            return response()->json(['users' => $users], 200);
+        } catch (\Throwable $th) {
+            \Log::error(['UserController@getNormalUsersForGrouping' => $th->getMessage()]);
+            return response()->json(null, 500);
         }
     }
 }

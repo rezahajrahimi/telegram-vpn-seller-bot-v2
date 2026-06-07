@@ -155,7 +155,9 @@ class AdvanceSettingLookupController extends Controller
         try {
             $advanceSettingLookup              = AdvanceSettingLookup::where('name', $request->name)->first();
             $advanceSettingLookup->value       = $request->value;
-            $advanceSettingLookup->description = $request->description;
+            if ($request->filled('description')) {
+                $advanceSettingLookup->description = $request->description;
+            }
             $advanceSettingLookup->update();
             return $advanceSettingLookup;
         } catch (\Throwable $th) {

@@ -12,6 +12,71 @@ class SanaeiPannelController extends Controller
 {
     private $apiPrefix = '/panel/api';
 
+    /** @var array<int, string> */
+    private array $panelApiVersions = [];
+
+    private function authToken(Pannel $panel): string
+    {
+        $token = trim((string) ($panel->token ?? ''));
+        if ($token === '' || $token === 'Bearer') {
+            return '';
+        }
+        if (!str_starts_with($token, 'Bearer ')) {
+            return 'Bearer ' . $token;
+        }
+        return $token;
+    }
+
+    private function detectApiVersion(Pannel $panel): string
+    {
+        if (isset($this->panelApiVersions[$panel->id])) {
+            return $this->panelApiVersions[$panel->id];
+        }
+        if (!$this->login($panel)) {
+            $this->panelApiVersions[$panel->id] = 'v2';
+            return 'v2';
+        }
+        $res = $this->performRequest($panel, 'GET', '/clients/list');
+        $this->panelApiVersions[$panel->id] = ($res !== null) ? 'v3' : 'v2';
+        return $this->panelApiVersions[$panel->id];
+    }
+
+    private function isV3(Pannel $panel): bool
+    {
+        return $this->detectApiVersion($panel) === 'v3';
+    }
+
+    private function performRequestWithFallback(
+        Pannel $panel,
+        string $method,
+        string $v3Path,
+        string $v2Path,
+        $body = null,
+        $asJson = true
+    ) {
+        $res = $this->performRequest($panel, $method, $v3Path, $body, $asJson);
+        if ($res !== null) {
+            $this->panelApiVersions[$panel->id] = 'v3';
+            return $res;
+        }
+        $res = $this->performRequest($panel, $method, $v2Path, $body, $asJson);
+        if ($res !== null) {
+            $this->panelApiVersions[$panel->id] = 'v2';
+        }
+        return $res;
+    }
+
+    private function normalizeV3ClientRecord(array $rec, ?array $inboundIds = null): array
+    {
+        $uuid = $rec['uuid'] ?? ($rec['id'] ?? '');
+        $client = array_merge($rec, ['id' => $uuid]);
+        $inboundId = $inboundIds[0] ?? 1;
+        return [
+            'inbound' => ['id' => $inboundId],
+            'client' => $client,
+        ];
+    }
+
     private function baseUrl(Pannel $panel): string
     {
         $url = trim((string) $panel->admin_url);
@@ -33,9 +98,8 @@ class SanaeiPannelController extends Controller
             // Friendly UA
             'User-Agent' => '3x-ui-bot/1.0',
         ];
-        $token = trim((string) ($panel->token ?? ''));
-        // Avoid sending meaningless tokens like 'Bearer' or empty strings
-        if ($token !== '' && $token !== 'Bearer') {
+        $token = $this->authToken($panel);
+        if ($token !== '') {
             $headers['Authorization'] = $token;
         }
         return $headers;
@@ -85,8 +149,8 @@ class SanaeiPannelController extends Controller
         $pannelID = $panel->id;
 
         // If a token exists, validate it before assuming we're authenticated.
-        $token = trim((string) ($panel->token ?? ''));
-        if ($token !== '' && $token !== 'Bearer') {
+        $token = $this->authToken($panel);
+        if ($token !== '') {
             try {
                 $checkUrl = $this->baseUrl($panel) . $this->apiPrefix . '/server/status';
                 $r = Http::withoutVerifying()->withHeaders(['Authorization' => $token, 'Accept' => 'application/json'])->get($checkUrl);
@@ -227,6 +291,21 @@ class SanaeiPannelController extends Controller
             }
 
             $base = $this->baseUrl($panel);
+
+            // 3x-ui v3: POST /clients/add
+            $v3Body = [
+                'client' => $client,
+                'inboundIds' => [(int) $inboundId],
+            ];
+            $v3Url = $base . $this->apiPrefix . '/clients/add';
+            $r = $this->httpWithAuth($panel)->post($v3Url, $v3Body);
+            $json = $r->json();
+            if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
+                $this->panelApiVersions[$panel->id] = 'v3';
+                return ['uuid' => $uuid, 'subId' => $client['subId'], 'email' => $client['email']];
+            }
+
+            // 3x-ui v2.x: POST /inbounds/addClient
             $body = [
                 'id' => $inboundId,
                 'settings' => json_encode(['clients' => [$client]])
@@ -261,8 +340,8 @@ class SanaeiPannelController extends Controller
             \Log::debug("addClient response: " . json_encode($json));
             if ($r->ok() && is_array($json) && ($json['success'] ?? false)) {
                 // Success
-
-                return ['uuid' => $uuid, 'subId' => $client['subId']];
+                $this->panelApiVersions[$panel->id] = 'v2';
+                return ['uuid' => $uuid, 'subId' => $client['subId'], 'email' => $client['email']];
             }
 
             \Log::error("Failed to add client. URL: $url, Status: " . $r->status() . ", Body: " . $r->body());
@@ -277,14 +356,12 @@ class SanaeiPannelController extends Controller
     public function changeUserActivationOfSanaeiPanelApi(Request $request)
     {
         try {
-            $client = $this->findClientByUUID($request->pannelID, $request->uuid);
-            if (!$client) {
+            $found = $this->findClientByUUID($request->pannelID, $request->uuid);
+            if (!$found) {
                 return response()->json(['success' => false, 'msg' => 'Client not found'], 404);
             }
 
-            $client['enable'] = (bool) $request->enable;
-
-            $res = $this->updateClient($request->pannelID, $client['id'], $client);
+            $res = $this->updateClient($request->pannelID, $found['client']['id'], ['enable' => (bool) $request->enable]);
             if ($res) {
                 return response()->json(['success' => true], 200);
             }
@@ -295,7 +372,7 @@ class SanaeiPannelController extends Controller
         }
     }
 
-    public function getUserLinks($panelOrId, $uuid, $remark = '', $inboundId = null)
+    public function getUserLinks($panelOrId, $uuid, $remark = '', $inboundId = null, $email = null)
     {
         try {
             $panel = $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
@@ -306,8 +383,30 @@ class SanaeiPannelController extends Controller
                 return [];
             }
 
-            // Refresh panel to get new cookies from DB
             $panel->refresh();
+
+            // v3: fetch links directly from panel
+            if ($email === null) {
+                $found = $this->findClientByUUID($panel, $uuid);
+                $email = $found['client']['email'] ?? null;
+            }
+            if ($email) {
+                $linksRes = $this->performRequestWithFallback(
+                    $panel,
+                    'GET',
+                    '/clients/links/' . rawurlencode($email),
+                    '/inbounds/getClientTraffics/' . rawurlencode($email)
+                );
+                $obj = $linksRes['obj'] ?? null;
+                if (is_array($obj)) {
+                    if (isset($obj[0]) && is_string($obj[0])) {
+                        return $obj;
+                    }
+                    if (isset($obj['links']) && is_array($obj['links'])) {
+                        return $obj['links'];
+                    }
+                }
+            }
 
             $inboundId = $inboundId ?: ($panel->inbound_id ?: 1);
             $inbound = $this->getInboundFromPanel($panel, $inboundId);
@@ -645,6 +744,21 @@ class SanaeiPannelController extends Controller
                 \Log::error("Login failed for deleteClient on panel {$panel->id}");
                 return false;
             }
+
+            $found = $this->findClientByUUID($panel, $clientId);
+            $email = $found['client']['email'] ?? null;
+            if ($email) {
+                $res = $this->performRequestWithFallback(
+                    $panel,
+                    'POST',
+                    '/clients/del/' . rawurlencode($email),
+                    "/inbounds/$inboundId/delClient/$clientId"
+                );
+                if ($res !== null) {
+                    return true;
+                }
+            }
+
             $path = "/inbounds/$inboundId/delClient/$clientId";
             $res = $this->performRequest($panel, 'POST', $path);
             return $res !== null;
@@ -666,7 +780,6 @@ class SanaeiPannelController extends Controller
                 return false;
             }
 
-            // Fetch current client data to ensure we don't overwrite other fields with defaults
             $found = $this->findClientByUUID($panel, $clientId);
             if (!$found) {
                 \Log::error("updateClient: client $clientId not found on panel {$panel->id}");
@@ -677,31 +790,39 @@ class SanaeiPannelController extends Controller
             $inboundId = $inbound['id'] ?? ($inbound['listen'] ?? 0);
             $currentClient = $found['client'];
             $mergedClient = array_merge($currentClient, $data);
+            $email = $mergedClient['email'] ?? '';
 
-            // Standard Sanaei/x-ui updateClient payload:
-            // id: Inbound ID (integer)
-            // settings: JSON string containing the client(s) to update
+            // 3x-ui v3: POST /clients/update/{email}
+            if ($email !== '') {
+                $v3Path = '/clients/update/' . rawurlencode($email);
+                $res = $this->performRequest($panel, 'POST', $v3Path, $mergedClient);
+                if ($res !== null) {
+                    $this->panelApiVersions[$panel->id] = 'v3';
+                    return true;
+                }
+            }
+
+            // 3x-ui v2.x
             $body = [
                 'id' => $inboundId,
                 'settings' => json_encode(['clients' => [$mergedClient]])
             ];
 
-            // Try different URL patterns
             $paths = [
-                "/inbounds/updateClient/$clientId", // UUID in URL
-                "/inbounds/updateClient/$inboundId", // Inbound ID in URL (fixes strconv.ParseInt error)
-                "/inbounds/updateClient",            // No ID in URL
+                "/inbounds/updateClient/$clientId",
+                "/inbounds/updateClient/$inboundId",
+                "/inbounds/updateClient",
             ];
 
             foreach ($paths as $path) {
                 \Log::debug("Trying updateClient at $path");
                 $res = $this->performRequest($panel, 'POST', $path, $body, false);
                 if ($res !== null) {
+                    $this->panelApiVersions[$panel->id] = 'v2';
                     return true;
                 }
             }
 
-            // Final Fallback: Try sending the full settings object (fixing the reference bug)
             try {
                 $settings = $inbound['settings'] ?? null;
                 if (is_string($settings)) {
@@ -718,7 +839,6 @@ class SanaeiPannelController extends Controller
                         'settings' => json_encode($settings),
                     ];
                     \Log::info("updateClient final fallback: sending full settings payload for client $clientId");
-                    // Try with the most likely working path (Inbound ID)
                     $res2 = $this->performRequest($panel, 'POST', "/inbounds/updateClient/$inboundId", $fullBody, false);
                     if ($res2 !== null) {
                         return true;
@@ -836,8 +956,13 @@ class SanaeiPannelController extends Controller
                 \Log::error("Login failed for resetClientTraffic on panel {$panel->id}");
                 return false;
             }
-            $path = "/inbounds/$inboundId/resetClientTraffic/$email";
-            $res = $this->performRequest($panel, 'POST', $path);
+            $encoded = rawurlencode($email);
+            $res = $this->performRequestWithFallback(
+                $panel,
+                'POST',
+                "/clients/resetTraffic/$encoded",
+                "/inbounds/$inboundId/resetClientTraffic/$encoded"
+            );
             return $res !== null;
         } catch (\Throwable $th) {
             \Log::error('resetClientTraffic error: ' . $th->getMessage());
@@ -890,8 +1015,12 @@ class SanaeiPannelController extends Controller
                 \Log::error("Login failed for resetAllTraffics on panel {$panel->id}");
                 return false;
             }
-            $path = "/inbounds/resetAllTraffics";
-            $res = $this->performRequest($panel, 'POST', $path);
+            $res = $this->performRequestWithFallback(
+                $panel,
+                'POST',
+                '/clients/resetAllTraffics',
+                '/inbounds/resetAllTraffics'
+            );
             return $res !== null;
         } catch (\Throwable $th) {
             \Log::error('resetAllTraffics error: ' . $th->getMessage());
@@ -910,8 +1039,12 @@ class SanaeiPannelController extends Controller
                 \Log::error("Login failed for delDepletedClients on panel {$panel->id}");
                 return false;
             }
-            $path = "/inbounds/delDepletedClients/$inboundId";
-            $res = $this->performRequest($panel, 'POST', $path);
+            $res = $this->performRequestWithFallback(
+                $panel,
+                'POST',
+                '/clients/delDepleted',
+                "/inbounds/delDepletedClients/$inboundId"
+            );
             return $res !== null;
         } catch (\Throwable $th) {
             \Log::error('delDepletedClients error: ' . $th->getMessage());
@@ -929,8 +1062,13 @@ class SanaeiPannelController extends Controller
             if (!$this->login($panel)) {
                 return null;
             }
-            $path = "/inbounds/getClientTraffics/$email";
-            $res = $this->performRequest($panel, 'GET', $path);
+            $encoded = rawurlencode($email);
+            $res = $this->performRequestWithFallback(
+                $panel,
+                'GET',
+                "/clients/traffic/$encoded",
+                "/inbounds/getClientTraffics/$encoded"
+            );
             return $res['obj'] ?? null;
         } catch (\Throwable $th) {
             \Log::error('getClientTrafficsByEmail error: ' . $th->getMessage());
@@ -967,8 +1105,12 @@ class SanaeiPannelController extends Controller
             if (!$this->login($panel)) {
                 return null;
             }
-            $path = "/inbounds/onlines";
-            $res = $this->performRequest($panel, 'POST', $path);
+            $res = $this->performRequestWithFallback(
+                $panel,
+                'POST',
+                '/clients/onlines',
+                '/inbounds/onlines'
+            );
             return $res['obj'] ?? null;
         } catch (\Throwable $th) {
             \Log::error('onlines error: ' . $th->getMessage());
@@ -986,8 +1128,12 @@ class SanaeiPannelController extends Controller
             if (!$this->login($panel)) {
                 return null;
             }
-            $path = "/inbounds/lastOnline";
-            $res = $this->performRequest($panel, 'POST', $path);
+            $res = $this->performRequestWithFallback(
+                $panel,
+                'POST',
+                '/clients/lastOnline',
+                '/inbounds/lastOnline'
+            );
             return $res['obj'] ?? null;
         } catch (\Throwable $th) {
             \Log::error('lastOnline error: ' . $th->getMessage());
@@ -1005,8 +1151,13 @@ class SanaeiPannelController extends Controller
             if (!$this->login($panel)) {
                 return null;
             }
-            $path = "/inbounds/clientIps/$email";
-            $res = $this->performRequest($panel, 'POST', $path);
+            $encoded = rawurlencode($email);
+            $res = $this->performRequestWithFallback(
+                $panel,
+                'POST',
+                "/clients/ips/$encoded",
+                "/inbounds/clientIps/$encoded"
+            );
             return $res['obj'] ?? null;
         } catch (\Throwable $th) {
             \Log::error('clientIps error: ' . $th->getMessage());
@@ -1024,8 +1175,13 @@ class SanaeiPannelController extends Controller
             if (!$this->login($panel)) {
                 return false;
             }
-            $path = "/inbounds/clearClientIps/$email";
-            $res = $this->performRequest($panel, 'POST', $path);
+            $encoded = rawurlencode($email);
+            $res = $this->performRequestWithFallback(
+                $panel,
+                'POST',
+                "/clients/clearIps/$encoded",
+                "/inbounds/clearClientIps/$encoded"
+            );
             return $res !== null;
         } catch (\Throwable $th) {
             \Log::error('clearClientIps error: ' . $th->getMessage());
@@ -1043,8 +1199,13 @@ class SanaeiPannelController extends Controller
             if (!$this->login($panel)) {
                 return false;
             }
-            $path = "/inbounds/$inboundId/delClientByEmail/$email";
-            $res = $this->performRequest($panel, 'POST', $path);
+            $encoded = rawurlencode($email);
+            $res = $this->performRequestWithFallback(
+                $panel,
+                'POST',
+                "/clients/del/$encoded",
+                "/inbounds/$inboundId/delClientByEmail/$encoded"
+            );
             return $res !== null;
         } catch (\Throwable $th) {
             \Log::error('delClientByEmail error: ' . $th->getMessage());
@@ -1066,7 +1227,14 @@ class SanaeiPannelController extends Controller
             if (!$this->login($panel)) {
                 return null;
             }
-            // Get list of inbounds
+
+            // v3: GET /clients/get/{email}
+            $detail = $this->performRequest($panel, 'GET', '/clients/get/' . rawurlencode($email));
+            if ($detail !== null && isset($detail['obj']['client'])) {
+                $inboundIds = $detail['obj']['inboundIds'] ?? [1];
+                return $this->normalizeV3ClientRecord($detail['obj']['client'], $inboundIds);
+            }
+
             $res = $this->performRequest($panel, 'GET', '/inbounds/list');
             $list = $res['obj'] ?? [];
             foreach ($list as $inbound) {
@@ -1101,6 +1269,27 @@ class SanaeiPannelController extends Controller
             if (!$this->login($panel)) {
                 return null;
             }
+
+            // v3: search clients list by uuid
+            $clientsRes = $this->performRequest($panel, 'GET', '/clients/list');
+            if ($clientsRes !== null) {
+                foreach ($clientsRes['obj'] ?? [] as $rec) {
+                    if (($rec['uuid'] ?? '') === $uuid) {
+                        $email = $rec['email'] ?? '';
+                        if ($email !== '') {
+                            $detail = $this->performRequest($panel, 'GET', '/clients/get/' . rawurlencode($email));
+                            if ($detail !== null && isset($detail['obj']['client'])) {
+                                return $this->normalizeV3ClientRecord(
+                                    $detail['obj']['client'],
+                                    $detail['obj']['inboundIds'] ?? [1]
+                                );
+                            }
+                        }
+                        return $this->normalizeV3ClientRecord($rec);
+                    }
+                }
+            }
+
             $res = $this->performRequest($panel, 'GET', '/inbounds/list');
             $list = $res['obj'] ?? [];
             foreach ($list as $inbound) {
@@ -1134,6 +1323,31 @@ class SanaeiPannelController extends Controller
 
             if (!$this->login($panel))
                 return [];
+
+            // v3: GET /clients/list
+            $clientsRes = $this->performRequest($panel, 'GET', '/clients/list');
+            if ($clientsRes !== null) {
+                $allClients = [];
+                foreach ($clientsRes['obj'] ?? [] as $rec) {
+                    $uuid = $rec['uuid'] ?? ($rec['id'] ?? '');
+                    $email = $rec['email'] ?? '';
+                    $total = (int) ($rec['totalGB'] ?? 0);
+                    $enable = $rec['enable'] ?? true;
+                    $traffic = $this->getClientTrafficsByEmail($panel, $email);
+                    $up = (int) ($traffic['up'] ?? 0);
+                    $down = (int) ($traffic['down'] ?? 0);
+
+                    $allClients[] = [
+                        'uuid' => $uuid,
+                        'name' => $email,
+                        'current_usage_GB' => round(($up + $down) / 1024 / 1024 / 1024, 2),
+                        'usage_limit_GB' => round($total / 1024 / 1024 / 1024, 2),
+                        'package_days' => 0,
+                        'is_active' => $enable,
+                    ];
+                }
+                return $allClients;
+            }
 
             $res = $this->performRequest($panel, 'GET', '/inbounds/list');
             $list = $res['obj'] ?? [];
@@ -1215,7 +1429,7 @@ class SanaeiPannelController extends Controller
             $usage_limit_GB = round($limitBytes / 1024 / 1024 / 1024, 2);
 
             // dates
-            $createdMs = $client['created_at'] ?? null;
+            $createdMs = $client['created_at'] ?? ($client['createdAt'] ?? null);
             $startDate = null;
             $package_days = 0;
             if ($createdMs) {
@@ -1246,6 +1460,103 @@ class SanaeiPannelController extends Controller
             \Log::error('getClientStatus error: ' . $th->getMessage());
             return null;
         }
+    }
+
+    /**
+     * Alias kept for backward compatibility with AgentProductController.
+     */
+    public function updateUser($panelOrId, $uuid, array $data)
+    {
+        if (isset($data['email'])) {
+            return $this->updateClientEmail($panelOrId, $uuid, (string) $data['email']);
+        }
+        return $this->updateClient($panelOrId, $uuid, $data);
+    }
+
+    public function checkLoginStatus($pannelID)
+    {
+        $panel = Pannel::find($pannelID);
+        if (!$panel) {
+            return response()->json(['success' => false, 'msg' => 'Panel not found'], 404);
+        }
+        $ok = $this->login($panel);
+        $version = $ok ? $this->detectApiVersion($panel) : null;
+        return response()->json([
+            'success' => $ok,
+            'api_version' => $version,
+            'has_token' => $this->authToken($panel) !== '',
+        ], $ok ? 200 : 401);
+    }
+
+    public function refreshLogin($pannelID)
+    {
+        $panel = Pannel::find($pannelID);
+        if (!$panel) {
+            return response()->json(['success' => false, 'msg' => 'Panel not found'], 404);
+        }
+        unset($this->panelApiVersions[$panel->id]);
+        $panel->cookie_session = null;
+        $panel->save();
+        $ok = $this->login($panel);
+        return response()->json([
+            'success' => $ok,
+            'api_version' => $ok ? $this->detectApiVersion($panel) : null,
+        ], $ok ? 200 : 401);
+    }
+
+    public function syncInbounds($pannelID)
+    {
+        $panel = Pannel::find($pannelID);
+        if (!$panel) {
+            return response()->json(['success' => false, 'msg' => 'Panel not found'], 404);
+        }
+        if (!$this->login($panel)) {
+            return response()->json(['success' => false, 'msg' => 'Login failed'], 401);
+        }
+        $res = $this->performRequestWithFallback(
+            $panel,
+            'GET',
+            '/inbounds/options',
+            '/inbounds/list'
+        );
+        if ($res === null) {
+            return response()->json(['success' => false, 'msg' => 'Could not fetch inbounds'], 500);
+        }
+        $inbounds = [];
+        foreach ($res['obj'] ?? [] as $item) {
+            $inbounds[] = [
+                'id' => $item['id'] ?? null,
+                'remark' => $item['remark'] ?? ($item['tag'] ?? ''),
+                'protocol' => $item['protocol'] ?? '',
+                'port' => $item['port'] ?? null,
+            ];
+        }
+        return response()->json(['success' => true, 'inbounds' => $inbounds, 'api_version' => $this->detectApiVersion($panel)]);
+    }
+
+    public function checkInboundSources($pannelID)
+    {
+        $panel = Pannel::find($pannelID);
+        if (!$panel) {
+            return response()->json(['success' => false], 404);
+        }
+        if (!$this->login($panel)) {
+            return response()->json(['success' => false, 'msg' => 'Login failed'], 401);
+        }
+        $version = $this->detectApiVersion($panel);
+        $list = $this->performRequest($panel, 'GET', '/inbounds/list');
+        $clients = $this->performRequest($panel, 'GET', '/clients/list');
+        return response()->json([
+            'success' => true,
+            'api_version' => $version,
+            'inbounds_count' => count($list['obj'] ?? []),
+            'clients_count' => count($clients['obj'] ?? []),
+        ]);
+    }
+
+    public function addUserWithTemplate(Request $request)
+    {
+        return $this->addUserToSanaeiPanel($request);
     }
 }
 

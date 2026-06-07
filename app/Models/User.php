@@ -17,7 +17,7 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
-    protected $fillable = ['name', 'account_id', 'role', 'password'];
+    protected $fillable = ['name', 'account_id', 'role', 'password', 'user_group_id', 'is_verified'];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -33,6 +33,7 @@ class User extends Authenticatable
      */
     protected $casts = [
         'password' => 'hashed',
+        'is_verified' => 'boolean',
     ];
     public function get_role_by_account_id($account_id){
         $user = $this->where('account_id', $account_id)->first();
@@ -66,6 +67,11 @@ class User extends Authenticatable
     public function shetab_verifies()
     {
         return $this->hasMany(ShetabVerify::class, 'user_id', 'id');
+    }
+
+    public function userGroup()
+    {
+        return $this->belongsTo(UserGroup::class, 'user_group_id');
     }
 
     // public function bot_user()

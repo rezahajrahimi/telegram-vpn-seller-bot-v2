@@ -216,9 +216,11 @@ class AccountProcessController extends Controller
     private function return_payment_options()
     {
         try {
+            $paymentAccessService = new \App\Services\PaymentAccessService();
             $opr = [];
 
-            $hasZarinPal = $this->pymntCntrl->getZarinpalStatus();
+            $hasZarinPal = $this->pymntCntrl->getZarinpalStatus()
+                && $paymentAccessService->isAllowedForAccountId($this->chatId, 'zarinpal');
             if ($hasZarinPal == true || $hasZarinPal == 1) {
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal');
                 if (is_array($text)) {
@@ -233,7 +235,8 @@ class AccountProcessController extends Controller
             }
 
 
-            $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+            $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction')
+                && $paymentAccessService->isAllowedForAccountId($this->chatId, 'usd_transaction');
             \Log::info(["hasDollarPay: " . $hasDollarPay]);
             if ($hasDollarPay == true || $hasDollarPay == 1) {
                 // $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay');
@@ -247,7 +250,8 @@ class AccountProcessController extends Controller
                 // array_push($opr, $newOpr);
 
                 $cryptoPymentCntrl = new CryptoPaymentController();
-                $nowpayments = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('nowpayments');
+                $nowpayments = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('nowpayments')
+                    && $paymentAccessService->isAllowedForAccountId($this->chatId, 'nowpayments');
                 if ($nowpayments == true || $nowpayments == 1) {
                     $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
                     if (is_array($text)) {
@@ -259,7 +263,8 @@ class AccountProcessController extends Controller
                     ];
                     array_push($opr, $newOpr);
                 }
-                $cryptomus = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('cryptomus');
+                $cryptomus = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('cryptomus')
+                    && $paymentAccessService->isAllowedForAccountId($this->chatId, 'cryptomus');
                 if ($cryptomus == true || $cryptomus == 1) {
                     $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.cryptomus');
                     if (is_array($text)) {
@@ -284,7 +289,8 @@ class AccountProcessController extends Controller
             // send offline item
             $opr = [];
             // check payment setting for shetab verify
-            $shetabVerifyStatus = $this->shetabVerifyCntrl->check_shetab_verify_status();
+            $allowOffline = $paymentAccessService->isAllowedForAccountId($this->chatId, 'offline');
+            $shetabVerifyStatus = $this->shetabVerifyCntrl->check_shetab_verify_status() && $allowOffline;
             if ($shetabVerifyStatus == true || $shetabVerifyStatus == 1) {
                 // $text = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance.shetab_verify');
@@ -299,7 +305,7 @@ class AccountProcessController extends Controller
 
 
 
-            $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
+            $offlinePayment = $allowOffline ? $this->pymntCntrl->getAllActiveOfflinePaymentTypes() : null;
             if ($offlinePayment != null) {
                 if ($hasZarinPal == true || $hasZarinPal == 1 || $hasDollarPay == true || $hasDollarPay == 1) {
                     $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option_and_online_balance');

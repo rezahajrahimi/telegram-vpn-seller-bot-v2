@@ -201,12 +201,14 @@ class GeneralController extends Controller
             // $boughtProducts =  $agentPrCntrl->getAgentSelledProducts(10);
             $logCntrl = new LogController();
             $getTop20Log = $logCntrl->getAllLogsOfLoggedAgent(20);
+            $agentPermisson = \App\Models\AgentPermisson::where('user_id', auth()->user()->id)->first();
             return response()->json(
                 [
                     'accBallance' => $accBallance,
                     'products' => $products,
                     // 'boughtProducts' => $boughtProducts,
                     'Last20Logs' => $getTop20Log,
+                    'agentPermisson' => $agentPermisson,
                 ],
                 200,
             );
@@ -218,10 +220,38 @@ class GeneralController extends Controller
     public function getAgentPaymentWays()
     {
         try {
+            $paymentAccessService = new \App\Services\PaymentAccessService();
+            $user = auth('sanctum')->user();
+            $group = $user ? $paymentAccessService->getGroupForUser($user) : null;
+
             $pymntCntrl = new PaymentTypeController();
             $pymentType = $pymntCntrl->getAllActivePaymentTypesWithZarinpalMerchentIDFilter();
             $cryptoPymentCntrl = new CryptoPaymentController();
             $cryptiPymentIsActive = $cryptoPymentCntrl->getNowPaymentsStatus();
+
+            if ($group && $user) {
+                $pymentType = collect($pymentType)->filter(function ($payment) use ($paymentAccessService, $group, $user) {
+                    if ($payment->name === 'زرین پال') {
+                        return $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'zarinpal');
+                    }
+                    if ($payment->type === 'offline') {
+                        return $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'offline');
+                    }
+
+                    return true;
+                })->values();
+
+                $allowCrypto = $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'usd_transaction')
+                    && (
+                        $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'nowpayments')
+                        || $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'cryptomus')
+                    );
+
+                if (!$allowCrypto) {
+                    $cryptiPymentIsActive = false;
+                }
+            }
+
             return response()->json(['active_payment' => $pymentType, 'crypto_payment_status' => $cryptiPymentIsActive], 200);
         } catch (\Throwable $th) {
             \Log::info("error on getAgentPaymentWays-> $th");
@@ -454,13 +484,15 @@ class GeneralController extends Controller
             if (is_array($result)) {
                 $uuid = $result['uuid'];
                 $subId = $result['subId'];
+                $clientEmail = $result['email'] ?? '';
             } else {
                 $uuid = $result;
                 $subId = $uuid;
+                $clientEmail = '';
             }
 
             // Generate client links and QR codes
-            $links = $snCtrl->getUserLinks($pannel, $uuid, "$chat_id-$productID", $selectedPrCat->inbound_id);
+            $links = $snCtrl->getUserLinks($pannel, $uuid, "$chat_id-$productID", $selectedPrCat->inbound_id, $clientEmail ?: null);
 
             if ($selectedPrCat->show_subscription_link) {
                 $baseUrl = $pannel->admin_url;
@@ -517,7 +549,12 @@ class GeneralController extends Controller
             $request->subscription_link = '';
             $request->product_categories_id = $selectedPrCat->id;
             $request->panel_link = '';
-            $request->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
+            $request->configs = json_encode([
+                'uuid' => $uuid,
+                'email' => $clientEmail,
+                'subId' => $subId,
+                'links' => $links ?? [],
+            ]);
             $request->remark = "$chat_id-$productID";
             $prCntrl = new ProductController();
             $prCntrl->addAutomatedProductDetails($request);

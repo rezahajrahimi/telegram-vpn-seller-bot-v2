@@ -51,6 +51,7 @@ use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\InboundTemplateController;
 use App\Http\Controllers\SanaeiPannelController;
+use App\Http\Controllers\UserGroupController;
 
 
 use Illuminate\Http\Request;
@@ -118,6 +119,23 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getAdminUsers', [UserController::class, 'get_admin_users']);
     Route::patch('changeUserRoleToAdmin/{id}', [UserController::class, 'change_user_role_to_admin']);
     Route::patch('changeAgentRoleToUser/{id}', [UserController::class, 'change_user_role_to_user']);
+    Route::patch('updateUserVerificationStatus', [UserController::class, 'updateUserVerificationStatus']);
+    Route::get('getNormalUsersForGrouping', [UserController::class, 'getNormalUsersForGrouping']);
+
+    // UserGroupController
+    Route::get('getUserGroups', [UserGroupController::class, 'index']);
+    Route::post('createUserGroup', [UserGroupController::class, 'store']);
+    Route::put('updateUserGroup/{id}', [UserGroupController::class, 'update']);
+    Route::delete('deleteUserGroup/{id}', [UserGroupController::class, 'destroy']);
+    Route::put('updateUserGroupPaymentMethods/{id}', [UserGroupController::class, 'updatePaymentMethods']);
+    Route::put('updateUserGroupVerificationPaymentMethods/{id}', [UserGroupController::class, 'updateVerificationPaymentMethods']);
+    Route::delete('clearUserGroupVerificationPaymentMethods/{id}', [UserGroupController::class, 'clearVerificationPaymentMethods']);
+    Route::put('updateGlobalVerificationPaymentMethods', [UserGroupController::class, 'updateGlobalVerificationPaymentMethods']);
+    Route::patch('assignUserToGroup', [UserGroupController::class, 'assignUserToGroup']);
+    Route::get('getGroupUsers/{id}', [UserGroupController::class, 'getGroupUsers']);
+    Route::post('addUsersToGroup', [UserGroupController::class, 'addUsersToGroup']);
+    Route::patch('removeUserFromGroup', [UserGroupController::class, 'removeUserFromGroup']);
+    Route::get('seedDefaultUserGroups', [UserGroupController::class, 'seedDefaults']);
 
     // GeneralController
     Route::get('get-license-type', [GeneralController::class, 'get_license_type']);
@@ -362,6 +380,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::delete('deleteAgentProduct/{id}', [AgentProductController::class, 'deleteAgentProduct']);
     Route::get('getAgentProductsByUserID/{userID}', [AgentProductController::class, 'getAgentProductsByUserID']);
     Route::get('getAgentProductsByID/{ID}', [AgentProductController::class, 'getAgentProductsByID']);
+    Route::get('getAgentSelledProductsByAdmin/{userId}', [AgentProductController::class, 'getAgentSelledProductsByAdmin']);
 
     // AgentPermissonController
     Route::get('getUserPremissionByAgentID/{ID}', [AgentPermissonController::class, 'getUserPremissionByAgentID']);

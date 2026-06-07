@@ -59,7 +59,7 @@ class BotUserController extends Controller
     public function getBotUserListByPagination()
     {
         try {
-            $data = BotUser::paginate(16, ['*'], 'page');
+            $data = BotUser::with('user.userGroup')->paginate(16, ['*'], 'page');
             return $data;
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
@@ -160,7 +160,7 @@ class BotUserController extends Controller
     {
         try {
             $data = BotUser::where('id', $id)
-                ->with(['products', 'transaction', 'ballance', 'logs', 'user', 'blocked_user'])
+                ->with(['products', 'transaction', 'ballance', 'logs', 'user.userGroup', 'blocked_user'])
                 ->first();
             if ($data != null) {
                 return response()->json($data, 200);

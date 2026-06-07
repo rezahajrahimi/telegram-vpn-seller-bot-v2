@@ -1090,6 +1090,28 @@ class AgentProductController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+
+    public function getAgentSelledProductsByAdmin($userId, Request $request)
+    {
+        try {
+            $user = User::where('id', $userId)->where('role', 'agent')->first();
+            if ($user == null) {
+                return response()->json(null, 404);
+            }
+
+            $page = (int) $request->get('page', 1);
+            $product = Product::where('account_id', $user->account_id)
+                ->with('product_category_and_panel')
+                ->orderBy('id', 'desc')
+                ->paginate(10, ['*'], 'page', $page);
+
+            return $product;
+        } catch (\Throwable $th) {
+            \Log::info("getAgentSelledProductsByAdmin: $th");
+
+            return response()->json('Server Error', 500);
+        }
+    }
     public function getBoughtProductsStatusFromServerById($id)
     {
         $data = Product::where('id', $id)->with('product_category_and_panel')->first();
@@ -1100,11 +1122,18 @@ class AgentProductController extends Controller
             if ($pannel && $pannel->type == 'sanaei') {
                 $configs = json_decode($data->configs, true) ?? [];
                 $uuid = $configs['uuid'] ?? null;
+                $email = $configs['email'] ?? null;
                 if ($uuid == null) {
                     return response()->json(null, 400);
                 }
                 $sn = new SanaeiPannelController();
                 $status = $sn->getClientStatus($pannel, $uuid);
+                if (!$status && $email) {
+                    $found = $sn->findClientByEmail($pannel, $email);
+                    if ($found) {
+                        $status = $sn->getClientStatus($pannel, $found['client']['id'] ?? $uuid);
+                    }
+                }
                 if ($status) {
                     return response()->json($status, 200);
                 }
@@ -1385,7 +1414,7 @@ class AgentProductController extends Controller
                     $sn = new SanaeiPannelController();
                     if ($request->recharge == true || $request->recharge == 1) {
                         $res = $sn->updateLimits($newPrCat->pannel_id, $uuid, $newPrCat->expire_day, $newPrCat->volume);
-                        if ($res->getStatusCode() != 200) {
+                        if (!$res) {
                             return response()->json(false, 401);
                         }
                         $this->addNewBotLog('product', "$data->remark توسط کاربر تغییر یافت.", 'charge product');
@@ -1398,8 +1427,8 @@ class AgentProductController extends Controller
                         $data->update();
                         return response()->json(true, 200);
                     }
-                    $res = $sn->updateUser($newPrCat->pannel_id, $uuid, ['email' => $data->remark]);
-                    if ($res->getStatusCode() == 200) {
+                    $res = $sn->updateClientEmail($newPrCat->pannel_id, $uuid, $data->remark);
+                    if ($res) {
                         $diffInToman = $newPrCat->price - $oldPrCat->price;
                         $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
                         if ($diffInToman < 0) {

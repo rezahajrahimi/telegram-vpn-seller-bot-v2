@@ -42,7 +42,7 @@ class PannelController extends Controller
             $pannel->type = $request->type;
             $pannel->username = $request->username ?? 'admin';
             $pannel->password = $request->password ?? '123456';
-            $pannel->token = $request->token ?? 'Bearer ';
+            $pannel->token = !empty($request->token) ? $request->token : null;
             $pannel->location = $request->location ?? null;
             $pannel->url_port = $request->url_port ?? null;
             $pannel->sub_port = $request->sub_port ?? null;
@@ -62,7 +62,7 @@ class PannelController extends Controller
             $pannel->type = $request->type;
             $pannel->username = $request->username ?? 'admin';
             $pannel->password = $request->password ?? '123456';
-            $pannel->token = $request->token ?? 'Bearer ';
+            $pannel->token = !empty($request->token) ? $request->token : null;
             $pannel->location = $request->location ?? null;
             $pannel->url_port = $request->url_port ?? null;
             $pannel->admin_url = $request->admin_url ?? null;
@@ -145,7 +145,7 @@ class PannelController extends Controller
             $pannel->type = 'marzban';
             $pannel->username = $request->username ?? 'admin';
             $pannel->password = $request->password ?? '123456';
-            $pannel->token = $request->token ?? 'Bearer ';
+            $pannel->token = !empty($request->token) ? $request->token : null;
             $pannel->location = $request->location ?? null;
             $pannel->url_port = $request->url_port ?? null;
             $pannel->admin_url = $request->admin_url ?? null;
@@ -267,7 +267,7 @@ class PannelController extends Controller
                 $pannel->type = $request->type;
                 $pannel->username = $request->username ?? 'admin';
                 $pannel->password = $request->password ?? '123456';
-                $pannel->token = $request->token ?? 'Bearer ';
+                $pannel->token = !empty($request->token) ? $request->token : null;
                 $pannel->location = $request->location ?? null;
                 $pannel->url_port = $request->url_port ?? null;
                 $pannel->sub_port = $request->sub_port ?? null;
