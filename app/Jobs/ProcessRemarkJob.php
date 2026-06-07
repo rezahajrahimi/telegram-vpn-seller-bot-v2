@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\HiddifyPannelController;
 use App\Http\Controllers\LogController;
+use App\Http\Controllers\MarzbanPannelController;
 use App\Http\Controllers\SanaeiPannelController;
 use App\Models\BotUser;
 use App\Models\Pannel;
@@ -96,6 +97,18 @@ class ProcessRemarkJob implements ShouldQueue
                     }
                 } else {
                     \Log::warning("ProcessRemarkJob: No UUID found in configs for product " . $product->id);
+                }
+            } elseif ($pannel->type == 'marzban') {
+                $mb = new MarzbanPannelController();
+                $ok = $mb->renameUser($pannel->id, $product->remark, $this->newName);
+                if ($ok) {
+                    $product->remark = $this->newName;
+                    $product->update();
+
+                    $logCtrl->addNewLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', $this->chatId, $username, 'show');
+                    $this->clearAwaitingReply($this->chatId, $customTextCtrl->getText('action.remark.success'), $telegramService);
+
+                    return;
                 }
             }
 

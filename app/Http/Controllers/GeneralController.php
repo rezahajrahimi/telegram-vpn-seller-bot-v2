@@ -564,6 +564,62 @@ class GeneralController extends Controller
             return false;
         }
     }
+
+    public function new_marzban_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $chat_id, $productID)
+    {
+        try {
+            $mbCtrl = new MarzbanPannelController();
+            $pnlCntrl = new PannelController();
+            $username = "BotUser{$chat_id}{$productID}";
+
+            $userData = $mbCtrl->createUser($pannel, $username, (int) $day, $volume);
+            if ($userData === false) {
+                return false;
+            }
+
+            $userSub = $userData['subscription_link'];
+            $links = $userData['links'] ?? [];
+
+            $text = $this->customTextCtrl->getText('action.subscription.marzban', [
+                'panel_link' => $userSub,
+                'subscription_link' => $userSub,
+            ]);
+            if (is_array($text)) {
+                $text = $this->telegramService->formatText($text);
+            } else {
+                $formatter = new TelegramMessageFormatter($this->telegramService);
+                $text = $formatter->addFormattedText('', $text)->getMessage();
+            }
+
+            $image = $pnlCntrl->generateQrMOC($userSub);
+            $this->telegramService->sendPhotoFile($chat_id, $image, $text);
+
+            foreach ($links as $link) {
+                $linkImage = $pnlCntrl->generateQrMOC($link);
+                $this->telegramService->sendPhotoFile($chat_id, $linkImage, $link);
+            }
+
+            $request = new Request();
+            $request->account_id = $chat_id;
+            $request->subscription_link = $userData['subscription_url'] ?? '';
+            $request->product_categories_id = $selectedPrCat->id;
+            $request->panel_link = $userSub;
+            $request->configs = json_encode([
+                'username' => $username,
+                'links' => $links,
+            ]);
+            $request->remark = $username;
+            $prCntrl = new ProductController();
+            $prCntrl->addAutomatedProductDetails($request);
+
+            return $username;
+        } catch (\Throwable $th) {
+            \Log::info("error on new_marzban_config_telegram_text-> $th");
+
+            return false;
+        }
+    }
+
     public function send_using_subscription_manual_message($chat_id, $recharge = null, $productID = null)
     {
         $opr = [];

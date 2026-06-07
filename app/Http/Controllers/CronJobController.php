@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\SanaeiPannelController;
+use App\Http\Controllers\MarzbanPannelController;
 use App\Models\CronJob;
 use App\Models\CronLog;
 use App\Models\Pannel;
@@ -109,6 +110,9 @@ class CronJobController extends Controller
             } elseif ($panel->type == 'sanaei') {
                 $controller = new SanaeiPannelController();
                 $usersResponse = $controller->getAllClients($panel);
+            } elseif ($panel->type == 'marzban') {
+                $controller = new MarzbanPannelController();
+                $usersResponse = $controller->getAllUsers($panel);
             } else {
                 continue;
             }
@@ -138,7 +142,7 @@ class CronJobController extends Controller
                 if ($usagePercent > 84.99 && $usagePercent < 99.99) {
                     // get releated products by uuid
                     $uuid = $value['uuid'];
-                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+                    $product = $this->findProductForPanelUser($panel, $uuid);
 
                     if ($product != null) {
                         $usagePercent = round($usagePercent, 2);
@@ -245,7 +249,7 @@ class CronJobController extends Controller
                     $usageLimitGB = $value['usage_limit_GB'];
                     // check if currentUsageGB is more than usageLimitGB
                     if ($currentUsageGB >= $usageLimitGB) {
-                        $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+                        $product = $this->findProductForPanelUser($panel, $uuid);
                         if ($product != null) {
                             $products[] = $product;
                             $productsIds[] = $product->id;
@@ -267,7 +271,7 @@ class CronJobController extends Controller
                     }
 
                     // add product to deletion list
-                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+                    $product = $this->findProductForPanelUser($panel, $uuid);
                     if ($product != null) {
                         $products[] = $product;
                         $productsIds[] = $product->id;
@@ -284,6 +288,8 @@ class CronJobController extends Controller
                     if ($panel->type == 'hiddify') {
                         $controller->deleteUserOfHiddifyPanel($panel->id, $uuid);
                     } elseif ($panel->type == 'sanaei') {
+                        $controller->deleteUser($panel, $uuid);
+                    } elseif ($panel->type == 'marzban') {
                         $controller->deleteUser($panel, $uuid);
                     }
                 }
@@ -318,6 +324,9 @@ class CronJobController extends Controller
             } elseif ($panel->type == 'sanaei') {
                 $controller = new SanaeiPannelController();
                 $usersResponse = $controller->getAllClients($panel);
+            } elseif ($panel->type == 'marzban') {
+                $controller = new MarzbanPannelController();
+                $usersResponse = $controller->getAllUsers($panel);
             } else {
                 continue;
             }
@@ -345,7 +354,7 @@ class CronJobController extends Controller
                 if ($dateDifference < 4 && $dateDifference > 0) {
                     // get releated products by uuid
                     $uuid = $value['uuid'];
-                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+                    $product = $this->findProductForPanelUser($panel, $uuid);
 
                     if ($product != null) {
                         // get product category
@@ -475,6 +484,9 @@ class CronJobController extends Controller
             } elseif ($panel->type == 'sanaei') {
                 $controller = new SanaeiPannelController();
                 $usersResponse = $controller->getAllClients($panel);
+            } elseif ($panel->type == 'marzban') {
+                $controller = new MarzbanPannelController();
+                $usersResponse = $controller->getAllUsers($panel);
             } else {
                 continue;
             }
@@ -496,7 +508,7 @@ class CronJobController extends Controller
                 if ($usagePercent >= 99.97) {
                     // get releated products by uuid
                     $uuid = $value['uuid'];
-                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+                    $product = $this->findProductForPanelUser($panel, $uuid);
 
                     if ($product != null) {
                         $cronLog = CronLog::where('cron_id', $cronJob->id)
@@ -621,5 +633,21 @@ class CronJobController extends Controller
             \Log::error("Error clearing laravel log: " . $th->getMessage());
             return false;
         }
+    }
+
+    private function findProductForPanelUser(Pannel $panel, string $identifier): ?Product
+    {
+        if ($panel->type == 'marzban') {
+            return Product::where('remark', $identifier)->first();
+        }
+
+        if ($panel->type == 'sanaei') {
+            $byConfig = Product::where('configs', 'like', '%"uuid":"' . $identifier . '"%')->first();
+            if ($byConfig) {
+                return $byConfig;
+            }
+        }
+
+        return Product::where('subscription_link', 'LIKE', "%{$identifier}%")->first();
     }
 }

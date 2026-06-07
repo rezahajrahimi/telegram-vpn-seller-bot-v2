@@ -11,6 +11,7 @@ use App\Http\Controllers\PannelController;
 use App\Http\Controllers\PaymentSettingController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReferralWalletController;
+use App\Http\Controllers\MarzbanPannelController;
 use App\Http\Controllers\SanaeiPannelController;
 use App\Models\Product;
 use App\Models\ProductCategory;
@@ -87,8 +88,14 @@ class ProcessSubscriptionPurchase implements ShouldQueue
             if ($pannel->type == 'hiddify') {
                 $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chatId, $lastProductId + 1);
             } elseif ($pannel->type == 'marzban') {
-                // create marzban user
-                // return " پنل مرزبان";
+                $resualt = $generalCntrl->new_marzban_config_telegram_text(
+                    $selectedPrCat,
+                    $pannel,
+                    $volume,
+                    $day,
+                    $this->chatId,
+                    $lastProductId + 1
+                );
             } elseif ($pannel->type == 'sanaei') {
                 \Log::info("sanaei pannel");
                 $resualt = $generalCntrl->new_sanaei_config_telegram_text(
@@ -134,6 +141,15 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                     $res = $prCntrl->delete_sanaei_product_by_uuid($uuid);
                     if ($res) {
                         $logCtrl->addNewLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل سنایی و دیتابیس', $this->chatId, $username, 'failed');
+                    }
+                } elseif ($pannel->type == 'marzban') {
+                    $marzbanUsername = $resualt;
+                    $mb = new MarzbanPannelController();
+                    $mb->deleteUser($pannel->id, $marzbanUsername);
+                    $prCntrl = new ProductController();
+                    $res = $prCntrl->delete_marzban_product_by_username($marzbanUsername);
+                    if ($res) {
+                        $logCtrl->addNewLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل مرزبان و دیتابیس', $this->chatId, $username, 'failed');
                     }
                 }
                 $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));

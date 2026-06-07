@@ -69,6 +69,15 @@ class PannelController extends Controller
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->save();
             if ($pannel->type == 'marzban') {
+                if (! empty($request->dynamic_inbounds)) {
+                    $items = $request->dynamic_inbounds;
+                    if (is_string($items)) {
+                        $items = json_decode($items, true);
+                    }
+                    if (is_array($items)) {
+                        $this->syncMarzbanProxiesFromPanel($pannel, $items);
+                    }
+                } else {
                 $vmess = new Proxy();
                 $vmess->pannel_id = $pannel->id;
                 $vmess->type = 'vmess';
@@ -130,6 +139,7 @@ class PannelController extends Controller
                 $inbound->proxy_id = $shadowsocks->id;
                 $inbound->is_active = $request->shadowsocksTCP == true || $request->shadowsocksTCP == 1 ? true : false;
                 $inbound->save();
+                }
             }
             return response()->json($pannel->id, 201);
         } catch (\Throwable $th) {
@@ -151,6 +161,18 @@ class PannelController extends Controller
             $pannel->admin_url = $request->admin_url ?? null;
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->update();
+
+            if (! empty($request->dynamic_inbounds)) {
+                $items = $request->dynamic_inbounds;
+                if (is_string($items)) {
+                    $items = json_decode($items, true);
+                }
+                if (is_array($items)) {
+                    $this->syncMarzbanProxiesFromPanel($pannel, $items);
+
+                    return response()->json($pannel->id, 201);
+                }
+            }
 
             $proxy = Proxy::where('pannel_id', $pannel->id)
                 ->where('type', 'vmess')
@@ -464,114 +486,80 @@ class PannelController extends Controller
     }
     public function createMarzbanUser($accountId, $day, $vol, $pannelID)
     {
-        // try {
-        $panel = Pannel::find($pannelID);
-        $token = $panel->token;
-        $mainUrl = $panel->url_port;
-        $mainUrl = str_replace('/dashboard/', '', $mainUrl);
-        $mainUrl = str_replace('/dashboard', '', $mainUrl);
-        //$vol must change to byte
-        $vol = $vol * 1024 * 1024 * 1024;
-        // crete an UTC date + $day
-        $utc = new \DateTime('now', new \DateTimeZone('UTC'));
-        $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
-        // convert utc to integer
-        $utc = $utc->getTimestamp();
-        $headers = [
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-            'authorization' => $token,
-        ];
-        $result = ['success' => false, 'body' => []];
-        // get active proxies
-        $proCntrl = new ProxyController();
-        $proxies = $proCntrl->getActiveProxiesByPannelID($pannelID);
-
-        $proxy = [];
-        $inbounds = [];
-        foreach ($proxies as $key => $pr) {
-            $proxy[$pr->type] = [];
-            foreach ($pr->inbounds as $key => $in) {
-                // merge inbounds
-                $inbounds[$pr->type][] = $in->name;
-            }
+        $mb = new MarzbanPannelController();
+        $result = $mb->createUser($pannelID, $accountId, (int) $day, $vol);
+        if ($result === false) {
+            return null;
         }
 
-        $params = [
-            'username' => $accountId,
-            'expire' => $utc,
-            'data_limit' => $vol,
-            'proxies' => $proxy,
-            'inbounds' => $inbounds,
+        return [
+            'links' => $result['links'],
+            'subscription_link' => $result['subscription_link'],
         ];
-        $url = "{$mainUrl}/api/user";
-
-        $response = Http::withHeaders($headers)->post($url, $params);
-        $result = ['success' => $response->ok(), 'body' => $response->json()];
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
-
-        $sub = $result['body']['subscription_url'];
-
-        $sublink = "$mainUrl$sub";
-        return ['links' => $result['body']['links'], 'subscription_link' => $sublink];
-        // } catch (\Throwable $th) {
-        //     \Log::info('Marzban Resault', ['error' => ($result['error'] = $th->getMessage())]);
-
-        //     return null;
-        // }
     }
+
     public function modifyMarzbanUser($accountId, $day, $vol, $pannelID)
     {
-        try {
-            $panel = Pannel::find($pannelID);
-            $token = $panel->token;
-            $mainUrl = $panel->url_port;
-            $mainUrl = str_replace('/dashboard/', '', $mainUrl);
-            $mainUrl = str_replace('/dashboard', '', $mainUrl);
-            //$vol must change to byte
-            $vol = $vol * 1024 * 1024 * 1024;
-            // crete an UTC date + $day
-            $utc = new \DateTime('now', new \DateTimeZone('UTC'));
-            $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
-            // convert utc to integer
-            $utc = $utc->getTimestamp();
-            $proCntrl = new ProxyController();
-            $proxies = $proCntrl->getActiveProxiesByPannelID($pannelID);
+        $mb = new MarzbanPannelController();
+        if (! $mb->modifyUser($pannelID, $accountId, (int) $day, $vol)) {
+            return null;
+        }
 
-            $proxy = [];
-            $inbounds = [];
-            foreach ($proxies as $key => $pr) {
-                $proxy[$pr->type] = [];
-                foreach ($pr->inbounds as $key => $in) {
-                    // merge inbounds
-                    $inbounds[$pr->type][] = $in->name;
+        $user = $mb->getUser($pannelID, $accountId);
+
+        return $user['links'] ?? null;
+    }
+
+    private function syncMarzbanProxiesFromPanel(Pannel $pannel, array $items): void
+    {
+        $byProtocol = [];
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $protocol = strtolower((string) ($item['protocol'] ?? ''));
+            $tag = trim((string) ($item['tag'] ?? ''));
+            if ($protocol === '' || $tag === '') {
+                continue;
+            }
+            $byProtocol[$protocol][] = [
+                'tag' => $tag,
+                'enabled' => ! empty($item['enabled']),
+            ];
+        }
+
+        foreach ($byProtocol as $protocol => $inboundItems) {
+            $proxy = Proxy::where('pannel_id', $pannel->id)
+                ->where('type', $protocol)
+                ->first();
+            if (! $proxy) {
+                $proxy = new Proxy();
+                $proxy->pannel_id = $pannel->id;
+                $proxy->type = $protocol;
+                $proxy->is_active = false;
+                $proxy->save();
+            }
+
+            $anyEnabled = false;
+            foreach ($inboundItems as $inboundItem) {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', $inboundItem['tag'])
+                    ->first();
+                if (! $inbound) {
+                    $inbound = new Inbound();
+                    $inbound->proxy_id = $proxy->id;
+                    $inbound->name = $inboundItem['tag'];
+                    $inbound->data = $inboundItem['tag'];
+                }
+                $inbound->is_active = $inboundItem['enabled'];
+                $inbound->save();
+                if ($inboundItem['enabled']) {
+                    $anyEnabled = true;
                 }
             }
-            $headers = [
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-                'authorization' => $token,
-            ];
-            $result = ['success' => false, 'body' => []];
-            $vmess = [];
-            $params = [
-                'username' => $accountId,
-                'expire' => $utc,
-                'data_limit' => $vol,
-                'proxies' => $proxy,
-                'inbounds' => $inbounds,
-            ];
 
-            $url = "{$mainUrl}/api/user/$accountId";
-
-            $response = Http::withHeaders($headers)->put($url, $params);
-            $result = ['success' => $response->ok(), 'body' => $response->json()];
-
-            return $result['body']['links'];
-        } catch (\Throwable $th) {
-            \Log::info('Marzban Resault', ['error' => ($result['error'] = $th->getMessage())]);
-
-            return null;
+            $proxy->is_active = $anyEnabled;
+            $proxy->update();
         }
     }
 }

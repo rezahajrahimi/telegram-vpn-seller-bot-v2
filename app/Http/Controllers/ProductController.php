@@ -241,6 +241,25 @@ class ProductController extends Controller
             return response()->json(false, 500);
         }
     }
+
+    public function delete_marzban_product_by_username($username)
+    {
+        try {
+            $data = Product::where('remark', $username)->first();
+            if ($data != null) {
+                $data->delete();
+
+                return true;
+            }
+
+            return false;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return false;
+        }
+    }
+
     public function deleteProductByProductID($id)
     {
         try {

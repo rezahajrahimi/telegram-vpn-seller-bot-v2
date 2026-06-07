@@ -351,6 +351,18 @@ class AgentProductController extends Controller
                 return response()->json(false, 500);
             }
 
+            if ($pannel && $pannel->type == 'marzban') {
+                $mb = new MarzbanPannelController();
+                $res = $mb->updateLimits($pannel->id, $data->remark, $selectedPrCat->expire_day, $selectedPrCat->volume);
+                if ($res) {
+                    $this->addNewBotLog('product', "$data->remark توسط مدیر شارژ شد", 'charge product');
+
+                    return response()->json(true, 200);
+                }
+
+                return response()->json(false, 500);
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
 
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
@@ -411,6 +423,28 @@ class AgentProductController extends Controller
                     $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'change product');
                     return response()->json(true, 200);
                 }
+                return response()->json(false, 500);
+            }
+
+            if ($pannel && $pannel->type == 'marzban') {
+                $mb = new MarzbanPannelController();
+                $res = $mb->updateLimits($pannel->id, $data->remark, $newPrCat->expire_day, $newPrCat->volume);
+                if ($res) {
+                    if ($request->changeBallance == 1 || $request->changeBallance == true) {
+                        $accBalCntrl = new AccountBallanceController();
+                        $diffInToman = $newPrCat->price - $oldPrCat->price;
+                        $dissInDollar = $newPrCat->price_in_dollar - $oldPrCat->price_in_dollar;
+                        if ($diffInToman != 0) {
+                            $accBalCntrl->decUserAccuntBalance($data->account_id, $diffInToman, $dissInDollar);
+                        }
+                    }
+                    $data->product_categories_id = $newPrCat->id;
+                    $data->update();
+                    $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'change product');
+
+                    return response()->json(true, 200);
+                }
+
                 return response()->json(false, 500);
             }
 
@@ -514,6 +548,21 @@ class AgentProductController extends Controller
                 return response()->json(false, 401);
             }
 
+            if ($pannel && $pannel->type == 'marzban') {
+                $mb = new MarzbanPannelController();
+                $enable = ($request->enable == true || $request->enable == 1 || $request->enable == 'true');
+                $res = $mb->changeUserActivation($pannel->id, $data->remark, $enable);
+                if ($res) {
+                    $data->deactive_by_admin = ! $enable;
+                    $this->addNewBotLog('product', "$data->remark توسط مدیر " . ($enable ? 'فعال' : 'غیر فعال') . " شد.", 'change activation');
+                    $data->update();
+
+                    return response()->json(true, 200);
+                }
+
+                return response()->json(false, 401);
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
 
@@ -553,6 +602,15 @@ class AgentProductController extends Controller
                 return $pannel->admin_url;
             }
 
+            if ($pannel && $pannel->type == 'marzban') {
+                if (! empty($data->panel_link)) {
+                    return $data->panel_link;
+                }
+                $mb = new MarzbanPannelController();
+
+                return $mb->getSubscriptionLink($pannel, $data->remark) ?? $pannel->url_port;
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
 
             return $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, $data->panel_link);
@@ -582,6 +640,18 @@ class AgentProductController extends Controller
                     $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
                     return response()->json(true, 200);
                 }
+                return response()->json(null, 500);
+            }
+            if ($pannel && $pannel->type == 'marzban') {
+                $mb = new MarzbanPannelController();
+                $res = $mb->deleteUser($pannel->id, $data->remark);
+                if ($res) {
+                    $data->delete();
+                    $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
+
+                    return response()->json(true, 200);
+                }
+
                 return response()->json(null, 500);
             }
             $hiddifcCntrl = new HiddifyPannelController();
@@ -1140,6 +1210,16 @@ class AgentProductController extends Controller
                 return response()->json(null, 404);
             }
 
+            if ($pannel && $pannel->type == 'marzban') {
+                $mb = new MarzbanPannelController();
+                $status = $mb->getClientStatus($pannel, $data->remark);
+                if ($status) {
+                    return response()->json($status, 200);
+                }
+
+                return response()->json(null, 404);
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
 
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
@@ -1178,6 +1258,15 @@ class AgentProductController extends Controller
                 $configs = json_decode($data->configs, true) ?? [];
                 $links = $configs['links'] ?? [];
                 return $links[0] ?? '';
+            }
+
+            if ($pannel && $pannel->type == 'marzban') {
+                if (! empty($data->panel_link)) {
+                    return $data->panel_link;
+                }
+                $mb = new MarzbanPannelController();
+
+                return $mb->getSubscriptionLink($pannel, $data->remark) ?? '';
             }
 
             $hiddifcCntrl = new HiddifyPannelController();
@@ -1319,6 +1408,19 @@ class AgentProductController extends Controller
                         $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
                         return response()->json(true, 200);
                     }
+                    return response()->json(false, 401);
+                }
+                if ($pannel && $pannel->type == 'marzban') {
+                    $mb = new MarzbanPannelController();
+                    $res = $mb->updateLimits($pannel->id, $data->remark, $selectedPrCat->expire_day, $selectedPrCat->volume);
+                    if ($res) {
+                        $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+                        $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
+
+                        return response()->json(true, 200);
+                    }
+
                     return response()->json(false, 401);
                 }
                 $hiddifcCntrl = new HiddifyPannelController();
@@ -1532,6 +1634,20 @@ class AgentProductController extends Controller
                 return response()->json(false, 401);
             }
 
+            if ($data->product_category_and_panel->pannel->type == 'marzban') {
+                $mb = new MarzbanPannelController();
+                $enable = ($request->enable == true || $request->enable == 1 || $request->enable == 'true');
+                $res = $mb->changeUserActivation($data->product_category_and_panel->pannel_id, $data->remark, $enable);
+                if ($res) {
+                    $status = $enable ? 'فعال' : 'غیر فعال';
+                    $this->addNewBotLog('product', "$data->remark توسط کاربر {$status} شد.", 'change activation');
+
+                    return response()->json(true, 200);
+                }
+
+                return response()->json(false, 401);
+            }
+
             $hiddifcCntrl = new HiddifyPannelController();
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
 
@@ -1607,11 +1723,11 @@ class AgentProductController extends Controller
                     return response()->json(true, 200);
                 }
                 return response()->json(null, 500);
-            } else {
-                $hiddifcCntrl = new HiddifyPannelController();
-                $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
-                $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
-                if ($updateRemark->getStatusCode() == 200) {
+            }
+            if ($pannel && $pannel->type == 'marzban') {
+                $mb = new MarzbanPannelController();
+                $res = $mb->deleteUser($pannel->id, $data->remark);
+                if ($res) {
                     $data->delete();
                     $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
                     $agentPremissionCntrl = new AgentPermissonController();
@@ -1630,10 +1746,38 @@ class AgentProductController extends Controller
                             }
                         }
                     }
+
                     return response()->json(true, 200);
                 }
+
                 return response()->json(null, 500);
             }
+
+            $hiddifcCntrl = new HiddifyPannelController();
+            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
+            if ($updateRemark->getStatusCode() == 200) {
+                $data->delete();
+                $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
+                $agentPremissionCntrl = new AgentPermissonController();
+                $agentPr = $agentPremissionCntrl->getUserPremission();
+                if ($agentPr->delete_products == 1 || $agentPr->delete_products == true) {
+                    if ($currentUsage < 0.5) {
+                        $agentProduct = AgentProduct::where('product_categories_id', $data->product_category_and_panel->id)
+                            ->where('user_id', $userID)
+                            ->first();
+                        $productPrice = $agentProduct->price;
+                        $accBlCtrl = new AccountBallanceController();
+                        $inc = $accBlCtrl->incUserAccuntBalance($accountID, $productPrice);
+                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت حذف بسته کم حجم اضافه شد.", 'add ballance');
+                        if ($inc == false) {
+                            return response()->json(null, 500);
+                        }
+                    }
+                }
+                return response()->json(true, 200);
+            }
+            return response()->json(null, 500);
         }
         return response()->json(false, 401);
     }
@@ -1672,6 +1816,19 @@ class AgentProductController extends Controller
                     $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
                     return response()->json(true, 200);
                 }
+                return response()->json(null, 500);
+            }
+
+            if ($pannel && $pannel->type == 'marzban') {
+                $mb = new MarzbanPannelController();
+                $res = $mb->deleteUser($pannel->id, $data->remark);
+                if ($res) {
+                    $data->delete();
+                    $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
+
+                    return response()->json(true, 200);
+                }
+
                 return response()->json(null, 500);
             }
 

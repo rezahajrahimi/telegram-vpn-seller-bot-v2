@@ -295,8 +295,14 @@ class SubscriptionProcessController extends Controller
             if ($pannel->type == 'hiddify') {
                 $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $lastProductId + 1);
             } elseif ($pannel->type == 'marzban') {
-                // create marzban user
-                return " پنل مرزبان";
+                $resualt = $this->generalCntrl->new_marzban_config_telegram_text(
+                    $this->selectedPrCat,
+                    $pannel,
+                    $volume,
+                    $day,
+                    $this->chatId,
+                    $lastProductId + 1
+                );
             } elseif ($pannel->type == 'sanaei') {
                 \Log::info("sanaei pannel");
                 $resualt = $this->generalCntrl->new_sanaei_config_telegram_text(
@@ -340,6 +346,15 @@ class SubscriptionProcessController extends Controller
                     $res     = $prCntrl->delete_sanaei_product_by_uuid($uuid);
                     if ($res) {
                         $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل سنایی و دیتابیس', 'show');
+                    }
+                } elseif ($pannel->type == 'marzban') {
+                    $marzbanUsername = $resualt;
+                    $mb              = new MarzbanPannelController();
+                    $mb->deleteUser($pannel->id, $marzbanUsername);
+                    $prCntrl = new ProductController();
+                    $res     = $prCntrl->delete_marzban_product_by_username($marzbanUsername);
+                    if ($res) {
+                        $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل مرزبان و دیتابیس', 'show');
                     }
                 }
                 return $this->customTextCtrl->getText('action.process.failed_buy');
@@ -672,6 +687,52 @@ class SubscriptionProcessController extends Controller
                     $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
                     return "";
 
+                } elseif ($pannel->type == 'marzban') {
+                    $mb     = new MarzbanPannelController();
+                    $status = $mb->getClientStatus($pannel, $product->remark);
+                    if (! $status) {
+                        return "";
+                    }
+
+                    $userSubscriptionLink = $product->panel_link;
+                    if (empty($userSubscriptionLink)) {
+                        $userSubscriptionLink = $mb->getSubscriptionLink($pannel, $product->remark) ?? '';
+                    }
+
+                    $pnlCntrl = new PannelController();
+                    $image    = $pnlCntrl->generateQrMOC($userSubscriptionLink);
+
+                    $enableText = $status['enable'] == true ? 'فعال' : 'غیر فعال';
+                    $usageGB    = round($status['current_usage_GB'], 2);
+                    $limitGB    = $status['usage_limit_GB'];
+
+                    $expireTs = (int) ($status['expire'] ?? 0);
+                    if ($expireTs > 0) {
+                        $expireDate = Carbon::createFromTimestamp($expireTs, 'UTC')->toJalali()->format('Y.m.d');
+                        $startDate  = Carbon::now('UTC')->toJalali()->format('Y.m.d');
+                    } else {
+                        $expireDate = '-';
+                        $startDate  = '-';
+                    }
+
+                    $text = $this->customTextCtrl->getText('action.buy_history.history', [
+                        'name'              => $product->remark,
+                        'category_name'     => $prCat->category_name,
+                        'panel_link'        => $userSubscriptionLink,
+                        'subscription_link' => $userSubscriptionLink,
+                        'start_date'        => $startDate,
+                        'expire_date'       => $expireDate,
+                        'usage_limit_GB'    => $limitGB,
+                        'usage_GB'          => $usageGB,
+                        'enable'            => $enableText,
+                    ]);
+                    $formatter = new TelegramMessageFormatter($this->telegramService);
+                    $text      = $formatter->addFormattedText('', $text)->getMessage();
+
+                    $this->telegramService->sendPhotoFile($chatId, $image, $text);
+                    $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
+
+                    return "";
                 }
 
             }
@@ -763,6 +824,24 @@ class SubscriptionProcessController extends Controller
                 $volume = $prCat->volume;
 
                 $ok = $sn->rechargeClient($pannel->id, $uuid, $day, $volume);
+                if ($ok) {
+                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+                    if ($paymentSuccess) {
+                        $text = $this->customTextCtrl->getText('action.recharge.success');
+                        $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
+                        $this->telegramService->sendMessage($this->chatId, $text);
+                        return "";
+                    }
+                }
+                return $this->customTextCtrl->getText('error.server_error');
+            }
+
+            if ($pannel->type == 'marzban') {
+                $mb = new MarzbanPannelController();
+                $day    = $prCat->expire_day;
+                $volume = $prCat->volume;
+
+                $ok = $mb->rechargeUser($pannel->id, $product->remark, $day, $volume);
                 if ($ok) {
                     $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
                     if ($paymentSuccess) {
