@@ -9,6 +9,43 @@ use Illuminate\Support\Facades\Log;
 
 class MarzbanPannelController extends Controller
 {
+    private const USERNAME_MAX_LENGTH = 32;
+
+    private ?int $lastMutationHttpStatus = null;
+
+    private ?array $lastMutationErrorBody = null;
+
+    public function sanitizeUsername(string $username): string
+    {
+        return (string) preg_replace('/[^a-zA-Z0-9]/', '', $username);
+    }
+
+    public function buildBotUsername(int|string $chatId, int|string $productId): string
+    {
+        return $this->sanitizeUsername("BotUser{$chatId}{$productId}");
+    }
+
+    public function buildTestAccountUsername(int|string $chatId): string
+    {
+        return $this->sanitizeUsername("BotUser{$chatId}Test");
+    }
+
+    private function makeUniqueUsername(string $baseUsername): string
+    {
+        $suffix = bin2hex(random_bytes(2));
+        $base = $this->sanitizeUsername($baseUsername);
+        if ($base === '') {
+            $base = 'BotUser';
+        }
+
+        $maxBaseLength = self::USERNAME_MAX_LENGTH - strlen($suffix);
+        if ($maxBaseLength < 1) {
+            $maxBaseLength = 1;
+        }
+
+        return substr($base, 0, $maxBaseLength) . $suffix;
+    }
+
     private function resolvePanel($panelOrId): ?Pannel
     {
         return $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
@@ -225,26 +262,53 @@ class MarzbanPannelController extends Controller
         return $removed && ($params['inbounds'] ?? []) !== [];
     }
 
-    private function performUserMutation(Pannel $panel, string $method, string $path, array $params): ?array
+    private function userMutationPayload(array $params): array
+    {
+        unset($params['_last_error_detail']);
+
+        return $params;
+    }
+
+    private function isUserAlreadyExistsError(?array $errorBody): bool
+    {
+        if (! is_array($errorBody)) {
+            return false;
+        }
+
+        $detail = $errorBody['detail'] ?? '';
+        if (is_string($detail)) {
+            return stripos($detail, 'already exists') !== false;
+        }
+
+        return false;
+    }
+
+    private function performUserMutation(Pannel $panel, string $method, string $path, array &$params): ?array
     {
         $maxAttempts = 6;
+        $this->lastMutationHttpStatus = null;
+        $this->lastMutationErrorBody = null;
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-            $response = $this->sendRequest($panel, $method, $path, $params);
+            $payload = $this->userMutationPayload($params);
+            $response = $this->sendRequest($panel, $method, $path, $payload);
 
             if ($response !== null && $response->status() === 401 && $this->refreshAuthToken($panel)) {
                 $panel->refresh();
-                $response = $this->sendRequest($panel, $method, $path, $params);
+                $response = $this->sendRequest($panel, $method, $path, $payload);
             }
 
             if ($response !== null && $response->successful()) {
+                $this->lastMutationHttpStatus = $response->status();
                 $body = $response->json();
 
                 return is_array($body) ? $body : [];
             }
 
             $status = $response?->status();
+            $this->lastMutationHttpStatus = $status;
             $errorBody = $response?->json();
+            $this->lastMutationErrorBody = is_array($errorBody) ? $errorBody : null;
 
             Log::info('Marzban API request failed', [
                 'method' => $method,
@@ -374,8 +438,12 @@ class MarzbanPannelController extends Controller
                 return false;
             }
 
+            $baseUsername = $this->sanitizeUsername($username);
+            if ($baseUsername === '') {
+                $baseUsername = 'BotUser' . bin2hex(random_bytes(4));
+            }
+
             $params = [
-                'username' => $username,
                 'expire' => $this->expireTimestamp($day),
                 'data_limit' => $this->gbToBytes($volGb),
                 'proxies' => $proxy,
@@ -383,7 +451,29 @@ class MarzbanPannelController extends Controller
                 'status' => 'active',
             ];
 
-            $body = $this->performUserMutation($panel, 'POST', '/api/user', $params);
+            $body = null;
+            for ($usernameAttempt = 1; $usernameAttempt <= 8; $usernameAttempt++) {
+                $params['username'] = $usernameAttempt === 1
+                    ? $baseUsername
+                    : $this->makeUniqueUsername($baseUsername);
+
+                $body = $this->performUserMutation($panel, 'POST', '/api/user', $params);
+                if (is_array($body) && ! empty($body['subscription_url'])) {
+                    break;
+                }
+
+                if ($this->lastMutationHttpStatus !== 409 || ! $this->isUserAlreadyExistsError($this->lastMutationErrorBody)) {
+                    return false;
+                }
+
+                Log::info('Marzban createUser retrying after username conflict', [
+                    'panel_id' => $panel->id,
+                    'base_username' => $baseUsername,
+                    'new_username' => $params['username'],
+                    'attempt' => $usernameAttempt,
+                ]);
+            }
+
             if (! is_array($body) || empty($body['subscription_url'])) {
                 return false;
             }
@@ -395,7 +485,7 @@ class MarzbanPannelController extends Controller
             }
 
             return [
-                'username' => $username,
+                'username' => $params['username'],
                 'links' => $body['links'] ?? [],
                 'subscription_link' => $mainUrl . $subPath,
                 'subscription_url' => $subPath,

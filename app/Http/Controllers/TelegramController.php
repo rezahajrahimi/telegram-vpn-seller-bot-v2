@@ -661,40 +661,15 @@ class TelegramController extends Controller
                 $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chat_id, $productID);
 
             } elseif ($pannel->type == 'marzban') {
-                $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id$productID", $day, $volume, $selectedPrCat->pannel_id);
-                $userSub = $userData['subscription_link'];
-                $links = $userData['links'];
-
-                $text = '';
-                $text .= "خرید شما با موفقیت انجام شد\r\n";
-                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$userSub \r\n";
-                $text .= "کانفیگهای شما: \r\n";
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-
-                foreach ($links as $key => $link) {
-                    $image = $pnlCntrl->generateQrMOC($link);
-
-                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
-
-                    // $text .= "$link \r\n";
-                }
-                // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
-                $text = "جهت نیاز به راهنمایی بر روی یکی از این گزینه ها کلیک کنید. \r\n";
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-
-                // save as dectivate product, So we can use it in future when user want to recharge it;
-                $request = new Request();
-                $request->account_id = $this->chat_id;
-                $request->subscription_link = '';
-                $request->product_categories_id = $selectedPrCat->id;
-                $request->panel_link = $userSub;
-                // convert links arrey to string
-                $links = json_encode($links);
-
-                $request->configs = $links;
-                $request->remark = "BotUser$this->chat_id$productID";
-
-                $prCntrl->addAutomatedProductDetails($request);
+                $generalCntrl = new GeneralController();
+                $resualt = $generalCntrl->new_marzban_config_telegram_text(
+                    $selectedPrCat,
+                    $pannel,
+                    $volume,
+                    $day,
+                    $this->chat_id,
+                    $productID
+                );
             } else {
                 $userData = $prCntrl->getProductConfigAndChangeStatus($selectedPrCat->id, $this->chat_id);
                 // $pannelLink = $userData["panel_link"];
@@ -1707,38 +1682,18 @@ class TelegramController extends Controller
 
             $prCntrl->addAutomatedProductDetails($request);
         } elseif ($pannel->type == 'marzban') {
-            $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id اکانت_آزمایشی", $day, $volume, $selectedPrCat->pannel_id);
-            $userSub = $userData['subscription_link'];
-            $links = $userData['links'];
-
-            $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$userSub \r\n";
-            $text .= "کانفیگهای شما: \r\n";
-            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-
-            foreach ($links as $key => $link) {
-                $image = $pnlCntrl->generateQrMOC($link);
-
-                $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
-
-                // $text .= "$link \r\n";
-            }
-            // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
-            $text = "جهت نیاز به راهنمایی بر روی یکی از این گزینه ها کلیک کنید. \r\n";
-            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-
-            // save as dectivate product, So we can use it in future when user want to recharge it;
-            $request = new Request();
-            $request->account_id = $this->chat_id;
-            $request->subscription_link = '';
-            $request->product_categories_id = $selectedPrCat->id;
-            $request->panel_link = $userSub;
-            // convert links arrey to string
-            $links = json_encode($links);
-
-            $request->configs = $links;
-            $request->remark = "BotUser$this->chat_id اکانت_آزمایشی";
-
-            $prCntrl->addAutomatedProductDetails($request);
+            $generalCntrl = new GeneralController();
+            $mbCtrl = new MarzbanPannelController();
+            $generalCntrl->new_marzban_config_telegram_text(
+                $selectedPrCat,
+                $pannel,
+                $volume,
+                $day,
+                $this->chat_id,
+                $selectedPrCat->id,
+                $mbCtrl->buildTestAccountUsername($this->chat_id),
+                'action.test_account.marzban'
+            );
         }
 
         $this->addNewBotLog('account', 'اکانت تست فعال شد', 'test-account');

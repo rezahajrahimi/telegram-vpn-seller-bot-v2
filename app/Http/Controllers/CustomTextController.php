@@ -16,6 +16,7 @@ class CustomTextController extends Controller
     public function getAllTexts()
     {
         try {
+            $this->syncMissingSeedKeys();
             $data = CustomText::all();
             return response()->json($data);
         } catch (\Throwable $th) {
@@ -557,6 +558,70 @@ class CustomTextController extends Controller
                 'description' => 'متن خرید شما با موفقیت انجام شد - پارامترها: {uuid}'
             ],
             [
+                'key' => 'action.subscription.sanaei',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "شناسه کانفیگ شما:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{uuid}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خرید سنایی - پارامترها: {uuid}'
+            ],
+            [
+                'key' => 'action.subscription.marzban',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
+                    ['type' => 'newline'],
+                    ['type' => 'link', 'text' => "لینک ساب", 'url' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "همچنین می‌توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خرید مرزبان - پارامترها: {panel_link} {subscription_link}'
+            ],
+            [
+                'key' => 'action.subscription.marzban.link',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "کانفیگ:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{link}"],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن ارسال لینک کانفیگ مرزبان - پارامترها: {link}'
+            ],
+            [
+                'key' => 'action.subscription.marzban.help',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'جهت نیاز به راهنمایی بر روی یکی از گزینه‌های زیر کلیک کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن راهنمای بعد از ارسال کانفیگ مرزبان'
+            ],
+            [
+                'key' => 'action.test_account.marzban',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "اکانت آزمایشی شما فعال شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
+                    ['type' => 'newline'],
+                    ['type' => 'link', 'text' => "لینک ساب", 'url' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "می‌توانید QRCode ارسال شده را اسکن نمایید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن اکانت آزمایشی مرزبان - پارامترها: {subscription_link}'
+            ],
+            [
                 'key' => 'action.buy_history.title',
                 'default_text' => json_encode([
                     ['type' => 'text', 'text' => 'سابقه خرید'],
@@ -968,11 +1033,28 @@ class CustomTextController extends Controller
                 \Log::info('CustomText table seeded successfully');
                 return true;
             }
+
+            return $this->syncMissingSeedKeys();
         } catch (\Throwable $th) {
             \Log::info("sdaaa: $th");
             return;
         }
 
+    }
+
+    public function syncMissingSeedKeys(): bool
+    {
+        $inserted = false;
+
+        foreach ($this->getSeedData() as $data) {
+            if (! CustomText::where('key', $data['key'])->exists()) {
+                CustomText::create($data);
+                $inserted = true;
+                \Log::info('CustomText missing key added: ' . $data['key']);
+            }
+        }
+
+        return $inserted;
     }
     public function getText($key, $variables = [])
     {
@@ -984,9 +1066,8 @@ class CustomTextController extends Controller
             return $text;
         } catch (\Throwable $th) {
             \Log::info("getText: $key");
+            $this->syncMissingSeedKeys();
             $this->seedSingleKey($key);
-            // await for seeding
-            sleep(1);
             $text = $this->customText->getText($key);
             if (json_validate($text)) {
                 return json_decode($text, true);

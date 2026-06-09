@@ -187,6 +187,47 @@ class MarzbanPannelControllerTest extends TestCase
         });
     }
 
+    public function test_create_user_retries_after_username_conflict(): void
+    {
+        $panel = $this->createMarzbanPanel();
+
+        Http::fake([
+            self::BASE_URL . '/api/inbounds' => Http::response([
+                'vless' => ['VLESS TCP REALITY'],
+            ], 200),
+            self::BASE_URL . '/api/user' => Http::sequence()
+                ->push(['detail' => 'User already exists'], 409)
+                ->push([
+                    'username' => 'BotUser123_suffix',
+                    'subscription_url' => '/sub/conflict123',
+                    'links' => [],
+                ], 200),
+        ]);
+
+        $result = (new MarzbanPannelController())->createUser($panel, 'BotUser123', 30, 10);
+
+        $this->assertIsArray($result);
+        $this->assertMatchesRegularExpression('/^BotUser123[a-f0-9]{4}$/', $result['username']);
+        $this->assertSame('https://panel.example.com/sub/conflict123', $result['subscription_link']);
+
+        $requests = collect(Http::recorded())
+            ->filter(fn ($pair) => $pair[0]->url() === self::BASE_URL . '/api/user')
+            ->values();
+
+        $this->assertCount(2, $requests);
+        $this->assertSame('BotUser123', $requests[0][0]->data()['username']);
+        $this->assertMatchesRegularExpression('/^BotUser123[a-f0-9]{4}$/', $requests[1][0]->data()['username']);
+    }
+
+    public function test_sanitize_username_keeps_only_alphanumeric_characters(): void
+    {
+        $controller = new MarzbanPannelController();
+
+        $this->assertSame('BotUser91965429', $controller->sanitizeUsername('BotUser91965429 اکانت_آزمایشی'));
+        $this->assertSame('BotUser9196542991', $controller->buildBotUsername(91965429, 91));
+        $this->assertSame('BotUser91965429Test', $controller->buildTestAccountUsername(91965429));
+    }
+
     public function test_create_user_builds_subscription_link(): void
     {
         $panel = $this->createMarzbanPanel();

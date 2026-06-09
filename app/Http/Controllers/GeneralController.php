@@ -565,38 +565,42 @@ class GeneralController extends Controller
         }
     }
 
-    public function new_marzban_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $chat_id, $productID)
+    public function new_marzban_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $chat_id, $productID, ?string $username = null, ?string $textKey = null)
     {
         try {
             $mbCtrl = new MarzbanPannelController();
             $pnlCntrl = new PannelController();
-            $username = "BotUser{$chat_id}{$productID}";
+            $username = $username ?? $mbCtrl->buildBotUsername($chat_id, $productID);
+            $textKey = $textKey ?? 'action.subscription.marzban';
 
             $userData = $mbCtrl->createUser($pannel, $username, (int) $day, $volume);
             if ($userData === false) {
                 return false;
             }
 
+            $username = $userData['username'];
             $userSub = $userData['subscription_link'];
             $links = $userData['links'] ?? [];
 
-            $text = $this->customTextCtrl->getText('action.subscription.marzban', [
+            $text = $this->formatCustomTelegramText($textKey, [
                 'panel_link' => $userSub,
                 'subscription_link' => $userSub,
             ]);
-            if (is_array($text)) {
-                $text = $this->telegramService->formatText($text);
-            } else {
-                $formatter = new TelegramMessageFormatter($this->telegramService);
-                $text = $formatter->addFormattedText('', $text)->getMessage();
-            }
 
             $image = $pnlCntrl->generateQrMOC($userSub);
             $this->telegramService->sendPhotoFile($chat_id, $image, $text);
 
             foreach ($links as $link) {
+                $linkText = $this->formatCustomTelegramText('action.subscription.marzban.link', [
+                    'link' => $link,
+                ]);
                 $linkImage = $pnlCntrl->generateQrMOC($link);
-                $this->telegramService->sendPhotoFile($chat_id, $linkImage, $link);
+                $this->telegramService->sendPhotoFile($chat_id, $linkImage, $linkText);
+            }
+
+            $helpText = $this->formatCustomTelegramText('action.subscription.marzban.help');
+            if ($helpText !== '') {
+                $this->telegramService->sendMessage($chat_id, $helpText);
             }
 
             $request = new Request();
@@ -618,6 +622,18 @@ class GeneralController extends Controller
 
             return false;
         }
+    }
+
+    private function formatCustomTelegramText(string $key, array $variables = []): string
+    {
+        $text = $this->customTextCtrl->getText($key, $variables);
+        if (is_array($text)) {
+            return $this->telegramService->formatText($text);
+        }
+
+        $formatter = new TelegramMessageFormatter($this->telegramService);
+
+        return $formatter->addFormattedText('', (string) $text)->getMessage();
     }
 
     public function send_using_subscription_manual_message($chat_id, $recharge = null, $productID = null)
@@ -1095,6 +1111,19 @@ class GeneralController extends Controller
             $userLink = $pannel->user_link;
             $text = $this->customTextCtrl->getText('action.test_account.success');
             $this->new_hiddify_config_telegram_text($testAccount, $pannel, $volume, $day, $chatId, $testAccount->id);
+            $this->send_using_subscription_manual_message($chatId);
+        } elseif ($pannel->type == 'marzban') {
+            $mbCtrl = new MarzbanPannelController();
+            $this->new_marzban_config_telegram_text(
+                $testAccount,
+                $pannel,
+                $volume,
+                $day,
+                $chatId,
+                $testAccount->id,
+                $mbCtrl->buildTestAccountUsername($chatId),
+                'action.test_account.marzban'
+            );
             $this->send_using_subscription_manual_message($chatId);
         }
 
