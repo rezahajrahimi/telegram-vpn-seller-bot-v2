@@ -264,9 +264,15 @@ class UserGroupController extends Controller
             $group = UserGroup::findOrFail($id);
             $users = User::where('user_group_id', $group->id)
                 ->where('role', $group->role_type)
-                ->with('userGroup')
+                ->with(['userGroup', 'botUser'])
                 ->orderBy('id', 'desc')
-                ->get();
+                ->get()
+                ->map(function (User $user) {
+                    $user->bot_user_id = $user->botUser?->id;
+                    $user->admin_alias = $user->botUser?->admin_alias;
+
+                    return $user;
+                });
 
             return response()->json(['users' => $users, 'group' => $group], 200);
         } catch (\Throwable $th) {

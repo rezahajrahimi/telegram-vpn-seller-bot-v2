@@ -10,7 +10,7 @@ class BotUser extends Model
 {
     use HasFactory;
     protected $guarded = ['id'];
-    protected $fillable = ['account_id', 'username', 'first_name', 'last_name'];
+    protected $fillable = ['account_id', 'username', 'first_name', 'last_name', 'admin_alias'];
 
     // get user by account_id
     public function getUserByAccountID($accountId)

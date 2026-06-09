@@ -74,8 +74,8 @@ class User extends Authenticatable
         return $this->belongsTo(UserGroup::class, 'user_group_id');
     }
 
-    // public function bot_user()
-    // {
-    //     return $this->belongsTo(BotUser::class, 'account_id', 'account_id');
-    // }
+    public function botUser()
+    {
+        return $this->hasOne(BotUser::class, 'account_id', 'account_id');
+    }
 }

@@ -146,6 +146,7 @@ class BotUserController extends Controller
             $data = BotUser::where('username', 'like', '%' . $request->search . '%')
                 ->orWhere('first_name', 'like', '%' . $request->search . '%')
                 ->orWhere('last_name', 'like', '%' . $request->search . '%')
+                ->orWhere('admin_alias', 'like', '%' . $request->search . '%')
                 ->orWhere('account_id', 'like', '%' . $request->search . '%')
                 ->get();
 
@@ -169,6 +170,32 @@ class BotUserController extends Controller
             }
         } catch (\Throwable $th) {
             \Log::info("Throwable:  $th");
+
+            return response()->json('Server Error', 500);
+        }
+    }
+
+    public function updateBotUserAdminAlias(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'bot_user_id' => 'required_without:account_id|integer|exists:bot_users,id',
+                'account_id' => 'required_without:bot_user_id|integer|exists:bot_users,account_id',
+                'admin_alias' => 'nullable|string|max:100',
+            ]);
+
+            $botUser = isset($validated['bot_user_id'])
+                ? BotUser::findOrFail($validated['bot_user_id'])
+                : BotUser::where('account_id', $validated['account_id'])->firstOrFail();
+            $alias = isset($validated['admin_alias'])
+                ? trim($validated['admin_alias'])
+                : null;
+            $botUser->admin_alias = $alias === '' ? null : $alias;
+            $botUser->save();
+
+            return response()->json(['bot_user' => $botUser], 200);
+        } catch (\Throwable $th) {
+            \Log::info("updateBotUserAdminAlias: $th");
 
             return response()->json('Server Error', 500);
         }

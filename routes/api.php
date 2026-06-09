@@ -311,6 +311,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getUsersWithZeroBallance', [BotUserController::class, 'get_users_with_zero_ballance']);
     Route::get('getAgentRoleBotUsers', [BotUserController::class, 'get_agent_role_bot_users']);
     Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
+    Route::patch('updateBotUserAdminAlias', [BotUserController::class, 'updateBotUserAdminAlias']);
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
     Route::post('sendAdminMessageToAllUsers', [BotUserController::class, 'send_Admin_message_to_All_users']);

@@ -45,21 +45,230 @@ class MarzbanPannelController extends Controller
         ];
     }
 
-    private function buildProxyPayload(int $pannelID): array
+    private function extractInboundTag(mixed $tag): string
     {
-        $proCntrl = new ProxyController();
-        $proxies = $proCntrl->getActiveProxiesByPannelID($pannelID);
+        if (is_string($tag)) {
+            return trim($tag);
+        }
 
-        $proxy = [];
-        $inbounds = [];
-        foreach ($proxies as $pr) {
-            $proxy[$pr->type] = [];
-            foreach ($pr->inbounds as $in) {
-                $inbounds[$pr->type][] = $in->name;
+        if (is_array($tag)) {
+            foreach (['tag', 'name', 'remark'] as $key) {
+                if (! empty($tag[$key]) && is_string($tag[$key])) {
+                    return trim($tag[$key]);
+                }
             }
         }
 
+        if (is_object($tag)) {
+            foreach (['tag', 'name', 'remark'] as $key) {
+                if (! empty($tag->$key) && is_string($tag->$key)) {
+                    return trim($tag->$key);
+                }
+            }
+        }
+
+        return '';
+    }
+
+    private function parseInboundsResponse(array $body): array
+    {
+        if (array_is_list($body)) {
+            $result = [];
+            foreach ($body as $item) {
+                $row = is_array($item) ? $item : (array) $item;
+                $protocol = strtolower(trim((string) ($row['protocol'] ?? '')));
+                $tag = $this->extractInboundTag($item);
+                if ($protocol === '' || $tag === '') {
+                    continue;
+                }
+                $result[$protocol][] = $tag;
+            }
+
+            return collect($result)
+                ->map(fn ($tags) => array_values(array_unique($tags)))
+                ->all();
+        }
+
+        $result = [];
+        foreach ($body as $protocol => $tags) {
+            if (! is_array($tags) || $tags === []) {
+                continue;
+            }
+
+            $names = [];
+            foreach ($tags as $tag) {
+                $name = $this->extractInboundTag($tag);
+                if ($name !== '') {
+                    $names[] = $name;
+                }
+            }
+
+            if ($names !== []) {
+                $result[strtolower((string) $protocol)] = array_values(array_unique($names));
+            }
+        }
+
+        return $result;
+    }
+
+    private function fetchLiveInboundsMap(Pannel $panel): ?array
+    {
+        try {
+            $body = $this->performRequest($panel, 'GET', '/api/inbounds');
+            if (! is_array($body)) {
+                return null;
+            }
+
+            return $this->parseInboundsResponse($body);
+        } catch (\Throwable $e) {
+            Log::warning('Marzban could not fetch live inbounds', [
+                'panel_id' => $panel->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function resolveLiveInboundsMap(Pannel $panel): ?array
+    {
+        $liveInbounds = $this->fetchLiveInboundsMap($panel);
+        if ($liveInbounds !== null) {
+            return $liveInbounds;
+        }
+
+        if ($this->refreshAuthToken($panel)) {
+            $panel->refresh();
+
+            return $this->fetchLiveInboundsMap($panel);
+        }
+
+        return null;
+    }
+
+    private function buildProxyPayload(Pannel $panel): array
+    {
+        $liveInbounds = $this->resolveLiveInboundsMap($panel);
+        if ($liveInbounds === null || $liveInbounds === []) {
+            Log::error('Marzban buildProxyPayload failed: no live inbounds on panel', [
+                'panel_id' => $panel->id,
+            ]);
+
+            return [[], []];
+        }
+
+        $proxy = [];
+        $inbounds = [];
+        foreach ($liveInbounds as $protocol => $tags) {
+            if ($tags === []) {
+                continue;
+            }
+            $proxy[$protocol] = new \stdClass();
+            $inbounds[$protocol] = array_values($tags);
+        }
+
+        Log::info('Marzban using live panel inbounds', [
+            'panel_id' => $panel->id,
+            'inbounds' => $inbounds,
+        ]);
+
         return [$proxy, $inbounds];
+    }
+
+    private function removeInvalidInboundFromParams(array &$params): bool
+    {
+        $detail = $params['_last_error_detail'] ?? null;
+        unset($params['_last_error_detail']);
+
+        $message = '';
+        if (is_array($detail) && isset($detail['inbounds'])) {
+            $message = (string) $detail['inbounds'];
+        } elseif (is_string($detail)) {
+            $message = $detail;
+        }
+
+        if ($message === '') {
+            return false;
+        }
+
+        if (! preg_match('/tag:\s*([^,}]+)/', $message, $tagMatch)) {
+            return false;
+        }
+        $badTag = trim($tagMatch[1]);
+
+        $protocol = null;
+        if (preg_match('/protocol:\s*([^,}]+)/', $message, $protocolMatch)) {
+            $protocol = strtolower(trim($protocolMatch[1]));
+        }
+
+        $removed = false;
+        foreach ($params['inbounds'] ?? [] as $proto => $tags) {
+            if ($protocol !== null && $proto !== $protocol) {
+                continue;
+            }
+
+            $filtered = array_values(array_filter(
+                $tags,
+                static fn ($tag) => trim((string) $tag) !== $badTag
+            ));
+
+            if (count($filtered) !== count($tags)) {
+                $removed = true;
+                if ($filtered === []) {
+                    unset($params['inbounds'][$proto], $params['proxies'][$proto]);
+                } else {
+                    $params['inbounds'][$proto] = $filtered;
+                }
+            }
+        }
+
+        return $removed && ($params['inbounds'] ?? []) !== [];
+    }
+
+    private function performUserMutation(Pannel $panel, string $method, string $path, array $params): ?array
+    {
+        $maxAttempts = 6;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            $response = $this->sendRequest($panel, $method, $path, $params);
+
+            if ($response !== null && $response->status() === 401 && $this->refreshAuthToken($panel)) {
+                $panel->refresh();
+                $response = $this->sendRequest($panel, $method, $path, $params);
+            }
+
+            if ($response !== null && $response->successful()) {
+                $body = $response->json();
+
+                return is_array($body) ? $body : [];
+            }
+
+            $status = $response?->status();
+            $errorBody = $response?->json();
+
+            Log::info('Marzban API request failed', [
+                'method' => $method,
+                'path' => $path,
+                'status' => $status,
+                'body' => $errorBody,
+                'attempt' => $attempt,
+            ]);
+
+            if ($status === 422 && $attempt < $maxAttempts) {
+                $params['_last_error_detail'] = $errorBody['detail'] ?? $errorBody;
+                if ($this->removeInvalidInboundFromParams($params)) {
+                    Log::info('Marzban retrying after removing invalid inbound', [
+                        'panel_id' => $panel->id,
+                        'remaining_inbounds' => $params['inbounds'] ?? [],
+                    ]);
+                    continue;
+                }
+            }
+
+            return null;
+        }
+
+        return null;
     }
 
     private function gbToBytes($gb): int
@@ -74,17 +283,65 @@ class MarzbanPannelController extends Controller
         return $utc->getTimestamp();
     }
 
-    private function performRequest(Pannel $panel, string $method, string $path, array $body = null)
+    private function refreshAuthToken(Pannel $panel): bool
+    {
+        $username = trim((string) ($panel->username ?? ''));
+        $password = trim((string) ($panel->password ?? ''));
+        if ($username === '' || $password === '') {
+            return false;
+        }
+
+        $response = Http::asForm()
+            ->acceptJson()
+            ->post($this->baseUrl($panel) . '/api/admin/token', [
+                'username' => $username,
+                'password' => $password,
+            ]);
+
+        if (! $response->successful()) {
+            Log::info('Marzban token refresh failed', [
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
+
+            return false;
+        }
+
+        $data = $response->json();
+        $accessToken = trim((string) ($data['access_token'] ?? ''));
+        if ($accessToken === '') {
+            return false;
+        }
+
+        $tokenType = trim((string) ($data['token_type'] ?? 'Bearer'));
+        $panel->token = $tokenType . ' ' . $accessToken;
+        $panel->save();
+
+        return true;
+    }
+
+    private function sendRequest(Pannel $panel, string $method, string $path, ?array $body = null)
     {
         $url = $this->baseUrl($panel) . $path;
         $request = Http::withHeaders($this->headers($panel));
-        $response = match (strtoupper($method)) {
+
+        return match (strtoupper($method)) {
             'GET' => $request->get($url),
             'POST' => $request->post($url, $body ?? []),
             'PUT' => $request->put($url, $body ?? []),
             'DELETE' => $request->delete($url),
             default => null,
         };
+    }
+
+    private function performRequest(Pannel $panel, string $method, string $path, array $body = null, bool $allowRetry = true)
+    {
+        $response = $this->sendRequest($panel, $method, $path, $body);
+
+        if ($response !== null && $response->status() === 401 && $allowRetry && $this->refreshAuthToken($panel)) {
+            $panel->refresh();
+            $response = $this->sendRequest($panel, $method, $path, $body);
+        }
 
         if ($response === null || ! $response->successful()) {
             Log::info('Marzban API request failed', [
@@ -108,7 +365,15 @@ class MarzbanPannelController extends Controller
                 return false;
             }
 
-            [$proxy, $inbounds] = $this->buildProxyPayload($panel->id);
+            [$proxy, $inbounds] = $this->buildProxyPayload($panel);
+            if ($inbounds === []) {
+                Log::error('Marzban createUser failed: no valid inbounds for panel', [
+                    'panel_id' => $panel->id,
+                ]);
+
+                return false;
+            }
+
             $params = [
                 'username' => $username,
                 'expire' => $this->expireTimestamp($day),
@@ -118,7 +383,7 @@ class MarzbanPannelController extends Controller
                 'status' => 'active',
             ];
 
-            $body = $this->performRequest($panel, 'POST', '/api/user', $params);
+            $body = $this->performUserMutation($panel, 'POST', '/api/user', $params);
             if (! is_array($body) || empty($body['subscription_url'])) {
                 return false;
             }
@@ -162,7 +427,15 @@ class MarzbanPannelController extends Controller
             return false;
         }
 
-        [$proxy, $inbounds] = $this->buildProxyPayload($panel->id);
+        [$proxy, $inbounds] = $this->buildProxyPayload($panel);
+        if ($inbounds === []) {
+            Log::error('Marzban modifyUser failed: no valid inbounds for panel', [
+                'panel_id' => $panel->id,
+            ]);
+
+            return false;
+        }
+
         $params = [
             'expire' => $this->expireTimestamp($day),
             'data_limit' => $this->gbToBytes($volGb),
@@ -171,7 +444,12 @@ class MarzbanPannelController extends Controller
             'status' => 'active',
         ];
 
-        $body = $this->performRequest($panel, 'PUT', '/api/user/' . rawurlencode($username), $params);
+        $body = $this->performUserMutation(
+            $panel,
+            'PUT',
+            '/api/user/' . rawurlencode($username),
+            $params
+        );
         if (! is_array($body)) {
             return false;
         }
@@ -212,10 +490,15 @@ class MarzbanPannelController extends Controller
             return false;
         }
 
-        $url = $this->baseUrl($panel) . '/api/user/' . rawurlencode($username);
-        $response = Http::withHeaders($this->headers($panel))->delete($url);
+        $path = '/api/user/' . rawurlencode($username);
+        $response = $this->sendRequest($panel, 'DELETE', $path);
 
-        return $response->successful();
+        if ($response !== null && $response->status() === 401 && $this->refreshAuthToken($panel)) {
+            $panel->refresh();
+            $response = $this->sendRequest($panel, 'DELETE', $path);
+        }
+
+        return $response !== null && $response->successful();
     }
 
     public function changeUserActivation($panelOrId, string $username, bool $enable): bool

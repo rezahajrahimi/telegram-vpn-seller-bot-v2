@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\AccountBallance;
+use App\Models\BotUser;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\PaymentAccessService;
@@ -25,6 +26,17 @@ class UserController extends Controller
             200,
         );
     }
+    private function appendBotUserMeta(User $user): User
+    {
+        $botUser = $user->relationLoaded('botUser')
+            ? $user->botUser
+            : BotUser::where('account_id', $user->account_id)->first();
+        $user->bot_user_id = $botUser?->id;
+        $user->admin_alias = $botUser?->admin_alias;
+
+        return $user;
+    }
+
     private function appendAgentStats(User $user): User
     {
         $balance = AccountBallance::where('account_id', $user->account_id)->first();
@@ -34,14 +46,14 @@ class UserController extends Controller
         $user->agent_products_count = $user->agent_products_count
             ?? $user->agent_products()->count();
 
-        return $user;
+        return $this->appendBotUserMeta($user);
     }
 
     public function getAgents()
     {
         try {
             $users = User::where('role', 'agent')
-                ->with('userGroup')
+                ->with(['userGroup', 'botUser'])
                 ->withCount('agent_products')
                 ->get()
                 ->map(fn (User $user) => $this->appendAgentStats($user));
@@ -62,7 +74,7 @@ class UserController extends Controller
         try {
             $users = User::where('role', 'agent')
                 ->where('id', $id)
-                ->with(['agent_products.product_categories', 'agent_permisson', 'userGroup'])
+                ->with(['agent_products.product_categories', 'agent_permisson', 'userGroup', 'botUser'])
                 ->withCount('agent_products')
                 ->get()
                 ->map(fn (User $user) => $this->appendAgentStats($user));
@@ -76,7 +88,10 @@ class UserController extends Controller
     public function getNormalUsers()
     {
         try {
-            $users = User::where('role', 'user')->with('userGroup')->get();
+            $users = User::where('role', 'user')
+                ->with(['userGroup', 'botUser'])
+                ->get()
+                ->map(fn (User $user) => $this->appendBotUserMeta($user));
             return response()->json(
                 [
                     'users' => $users,
@@ -359,7 +374,7 @@ class UserController extends Controller
                 return response()->json(['message' => 'نقش نامعتبر است.'], 422);
             }
 
-            $query = User::where('role', $roleType)->with('userGroup');
+            $query = User::where('role', $roleType)->with(['userGroup', 'botUser']);
 
             if ($roleType === 'user' && $request->filled('verification_filter')) {
                 if ($request->verification_filter === 'verified') {
@@ -385,11 +400,15 @@ class UserController extends Controller
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                        ->orWhere('account_id', 'like', "%{$search}%");
+                        ->orWhere('account_id', 'like', "%{$search}%")
+                        ->orWhereHas('botUser', function ($botQuery) use ($search) {
+                            $botQuery->where('admin_alias', 'like', "%{$search}%");
+                        });
                 });
             }
 
-            $users = $query->orderBy('id', 'desc')->get();
+            $users = $query->orderBy('id', 'desc')->get()
+                ->map(fn (User $user) => $this->appendBotUserMeta($user));
 
             return response()->json(['users' => $users], 200);
         } catch (\Throwable $th) {

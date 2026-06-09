@@ -391,7 +391,8 @@ class PannelController extends Controller
             return $pannels->pluck('location')->unique();
         } catch (\Throwable $th) {
             \Log::info("get_all_panells_by_location_capacity_mode:  $th");
-            return response()->json(null, 500);
+
+            return collect();
         }
 
     }
@@ -405,16 +406,19 @@ class PannelController extends Controller
 
             $pannels = Pannel::with('product_category_and_count_products')->get();
             foreach ($pannels as $key => $value) {
-                // remove each pannel wich capacity is above or equal to the products count
-                $rrr = $value->product_category_and_count_products[0]->products_count;
-                if ($value->product_category_and_count_products[0]->products_count >= $value->capacity) {
+                $rrr = 0;
+                if (! empty($value->product_category_and_count_products) && isset($value->product_category_and_count_products[0]->products_count)) {
+                    $rrr = $value->product_category_and_count_products[0]->products_count;
+                }
+                if ($rrr >= $value->capacity) {
                     $pannels->forget($key);
                 }
             }
             return $pannels->pluck('id');
         } catch (\Throwable $th) {
-            \Log::info("get_all_panells_by_location_capacity_mode:  $th");
-            return response()->json(null, 500);
+            \Log::info("get_all_panells_Id_by_location_capacity_mode:  $th");
+
+            return collect();
         }
 
     }
