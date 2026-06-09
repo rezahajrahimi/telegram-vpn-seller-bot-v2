@@ -539,15 +539,44 @@ class AccountProcessController extends Controller
     public function processShetabVerification($chatId, $text)
     {
         try {
+            $this->chatId = $chatId;
+            $this->botUser = $this->botUser->getUserByAccountID($chatId);
+
+            $user = User::where('account_id', $chatId)->first();
+            if (! $user) {
+                $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.user_not_found'));
+
+                return false;
+            }
+
+            $productCategoryId = null;
+            $amount = $text;
+
+            $productCategory = \App\Models\ProductCategory::find($text);
+            if ($productCategory) {
+                $productCategoryId = (int) $productCategory->id;
+                $balance = $this->accBlCtrl->getLoggedUserBallancce($chatId);
+                $amount = max(1, (int) ceil($productCategory->price - $balance->ballance));
+
+                $this->addNewBotLog(
+                    'shetab_verify',
+                    "درخواست خرید خودکار با شتاب برای بسته «{$productCategory->category_name}» (مبلغ مورد نیاز: {$amount} تومان)",
+                    'auto_purchase_request'
+                );
+            }
+
             $request = new Request();
-            $request->amount = $text;
-            $request->user_id = User::where('account_id', $chatId)->first()->id;
+            $request->amount = $amount;
+            $request->user_id = $user->id;
+            $request->product_category_id = $productCategoryId;
 
             $shetabVerify_amount = $this->shetabVerifyCntrl->create_new_shetab_verify($request);
 
             if ($shetabVerify_amount === null) {
-                \Log::error(["shetabVerify amount is null"]);
+                \Log::error(['shetabVerify amount is null', 'chat_id' => $chatId, 'text' => $text]);
+                $this->addNewBotLog('shetab_verify', 'صدور فاکتور تایید خودکار شتاب ناموفق بود.', 'failed');
                 $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+
                 return false;
             }
 
@@ -564,10 +593,11 @@ class AccountProcessController extends Controller
             $this->telegramService->sendMessage($chatId, $messageText);
             $this->clearAwaitingReply($chatId, $messageText);
 
-            return "";
+            return '';
 
         } catch (\Exception $e) {
-            \Log::error("Error in processShetabVerification: " . $e);
+            \Log::error('Error in processShetabVerification: ' . $e);
+            $this->addNewBotLog('shetab_verify', 'خطا در فرآیند تایید خودکار شتاب: ' . $e->getMessage(), 'failed');
             $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
 

@@ -448,9 +448,6 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::post('/update-application-info', [AppInfoController::class, 'update']);
     Route::post('/save-application-image', [AppInfoController::class, 'save_image']);
 
-    // ShetabVerifyController
-    Route::post('/shetab-verify', [ShetabVerifyController::class, 'shetabVerify']);
-
     // Reports
     Route::get('getDashboardStats', [ReportController::class, 'getDashboardStats']);
     Route::get('getFinancialReport', [ReportController::class, 'getFinancialReport']);

@@ -748,7 +748,7 @@ class GeneralController extends Controller
                 $text = $formatter->addFormattedText('', $text)->getMessage();
             }
             $this->telegramService->sendMessage($chat_id, $text);
-            $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar);
+            $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar, $productCategoryID);
             return true;
         } catch (\Throwable $th) {
             \Log::info("error on send_insufficient_balance_message-> $th");
@@ -773,7 +773,7 @@ class GeneralController extends Controller
 
         }
     }
-    public function send_add_ballance_option_message($chat_id, $estimatedPrice, $estimatedPriceInDollar)
+    public function send_add_ballance_option_message($chat_id, $estimatedPrice, $estimatedPriceInDollar, ?int $productCategoryId = null)
     {
         $opr = [];
         $hasZarinPal = $this->pymntCntrl->getZarinpalStatus();
@@ -835,8 +835,11 @@ class GeneralController extends Controller
                     // use format text service
                     $shetabVerify_text = $this->telegramService->formatText($shetabVerify_text);
                 }
+                $shetabAutoCallback = $productCategoryId
+                    ? "shetabVerifyAuto-{$productCategoryId}"
+                    : "shetabVerifyAuto-{$estimatedPrice}";
                 $opr[] = [
-                    $shetabVerify_text => "shetabVerifyAuto-{$estimatedPrice}"
+                    $shetabVerify_text => $shetabAutoCallback,
                 ];
             }
 
