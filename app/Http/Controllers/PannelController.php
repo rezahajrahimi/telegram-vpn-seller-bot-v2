@@ -50,9 +50,10 @@ class PannelController extends Controller
             $pannel->user_link = $request->user_link ?? null;
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->save();
-            return response()->json($pannel->id, 201);
+            return response()->json(['success' => true, 'id' => $pannel->id], 201);
         } catch (\Throwable $th) {
-            return response()->json(false, 500);
+            \Log::error('addNewPannel failed: ' . $th->getMessage());
+            return response()->json(['success' => false, 'message' => 'خطا در ذخیره پنل.'], 500);
         }
     }
     public function addNewPannelMarzban(Request $request)
@@ -296,15 +297,23 @@ class PannelController extends Controller
                 $pannel->admin_url = $request->admin_url ?? null;
                 $pannel->user_link = $request->user_link ?? null;
                 $pannel->capacity = $request->capacity ?? 1333333;
-                if ($pannel->update()) {
-                    return true;
+                if ($pannel->type === 'sanaei') {
+                    if ($request->has('api_version')) {
+                        $v = strtolower(trim((string) $request->api_version));
+                        $pannel->api_version = in_array($v, ['v2', '2', 'v1', '1'], true) ? 'v2' : 'v3';
+                    }
+                    $pannel->cookie_session = null;
                 }
-                return response()->json(false, 500);
+                if ($pannel->update()) {
+                    return response()->json(['success' => true, 'id' => $pannel->id], 200);
+                }
+                return response()->json(['success' => false, 'message' => 'خطا در ویرایش پنل.'], 500);
             }
+            return response()->json(['success' => false, 'message' => 'پنل یافت نشد.'], 404);
         } catch (\Throwable $th) {
-            \Log::info("Throwable:  $th");
+            \Log::error('updatePannel failed: ' . $th->getMessage());
 
-            return response()->json(false, 500);
+            return response()->json(['success' => false, 'message' => 'خطا در ویرایش پنل.'], 500);
         }
     }
     public function getPannels()

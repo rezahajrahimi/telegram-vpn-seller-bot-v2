@@ -29,6 +29,11 @@ class ProcessSubscriptionPurchase implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /** Sanaei panel login + add client can exceed 60s on slow/unstable links. */
+    public int $timeout = 600;
+
+    public int $tries = 1;
+
     protected $chatId;
     protected $productCategoryId;
 

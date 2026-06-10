@@ -270,6 +270,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getHiddifyPanelUserByPannelID/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'getHiddifyPanelUserByPannelID']);
 
     // Sanaei Panel Management
+    Route::post('checkSanaeiPanelUrl', [SanaeiPannelController::class, 'checkSanaeiPanelUrl']);
+    Route::post('addSanaeiPannel', [SanaeiPannelController::class, 'addSanaeiPannel']);
+    Route::post('updateSanaeiPannel', [SanaeiPannelController::class, 'updateSanaeiPannel']);
     Route::post('addUserToSanaeiPanel', [SanaeiPannelController::class, 'addUserToSanaeiPanel']);
     Route::post('addUserWithTemplate', [SanaeiPannelController::class, 'addUserWithTemplate']);
     Route::get('syncSanaeiInbounds/{pannelID}', [SanaeiPannelController::class, 'syncInbounds']);
