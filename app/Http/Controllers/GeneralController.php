@@ -123,7 +123,7 @@ class GeneralController extends Controller
                 ->whereMonth('created_at', \Carbon\Carbon::now()->month)
                 ->sum('amount');
 
-            // Panel Status
+            // Panel list (live status fetched separately per panel — avoids blocking dashboard)
             $pannels = \App\Models\Pannel::all();
             $pannelsStatus = [];
             foreach ($pannels as $pannel) {
@@ -131,41 +131,11 @@ class GeneralController extends Controller
                     $query->where('pannel_id', $pannel->id);
                 })->count();
 
-                $onlineUsers = 0;
-                $isOnline = false;
-
-                try {
-                    if ($pannel->type == 'sanaei') {
-                        $sanaei = new SanaeiPannelController();
-                        $onlines = $sanaei->onlines($pannel);
-                        if ($onlines !== null) {
-                            $onlineUsers = count($onlines);
-                            $isOnline = true;
-                        }
-                    } elseif ($pannel->type == 'hiddify') {
-                        // Hiddify status check
-                        $url = $pannel->admin_url . "/api/v2/admin/server_status/";
-                        $response = \Illuminate\Support\Facades\Http::withHeaders([
-                            'Hiddify-API-Key' => $pannel->secret_code,
-                        ])->timeout(2)->get($url);
-
-                        if ($response->ok()) {
-                            $isOnline = true;
-                            // Hiddify doesn't directly give online count in server_status usually, 
-                            // but we can at least confirm it's up.
-                        }
-                    }
-                } catch (\Throwable $th) {
-                    // Silent fail for status check
-                }
-
                 $pannelsStatus[] = [
                     'id' => $pannel->id,
                     'type' => $pannel->type,
                     'location' => $pannel->location,
                     'total_users' => $totalUsers,
-                    'online_users' => $onlineUsers,
-                    'is_online' => $isOnline,
                 ];
             }
 
@@ -191,6 +161,69 @@ class GeneralController extends Controller
             return response()->json(null, 500);
         }
     }
+
+    /**
+     * Lightweight per-panel status for dashboard widgets (short timeout, independent of main analytics).
+     */
+    public function getPanelDashboardStatus($pannelID)
+    {
+        try {
+            $pannel = \App\Models\Pannel::find($pannelID);
+            if (!$pannel) {
+                return response()->json(['success' => false, 'message' => 'Panel not found'], 404);
+            }
+
+            $totalUsers = \App\Models\Product::whereHas('product_category', function ($query) use ($pannel) {
+                $query->where('pannel_id', $pannel->id);
+            })->count();
+
+            $isOnline = false;
+            $onlineUsers = 0;
+
+            if ($pannel->type === 'sanaei') {
+                $status = (new SanaeiPannelController())->dashboardStatus($pannel);
+                $isOnline = (bool) ($status['is_online'] ?? false);
+                $onlineUsers = (int) ($status['online_users'] ?? 0);
+            } elseif ($pannel->type === 'hiddify') {
+                $url = rtrim((string) $pannel->admin_url, '/') . '/api/v2/admin/server_status/';
+                $response = \Illuminate\Support\Facades\Http::withoutVerifying()
+                    ->withHeaders(['Hiddify-API-Key' => $pannel->secret_code ?? ''])
+                    ->timeout(6)
+                    ->connectTimeout(6)
+                    ->get($url);
+                $isOnline = $response->ok();
+            } elseif ($pannel->type === 'marzban') {
+                $url = rtrim((string) $pannel->admin_url, '/') . '/api/system';
+                $response = \Illuminate\Support\Facades\Http::withoutVerifying()
+                    ->withHeaders(['Authorization' => 'Bearer ' . ($pannel->token ?? '')])
+                    ->timeout(6)
+                    ->connectTimeout(6)
+                    ->get($url);
+                $isOnline = $response->ok();
+            }
+
+            return response()->json([
+                'success' => true,
+                'id' => $pannel->id,
+                'type' => $pannel->type,
+                'location' => $pannel->location,
+                'total_users' => $totalUsers,
+                'online_users' => $onlineUsers,
+                'is_online' => $isOnline,
+            ], 200);
+        } catch (\Throwable $th) {
+            \Log::debug('getPanelDashboardStatus failed: ' . $th->getMessage());
+
+            return response()->json([
+                'success' => true,
+                'id' => (int) $pannelID,
+                'is_online' => false,
+                'online_users' => 0,
+                'error' => $th->getMessage(),
+            ], 200);
+        }
+    }
+
     public function getAgentDashboardAnalytics()
     {
         try {
@@ -202,6 +235,8 @@ class GeneralController extends Controller
             $logCntrl = new LogController();
             $getTop20Log = $logCntrl->getAllLogsOfLoggedAgent(20);
             $agentPermisson = \App\Models\AgentPermisson::where('user_id', auth()->user()->id)->first();
+            $agentPrCntrl = new AgentProductController();
+            $agentLimitUsage = $agentPrCntrl->getAgentLimitUsage(auth()->user()->id);
             return response()->json(
                 [
                     'accBallance' => $accBallance,
@@ -209,6 +244,7 @@ class GeneralController extends Controller
                     // 'boughtProducts' => $boughtProducts,
                     'Last20Logs' => $getTop20Log,
                     'agentPermisson' => $agentPermisson,
+                    'agentLimitUsage' => $agentLimitUsage,
                 ],
                 200,
             );
@@ -416,9 +452,10 @@ class GeneralController extends Controller
         try {
             $hiddifcCntrl = new HiddifyPannelController();
             $pnlCntrl = new PannelController();
+            $accountLabel = BotUser::resolveConfigAccountLabel($chat_id, $productID);
 
             $req = new Request();
-            $req->accountId = "$chat_id-$productID";
+            $req->accountId = $accountLabel;
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
@@ -455,7 +492,7 @@ class GeneralController extends Controller
             $request->product_categories_id = $selectedPrCat->id;
             $request->panel_link = "/{$newUUID}/#{$req->accountId}";
             $request->configs = '';
-            $request->remark = "$chat_id-$productID";
+            $request->remark = $accountLabel;
             $prCntrl = new ProductController();
             $prCntrl->addAutomatedProductDetails($request);
             return $newUUID;
@@ -469,8 +506,9 @@ class GeneralController extends Controller
     {
         try {
             $snCtrl = new SanaeiPannelController();
+            $accountLabel = BotUser::resolveConfigAccountLabel($chat_id, $productID);
             $req = new Request();
-            $req->accountId = "$chat_id-$productID";
+            $req->accountId = $accountLabel;
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
@@ -492,25 +530,11 @@ class GeneralController extends Controller
             }
 
             // Generate client links and QR codes
-            $links = $snCtrl->getUserLinks($pannel, $uuid, "$chat_id-$productID", $selectedPrCat->inbound_id, $clientEmail ?: null);
+            $links = $snCtrl->getUserLinks($pannel, $uuid, $accountLabel, $selectedPrCat->inbound_id, $clientEmail ?: null);
 
+            $subLink = '';
             if ($selectedPrCat->show_subscription_link) {
-                $baseUrl = $pannel->admin_url;
-                if (empty($baseUrl)) {
-                    $baseUrl = $pannel->url_port;
-                }
-                if (!empty($pannel->sub_port)) {
-                    $parsed = parse_url($baseUrl);
-                    $host = $parsed['host'] ?? '';
-                    $scheme = $parsed['scheme'] ?? 'http';
-                    if ($host) {
-                        $baseUrl = "$scheme://$host:{$pannel->sub_port}";
-                    }
-                }
-                if (substr($baseUrl, -1) == '/') {
-                    $baseUrl = substr($baseUrl, 0, -1);
-                }
-                $subLink = "$baseUrl/sub/$subId";
+                $subLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
 
                 $text = "لینک اشتراک شما:\n" . $subLink;
                 $this->telegramService->sendMessage($chat_id, $text);
@@ -546,16 +570,16 @@ class GeneralController extends Controller
 
             $request = new Request();
             $request->account_id = $chat_id;
-            $request->subscription_link = '';
+            $request->subscription_link = $subLink;
             $request->product_categories_id = $selectedPrCat->id;
-            $request->panel_link = '';
+            $request->panel_link = $subLink;
             $request->configs = json_encode([
                 'uuid' => $uuid,
                 'email' => $clientEmail,
                 'subId' => $subId,
                 'links' => $links ?? [],
             ]);
-            $request->remark = "$chat_id-$productID";
+            $request->remark = $accountLabel;
             $prCntrl = new ProductController();
             $prCntrl->addAutomatedProductDetails($request);
             return $uuid;
@@ -697,11 +721,21 @@ class GeneralController extends Controller
                 return;
             }
 
+            $agentProductCtrl = new AgentProductController();
+            $pricing = $agentProductCtrl->resolveProductPricingForAccount($chat_id, $productCategoryID);
+            if ($pricing === null) {
+                $this->telegramService->sendMessage($chat_id, 'این بسته برای شما در دسترس نیست.');
+                return false;
+            }
+
+            $productPriceInToman = $pricing['price'];
+            $productPriceInDollar = $pricing['price_in_dollar'];
+            $productCategory = $pricing['category'];
+
             $user_ballance = $this->accBlCtrl->getLoggedUserBallancce($chat_id);
             $user_ballance_in_toman = $user_ballance->ballance;
             $user_ballance_in_toman = number_format($user_ballance_in_toman, 0, ',', '.');
             $user_ballance_in_toman = $user_ballance_in_toman . ' تومان';
-            $productPriceInToman = $productCategory->price;
             // calculate the diffrence between user_ballance and productPriceInToman
             $mainDiffrenceInToman = $diffrence = $productPriceInToman - $user_ballance->ballance;
             $diffrence = number_format($diffrence, 0, ',', '.');
@@ -713,7 +747,6 @@ class GeneralController extends Controller
             $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             $text = '';
             if ($dollarTransaction == true || $dollarTransaction == 1) {
-                $productPriceInDollar = $productCategory->price_in_dollar;
                 $user_ballance_in_dollar = $user_ballance->account_ballance_in_dollar;
                 $mainDiffrenceInDollar = $diffrence_in_dollar = $productPriceInDollar - $user_ballance_in_dollar;
                 $productPriceInDollar = number_format($productPriceInDollar, 2, ',', '.');
@@ -724,7 +757,7 @@ class GeneralController extends Controller
                 $diffrence_in_dollar = $diffrence_in_dollar . ' دلار';
 
                 $text = $this->customTextCtrl->getText('action.process.insufficient_balance_with_dollar', [
-                    'product_category_name' => $productCategory->name,
+                    'product_category_name' => $productCategory->category_name,
                     'product_price_in_toman' => $productPriceInToman,
                     'product_price_in_dollar' => $productPriceInDollar,
                     'user_balance_in_toman' => $user_ballance_in_toman,
@@ -737,7 +770,7 @@ class GeneralController extends Controller
 
             } else {
                 $text = $this->customTextCtrl->getText('action.process.insufficient_balance', [
-                    'product_category_name' => $productCategory->name,
+                    'product_category_name' => $productCategory->category_name,
                     'product_price_in_toman' => $productPriceInToman,
                     'user_balance_in_toman' => $user_ballance_in_toman,
                     'difference_in_toman' => $diffrence,

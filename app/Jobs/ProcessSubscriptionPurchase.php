@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Http\Controllers\AgentProductController;
 use App\Http\Controllers\AccountBallanceController;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\GeneralController;
@@ -59,24 +60,41 @@ class ProcessSubscriptionPurchase implements ShouldQueue
         $logCtrl = new LogController();
         $hiddifyPannelCntrl = new HiddifyPannelController();
         $paymnetSettingCntrl = new PaymentSettingController();
+        $agentProductCtrl = new AgentProductController();
         $telegramService = new TelegramService();
 
         // Fetch user for logging
         $botUser = BotUser::where('account_id', $this->chatId)->first();
         $username = $botUser ? $botUser->username : 'Unknown';
         try {
-            $selectedPrCat = ProductCategory::find($this->productCategoryId);
+            $pricing = $agentProductCtrl->resolveProductPricingForAccount($this->chatId, $this->productCategoryId);
+            if ($pricing === null) {
+                $telegramService->sendMessage($this->chatId, 'این بسته برای شما در دسترس نیست.');
+                return;
+            }
+
+            $limitMessage = $agentProductCtrl->checkAgentPurchaseLimits(
+                $this->chatId,
+                (float) ($selectedPrCat->volume ?? 0),
+                1
+            );
+            if ($limitMessage !== null) {
+                $telegramService->sendMessage($this->chatId, $limitMessage);
+                return;
+            }
+
+            $selectedPrCat = $pricing['category'];
             if (!$selectedPrCat) {
                 \Log::error("Product Category not found: " . $this->productCategoryId);
                 return;
             }
-            \Log::info("Selected Product Category: 111111" . $selectedPrCat->name);
+            \Log::info("Selected Product Category: 111111" . $selectedPrCat->category_name);
             // بررسی موجودی کاربر
-            $productPrice = $selectedPrCat->price;
-            $productPriceInDollar = $selectedPrCat->price_in_dollar;
+            $productPrice = $pricing['price'];
+            $productPriceInDollar = $pricing['price_in_dollar'];
             $hasBallance = $accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
             // بررسی کیف پول ارجاع
-            $hasRefballance = $referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $selectedPrCat->price);
+            $hasRefballance = $referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $productPrice);
 
             if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
                 $generalCntrl->send_insufficient_balance_message($this->chatId, $selectedPrCat->id);

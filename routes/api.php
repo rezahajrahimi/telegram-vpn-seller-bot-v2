@@ -113,6 +113,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getNormalUsers', [UserController::class, 'getNormalUsers']);
     Route::get('getUserById/{id}', [UserController::class, 'getUserById']);
     Route::get('getAgentByIdWithProductsAndPremissons/{id}', [UserController::class, 'getAgentByIdWithProductsAndPremissons']);
+    Route::post('resetAgentLimitUsage/{userId}', [AgentProductController::class, 'resetAgentLimitUsageByAdmin']);
     Route::post('createUser', [UserController::class, 'createUser']);
     Route::put('updateUser', [UserController::class, 'updateUser']);
     Route::delete('deleteUser', [UserController::class, 'deleteUser']);
@@ -141,6 +142,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('get-license-type', [GeneralController::class, 'get_license_type']);
 
     Route::get('getDashboardAnalytics', [GeneralController::class, 'getDashboardAnalytics']);
+    Route::get('getPanelDashboardStatus/{pannelID}', [GeneralController::class, 'getPanelDashboardStatus']);
     Route::post('sendAdminMessageToUser', [GeneralController::class, 'send_admin_message_to_botuser']);
 
     //  ProductCategory
@@ -468,6 +470,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function 
     // AccountBallanceController
     Route::get('getLoggedAgentUserBallancce', [AccountBallanceController::class, 'getLoggedUserBallancce']);
     // AgentProductController
+    Route::get('getLoggedAgentLimitUsage', [AgentProductController::class, 'getLoggedAgentLimitUsage']);
     Route::get('getProductsOfLoggedAgent', [AgentProductController::class, 'getProductsOfLoggedAgent']);
     Route::get('getAgentSelledProducts', [AgentProductController::class, 'getAgentSelledProducts']);
     Route::get('getAgentSelledProductsByPagination', [AgentProductController::class, 'getAgentSelledProductsByPagination']);

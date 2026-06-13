@@ -18,6 +18,20 @@ class BotUser extends Model
         return $this->where('account_id', $accountId)->first();
     }
 
+    public static function resolveConfigAccountLabel(int|string $accountId, int|string|null $suffix = null): string
+    {
+        $botUser = static::query()->where('account_id', $accountId)->first();
+        $label = ($botUser && filled($botUser->admin_alias))
+            ? trim($botUser->admin_alias)
+            : (string) $accountId;
+
+        if ($suffix !== null && $suffix !== '') {
+            return "{$label}-{$suffix}";
+        }
+
+        return $label;
+    }
+
     public function getUserNameByAccountID($accountId)
     {
         return $this->where('account_id', $accountId)->first()->username;

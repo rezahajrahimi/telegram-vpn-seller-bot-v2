@@ -46,6 +46,9 @@ class UserController extends Controller
         $user->agent_products_count = $user->agent_products_count
             ?? $user->agent_products()->count();
 
+        $agentPrCntrl = new AgentProductController();
+        $user->agent_limit_usage = $agentPrCntrl->getAgentLimitUsage($user->id);
+
         return $this->appendBotUserMeta($user);
     }
 

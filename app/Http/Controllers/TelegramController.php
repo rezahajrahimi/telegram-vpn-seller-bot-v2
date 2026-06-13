@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot380422547:AAH38rivvYZvRnIF6zM-mwZpvqanKJCTclk/setwebhook?url=https://93692a74b715.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot380422547:AAH38rivvYZvRnIF6zM-mwZpvqanKJCTclk/setwebhook?url=https://ubuntu.powernad.ir/api/telegram/webhooks/inbound
 
 // https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://classic-loved-condor.ngrok-free.apphttps://classic-loved-condor.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
@@ -12,6 +12,7 @@ use App\Models\AgentProduct;
 use App\Models\ProductCategory;
 use App\Models\Product;
 use App\Models\Pannel;
+use App\Models\BotUser;
 use App\Models\User;
 use App\Models\AgentPermisson;
 use Illuminate\Http\Request;
@@ -1645,8 +1646,9 @@ class TelegramController extends Controller
         $volume = $selectedPrCat->volume;
 
         if ($pannel->type == 'hiddify') {
+            $testAccountLabel = BotUser::resolveConfigAccountLabel($this->chat_id, 'اکانت_آزمایشی');
             $req = new Request();
-            $req->accountId = "$this->chat_id-اکانت_آزمایشی";
+            $req->accountId = $testAccountLabel;
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
@@ -1678,7 +1680,7 @@ class TelegramController extends Controller
             $request->product_categories_id = $selectedPrCat->id;
             $request->panel_link = "/{$newUUID}/#{$req->accountId}";
             $request->configs = '';
-            $request->remark = "$this->chat_id-اکانت_آزمایشی";
+            $request->remark = $testAccountLabel;
 
             $prCntrl->addAutomatedProductDetails($request);
         } elseif ($pannel->type == 'marzban') {

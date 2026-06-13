@@ -85,25 +85,32 @@ class AgentProductController extends Controller
             }
 
             $selectedProductList = json_decode($request['selectedProductList'], true);
+            if (! is_array($selectedProductList)) {
+                return response()->json(false, 201);
+            }
 
             // create an array
             $newSelectedProductList = [];
 
-            // $pannel = Pannel::find($data['pannelID']);
-
             foreach ($selectedProductList as $value) {
-                $aa = json_decode($value, true);
-                $value = (array) $aa;
+                $value = $this->normalizeSelectedProductItem($value);
+                if ($value === null) {
+                    continue;
+                }
+
+                $productCategoryId = (int) ($value['productCategoriesId'] ?? $value['id']);
+                if ($productCategoryId <= 0) {
+                    continue;
+                }
+
                 $req = new Request();
-                $req->id = $value['id'] ?? null;
-                $req->product_categories_id = $value['productCategoriesId'] ?? $value['id'];
-                $req->price = $value['newPrice'] ?? $value['price'];
-                $req->price_in_dollar = $value['newPriceInDollar'] ?? $value['priceInDollar'];
+                $req->product_categories_id = $productCategoryId;
+                $req->price = $value['newPrice'] ?? $value['price'] ?? 0;
+                $req->price_in_dollar = $value['newPriceInDollar'] ?? $value['priceInDollar'] ?? 0;
                 $req->user_id = $userID;
                 $req->is_active = true;
-                // add $req->product_categories_id to array
 
-                array_push($newSelectedProductList, $req->product_categories_id);
+                $newSelectedProductList[] = $productCategoryId;
 
                 $this->createANewAgentProduct($req);
             }
@@ -182,11 +189,19 @@ class AgentProductController extends Controller
                 return response()->json(false, 201);
             }
             $selectedProductList = json_decode($request['selectedProductList'], true);
+            if (! is_array($selectedProductList)) {
+                return response()->json(false, 201);
+            }
+
             foreach ($selectedProductList as $value) {
-                $aa = json_decode($value, true);
-                $value = (array) $aa;
-                if ($value['productCategoriesId'] != null) {
-                    $this->deleteAgentProductByPrCatIDAndUserID($userID, $value['productCategoriesId']);
+                $value = $this->normalizeSelectedProductItem($value);
+                if ($value === null) {
+                    continue;
+                }
+
+                $productCategoryId = $value['productCategoriesId'] ?? $value['id'] ?? null;
+                if ($productCategoryId != null) {
+                    $this->deleteAgentProductByPrCatIDAndUserID($userID, $productCategoryId);
                 } else {
                     $this->deleteAgentProductByIDAndUserID($userID, $value['id']);
                 }
@@ -198,21 +213,38 @@ class AgentProductController extends Controller
             return response()->json($th, 201);
         }
     }
+    private function normalizeSelectedProductItem($value): ?array
+    {
+        if (is_string($value)) {
+            $value = json_decode($value, true);
+        }
+
+        if (! is_array($value)) {
+            return null;
+        }
+
+        return $value;
+    }
+
     public function createANewAgentProduct(Request $request)
     {
         try {
-            if (AgentProduct::where('id', $request->id)->first() != null) {
-                // log the $request
-                $this->updateAgentProduct($request);
-                return;
-            }
-            // chceck if this product category is exist or not
             $hasProductCategory = ProductCategory::where('id', $request->product_categories_id)->first();
 
             if ($hasProductCategory == null) {
-                // log the $request
                 return;
             }
+
+            $existing = AgentProduct::where('user_id', $request->user_id)
+                ->where('product_categories_id', $request->product_categories_id)
+                ->first();
+
+            if ($existing != null) {
+                $request->merge(['id' => $existing->id]);
+
+                return $this->updateAgentProduct($request);
+            }
+
             $agentProduct = new AgentProduct();
 
             $agentProduct->product_categories_id = $request->product_categories_id;
@@ -221,6 +253,7 @@ class AgentProductController extends Controller
             $agentProduct->price = $request->price ?? 0.0;
             $agentProduct->price_in_dollar = $request->price_in_dollar ?? 0.0;
             $agentProduct->save();
+
             return response()->json($agentProduct, 200);
         } catch (\Throwable $th) {
             \Log::info("createANewAgentProduct throw $th");
@@ -231,13 +264,15 @@ class AgentProductController extends Controller
     {
         try {
             $agentProduct = AgentProduct::find($request->id);
-            // $agentProduct->product_categories_id = $request->product_categories_id;
-            // $agentProduct->user_id = $request->user_id;
-            // $agentProduct->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
+            if ($agentProduct == null) {
+                return response()->json(false, 404);
+            }
+
             $agentProduct->price = $request->price ?? 0;
             $agentProduct->price_in_dollar = $request->price_in_dollar ?? 0.0;
 
             $agentProduct->update();
+
             return response()->json($agentProduct, 200);
         } catch (\Throwable $th) {
             \Log::info("updateAgentProduct throw $th");
@@ -315,6 +350,189 @@ class AgentProductController extends Controller
         } catch (\Throwable $th) {
             return response()->json(null, 500);
         }
+    }
+
+    public function getAgentUserByAccountId($accountId): ?User
+    {
+        return User::where('account_id', $accountId)->where('role', 'agent')->first();
+    }
+
+    public function getActiveProductCategoriesForAgent(int $userId, ?int $panelId = null)
+    {
+        return AgentProduct::where('user_id', $userId)
+            ->where('is_active', true)
+            ->with('product_categories')
+            ->get()
+            ->filter(function ($agentProduct) use ($panelId) {
+                $category = $agentProduct->product_categories;
+                if ($category === null || ! $category->is_active) {
+                    return false;
+                }
+                if ($category->category_name === 'اکانت آزمایشی') {
+                    return false;
+                }
+                if ($panelId !== null && (int) $category->pannel_id !== (int) $panelId) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->map(function ($agentProduct) {
+                $category = $agentProduct->product_categories->replicate();
+                $category->id = $agentProduct->product_categories->id;
+                $category->price = $agentProduct->price;
+                $category->price_in_dollar = $agentProduct->price_in_dollar;
+
+                return $category;
+            })
+            ->sortBy('price')
+            ->values();
+    }
+
+    public function resolveProductPricingForAccount($accountId, $productCategoryId): ?array
+    {
+        $user = User::where('account_id', $accountId)->first();
+        if ($user === null) {
+            return null;
+        }
+
+        $category = ProductCategory::where('id', $productCategoryId)
+            ->where('is_active', true)
+            ->first();
+        if ($category === null) {
+            return null;
+        }
+
+        if ($user->role !== 'agent') {
+            return [
+                'category' => $category,
+                'price' => $category->price,
+                'price_in_dollar' => $category->price_in_dollar,
+                'is_agent' => false,
+            ];
+        }
+
+        $agentProduct = AgentProduct::where('user_id', $user->id)
+            ->where('product_categories_id', $productCategoryId)
+            ->where('is_active', true)
+            ->first();
+        if ($agentProduct === null) {
+            return null;
+        }
+
+        return [
+            'category' => $category,
+            'price' => $agentProduct->price,
+            'price_in_dollar' => $agentProduct->price_in_dollar,
+            'is_agent' => true,
+        ];
+    }
+
+    public function checkAgentPurchaseLimits(
+        $accountId,
+        float $additionalVolumeGb = 0,
+        int $additionalProducts = 1
+    ): ?string {
+        $user = $this->getAgentUserByAccountId($accountId);
+        if ($user === null) {
+            return null;
+        }
+
+        $usage = $this->getAgentLimitUsage($user->id);
+        if ($usage === null) {
+            return null;
+        }
+
+        if ($additionalProducts > 0) {
+            $newCount = $usage['used_product_count'] + $additionalProducts;
+            if ($newCount > $usage['product_limit']) {
+                return 'به محدودیت تعداد محصول رسیده‌اید.';
+            }
+        }
+
+        if ($additionalVolumeGb > 0) {
+            $additionalTrafficTb = round($additionalVolumeGb / 1000, 2);
+            $newTraffic = round($usage['used_traffic_tb'] + $additionalTrafficTb, 2);
+            if ($newTraffic > $usage['traffic_limit_tb']) {
+                return 'به محدودیت ترافیک رسیده‌اید.';
+            }
+        }
+
+        return null;
+    }
+
+    public function calculateRawAgentUsage($accountId): array
+    {
+        $productCount = Product::where('account_id', $accountId)->count();
+        $trafficGb = Product::where('account_id', $accountId)
+            ->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
+            ->sum('product_categories.volume');
+
+        return [
+            'product_count' => (int) $productCount,
+            'traffic_tb' => round(((float) $trafficGb) / 1000, 2),
+        ];
+    }
+
+    public function getAgentLimitUsage(int $userId): ?array
+    {
+        $user = User::find($userId);
+        if ($user === null || $user->role !== 'agent') {
+            return null;
+        }
+
+        $agentPermisson = AgentPermisson::where('user_id', $userId)->first();
+        if ($agentPermisson === null) {
+            return null;
+        }
+
+        $raw = $this->calculateRawAgentUsage($user->account_id);
+        $baselineCount = (int) ($agentPermisson->product_count_baseline ?? 0);
+        $baselineTraffic = (float) ($agentPermisson->traffic_tb_baseline ?? 0);
+        $productLimit = (int) $agentPermisson->product_limitation;
+        $trafficLimit = (float) $agentPermisson->traffic_limitation_tb;
+
+        $usedCount = max(0, $raw['product_count'] - $baselineCount);
+        $usedTraffic = max(0, round($raw['traffic_tb'] - $baselineTraffic, 2));
+
+        return [
+            'product_limit' => $productLimit,
+            'traffic_limit_tb' => $trafficLimit,
+            'used_product_count' => $usedCount,
+            'used_traffic_tb' => $usedTraffic,
+            'remaining_product_count' => max(0, $productLimit - $usedCount),
+            'remaining_traffic_tb' => max(0, round($trafficLimit - $usedTraffic, 2)),
+            'total_product_count' => $raw['product_count'],
+            'total_traffic_tb' => $raw['traffic_tb'],
+            'product_count_baseline' => $baselineCount,
+            'traffic_tb_baseline' => $baselineTraffic,
+            'product_usage_percent' => $productLimit > 0
+                ? min(100, round(($usedCount / $productLimit) * 100, 1))
+                : 0,
+            'traffic_usage_percent' => $trafficLimit > 0
+                ? min(100, round(($usedTraffic / $trafficLimit) * 100, 1))
+                : 0,
+        ];
+    }
+
+    public function resetAgentLimitUsage(int $userId): ?array
+    {
+        $user = User::find($userId);
+        if ($user === null || $user->role !== 'agent') {
+            return null;
+        }
+
+        $agentPermisson = AgentPermisson::where('user_id', $userId)->first();
+        if ($agentPermisson === null) {
+            return null;
+        }
+
+        $raw = $this->calculateRawAgentUsage($user->account_id);
+        $agentPermisson->product_count_baseline = $raw['product_count'];
+        $agentPermisson->traffic_tb_baseline = $raw['traffic_tb'];
+        $agentPermisson->save();
+
+        return $this->getAgentLimitUsage($userId);
     }
 
     public function getAgentProductsByID($ID)
@@ -672,6 +890,26 @@ class AgentProductController extends Controller
         $userId = auth('sanctum')->user()->id;
         return $this->getAgentProductsByUserID($userId);
     }
+
+    public function getLoggedAgentLimitUsage()
+    {
+        $usage = $this->getAgentLimitUsage(auth('sanctum')->user()->id);
+        if ($usage === null) {
+            return response()->json(null, 404);
+        }
+
+        return response()->json($usage, 200);
+    }
+
+    public function resetAgentLimitUsageByAdmin($userId)
+    {
+        $usage = $this->resetAgentLimitUsage((int) $userId);
+        if ($usage === null) {
+            return response()->json(false, 404);
+        }
+
+        return response()->json($usage, 200);
+    }
     public function buyProductByAgentWithPrID(Request $request)
     {
         $selectedPrCat = ProductCategory::find($request->id);
@@ -680,28 +918,7 @@ class AgentProductController extends Controller
         $userID = auth('sanctum')->user()->id;
         $agentname = auth('sanctum')->user()->name;
         $remark = "$agentname -  $request->remark ";
-        // check agent has terrafic limition or not
-        $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
 
-        if ($agentPermisson != null) {
-            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
-
-            //convert $usedProductTerrafic from Gb to TB
-
-            if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {
-                $usedProductTerrafic = $usedProductTerrafic / 1000;
-            }
-            if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
-                return response()->json('Reached to Max Terrafic Limitation', 401);
-            }
-            $usedProductCount = Product::where('account_id', $accountID)->count();
-            if ($usedProductCount != null) {
-                if ($usedProductCount >= $agentPermisson->product_limitation) {
-                    return response()->json('Reached to Max Product Limitation', 401);
-                }
-            }
-        }
-        //
         if ($selectedPrCat == null) {
             return response()->json(false, 500);
         }
@@ -709,6 +926,13 @@ class AgentProductController extends Controller
         if ($selectedPrCat->is_active == false) {
             return response()->json(false, 500);
         }
+
+        $limitMessage = $this->checkAgentPurchaseLimits($accountID, (float) $selectedPrCat->volume, 1);
+        if ($limitMessage !== null) {
+            return response()->json($limitMessage, 401);
+        }
+
+        //
         $agentProduct = AgentProduct::where('product_categories_id', $selectedPrCat->id)
             ->where('user_id', $userID)
             ->first();
@@ -774,29 +998,14 @@ class AgentProductController extends Controller
                 $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
 
                 if ($selectedPrCat->show_subscription_link) {
-                    $baseUrl = $pannel->user_link;
-                    if (empty($baseUrl)) {
-                        $baseUrl = $pannel->url_port;
-                    }
-                    if (!empty($pannel->sub_port)) {
-                        $parsed = parse_url($baseUrl);
-                        $host = $parsed['host'] ?? '';
-                        $scheme = $parsed['scheme'] ?? 'http';
-                        if ($host) {
-                            $baseUrl = "$scheme://$host:{$pannel->sub_port}";
-                        }
-                    }
-                    if (substr($baseUrl, -1) == '/') {
-                        $baseUrl = substr($baseUrl, 0, -1);
-                    }
-                    $userPannelLink = "$baseUrl/sub/$subId";
+                    $userPannelLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
                 } else {
                     $userPannelLink = $links[0] ?? '';
                 }
 
                 $reqProductDetails = new Request();
                 $reqProductDetails->account_id = $accountID;
-                $reqProductDetails->subscription_link = '';
+                $reqProductDetails->subscription_link = $userPannelLink;
                 $reqProductDetails->product_categories_id = $selectedPrCat->id;
                 $reqProductDetails->panel_link = '';
                 $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
@@ -894,29 +1103,14 @@ class AgentProductController extends Controller
                 $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
 
                 if ($selectedPrCat->show_subscription_link) {
-                    $baseUrl = $pannel->user_link;
-                    if (empty($baseUrl)) {
-                        $baseUrl = $pannel->url_port;
-                    }
-                    if (!empty($pannel->sub_port)) {
-                        $parsed = parse_url($baseUrl);
-                        $host = $parsed['host'] ?? '';
-                        $scheme = $parsed['scheme'] ?? 'http';
-                        if ($host) {
-                            $baseUrl = "$scheme://$host:{$pannel->sub_port}";
-                        }
-                    }
-                    if (substr($baseUrl, -1) == '/') {
-                        $baseUrl = substr($baseUrl, 0, -1);
-                    }
-                    $userPannelLink = "$baseUrl/sub/$subId";
+                    $userPannelLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
                 } else {
                     $userPannelLink = $links[0] ?? '';
                 }
 
                 $reqProductDetails = new Request();
                 $reqProductDetails->account_id = $accountID;
-                $reqProductDetails->subscription_link = '';
+                $reqProductDetails->subscription_link = $userPannelLink;
                 $reqProductDetails->product_categories_id = $selectedPrCat->id;
                 $reqProductDetails->panel_link = '';
                 $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
@@ -1101,29 +1295,14 @@ class AgentProductController extends Controller
             $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
 
             if ($selectedPrCat->show_subscription_link) {
-                $baseUrl = $pannel->user_link;
-                if (empty($baseUrl)) {
-                    $baseUrl = $pannel->url_port;
-                }
-                if (!empty($pannel->sub_port)) {
-                    $parsed = parse_url($baseUrl);
-                    $host = $parsed['host'] ?? '';
-                    $scheme = $parsed['scheme'] ?? 'http';
-                    if ($host) {
-                        $baseUrl = "$scheme://$host:{$pannel->sub_port}";
-                    }
-                }
-                if (substr($baseUrl, -1) == '/') {
-                    $baseUrl = substr($baseUrl, 0, -1);
-                }
-                $userPannelLink = "$baseUrl/sub/$subId";
+                $userPannelLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
             } else {
                 $userPannelLink = $links[0] ?? '';
             }
 
             $reqProductDetails = new Request();
             $reqProductDetails->account_id = $accountID;
-            $reqProductDetails->subscription_link = '';
+            $reqProductDetails->subscription_link = $userPannelLink;
             $reqProductDetails->product_categories_id = $selectedPrCat->id;
             $reqProductDetails->panel_link = '';
             $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
@@ -1361,21 +1540,7 @@ class AgentProductController extends Controller
         $accountID = auth('sanctum')->user()->account_id;
         $userID = auth('sanctum')->user()->id;
         $selectedPrCat = ProductCategory::find($data->product_categories_id);
-        // check agent has terrafic limition or not
 
-        $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
-
-        if ($agentPermisson != null) {
-            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
-            //convert $usedProductTerrafic from Gb to TB
-            if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {
-                $usedProductTerrafic = $usedProductTerrafic / 1000;
-            }
-
-            if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
-                return response()->json('Reached to Max Terrafic Limitation', 401);
-            }
-        }
         if ($accountID != $data->account_id) {
             return response()->json(false, 401);
         }
@@ -1465,26 +1630,17 @@ class AgentProductController extends Controller
         $oldPrCat = ProductCategory::find($data->product_categories_id);
         $newPrCat = ProductCategory::find($request->newPrCatID);
 
-        // check agent has terrafic limition or not
-
-        $agentPermisson = AgentPermisson::where('user_id', $userID)->first();
-
-        if ($agentPermisson != null) {
-            $usedProductTerrafic = Product::where('account_id', $accountID)->leftJoin('product_categories', 'products.product_categories_id', '=', 'product_categories.id')->sum('product_categories.volume');
-            //convert $usedProductTerrafic from Gb to TB
-            if ($usedProductTerrafic != null || $usedProductTerrafic != 0) {
-                $usedProductTerrafic = $usedProductTerrafic / 1000;
-            }
-
-            if ($usedProductTerrafic >= $agentPermisson->traffic_limitation_tb) {
-                return response()->json('Reached to Max Terrafic Limitation', 401);
-            }
-        }
         if ($accountID != $data->account_id) {
             return response()->json(false, 401);
         }
-        if ($oldPrCat->is_active == false) {
+        if ($oldPrCat === null || $newPrCat === null || $oldPrCat->is_active == false) {
             return response()->json(false, 500);
+        }
+
+        $volumeDelta = max(0, (float) $newPrCat->volume - (float) $oldPrCat->volume);
+        $limitMessage = $this->checkAgentPurchaseLimits($accountID, $volumeDelta, 0);
+        if ($limitMessage !== null) {
+            return response()->json($limitMessage, 401);
         }
 
         if ($data != null) {

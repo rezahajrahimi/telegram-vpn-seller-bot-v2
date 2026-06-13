@@ -9,7 +9,8 @@
         "cryptomkt/cryptomkt-curl-php": "^0.1.1",
         "econea/nusoap": "dev-master",
         "guzzlehttp/guzzle": "^7.8",
-        "hekmatinasser/verta": "^8.3",
+        "hekmatinasser/jalali": "dev-fix/php-84-implicit-nullable as 8.2.5",
+        "hekmatinasser/verta": "^8.5",
         "intervention/image": "^3.8",
         "intervention/image-laravel": "^1.3",
         "laravel/framework": "^11.0",
@@ -70,6 +71,12 @@
             "php-http/discovery": true
         }
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/bmrbehnam/hekmatinasser-jalali"
+        }
+    ],
     "minimum-stability": "stable",
     "prefer-stable": true
 }

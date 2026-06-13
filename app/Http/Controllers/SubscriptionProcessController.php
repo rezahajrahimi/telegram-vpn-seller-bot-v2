@@ -37,6 +37,7 @@ class SubscriptionProcessController extends Controller
     private PaymentTypeController $pymntCntrl;
     private HiddifyPannelController $hiddifyPannelCntrl;
     private PaymentSettingController $paymnetSettingCntrl;
+    private AgentProductController $agentProductCtrl;
     public function __construct(TelegramService $telegramService)
     {
         $this->telegramService      = $telegramService;
@@ -55,6 +56,7 @@ class SubscriptionProcessController extends Controller
         $this->pymntCntrl           = new PaymentTypeController();
         $this->hiddifyPannelCntrl   = new HiddifyPannelController();
         $this->paymnetSettingCntrl  = new PaymentSettingController();
+        $this->agentProductCtrl     = new AgentProductController();
     }
 
     public function buySubscriptionMenu($chatId)
@@ -133,6 +135,23 @@ class SubscriptionProcessController extends Controller
                 $this->telegramService->sendMessage($chatId, "دسته‌بندی نامعتبر است.");
                 return "";
             }
+
+            $pricing = $this->agentProductCtrl->resolveProductPricingForAccount($chatId, $categoryId);
+            if ($pricing === null) {
+                $this->telegramService->sendMessage($chatId, "این بسته برای شما در دسترس نیست.");
+                return "";
+            }
+
+            $limitMessage = $this->agentProductCtrl->checkAgentPurchaseLimits(
+                $chatId,
+                (float) ($pricing['category']->volume ?? 0),
+                1
+            );
+            if ($limitMessage !== null) {
+                $this->telegramService->sendMessage($chatId, $limitMessage);
+                return "";
+            }
+
             // Dispatch the job to handle the purchase asynchronously
             ProcessSubscriptionPurchase::dispatch($chatId, $categoryId);
 
@@ -156,8 +175,7 @@ class SubscriptionProcessController extends Controller
             $this->addNewBotLog('subscription', 'وارد بخش خرید اشتراک بر اساس لوکیشن شد.', 'show');
             $text       = $this->customTextCtrl->getText('action.buy_subscription_by_location.location');
             $panelId    = $this->panelCntrl->get_pannel_id_by_location($location);
-            $prCatCntrl = new ProductCategoryController();
-            $prCat      = $prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
+            $prCat      = $this->resolveProductCategoriesForChat(null, $panelId);
 
             $this->prepareSubscriptionButtons($prCat);
 
@@ -169,12 +187,36 @@ class SubscriptionProcessController extends Controller
             return "";
         }
     }
+    private function resolveProductCategoriesForChat($prCat = null, ?int $panelId = null)
+    {
+        if ($prCat !== null) {
+            return collect($prCat);
+        }
+
+        $agentUser = $this->agentProductCtrl->getAgentUserByAccountId($this->chatId);
+        if ($agentUser !== null) {
+            return $this->agentProductCtrl->getActiveProductCategoriesForAgent($agentUser->id, $panelId);
+        }
+
+        if ($panelId !== null) {
+            return $this->prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
+        }
+
+        return $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
+    }
+
     public function prepareSubscriptionButtons($prCat = null)
     {
         $text = $this->customTextCtrl->getText('action.buy_subscription.select_package');
-        if ($prCat == null) {
-            $prCat = $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
+        if ($prCat === null) {
+            $prCat = $this->resolveProductCategoriesForChat();
         }
+
+        if ($prCat->isEmpty()) {
+            $this->telegramService->sendMessage($this->chatId, 'هیچ بسته‌ای برای شما تعریف نشده است.');
+            return "";
+        }
+
         $opr               = [];
         $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         \Log::info("dollarTransaction: " . $dollarTransaction);
@@ -622,22 +664,7 @@ class SubscriptionProcessController extends Controller
                     $subId                = $status['client']['subId'] ?? $uuid;
                     $userSubscriptionLink = "";
                     if ($prCat->show_subscription_link) {
-                        $baseUrl = $pannel->user_link;
-                        if (empty($baseUrl)) {
-                            $baseUrl = $pannel->url_port;
-                        }
-                        if (! empty($pannel->sub_port)) {
-                            $parsed = parse_url($baseUrl);
-                            $host   = $parsed['host'] ?? '';
-                            $scheme = $parsed['scheme'] ?? 'http';
-                            if ($host) {
-                                $baseUrl = "$scheme://$host:{$pannel->sub_port}";
-                            }
-                        }
-                        if (substr($baseUrl, -1) == '/') {
-                            $baseUrl = substr($baseUrl, 0, -1);
-                        }
-                        $userSubscriptionLink = "$baseUrl/sub/$subId";
+                        $userSubscriptionLink = $sn->buildSubscriptionLink($pannel, $subId);
                     } else {
                         if (! empty($product->selectedPrCat->sample_inbound) && ! empty($links)) {
                             $config   = preg_replace('/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i', $uuid, $product->selectedPrCat->sample_inbound);
@@ -772,8 +799,14 @@ class SubscriptionProcessController extends Controller
                 return "";
             }
             // get product price & price in dollar
-            $productPrice         = $prCat->price;
-            $productPriceInDollar = $prCat->price_in_dollar;
+            $pricing = $this->agentProductCtrl->resolveProductPricingForAccount($this->chatId, $prCat->id);
+            if ($pricing === null) {
+                $text = 'این بسته برای شما در دسترس نیست.';
+                $this->telegramService->sendMessage($this->chatId, $text);
+                return "";
+            }
+            $productPrice         = $pricing['price'];
+            $productPriceInDollar = $pricing['price_in_dollar'];
             // check user has balance or has ref ballance
             $hasBallance    = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
             $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $productPrice);

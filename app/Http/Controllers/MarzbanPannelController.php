@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BotUser;
 use App\Models\Pannel;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -22,11 +23,27 @@ class MarzbanPannelController extends Controller
 
     public function buildBotUsername(int|string $chatId, int|string $productId): string
     {
+        $botUser = BotUser::query()->where('account_id', $chatId)->first();
+        if ($botUser && filled($botUser->admin_alias)) {
+            $sanitized = $this->sanitizeUsername(BotUser::resolveConfigAccountLabel($chatId, $productId));
+            if ($sanitized !== '') {
+                return $sanitized;
+            }
+        }
+
         return $this->sanitizeUsername("BotUser{$chatId}{$productId}");
     }
 
     public function buildTestAccountUsername(int|string $chatId): string
     {
+        $botUser = BotUser::query()->where('account_id', $chatId)->first();
+        if ($botUser && filled($botUser->admin_alias)) {
+            $sanitized = $this->sanitizeUsername(BotUser::resolveConfigAccountLabel($chatId, 'Test'));
+            if ($sanitized !== '') {
+                return $sanitized;
+            }
+        }
+
         return $this->sanitizeUsername("BotUser{$chatId}Test");
     }
 

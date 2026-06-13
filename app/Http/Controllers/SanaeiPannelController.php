@@ -193,6 +193,98 @@ class SanaeiPannelController extends Controller
         return rtrim($url, '/');
     }
 
+    /**
+     * Subscription base URL: scheme://host[:port] without 3x-ui web path prefix.
+     * Uses sub_port when configured on the panel.
+     */
+    public function subscriptionBaseUrl(Pannel $panel): string
+    {
+        $source = trim((string) ($panel->admin_url ?: $panel->user_link ?: $panel->url_port ?: ''));
+        if ($source === '') {
+            return '';
+        }
+
+        $parsed = parse_url($source);
+        if (!is_array($parsed) || empty($parsed['host'])) {
+            return rtrim($source, '/');
+        }
+
+        $scheme = strtolower($parsed['scheme'] ?? 'https');
+        $host = $parsed['host'];
+
+        if (!empty($panel->sub_port)) {
+            $port = (int) $panel->sub_port;
+        } elseif (isset($parsed['port'])) {
+            $port = (int) $parsed['port'];
+        } else {
+            $port = $scheme === 'https' ? 443 : 80;
+        }
+
+        $usePort = ($scheme === 'https' && $port !== 443) || ($scheme === 'http' && $port !== 80);
+
+        return $usePort ? "{$scheme}://{$host}:{$port}" : "{$scheme}://{$host}";
+    }
+
+    public function buildSubscriptionLink(Pannel $panel, string $subId): string
+    {
+        $base = $this->subscriptionBaseUrl($panel);
+        if ($base === '') {
+            return '';
+        }
+
+        return rtrim($base, '/') . '/sub/' . trim($subId, '/');
+    }
+
+    /**
+     * Fast dashboard health check — uses existing session only, no slow re-login.
+     */
+    public function dashboardStatus(Pannel $panel): array
+    {
+        $offline = ['is_online' => false, 'online_users' => 0];
+        try {
+            $this->resolveApiVersion($panel);
+            $base = $this->baseUrl($panel);
+            if ($base === '' || empty($panel->cookie_session)) {
+                return $offline;
+            }
+
+            $prefix = $this->apiPrefixFor($panel);
+            $headers = $this->headers($panel, false);
+            $cookieHeader = $this->buildCookieHeader($panel);
+            if ($cookieHeader !== '') {
+                $headers['Cookie'] = $cookieHeader;
+            }
+
+            $listUrl = $base . $prefix . '/inbounds/list';
+            $r = $this->panelHttp()->timeout(6)->connectTimeout(6)->withHeaders($headers)->get($listUrl);
+            $json = $r->json();
+            if (!$r->ok() || !is_array($json) || !($json['success'] ?? false)) {
+                return $offline;
+            }
+
+            $onlineUsers = 0;
+            try {
+                $onlinesPath = $this->isV3($panel) ? '/clients/onlines' : '/inbounds/onlines';
+                $postHeaders = $this->applyCsrfHeader($panel, $headers, true);
+                $or = $this->panelHttp()->timeout(6)->connectTimeout(6)
+                    ->withHeaders($postHeaders)
+                    ->post($base . $prefix . $onlinesPath, []);
+                $oj = $or->json();
+                if ($or->ok() && is_array($oj) && ($oj['success'] ?? false)) {
+                    $onlineUsers = count($oj['obj'] ?? []);
+                }
+            } catch (\Throwable $th) {
+                \Log::debug('dashboardStatus onlines skipped: ' . $th->getMessage());
+            }
+
+            return ['is_online' => true, 'online_users' => $onlineUsers];
+        } catch (\Throwable $th) {
+            \Log::debug('dashboardStatus failed: ' . $th->getMessage());
+
+            return $offline;
+        }
+    }
+
     private function panelHttp()
     {
         return Http::withoutVerifying()
