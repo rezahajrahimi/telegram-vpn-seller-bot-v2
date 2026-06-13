@@ -791,15 +791,36 @@ class GeneralController extends Controller
     public function send_admin_message_to_botuser(Request $request)
     {
         try {
-            if ($request->message != "") {
-                $accountId = BotUser::find($request->userID)->account_id;
-                $message = $request->message;
-                $this->telegramService->sendMessage($accountId, $message);
-                // add log
-                $this->addNewBotLog("send", $message, $accountId, "");
-                return response()->json(true, 200);
+            if ($request->message == "") {
+                return response()->json(false, 400);
             }
-            return response()->json(false, 400);
+
+            $botUser = BotUser::find($request->userID)
+                ?? BotUser::where('account_id', $request->userID)->first();
+
+            if (!$botUser) {
+                return response()->json(['message' => 'کاربر یافت نشد'], 404);
+            }
+
+            $accountId = $botUser->account_id;
+            $message = $request->message;
+
+            $response = $this->telegramService->sendMessage($accountId, $message);
+            if (!($response['ok'] ?? false)) {
+                $response = $this->telegramService->sendPlainMessage($accountId, $message);
+            }
+
+            if (!($response['ok'] ?? false)) {
+                $error = $response['description'] ?? 'خطا در ارسال پیام به تلگرام';
+                \Log::error('send_admin_message_to_botuser failed', [
+                    'account_id' => $accountId,
+                    'error' => $error,
+                ]);
+                return response()->json(['message' => $error], 422);
+            }
+
+            $this->addNewBotLog("send", $message, $accountId, "");
+            return response()->json(true, 200);
         } catch (\Throwable $th) {
             \Log::info("errer on send_admin_message_to_botuser" . $th->getMessage());
             return response()->json(false, 500);

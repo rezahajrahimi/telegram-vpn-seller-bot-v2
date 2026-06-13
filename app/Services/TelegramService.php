@@ -35,6 +35,17 @@ class TelegramService
         ], $options));
     }
 
+    public function sendPlainMessage(string $chatId, string|array $text, array $options = []): array
+    {
+        if (is_array($text)) {
+            $text = $this->formatText($text);
+        }
+        return $this->makeRequest('sendMessage', array_merge([
+            'chat_id' => $chatId,
+            'text' => $text,
+        ], $options));
+    }
+
     public function sendMarkdownMessage(string $chatId, string|array $text, array $options = []): array
     {
         if (is_array($text)) {

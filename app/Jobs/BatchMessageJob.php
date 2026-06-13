@@ -74,6 +74,9 @@ class BatchMessageJob implements ShouldQueue
                 } else {
                     // Send text
                     $response = $telegramService->sendMessage($userId, $this->message, $this->extra);
+                    if (!($response['ok'] ?? false)) {
+                        $response = $telegramService->sendPlainMessage($userId, $this->message, $this->extra);
+                    }
                 }
 
                 if (isset($response['ok']) && $response['ok']) {
