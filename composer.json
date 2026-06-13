@@ -28,6 +28,7 @@
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.0",
         "phpunit/phpunit": "^10.5",
+        "sbamtr/laravel-source-encrypter": "1.6.0",
         "spatie/laravel-ignition": "^2.4"
     },
     "autoload": {
@@ -39,7 +40,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\": "tests/"
+            "Tests\\": "tests/",
+            "sbamtr\\LaravelSourceEncrypter\\": "vendor/sbamtr/laravel-source-encrypter/src"
         }
     },
     "scripts": {
@@ -72,6 +74,13 @@
         }
     },
     "repositories": [
+        {
+            "type": "path",
+            "url": "vendor/sbamtr/laravel-source-encrypter",
+            "options": {
+                "symlink": false
+            }
+        },
         {
             "type": "vcs",
             "url": "https://github.com/bmrbehnam/hekmatinasser-jalali"
