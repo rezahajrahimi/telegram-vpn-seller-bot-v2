@@ -532,40 +532,27 @@ class GeneralController extends Controller
             // Generate client links and QR codes
             $links = $snCtrl->getUserLinks($pannel, $uuid, $accountLabel, $selectedPrCat->inbound_id, $clientEmail ?: null);
 
-            $subLink = '';
-            if ($selectedPrCat->show_subscription_link) {
-                $subLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
+            $subLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
 
-                $text = "لینک اشتراک شما:\n" . $subLink;
-                $this->telegramService->sendMessage($chat_id, $text);
+            $pnlCntrl = new PannelController();
+            $subText = "لینک اشتراک شما:\n" . $subLink;
+            $this->telegramService->sendMessage($chat_id, $subText);
+            $image = $pnlCntrl->generateQrMOC($subLink);
+            $this->telegramService->sendPhotoFile($chat_id, $image, $subLink);
 
-                $pnlCntrl = new PannelController();
-                $image = $pnlCntrl->generateQrMOC($subLink);
-                $this->telegramService->sendPhotoFile($chat_id, $image, $subLink);
-
-            } elseif (!empty($links)) {
-
-                $text = "";
-                // get sample_inbound from selectedPrCat and replace uuid from text with sample_inbound if sample_inbound is not empty
-                if (!empty($selectedPrCat->sample_inbound)) {
+            if ($selectedPrCat->send_config_to_user && ! empty($links)) {
+                if (! empty($selectedPrCat->sample_inbound)) {
                     $config = preg_replace('/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i', $uuid, $selectedPrCat->sample_inbound);
                     $links[0] = $config;
+                }
 
-                }
-                $text = $this->customTextCtrl->getText('action.subscription.sanaei_without_subscription', [
-                    'uuid' => $links[0] ?? $uuid,
-                ]);
-                $this->telegramService->sendMessage($chat_id, is_array($text) ? $this->telegramService->formatText($text) : $text);
                 foreach ($links as $link) {
-                    $pnlCntrl = new PannelController();
-                    $image = $pnlCntrl->generateQrMOC($link);
-                    $this->telegramService->sendPhotoFile($chat_id, $image, $link);
+                    $linkText = $this->formatCustomTelegramText('action.subscription.sanaei_without_subscription', [
+                        'uuid' => $link,
+                    ]);
+                    $linkImage = $pnlCntrl->generateQrMOC($link);
+                    $this->telegramService->sendPhotoFile($chat_id, $linkImage, $linkText);
                 }
-            } else {
-                $text = $this->customTextCtrl->getText('action.subscription.sanaei', [
-                    'uuid' => $uuid,
-                ]);
-                $this->telegramService->sendMessage($chat_id, is_array($text) ? $this->telegramService->formatText($text) : $text);
             }
 
             $request = new Request();
@@ -614,17 +601,19 @@ class GeneralController extends Controller
             $image = $pnlCntrl->generateQrMOC($userSub);
             $this->telegramService->sendPhotoFile($chat_id, $image, $text);
 
-            foreach ($links as $link) {
-                $linkText = $this->formatCustomTelegramText('action.subscription.marzban.link', [
-                    'link' => $link,
-                ]);
-                $linkImage = $pnlCntrl->generateQrMOC($link);
-                $this->telegramService->sendPhotoFile($chat_id, $linkImage, $linkText);
-            }
+            if ($selectedPrCat->send_config_to_user) {
+                foreach ($links as $link) {
+                    $linkText = $this->formatCustomTelegramText('action.subscription.marzban.link', [
+                        'link' => $link,
+                    ]);
+                    $linkImage = $pnlCntrl->generateQrMOC($link);
+                    $this->telegramService->sendPhotoFile($chat_id, $linkImage, $linkText);
+                }
 
-            $helpText = $this->formatCustomTelegramText('action.subscription.marzban.help');
-            if ($helpText !== '') {
-                $this->telegramService->sendMessage($chat_id, $helpText);
+                $helpText = $this->formatCustomTelegramText('action.subscription.marzban.help');
+                if ($helpText !== '') {
+                    $this->telegramService->sendMessage($chat_id, $helpText);
+                }
             }
 
             $request = new Request();
