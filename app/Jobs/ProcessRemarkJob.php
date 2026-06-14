@@ -98,8 +98,8 @@ class ProcessRemarkJob implements ShouldQueue
                 } else {
                     \Log::warning("ProcessRemarkJob: No UUID found in configs for product " . $product->id);
                 }
-            } elseif ($pannel->type == 'marzban') {
-                $mb = new MarzbanPannelController();
+            } elseif ($pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
                 $ok = $mb->renameUser($pannel->id, $product->remark, $this->newName);
                 if ($ok) {
                     $product->remark = $this->newName;

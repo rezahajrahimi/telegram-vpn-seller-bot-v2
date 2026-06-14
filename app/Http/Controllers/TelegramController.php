@@ -661,7 +661,7 @@ class TelegramController extends Controller
                 $generalCntrl = new GeneralController();
                 $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chat_id, $productID);
 
-            } elseif ($pannel->type == 'marzban') {
+            } elseif ($pannel->isMarzbanCompatible()) {
                 $generalCntrl = new GeneralController();
                 $resualt = $generalCntrl->new_marzban_config_telegram_text(
                     $selectedPrCat,
@@ -1683,9 +1683,9 @@ class TelegramController extends Controller
             $request->remark = $testAccountLabel;
 
             $prCntrl->addAutomatedProductDetails($request);
-        } elseif ($pannel->type == 'marzban') {
+        } elseif ($pannel->isMarzbanCompatible()) {
             $generalCntrl = new GeneralController();
-            $mbCtrl = new MarzbanPannelController();
+            $mbCtrl = MarzbanPannelController::resolve($pannel);
             $generalCntrl->new_marzban_config_telegram_text(
                 $selectedPrCat,
                 $pannel,

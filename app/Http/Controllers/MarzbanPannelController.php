@@ -768,4 +768,32 @@ class MarzbanPannelController extends Controller
             'is_active' => ($user['status'] ?? '') === 'active',
         ];
     }
+
+    public static function resolve($panelOrId = null): self
+    {
+        $panel = null;
+        if ($panelOrId instanceof Pannel) {
+            $panel = $panelOrId;
+        } elseif (is_numeric($panelOrId)) {
+            $panel = Pannel::find($panelOrId);
+        }
+
+        if ($panel && $panel->type === Pannel::TYPE_PASARGUARD) {
+            return new PasarguardPannelController();
+        }
+
+        return new self();
+    }
+
+    public function isOnline($panelOrId): bool
+    {
+        $panel = $this->resolvePanel($panelOrId);
+        if (! $panel) {
+            return false;
+        }
+
+        $result = $this->performRequest($panel, 'GET', '/api/inbounds');
+
+        return is_array($result);
+    }
 }

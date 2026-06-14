@@ -8,8 +8,28 @@ use Illuminate\Database\Eloquent\Model;
 class Pannel extends Model
 {
     use HasFactory;
+
+    public const TYPE_MARZBAN = 'marzban';
+
+    public const TYPE_PASARGUARD = 'pasarguard';
+
     protected $guarded = ['id'];
     protected $fillable = ['type', 'api_version', 'username', 'password', 'token', 'location', 'url_port', 'sub_port', 'admin_url', 'capacity', 'secret_code', 'cookie_session', 'user_link'];
+
+    public static function marzbanCompatibleTypes(): array
+    {
+        return [self::TYPE_MARZBAN, self::TYPE_PASARGUARD];
+    }
+
+    public static function isMarzbanCompatibleType(?string $type): bool
+    {
+        return in_array($type, self::marzbanCompatibleTypes(), true);
+    }
+
+    public function isMarzbanCompatible(): bool
+    {
+        return self::isMarzbanCompatibleType($this->type);
+    }
 
     /**
      * Get all of the comments for the Pannel

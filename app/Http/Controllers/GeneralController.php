@@ -192,14 +192,9 @@ class GeneralController extends Controller
                     ->connectTimeout(6)
                     ->get($url);
                 $isOnline = $response->ok();
-            } elseif ($pannel->type === 'marzban') {
-                $url = rtrim((string) $pannel->admin_url, '/') . '/api/system';
-                $response = \Illuminate\Support\Facades\Http::withoutVerifying()
-                    ->withHeaders(['Authorization' => 'Bearer ' . ($pannel->token ?? '')])
-                    ->timeout(6)
-                    ->connectTimeout(6)
-                    ->get($url);
-                $isOnline = $response->ok();
+            } elseif ($pannel->isMarzbanCompatible()) {
+                $controller = MarzbanPannelController::resolve($pannel);
+                $isOnline = $controller->isOnline($pannel);
             }
 
             return response()->json([
@@ -581,7 +576,7 @@ class GeneralController extends Controller
     public function new_marzban_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $chat_id, $productID, ?string $username = null, ?string $textKey = null)
     {
         try {
-            $mbCtrl = new MarzbanPannelController();
+            $mbCtrl = MarzbanPannelController::resolve($pannel);
             $pnlCntrl = new PannelController();
             $username = $username ?? $mbCtrl->buildBotUsername($chat_id, $productID);
             $textKey = $textKey ?? 'action.subscription.marzban';
@@ -1161,8 +1156,8 @@ class GeneralController extends Controller
             $text = $this->customTextCtrl->getText('action.test_account.success');
             $this->new_hiddify_config_telegram_text($testAccount, $pannel, $volume, $day, $chatId, $testAccount->id);
             $this->send_using_subscription_manual_message($chatId);
-        } elseif ($pannel->type == 'marzban') {
-            $mbCtrl = new MarzbanPannelController();
+        } elseif ($pannel->isMarzbanCompatible()) {
+            $mbCtrl = MarzbanPannelController::resolve($pannel);
             $this->new_marzban_config_telegram_text(
                 $testAccount,
                 $pannel,

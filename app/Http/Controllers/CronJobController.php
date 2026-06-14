@@ -110,8 +110,8 @@ class CronJobController extends Controller
             } elseif ($panel->type == 'sanaei') {
                 $controller = new SanaeiPannelController();
                 $usersResponse = $controller->getAllClients($panel);
-            } elseif ($panel->type == 'marzban') {
-                $controller = new MarzbanPannelController();
+            } elseif ($panel->isMarzbanCompatible()) {
+                $controller = MarzbanPannelController::resolve($panel);
                 $usersResponse = $controller->getAllUsers($panel);
             } else {
                 continue;
@@ -289,7 +289,7 @@ class CronJobController extends Controller
                         $controller->deleteUserOfHiddifyPanel($panel->id, $uuid);
                     } elseif ($panel->type == 'sanaei') {
                         $controller->deleteUser($panel, $uuid);
-                    } elseif ($panel->type == 'marzban') {
+                    } elseif ($panel->isMarzbanCompatible()) {
                         $controller->deleteUser($panel, $uuid);
                     }
                 }
@@ -324,8 +324,8 @@ class CronJobController extends Controller
             } elseif ($panel->type == 'sanaei') {
                 $controller = new SanaeiPannelController();
                 $usersResponse = $controller->getAllClients($panel);
-            } elseif ($panel->type == 'marzban') {
-                $controller = new MarzbanPannelController();
+            } elseif ($panel->isMarzbanCompatible()) {
+                $controller = MarzbanPannelController::resolve($panel);
                 $usersResponse = $controller->getAllUsers($panel);
             } else {
                 continue;
@@ -484,8 +484,8 @@ class CronJobController extends Controller
             } elseif ($panel->type == 'sanaei') {
                 $controller = new SanaeiPannelController();
                 $usersResponse = $controller->getAllClients($panel);
-            } elseif ($panel->type == 'marzban') {
-                $controller = new MarzbanPannelController();
+            } elseif ($panel->isMarzbanCompatible()) {
+                $controller = MarzbanPannelController::resolve($panel);
                 $usersResponse = $controller->getAllUsers($panel);
             } else {
                 continue;
@@ -637,7 +637,7 @@ class CronJobController extends Controller
 
     private function findProductForPanelUser(Pannel $panel, string $identifier): ?Product
     {
-        if ($panel->type == 'marzban') {
+        if ($panel->isMarzbanCompatible()) {
             return Product::where('remark', $identifier)->first();
         }
 

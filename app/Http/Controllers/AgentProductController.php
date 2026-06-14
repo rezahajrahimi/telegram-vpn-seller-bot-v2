@@ -569,8 +569,8 @@ class AgentProductController extends Controller
                 return response()->json(false, 500);
             }
 
-            if ($pannel && $pannel->type == 'marzban') {
-                $mb = new MarzbanPannelController();
+            if ($pannel && $pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
                 $res = $mb->updateLimits($pannel->id, $data->remark, $selectedPrCat->expire_day, $selectedPrCat->volume);
                 if ($res) {
                     $this->addNewBotLog('product', "$data->remark توسط مدیر شارژ شد", 'charge product');
@@ -644,8 +644,8 @@ class AgentProductController extends Controller
                 return response()->json(false, 500);
             }
 
-            if ($pannel && $pannel->type == 'marzban') {
-                $mb = new MarzbanPannelController();
+            if ($pannel && $pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
                 $res = $mb->updateLimits($pannel->id, $data->remark, $newPrCat->expire_day, $newPrCat->volume);
                 if ($res) {
                     if ($request->changeBallance == 1 || $request->changeBallance == true) {
@@ -766,8 +766,8 @@ class AgentProductController extends Controller
                 return response()->json(false, 401);
             }
 
-            if ($pannel && $pannel->type == 'marzban') {
-                $mb = new MarzbanPannelController();
+            if ($pannel && $pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
                 $enable = ($request->enable == true || $request->enable == 1 || $request->enable == 'true');
                 $res = $mb->changeUserActivation($pannel->id, $data->remark, $enable);
                 if ($res) {
@@ -820,11 +820,11 @@ class AgentProductController extends Controller
                 return $pannel->admin_url;
             }
 
-            if ($pannel && $pannel->type == 'marzban') {
+            if ($pannel && $pannel->isMarzbanCompatible()) {
                 if (! empty($data->panel_link)) {
                     return $data->panel_link;
                 }
-                $mb = new MarzbanPannelController();
+                $mb = MarzbanPannelController::resolve($pannel);
 
                 return $mb->getSubscriptionLink($pannel, $data->remark) ?? $pannel->url_port;
             }
@@ -860,8 +860,8 @@ class AgentProductController extends Controller
                 }
                 return response()->json(null, 500);
             }
-            if ($pannel && $pannel->type == 'marzban') {
-                $mb = new MarzbanPannelController();
+            if ($pannel && $pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
                 $res = $mb->deleteUser($pannel->id, $data->remark);
                 if ($res) {
                     $data->delete();
@@ -1389,8 +1389,8 @@ class AgentProductController extends Controller
                 return response()->json(null, 404);
             }
 
-            if ($pannel && $pannel->type == 'marzban') {
-                $mb = new MarzbanPannelController();
+            if ($pannel && $pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
                 $status = $mb->getClientStatus($pannel, $data->remark);
                 if ($status) {
                     return response()->json($status, 200);
@@ -1439,11 +1439,11 @@ class AgentProductController extends Controller
                 return $links[0] ?? '';
             }
 
-            if ($pannel && $pannel->type == 'marzban') {
+            if ($pannel && $pannel->isMarzbanCompatible()) {
                 if (! empty($data->panel_link)) {
                     return $data->panel_link;
                 }
-                $mb = new MarzbanPannelController();
+                $mb = MarzbanPannelController::resolve($pannel);
 
                 return $mb->getSubscriptionLink($pannel, $data->remark) ?? '';
             }
@@ -1488,7 +1488,7 @@ class AgentProductController extends Controller
                 }
                 return response()->json(false, 400);
             }
-            if ($pannel && $pannel->type == 'marzban') {
+            if ($pannel && $pannel->isMarzbanCompatible()) {
                 $panelUrl = $pannel->url_port;
                 $panelUrl = str_replace('/dashboard/', '', $panelUrl);
                 $panelUrl = str_replace('/dashboard', '', $panelUrl);
@@ -1575,8 +1575,8 @@ class AgentProductController extends Controller
                     }
                     return response()->json(false, 401);
                 }
-                if ($pannel && $pannel->type == 'marzban') {
-                    $mb = new MarzbanPannelController();
+                if ($pannel && $pannel->isMarzbanCompatible()) {
+                    $mb = MarzbanPannelController::resolve($pannel);
                     $res = $mb->updateLimits($pannel->id, $data->remark, $selectedPrCat->expire_day, $selectedPrCat->volume);
                     if ($res) {
                         $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
@@ -1790,8 +1790,8 @@ class AgentProductController extends Controller
                 return response()->json(false, 401);
             }
 
-            if ($data->product_category_and_panel->pannel->type == 'marzban') {
-                $mb = new MarzbanPannelController();
+            if ($data->product_category_and_panel->pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
                 $enable = ($request->enable == true || $request->enable == 1 || $request->enable == 'true');
                 $res = $mb->changeUserActivation($data->product_category_and_panel->pannel_id, $data->remark, $enable);
                 if ($res) {
@@ -1880,8 +1880,8 @@ class AgentProductController extends Controller
                 }
                 return response()->json(null, 500);
             }
-            if ($pannel && $pannel->type == 'marzban') {
-                $mb = new MarzbanPannelController();
+            if ($pannel && $pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
                 $res = $mb->deleteUser($pannel->id, $data->remark);
                 if ($res) {
                     $data->delete();
@@ -1975,8 +1975,8 @@ class AgentProductController extends Controller
                 return response()->json(null, 500);
             }
 
-            if ($pannel && $pannel->type == 'marzban') {
-                $mb = new MarzbanPannelController();
+            if ($pannel && $pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
                 $res = $mb->deleteUser($pannel->id, $data->remark);
                 if ($res) {
                     $data->delete();

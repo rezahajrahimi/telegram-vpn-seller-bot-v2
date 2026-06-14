@@ -69,7 +69,7 @@ class PannelController extends Controller
             $pannel->admin_url = $request->admin_url ?? null;
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->save();
-            if ($pannel->type == 'marzban') {
+            if ($pannel->isMarzbanCompatible()) {
                 if (! empty($request->dynamic_inbounds)) {
                     $items = $request->dynamic_inbounds;
                     if (is_string($items)) {
@@ -153,7 +153,9 @@ class PannelController extends Controller
     {
         try {
             $pannel = Pannel::find($request->id);
-            $pannel->type = 'marzban';
+            $pannel->type = Pannel::isMarzbanCompatibleType($request->type ?? $pannel->type)
+                ? ($request->type ?? $pannel->type)
+                : Pannel::TYPE_MARZBAN;
             $pannel->username = $request->username ?? 'admin';
             $pannel->password = $request->password ?? '123456';
             $pannel->token = !empty($request->token) ? $request->token : null;
@@ -499,7 +501,7 @@ class PannelController extends Controller
     }
     public function createMarzbanUser($accountId, $day, $vol, $pannelID)
     {
-        $mb = new MarzbanPannelController();
+        $mb = MarzbanPannelController::resolve($pannelID);
         $result = $mb->createUser($pannelID, $accountId, (int) $day, $vol);
         if ($result === false) {
             return null;
@@ -513,7 +515,7 @@ class PannelController extends Controller
 
     public function modifyMarzbanUser($accountId, $day, $vol, $pannelID)
     {
-        $mb = new MarzbanPannelController();
+        $mb = MarzbanPannelController::resolve($pannelID);
         if (! $mb->modifyUser($pannelID, $accountId, (int) $day, $vol)) {
             return null;
         }

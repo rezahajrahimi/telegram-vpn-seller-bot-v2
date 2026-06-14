@@ -126,7 +126,7 @@ class ProcessSubscriptionPurchase implements ShouldQueue
 
             if ($pannel->type == 'hiddify') {
                 $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chatId, $reservedProductId);
-            } elseif ($pannel->type == 'marzban') {
+            } elseif ($pannel->isMarzbanCompatible()) {
                 $resualt = $generalCntrl->new_marzban_config_telegram_text(
                     $selectedPrCat,
                     $pannel,
@@ -184,9 +184,9 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                     if ($res) {
                         $logCtrl->addNewLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل سنایی و دیتابیس', $this->chatId, $username, 'failed');
                     }
-                } elseif ($pannel->type == 'marzban') {
+                } elseif ($pannel->isMarzbanCompatible()) {
                     $marzbanUsername = $resualt;
-                    $mb = new MarzbanPannelController();
+                    $mb = MarzbanPannelController::resolve($pannel);
                     $mb->deleteUser($pannel->id, $marzbanUsername);
                     $prCntrl = new ProductController();
                     $res = $prCntrl->delete_marzban_product_by_username($marzbanUsername);

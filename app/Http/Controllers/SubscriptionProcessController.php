@@ -348,7 +348,7 @@ class SubscriptionProcessController extends Controller
 
             if ($pannel->type == 'hiddify') {
                 $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $reservedProductId);
-            } elseif ($pannel->type == 'marzban') {
+            } elseif ($pannel->isMarzbanCompatible()) {
                 $resualt = $this->generalCntrl->new_marzban_config_telegram_text(
                     $this->selectedPrCat,
                     $pannel,
@@ -401,9 +401,9 @@ class SubscriptionProcessController extends Controller
                     if ($res) {
                         $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل سنایی و دیتابیس', 'show');
                     }
-                } elseif ($pannel->type == 'marzban') {
+                } elseif ($pannel->isMarzbanCompatible()) {
                     $marzbanUsername = $resualt;
-                    $mb              = new MarzbanPannelController();
+                    $mb              = MarzbanPannelController::resolve($pannel);
                     $mb->deleteUser($pannel->id, $marzbanUsername);
                     $prCntrl = new ProductController();
                     $res     = $prCntrl->delete_marzban_product_by_username($marzbanUsername);
@@ -726,8 +726,8 @@ class SubscriptionProcessController extends Controller
                     $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
                     return "";
 
-                } elseif ($pannel->type == 'marzban') {
-                    $mb     = new MarzbanPannelController();
+                } elseif ($pannel->isMarzbanCompatible()) {
+                    $mb     = MarzbanPannelController::resolve($pannel);
                     $status = $mb->getClientStatus($pannel, $product->remark);
                     if (! $status) {
                         return "";
@@ -881,8 +881,8 @@ class SubscriptionProcessController extends Controller
                 return $this->customTextCtrl->getText('error.server_error');
             }
 
-            if ($pannel->type == 'marzban') {
-                $mb = new MarzbanPannelController();
+            if ($pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
                 $day    = $prCat->expire_day;
                 $volume = $prCat->volume;
 
