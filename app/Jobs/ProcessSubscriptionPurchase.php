@@ -14,10 +14,9 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReferralWalletController;
 use App\Http\Controllers\MarzbanPannelController;
 use App\Http\Controllers\SanaeiPannelController;
-use App\Models\Product;
-use App\Models\ProductCategory;
 use App\Models\BotUser;
 use App\Services\TelegramService;
+use App\Services\SubscriptionPurchaseLock;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -52,6 +51,16 @@ class ProcessSubscriptionPurchase implements ShouldQueue
      */
     public function handle(): void
     {
+        $lock = SubscriptionPurchaseLock::acquire($this->chatId);
+        if (! $lock) {
+            \Log::warning('Duplicate subscription purchase job skipped', [
+                'chat_id' => $this->chatId,
+                'product_category_id' => $this->productCategoryId,
+            ]);
+
+            return;
+        }
+
         $generalCntrl = new GeneralController();
         $customTextCtrl = new CustomTextController();
         $accBlCtrl = new AccountBallanceController();
@@ -62,6 +71,8 @@ class ProcessSubscriptionPurchase implements ShouldQueue
         $paymnetSettingCntrl = new PaymentSettingController();
         $agentProductCtrl = new AgentProductController();
         $telegramService = new TelegramService();
+        $prCntrl = new ProductController();
+        $reservedProductId = null;
 
         // Fetch user for logging
         $botUser = BotUser::where('account_id', $this->chatId)->first();
@@ -70,6 +81,12 @@ class ProcessSubscriptionPurchase implements ShouldQueue
             $pricing = $agentProductCtrl->resolveProductPricingForAccount($this->chatId, $this->productCategoryId);
             if ($pricing === null) {
                 $telegramService->sendMessage($this->chatId, 'این بسته برای شما در دسترس نیست.');
+                return;
+            }
+
+            $selectedPrCat = $pricing['category'];
+            if (! $selectedPrCat) {
+                \Log::error("Product Category not found: " . $this->productCategoryId);
                 return;
             }
 
@@ -83,11 +100,6 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                 return;
             }
 
-            $selectedPrCat = $pricing['category'];
-            if (!$selectedPrCat) {
-                \Log::error("Product Category not found: " . $this->productCategoryId);
-                return;
-            }
             \Log::info("Selected Product Category: 111111" . $selectedPrCat->category_name);
             // بررسی موجودی کاربر
             $productPrice = $pricing['price'];
@@ -105,11 +117,15 @@ class ProcessSubscriptionPurchase implements ShouldQueue
             $day = $selectedPrCat->expire_day;
             $volume = $selectedPrCat->volume;
             $resualt = false;
-            // get id of last inserted product id
-            $lastProductId = Product::latest()->first()->id ?? 1;
+
+            $reservedProductId = $prCntrl->reserveProductId($this->chatId, $selectedPrCat->id);
+            if ($reservedProductId === null) {
+                $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
+                return;
+            }
 
             if ($pannel->type == 'hiddify') {
-                $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chatId, $lastProductId + 1);
+                $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chatId, $reservedProductId);
             } elseif ($pannel->type == 'marzban') {
                 $resualt = $generalCntrl->new_marzban_config_telegram_text(
                     $selectedPrCat,
@@ -117,7 +133,7 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                     $volume,
                     $day,
                     $this->chatId,
-                    $lastProductId + 1
+                    $reservedProductId
                 );
             } elseif ($pannel->type == 'sanaei') {
                 \Log::info("sanaei pannel");
@@ -127,12 +143,15 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                     $volume,
                     $day,
                     $this->chatId,
-                    $lastProductId + 1
+                    $reservedProductId
                 );
             }
             \Log::info("resualt response buoght from sanaei: " . $resualt);
 
             if ($resualt == false || $resualt == null) {
+                if ($reservedProductId !== null) {
+                    $prCntrl->deletePendingProduct($reservedProductId);
+                }
                 $logCtrl->addNewLog('subscription', 'خرید اشتراک با شکست مواجه شد.', $this->chatId, $username, 'failed');
                 $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
                 return;
@@ -185,7 +204,13 @@ class ProcessSubscriptionPurchase implements ShouldQueue
 
         } catch (\Throwable $th) {
             \Log::error("خطا در خرید بسته (Job): " . $th->getMessage());
+            if ($reservedProductId !== null) {
+                $prCntrl->deletePendingProduct($reservedProductId);
+            }
             $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
+        } finally {
+            SubscriptionPurchaseLock::clear($this->chatId);
+            $lock->release();
         }
     }
 

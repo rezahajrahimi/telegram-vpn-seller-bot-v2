@@ -9,6 +9,7 @@ use App\Models\ShetabVerify;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Services\TelegramService;
+use App\Services\SubscriptionPurchaseLock;
 use Illuminate\Support\Facades\Log;
 
 class ShetabVerifyController extends Controller
@@ -235,12 +236,21 @@ class ShetabVerifyController extends Controller
                 'auto_purchase_start'
             );
 
-            ProcessSubscriptionPurchase::dispatch($user->account_id, $shetabVerify->product_category_id);
+            if (SubscriptionPurchaseLock::isInProgress($user->account_id)) {
+                $telegramService->sendMessage(
+                    $user->account_id,
+                    'پرداخت شما تایید شد. خرید قبلی شما هنوز در حال پردازش است، لطفاً چند لحظه صبر کنید...'
+                );
+            } else {
+                SubscriptionPurchaseLock::markInProgress($user->account_id);
 
-            $telegramService->sendMessage(
-                $user->account_id,
-                'پرداخت شما تایید شد. در حال تکمیل خرید اشتراک هستید، لطفاً چند لحظه صبر کنید...'
-            );
+                ProcessSubscriptionPurchase::dispatch($user->account_id, $shetabVerify->product_category_id);
+
+                $telegramService->sendMessage(
+                    $user->account_id,
+                    'پرداخت شما تایید شد. در حال تکمیل خرید اشتراک هستید، لطفاً چند لحظه صبر کنید...'
+                );
+            }
 
             Log::info('Shetab verify auto purchase dispatched', [
                 'user_id' => $user->id,

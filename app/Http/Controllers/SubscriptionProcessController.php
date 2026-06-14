@@ -11,6 +11,7 @@ use App\Models\ProductCategory;
 use App\Models\UserState;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
+use App\Services\SubscriptionPurchaseLock;
 // add cache
 use Carbon\Carbon;
 use Hekmatinasser\Verta\Verta;
@@ -151,6 +152,14 @@ class SubscriptionProcessController extends Controller
                 $this->telegramService->sendMessage($chatId, $limitMessage);
                 return "";
             }
+
+            if (SubscriptionPurchaseLock::isInProgress($chatId)) {
+                return [
+                    'alert' => 'خرید قبلی شما در حال پردازش است. لطفاً چند لحظه صبر کنید.',
+                ];
+            }
+
+            SubscriptionPurchaseLock::markInProgress($chatId);
 
             // Dispatch the job to handle the purchase asynchronously
             ProcessSubscriptionPurchase::dispatch($chatId, $categoryId);
@@ -329,13 +338,16 @@ class SubscriptionProcessController extends Controller
             $pannel = $this->panelCntrl->getPannelById($this->selectedPrCat->pannel_id);
             $day    = $this->selectedPrCat->expire_day;
             $volume = $this->selectedPrCat->volume;
-            // $productID = $this->selectedPrCat->id;
             $resualt = false;
-            // get id of last inserted product id
-            $lastProductId = Product::latest()->first()->id ?? 1;
+
+            $prCntrl = new ProductController();
+            $reservedProductId = $prCntrl->reserveProductId($this->chatId, $this->selectedPrCat->id);
+            if ($reservedProductId === null) {
+                return $this->customTextCtrl->getText('action.process.failed_buy');
+            }
 
             if ($pannel->type == 'hiddify') {
-                $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $lastProductId + 1);
+                $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $reservedProductId);
             } elseif ($pannel->type == 'marzban') {
                 $resualt = $this->generalCntrl->new_marzban_config_telegram_text(
                     $this->selectedPrCat,
@@ -343,7 +355,7 @@ class SubscriptionProcessController extends Controller
                     $volume,
                     $day,
                     $this->chatId,
-                    $lastProductId + 1
+                    $reservedProductId
                 );
             } elseif ($pannel->type == 'sanaei') {
                 \Log::info("sanaei pannel");
@@ -353,7 +365,7 @@ class SubscriptionProcessController extends Controller
                     $volume,
                     $day,
                     $this->chatId,
-                    $lastProductId + 1
+                    $reservedProductId
                 );
             }
             \Log::info("resualt response buoght from sanaei: " . $resualt);

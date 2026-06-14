@@ -187,6 +187,31 @@ class MarzbanPannelControllerTest extends TestCase
         });
     }
 
+    public function test_create_user_returns_existing_user_after_username_conflict(): void
+    {
+        $panel = $this->createMarzbanPanel();
+
+        Http::fake([
+            self::BASE_URL . '/api/inbounds' => Http::response([
+                'vless' => ['VLESS TCP REALITY'],
+            ], 200),
+            self::BASE_URL . '/api/user' => Http::response(['detail' => 'User already exists'], 409),
+            self::BASE_URL . '/api/user/BotUser123' => Http::response([
+                'username' => 'BotUser123',
+                'subscription_url' => '/sub/existing123',
+                'links' => ['vless://existing'],
+            ], 200),
+        ]);
+
+        $result = (new MarzbanPannelController())->createUser($panel, 'BotUser123', 30, 10);
+
+        $this->assertIsArray($result);
+        $this->assertSame('BotUser123', $result['username']);
+        $this->assertSame('https://panel.example.com/sub/existing123', $result['subscription_link']);
+
+        Http::assertSentCount(3);
+    }
+
     public function test_create_user_retries_after_username_conflict(): void
     {
         $panel = $this->createMarzbanPanel();
@@ -195,10 +220,11 @@ class MarzbanPannelControllerTest extends TestCase
             self::BASE_URL . '/api/inbounds' => Http::response([
                 'vless' => ['VLESS TCP REALITY'],
             ], 200),
+            self::BASE_URL . '/api/user/BotUser123' => Http::response(null, 404),
             self::BASE_URL . '/api/user' => Http::sequence()
                 ->push(['detail' => 'User already exists'], 409)
                 ->push([
-                    'username' => 'BotUser123_suffix',
+                    'username' => 'BotUser123a1b2',
                     'subscription_url' => '/sub/conflict123',
                     'links' => [],
                 ], 200),

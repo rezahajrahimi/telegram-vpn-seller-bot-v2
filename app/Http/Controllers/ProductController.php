@@ -166,22 +166,58 @@ class ProductController extends Controller
             return false;
         }
     }
-    public function addAutomatedProductDetails(Request $request)
+    public function reserveProductId(int|string $accountId, int $categoryId): ?int
     {
         $data = new Product();
+        $data->product_categories_id = $categoryId;
+        $data->account_id = $accountId;
+        $data->remark = 'pending';
+        $data->isActive = false;
+        $data->deactive_by_admin = false;
+        $data->configs = '';
+        $data->subscription_link = '';
+        $data->panel_link = '';
+
+        if (! $data->save()) {
+            return null;
+        }
+
+        return (int) $data->id;
+    }
+
+    public function deletePendingProduct(int $productId): bool
+    {
+        return Product::query()
+            ->where('id', $productId)
+            ->where('remark', 'pending')
+            ->delete() > 0;
+    }
+
+    public function addAutomatedProductDetails(Request $request)
+    {
+        if (! empty($request->product_id)) {
+            $data = Product::find($request->product_id);
+            if (! $data) {
+                return false;
+            }
+        } else {
+            $data = new Product();
+            $data->isActive = false;
+            $data->deactive_by_admin = false;
+        }
+
         $data->product_categories_id = $request->product_categories_id;
         $data->configs = $request->configs;
         $data->subscription_link = $request->subscription_link;
         $data->panel_link = $request->panel_link;
-        $data->isActive = false;
         $data->account_id = $request->account_id;
         $data->remark = $request->remark;
-        $data->deactive_by_admin = false;
+
         if ($data->save()) {
             return $this->getActiveProductsByProductCatID($request->product_categories_id);
-        } else {
-            return false;
         }
+
+        return false;
     }
     public function getLastInsertedProductId()
     {

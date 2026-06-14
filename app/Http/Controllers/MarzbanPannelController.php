@@ -483,6 +483,13 @@ class MarzbanPannelController extends Controller
                     return false;
                 }
 
+                if ($usernameAttempt === 1) {
+                    $existing = $this->getUser($panel, $baseUsername);
+                    if (is_array($existing) && ! empty($existing['subscription_url'])) {
+                        return $this->buildCreateUserResult($panel, $existing, $baseUsername);
+                    }
+                }
+
                 Log::info('Marzban createUser retrying after username conflict', [
                     'panel_id' => $panel->id,
                     'base_username' => $baseUsername,
@@ -495,24 +502,29 @@ class MarzbanPannelController extends Controller
                 return false;
             }
 
-            $mainUrl = $this->baseUrl($panel);
-            $subPath = $body['subscription_url'];
-            if (! str_starts_with($subPath, '/')) {
-                $subPath = '/' . $subPath;
-            }
-
-            return [
-                'username' => $params['username'],
-                'links' => $body['links'] ?? [],
-                'subscription_link' => $mainUrl . $subPath,
-                'subscription_url' => $subPath,
-                'body' => $body,
-            ];
+            return $this->buildCreateUserResult($panel, $body, $params['username']);
         } catch (\Throwable $th) {
             Log::error('Marzban createUser failed: ' . $th->getMessage());
 
             return false;
         }
+    }
+
+    private function buildCreateUserResult(Pannel $panel, array $body, string $username): array
+    {
+        $mainUrl = $this->baseUrl($panel);
+        $subPath = $body['subscription_url'];
+        if (! str_starts_with($subPath, '/')) {
+            $subPath = '/' . $subPath;
+        }
+
+        return [
+            'username' => $body['username'] ?? $username,
+            'links' => $body['links'] ?? [],
+            'subscription_link' => $mainUrl . $subPath,
+            'subscription_url' => $subPath,
+            'body' => $body,
+        ];
     }
 
     public function getUser($panelOrId, string $username): ?array

@@ -493,6 +493,7 @@ class GeneralController extends Controller
             $request->panel_link = "/{$newUUID}/#{$req->accountId}";
             $request->configs = '';
             $request->remark = $accountLabel;
+            $request->product_id = $productID;
             $prCntrl = new ProductController();
             $prCntrl->addAutomatedProductDetails($request);
             return $newUUID;
@@ -567,6 +568,7 @@ class GeneralController extends Controller
                 'links' => $links ?? [],
             ]);
             $request->remark = $accountLabel;
+            $request->product_id = $productID;
             $prCntrl = new ProductController();
             $prCntrl->addAutomatedProductDetails($request);
             return $uuid;
@@ -626,6 +628,7 @@ class GeneralController extends Controller
                 'links' => $links,
             ]);
             $request->remark = $username;
+            $request->product_id = $productID;
             $prCntrl = new ProductController();
             $prCntrl->addAutomatedProductDetails($request);
 
