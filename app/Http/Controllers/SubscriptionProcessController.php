@@ -945,6 +945,132 @@ class SubscriptionProcessController extends Controller
             return $this->customTextCtrl->getText('error.server_error');
         }
     }
+
+    public function deleteHistory($chatId, $productID)
+    {
+        try {
+            $this->chatId  = $chatId;
+            $this->botUser = $this->botUser->getUserByAccountID($chatId);
+
+            $product = Product::find($productID);
+            if ($product == null || (string) $product->account_id !== (string) $chatId) {
+                return $this->customTextCtrl->getText('error.history_not_found');
+            }
+
+            $text = $this->customTextCtrl->getText('action.delete_history.confirm', [
+                'name' => $product->remark,
+            ]);
+            if (is_array($text)) {
+                $text = $this->telegramService->formatText($text);
+            }
+
+            $confirmText = $this->customTextCtrl->getText('action.delete_history.confirm_button');
+            $cancelText  = $this->customTextCtrl->getText('action.delete_history.cancel_button');
+            if (is_array($confirmText)) {
+                $confirmText = $this->telegramService->formatText($confirmText);
+            }
+            if (is_array($cancelText)) {
+                $cancelText = $this->telegramService->formatText($cancelText);
+            }
+
+            $opr = [
+                [$confirmText => "confirmDeleteHistory-{$productID}"],
+                [$cancelText => "buyHistory-{$productID}"],
+            ];
+
+            $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error("خطا در نمایش تایید حذف بسته: " . $th->getMessage());
+
+            return $this->customTextCtrl->getText('error.server_error');
+        }
+    }
+
+    public function confirmDeleteHistory($chatId, $productID)
+    {
+        try {
+            $this->chatId  = $chatId;
+            $this->botUser = $this->botUser->getUserByAccountID($chatId);
+
+            $product = Product::with('product_category_and_panel')->find($productID);
+            if ($product == null || (string) $product->account_id !== (string) $chatId) {
+                return $this->customTextCtrl->getText('error.history_not_found');
+            }
+
+            $prCat  = $this->selectedPrCat->getProdctCategorByID((int) $product->product_categories_id);
+            $pannel = $this->panelCntrl->getPannelById($prCat->pannel_id);
+            if ($pannel == null) {
+                return $this->customTextCtrl->getText('error.server_error');
+            }
+
+            $this->telegramService->sendChatAction($chatId, 'typing');
+
+            if (! $this->deleteProductOnPanel($product, $pannel)) {
+                $text = $this->customTextCtrl->getText('action.delete_history.failed');
+                if (is_array($text)) {
+                    $text = $this->telegramService->formatText($text);
+                }
+                $this->telegramService->sendMessage($chatId, $text);
+
+                return "";
+            }
+
+            $remark = $product->remark;
+            $product->delete();
+
+            $this->addNewBotLog('history', "بسته $remark حذف شد.", 'delete product');
+
+            $text = $this->customTextCtrl->getText('action.delete_history.success', [
+                'name' => $remark,
+            ]);
+            if (is_array($text)) {
+                $text = $this->telegramService->formatText($text);
+            }
+            $this->telegramService->sendMessage($chatId, $text);
+
+            return $this->buyHistory($chatId, 1);
+        } catch (\Throwable $th) {
+            \Log::error("خطا در حذف بسته: " . $th->getMessage());
+
+            return $this->customTextCtrl->getText('error.server_error');
+        }
+    }
+
+    private function deleteProductOnPanel(Product $product, $pannel): bool
+    {
+        if ($pannel->type == 'sanaei') {
+            $configs = json_decode($product->configs ?? '', true) ?? [];
+            $uuid    = $configs['uuid'] ?? null;
+            if ($uuid == null) {
+                return false;
+            }
+            $sn  = new SanaeiPannelController();
+            $res = $sn->deleteUser($pannel->id, $uuid);
+
+            return $res !== false && $res !== null;
+        }
+
+        if ($pannel->isMarzbanCompatible()) {
+            $mb = MarzbanPannelController::resolve($pannel);
+
+            return $mb->deleteUser($pannel->id, $product->remark);
+        }
+
+        $uuid = $this->hiddifyPannelCntrl->extractUUID($product->subscription_link);
+        if ($uuid == null || $uuid === '') {
+            return false;
+        }
+
+        $result = $this->hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
+        if (is_object($result) && method_exists($result, 'getStatusCode')) {
+            return $result->getStatusCode() == 200;
+        }
+
+        return $result !== false;
+    }
+
     public function remarkReply($chatId, $newName)
     {
         try {

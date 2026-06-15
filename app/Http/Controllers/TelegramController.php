@@ -1692,7 +1692,7 @@ class TelegramController extends Controller
                 $this->chat_id,
                 $selectedPrCat->id,
                 $mbCtrl->buildTestAccountUsername($this->chat_id),
-                'action.test_account.marzban'
+                $pannel->customTextKey('action.test_account.marzban')
             );
         }
 

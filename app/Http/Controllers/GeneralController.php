@@ -579,7 +579,7 @@ class GeneralController extends Controller
             $mbCtrl = MarzbanPannelController::resolve($pannel);
             $pnlCntrl = new PannelController();
             $username = $username ?? $mbCtrl->buildBotUsername($chat_id, $productID);
-            $textKey = $textKey ?? 'action.subscription.marzban';
+            $textKey = $textKey ?? $pannel->customTextKey('action.subscription.marzban');
 
             $userData = $mbCtrl->createUser($pannel, $username, (int) $day, $volume);
             if ($userData === false) {
@@ -599,15 +599,17 @@ class GeneralController extends Controller
             $this->telegramService->sendPhotoFile($chat_id, $image, $text);
 
             if ($this->categoryShouldSendConfigToUser($selectedPrCat)) {
+                $linkTextKey = $pannel->customTextKey('action.subscription.marzban.link');
+                $helpTextKey = $pannel->customTextKey('action.subscription.marzban.help');
                 foreach ($links as $link) {
-                    $linkText = $this->formatCustomTelegramText('action.subscription.marzban.link', [
+                    $linkText = $this->formatCustomTelegramText($linkTextKey, [
                         'link' => $link,
                     ]);
                     $linkImage = $pnlCntrl->generateQrMOC($link);
                     $this->telegramService->sendPhotoFile($chat_id, $linkImage, $linkText);
                 }
 
-                $helpText = $this->formatCustomTelegramText('action.subscription.marzban.help');
+                $helpText = $this->formatCustomTelegramText($helpTextKey);
                 if ($helpText !== '') {
                     $this->telegramService->sendMessage($chat_id, $helpText);
                 }
@@ -704,6 +706,13 @@ class GeneralController extends Controller
             }
             $opr[] = [
                 $text => "remark-{$productID}",
+            ];
+            $text = $this->customTextCtrl->getText('action.history.buttun.delete');
+            if (is_array($text)) {
+                $text = $this->telegramService->formatText($text);
+            }
+            $opr[] = [
+                $text => "deleteHistory-{$productID}",
             ];
 
         }
@@ -1179,7 +1188,7 @@ class GeneralController extends Controller
                 $chatId,
                 $testAccount->id,
                 $mbCtrl->buildTestAccountUsername($chatId),
-                'action.test_account.marzban'
+                $pannel->customTextKey('action.test_account.marzban')
             );
             $this->send_using_subscription_manual_message($chatId);
         }

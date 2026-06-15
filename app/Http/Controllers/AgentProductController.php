@@ -1198,6 +1198,20 @@ class AgentProductController extends Controller
                     }
                     return response()->json(false, 401);
                 }
+
+                if ($pannel && $pannel->isMarzbanCompatible()) {
+                    $mb = MarzbanPannelController::resolve($pannel);
+                    $res = $mb->updateLimits($pannel->id, $data->remark, $selectedPrCat->expire_day, $selectedPrCat->volume);
+                    if ($res) {
+                        $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+                        $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
+                        $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
+
+                        return response()->json(true, 200);
+                    }
+
+                    return response()->json(false, 401);
+                }
             }
             return response()->json(false, 401);
         }
@@ -1364,11 +1378,22 @@ class AgentProductController extends Controller
     public function getBoughtProductsStatusFromServerById($id)
     {
         $data = Product::where('id', $id)->with('product_category_and_panel')->first();
-        if ($data != null) {
-            // get pannel url
-            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+        if ($data == null) {
+            return response()->json(null, 404);
+        }
 
-            if ($pannel && $pannel->type == 'sanaei') {
+        $authUser = auth('sanctum')->user();
+        if ($authUser && (string) $authUser->account_id !== (string) $data->account_id) {
+            return response()->json(false, 401);
+        }
+
+        try {
+            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            if ($pannel == null) {
+                return response()->json(null, 404);
+            }
+
+            if ($pannel->type == 'sanaei') {
                 $configs = json_decode($data->configs, true) ?? [];
                 $uuid = $configs['uuid'] ?? null;
                 $email = $configs['email'] ?? null;
@@ -1377,22 +1402,27 @@ class AgentProductController extends Controller
                 }
                 $sn = new SanaeiPannelController();
                 $status = $sn->getClientStatus($pannel, $uuid);
-                if (!$status && $email) {
+                if (! $status && $email) {
                     $found = $sn->findClientByEmail($pannel, $email);
                     if ($found) {
                         $status = $sn->getClientStatus($pannel, $found['client']['id'] ?? $uuid);
                     }
                 }
                 if ($status) {
+                    $status['panel_type'] = 'sanaei';
+
                     return response()->json($status, 200);
                 }
+
                 return response()->json(null, 404);
             }
 
-            if ($pannel && $pannel->isMarzbanCompatible()) {
+            if ($pannel->isMarzbanCompatible()) {
                 $mb = MarzbanPannelController::resolve($pannel);
                 $status = $mb->getClientStatus($pannel, $data->remark);
                 if ($status) {
+                    $status['panel_type'] = $pannel->type;
+
                     return response()->json($status, 200);
                 }
 
@@ -1400,25 +1430,37 @@ class AgentProductController extends Controller
             }
 
             $hiddifcCntrl = new HiddifyPannelController();
-
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+            if ($uuid == null || $uuid === '') {
+                return response()->json(null, 400);
+            }
+
             $url = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
             $url = "{$url}/api/v2/admin/user/$uuid";
 
-            $secretValue = $pannel->secret_code;
-
-            // $subsequentResponse = Http::get($url);
-            $subsequentResponse = Http::withHeaders([
+            $subsequentResponse = Http::timeout(15)->withHeaders([
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
-                'Hiddify-API-Key' => $secretValue,
+                'Hiddify-API-Key' => $pannel->secret_code,
             ])->get($url);
+
             if ($subsequentResponse->getStatusCode() == 200) {
-                return json_decode($subsequentResponse->getBody(), true);
+                $body = json_decode($subsequentResponse->getBody(), true);
+                if (! is_array($body)) {
+                    return response()->json(null, 500);
+                }
+                $body['panel_type'] = 'hiddify';
+
+                return response()->json($body, 200);
             }
-            return response()->json(null, 401);
-        } else {
-            return null;
+
+            return response()->json(null, $subsequentResponse->getStatusCode() === 404 ? 404 : 502);
+        } catch (\Throwable $th) {
+            \Log::error('getBoughtProductsStatusFromServerById: ' . $th->getMessage(), [
+                'product_id' => $id,
+            ]);
+
+            return response()->json(null, 502);
         }
     }
     public function getBoughtProductsPannelLinkFromServerById($id)
@@ -1948,14 +1990,6 @@ class AgentProductController extends Controller
         }
 
         if ($data != null) {
-            // save current usage
-            $currentStatus = $this->getBoughtProductsStatusFromServerById($id);
-            if ($currentStatus == null) {
-                return response()->json(null, 500);
-            }
-            $currentUsage = $currentStatus['current_usage_GB'];
-            //
-
             // get pannel url
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
 

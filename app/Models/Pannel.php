@@ -32,6 +32,23 @@ class Pannel extends Model
     }
 
     /**
+     * Maps marzban-based custom_text keys to pasarguard when needed.
+     */
+    public static function resolveCustomTextKey(string $marzbanBasedKey, ?string $panelType): string
+    {
+        if ($panelType === self::TYPE_PASARGUARD) {
+            return str_replace('marzban', 'pasarguard', $marzbanBasedKey);
+        }
+
+        return $marzbanBasedKey;
+    }
+
+    public function customTextKey(string $marzbanBasedKey): string
+    {
+        return self::resolveCustomTextKey($marzbanBasedKey, $this->type);
+    }
+
+    /**
      * Get all of the comments for the Pannel
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany

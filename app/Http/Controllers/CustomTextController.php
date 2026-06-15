@@ -622,6 +622,56 @@ class CustomTextController extends Controller
                 'description' => 'متن اکانت آزمایشی مرزبان - پارامترها: {subscription_link}'
             ],
             [
+                'key' => 'action.subscription.pasarguard',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
+                    ['type' => 'newline'],
+                    ['type' => 'link', 'text' => "لینک ساب", 'url' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "همچنین می‌توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خرید پاسارگارد - پارامترها: {panel_link} {subscription_link}'
+            ],
+            [
+                'key' => 'action.subscription.pasarguard.link',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "کانفیگ:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{link}"],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن ارسال لینک کانفیگ پاسارگارد - پارامترها: {link}'
+            ],
+            [
+                'key' => 'action.subscription.pasarguard.help',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'جهت نیاز به راهنمایی بر روی یکی از گزینه‌های زیر کلیک کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن راهنمای بعد از ارسال کانفیگ پاسارگارد'
+            ],
+            [
+                'key' => 'action.test_account.pasarguard',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "اکانت آزمایشی شما فعال شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
+                    ['type' => 'newline'],
+                    ['type' => 'link', 'text' => "لینک ساب", 'url' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "می‌توانید QRCode ارسال شده را اسکن نمایید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن اکانت آزمایشی پاسارگارد - پارامترها: {subscription_link}'
+            ],
+            [
                 'key' => 'action.buy_history.title',
                 'default_text' => json_encode([
                     ['type' => 'text', 'text' => 'سابقه خرید'],
@@ -684,6 +734,56 @@ class CustomTextController extends Controller
                 ]),
                 'custom_text' => null,
                 'description' => 'متن تغییر نام بسته'
+            ],
+            [
+                'key' => 'action.history.buttun.delete',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'حذف بسته'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه حذف بسته در سابقه خرید'
+            ],
+            [
+                'key' => 'action.delete_history.confirm',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'آیا از حذف بسته «{name}» اطمینان دارید؟'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'این عمل غیرقابل بازگشت است و دسترسی شما قطع خواهد شد.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن تایید حذف بسته - پارامترها: {name}'
+            ],
+            [
+                'key' => 'action.delete_history.confirm_button',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید و حذف'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه تایید حذف بسته'
+            ],
+            [
+                'key' => 'action.delete_history.cancel_button',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'انصراف'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه انصراف از حذف بسته'
+            ],
+            [
+                'key' => 'action.delete_history.success',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'بسته «{name}» با موفقیت حذف شد.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن موفقیت حذف بسته - پارامترها: {name}'
+            ],
+            [
+                'key' => 'action.delete_history.failed',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'خطا در حذف بسته. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خطا در حذف بسته'
             ],
             [
                 'key' => 'action.recharge.success',
@@ -993,23 +1093,6 @@ class CustomTextController extends Controller
                 ]),
                 'custom_text' => null,
                 'description' => 'متن این بسته قابلیت شارژ ندارد'
-            ],
-            [
-                'key' => 'action.subscription.hiddify',
-                'default_text' => json_encode([
-                    ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
-                    ['type' => 'newline'],
-                    ['type' => 'bold', 'text' => "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:"],
-                    ['type' => 'link', 'text' => "لینک پنل", 'url' => "{panel_link}"],
-                    ['type' => 'newline'],
-                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
-                    ['type' => 'newline'],
-                    ['type' => 'code', 'text' => "{subscription_link}"],
-                    ['type' => 'newline'],
-                    ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
-                ]),
-                'custom_text' => null,
-                'description' => 'متن خرید شما با موفقیت انجام شد - پارامترها: {panel_link} {subscription_link}'
             ],
 
 

@@ -43,6 +43,8 @@ class TelegramCallbackHandler
             'buyHistoryNext' => $this->subscriptionProcessCtrl->buyHistory($chatId, $params[0] ?? null),
             'recharge' => $this->subscriptionProcessCtrl->recharge($chatId, $params[0] ?? null),
             'remark' => $this->subscriptionProcessCtrl->remark($chatId, $params[0] ?? null),
+            'deleteHistory' => $this->subscriptionProcessCtrl->deleteHistory($chatId, $params[0] ?? null),
+            'confirmDeleteHistory' => $this->subscriptionProcessCtrl->confirmDeleteHistory($chatId, $params[0] ?? null),
 
             'accountTransactions' => $this->accountProcessCtrl->accountTransactions($chatId),
             'accountSubAccounts' => $this->accountProcessCtrl->accountSubAccounts($chatId),
