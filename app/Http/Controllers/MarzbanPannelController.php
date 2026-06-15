@@ -415,7 +415,7 @@ class MarzbanPannelController extends Controller
         };
     }
 
-    private function performRequest(Pannel $panel, string $method, string $path, array $body = null, bool $allowRetry = true)
+    private function performRequest(Pannel $panel, string $method, string $path, ?array $body = null, bool $allowRetry = true)
     {
         $response = $this->sendRequest($panel, $method, $path, $body);
 
