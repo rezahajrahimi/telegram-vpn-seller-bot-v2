@@ -8,6 +8,44 @@ use Illuminate\Http\Request;
 
 class ProductCategoryController extends Controller
 {
+    private function normalizeAllowedUserGroupIds(Request $request): ?array
+    {
+        if (! $request->has('allowed_user_group_ids')) {
+            return null;
+        }
+
+        $raw = $request->input('allowed_user_group_ids');
+        if ($raw === null || $raw === '' || $raw === []) {
+            return null;
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $raw = $decoded;
+            } else {
+                $parts = preg_split('/[,; ]+/', trim($raw));
+                $raw = array_filter($parts ?? [], fn ($part) => $part !== '');
+            }
+        }
+
+        if (! is_array($raw)) {
+            return null;
+        }
+
+        $ids = [];
+        foreach ($raw as $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $ids[] = (int) $value;
+        }
+
+        $ids = array_values(array_unique($ids));
+
+        return $ids === [] ? null : $ids;
+    }
+
     public function getAllProdctCategory()
     {
         return ProductCategory::with('pannel')->orderBy('created_at')->get();
@@ -38,24 +76,37 @@ class ProductCategoryController extends Controller
     {
         return ProductCategory::orderBy('price')->get();
     }
-    public function getAllActiveProdctCategoryOrderByPrice()
+    public function getAllActiveProdctCategoryOrderByPrice(?int $userGroupId = null, bool $filterByUserGroup = false)
     {
         $panelCntrl = new PannelController();
         $panels = $panelCntrl->get_all_panells_Id_by_location_capacity_mode();
-        return ProductCategory::orderBy('price')->where('is_active', true)
+        $categories = ProductCategory::orderBy('price')->where('is_active', true)
             ->where('category_name', '!=', 'اکانت آزمایشی')
             ->whereIn('pannel_id', $panels)
-
             ->get();
 
+        if (! $filterByUserGroup) {
+            return $categories;
+        }
+
+        return $categories
+            ->filter(fn (ProductCategory $category) => $category->isAllowedForUserGroup($userGroupId))
+            ->values();
     }
-    public function get_all_active_prodct_category_by_pannel_id_order_by_price($pannel_id)
+    public function get_all_active_prodct_category_by_pannel_id_order_by_price($pannel_id, ?int $userGroupId = null, bool $filterByUserGroup = false)
     {
 
-        return ProductCategory::where('pannel_id', $pannel_id)
+        $categories = ProductCategory::where('pannel_id', $pannel_id)
             ->where('category_name', '!=', 'اکانت آزمایشی')
             ->orderBy('price')->where('is_active', true)->get();
 
+        if (! $filterByUserGroup) {
+            return $categories;
+        }
+
+        return $categories
+            ->filter(fn (ProductCategory $category) => $category->isAllowedForUserGroup($userGroupId))
+            ->values();
     }
     public function getProdctPannelID($name, $pannel_id)
     {
@@ -111,6 +162,10 @@ class ProductCategoryController extends Controller
             $data->price_in_dollar = 0.0;
         }
         $data->is_active = true;
+        $allowedGroupIds = $this->normalizeAllowedUserGroupIds($request);
+        if ($allowedGroupIds !== null || $request->has('allowed_user_group_ids')) {
+            $data->allowed_user_group_ids = $allowedGroupIds;
+        }
         if ($data->save()) {
             return $this->getAllProdctCategory();
         } else {
@@ -139,6 +194,11 @@ class ProductCategoryController extends Controller
                 $data->price_in_dollar = $request->price_in_dollar;
             } else {
                 $data->price_in_dollar = 0.0;
+            }
+
+            $allowedGroupIds = $this->normalizeAllowedUserGroupIds($request);
+            if ($allowedGroupIds !== null || $request->has('allowed_user_group_ids')) {
+                $data->allowed_user_group_ids = $allowedGroupIds;
             }
 
             if ($data->update()) {

@@ -404,6 +404,10 @@ class AgentProductController extends Controller
         }
 
         if ($user->role !== 'agent') {
+            if (! $category->isAllowedForUserGroup($user->user_group_id)) {
+                return null;
+            }
+
             return [
                 'category' => $category,
                 'price' => $category->price,

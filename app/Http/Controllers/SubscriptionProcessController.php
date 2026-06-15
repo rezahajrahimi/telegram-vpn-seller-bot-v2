@@ -6,6 +6,7 @@ use App\Jobs\ProcessSubscriptionPurchase;
 use App\Models\BotUser;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\User;
 
 // add BotUser model
 use App\Models\UserState;
@@ -207,11 +208,13 @@ class SubscriptionProcessController extends Controller
             return $this->agentProductCtrl->getActiveProductCategoriesForAgent($agentUser->id, $panelId);
         }
 
+        $userGroupId = User::where('account_id', $this->chatId)->value('user_group_id');
+
         if ($panelId !== null) {
-            return $this->prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
+            return $this->prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId, $userGroupId, true);
         }
 
-        return $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
+        return $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice($userGroupId, true);
     }
 
     public function prepareSubscriptionButtons($prCat = null)

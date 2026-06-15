@@ -296,8 +296,9 @@ class GeneralController extends Controller
             $accCntrl = new AccountBallanceController();
             $accBallance = $accCntrl->getLoggedUserBallancce();
             $prCatCntrl = new ProductCategoryController();
+            $userGroupId = auth('sanctum')->user()?->user_group_id;
 
-            $products = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
+            $products = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice($userGroupId, true);
             // $boughtProducts =  $agentPrCntrl->getAgentSelledProducts(10);
             $logCntrl = new LogController();
             $getTop20Log = $logCntrl->getAllLogsOfLoggedAgent(20);
