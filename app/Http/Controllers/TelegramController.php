@@ -690,18 +690,16 @@ class TelegramController extends Controller
                     $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
                     $text = '';
                 }
-                if ($userData->configs != null) {
-                    // json decode $userData->configs
-                    $links = json_decode($userData->configs);
-                    // check is $links is array or not
-                    if (is_array($links)) {
-                        foreach ($links as $key => $link) {
+                if ($selectedPrCat->shouldSendConfigToUser() && $userData->configs != null) {
+                    $configLinks = ProductCategory::extractConfigLinks($userData->configs);
+                    if (! empty($configLinks)) {
+                        foreach ($configLinks as $link) {
                             $image = $pnlCntrl->generateQrMOC($link);
 
                             $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
                         }
                         $text = '';
-                    } else {
+                    } elseif (is_string($userData->configs) && $userData->configs !== '') {
                         $text .= "کانفیگ: \r\n";
                         $text .= "$userData->configs \r\n";
                     }
@@ -1066,21 +1064,21 @@ class TelegramController extends Controller
                     $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
                 }
 
-                $links = $selectedProduct->configs;
-                // json decode links
-                $links = json_decode($links);
-                if (is_array($links)) {
-                    foreach ($links as $key => $value) {
-                        $text = "$value";
-                        $image = $pnlCntrl->generateQrMOC($text);
+                if ($selectedProductCategory->shouldSendConfigToUser()) {
+                    $configLinks = ProductCategory::extractConfigLinks($selectedProduct->configs);
+                    if (! empty($configLinks)) {
+                        foreach ($configLinks as $link) {
+                            $text = $link;
+                            $image = $pnlCntrl->generateQrMOC($text);
+
+                            $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+                        }
+                    } elseif (is_string($selectedProduct->configs) && $selectedProduct->configs !== '') {
+                        $text = "$selectedProduct->configs \r\n";
+                        $image = $pnlCntrl->generateQrMOC($selectedProduct->configs);
 
                         $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
                     }
-                } else {
-                    $text = "$selectedProduct->configs \r\n";
-                    $image = $pnlCntrl->generateQrMOC($selectedProduct->configs);
-
-                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
                 }
             }
             // sent data by pannel type

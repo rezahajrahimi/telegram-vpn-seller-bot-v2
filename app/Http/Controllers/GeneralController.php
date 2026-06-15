@@ -536,7 +536,7 @@ class GeneralController extends Controller
             $image = $pnlCntrl->generateQrMOC($subLink);
             $this->telegramService->sendPhotoFile($chat_id, $image, $subLink);
 
-            if ($selectedPrCat->send_config_to_user && ! empty($links)) {
+            if ($this->categoryShouldSendConfigToUser($selectedPrCat) && ! empty($links)) {
                 if (! empty($selectedPrCat->sample_inbound)) {
                     $config = preg_replace('/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i', $uuid, $selectedPrCat->sample_inbound);
                     $links[0] = $config;
@@ -598,7 +598,7 @@ class GeneralController extends Controller
             $image = $pnlCntrl->generateQrMOC($userSub);
             $this->telegramService->sendPhotoFile($chat_id, $image, $text);
 
-            if ($selectedPrCat->send_config_to_user) {
+            if ($this->categoryShouldSendConfigToUser($selectedPrCat)) {
                 foreach ($links as $link) {
                     $linkText = $this->formatCustomTelegramText('action.subscription.marzban.link', [
                         'link' => $link,
@@ -633,6 +633,19 @@ class GeneralController extends Controller
 
             return false;
         }
+    }
+
+    private function categoryShouldSendConfigToUser($category): bool
+    {
+        if ($category instanceof ProductCategory) {
+            return $category->shouldSendConfigToUser();
+        }
+
+        if (is_object($category) && isset($category->send_config_to_user)) {
+            return filter_var($category->send_config_to_user, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return true;
     }
 
     private function formatCustomTelegramText(string $key, array $variables = []): string

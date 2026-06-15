@@ -11,6 +11,50 @@ class ProductCategory extends Model
     protected $guarded = ['id', 'pannel_id'];
     protected $fillable = ['pannel_id', 'category_name', 'price', 'expire_day', 'volume', 'rechargable', 'show_subscription_link', 'show_pannel_link', 'send_config_to_user', 'is_active', 'price_in_dollar', 'inbound_id', 'ip_limit', 'sample_inbound'];
 
+    protected $casts = [
+        'send_config_to_user' => 'boolean',
+    ];
+
+    public function shouldSendConfigToUser(): bool
+    {
+        if (! array_key_exists('send_config_to_user', $this->attributes)
+            || $this->attributes['send_config_to_user'] === null) {
+            return true;
+        }
+
+        return filter_var($this->attributes['send_config_to_user'], FILTER_VALIDATE_BOOLEAN);
+    }
+
+    public static function extractConfigLinks(mixed $configs): array
+    {
+        if ($configs === null || $configs === '') {
+            return [];
+        }
+
+        if (is_string($configs)) {
+            $decoded = json_decode($configs, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return [$configs];
+            }
+            $configs = $decoded;
+        }
+
+        if (! is_array($configs)) {
+            return [];
+        }
+
+        if (array_is_list($configs)) {
+            return array_values(array_filter($configs, fn ($link) => is_string($link) && $link !== ''));
+        }
+
+        $links = $configs['links'] ?? [];
+        if (! is_array($links)) {
+            return [];
+        }
+
+        return array_values(array_filter($links, fn ($link) => is_string($link) && $link !== ''));
+    }
+
     public function getSampleInboundAttribute($value)
     {
         if (!$value) {

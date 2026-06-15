@@ -101,7 +101,7 @@ class ProductCategoryController extends Controller
         $data->rechargable = $request->rechargable;
         $data->show_subscription_link = $request->show_subscription_link;
         $data->show_pannel_link = $request->show_pannel_link;
-        $data->send_config_to_user = $request->send_config_to_user ?? true;
+        $data->send_config_to_user = $request->boolean('send_config_to_user', true);
         $data->inbound_id = $request->inbound_id;
         $data->sample_inbound = $request->sample_inbound;
         $data->ip_limit = $request->ip_limit ?? 0;
@@ -129,7 +129,7 @@ class ProductCategoryController extends Controller
             $data->rechargable = $request->rechargable;
             $data->show_subscription_link = $request->show_subscription_link;
             $data->show_pannel_link = $request->show_pannel_link;
-            $data->send_config_to_user = $request->send_config_to_user ?? true;
+            $data->send_config_to_user = $request->boolean('send_config_to_user', true);
             $data->inbound_id = $request->inbound_id;
             \Log::info("sample_inbound", [$request->sample_inbound]);
             $data->sample_inbound = $request->sample_inbound;
@@ -160,7 +160,7 @@ class ProductCategoryController extends Controller
             $data->rechargable = $request->rechargable;
             $data->show_subscription_link = $request->show_subscription_link;
             $data->show_pannel_link = $request->show_pannel_link;
-            $data->send_config_to_user = $request->send_config_to_user ?? true;
+            $data->send_config_to_user = $request->boolean('send_config_to_user', true);
             $data->is_active = $request->is_active;
             $data->sample_inbound = $request->sample_inbound;
 

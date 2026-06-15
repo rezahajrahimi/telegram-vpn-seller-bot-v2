@@ -85,6 +85,7 @@ class ProcessSubscriptionPurchase implements ShouldQueue
             }
 
             $selectedPrCat = $pricing['category'];
+            $selectedPrCat->refresh();
             if (! $selectedPrCat) {
                 \Log::error("Product Category not found: " . $this->productCategoryId);
                 return;
