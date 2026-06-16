@@ -29,6 +29,20 @@ git push origin main
 sudo bash -c "$(curl -sL https://raw.githubusercontent.com/rezahajrahimi/powerps-core-scripts/refs/heads/main/install.sh)" @ install
 
 
+اگر git pull خطای local changes داد (قبل از fix)
+-------------------------------------------------
+cd /var/www/html/laravel-app
+cp .env /tmp/powerps-env-backup
+cp -a public/images/qrcodes /tmp/ 2>/dev/null || true
+cp -a public/images/transaction_images /tmp/ 2>/dev/null || true
+git fetch origin main
+git reset --hard origin/main
+cp /tmp/powerps-env-backup .env
+cp -a /tmp/qrcodes/. public/images/qrcodes/ 2>/dev/null || true
+cp -a /tmp/transaction_images/. public/images/transaction_images/ 2>/dev/null || true
+# بعد دوباره install.sh را اجرا کن
+
+
 bolt.so از کجا می‌آید؟
 -----------------------
 روی سرور دانلود نمی‌شود!
@@ -61,3 +75,26 @@ cd power_ps_front_3
 
 # سریع‌ترین حالت برای انتشار مجدد
 ./tools/publish-powerps-webapp.sh --skip-build --push
+
+
+
+
+
+
+
+
+
+
+
+#!/bin/bash
+cd /www/wwwroot/core.powerps.ir
+
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+
+chown -R www:www storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache

@@ -56,6 +56,8 @@ RSYNC_EXCLUDES=(
     --exclude 'storage/framework/cache/*'
     --exclude 'storage/framework/sessions/*'
     --exclude 'storage/framework/views/*'
+    --exclude 'public/images/qrcodes/*'
+    --exclude 'public/images/transaction_images/*'
 )
 
 rsync -a "${RSYNC_EXCLUDES[@]}" "${PROJECT_ROOT}/" "${OUTPUT_DIR}/"

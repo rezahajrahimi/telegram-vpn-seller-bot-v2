@@ -3,9 +3,16 @@
 /public/build
 /public/hot
 /public/storage
+/public/images/qrcodes/*
+!/public/images/qrcodes/.gitignore
+/public/images/transaction_images/*
+!/public/images/transaction_images/.gitignore
 /storage/*.key
+/storage/logs/*
+!/storage/logs/.gitkeep
 /vendor
 /encrypted/*
+.env
 .env.backup
 .env.production
 .phpunit.result.cache
