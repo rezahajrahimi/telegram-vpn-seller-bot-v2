@@ -31,7 +31,7 @@ class AccountBallanceController extends Controller
             // check agent
             if ($user->role == 'agent') {
                 $agentPremissionCntrl = new AgentPermissonController();
-                $agentPr = $agentPremissionCntrl->getUserPremission();
+                $agentPr = $agentPremissionCntrl->getUserPremissionByAgentID($user->id);
                 if ($agentPr != null) {
                     if ($agentPr->minus_ballance === 1 || $agentPr->minus_ballance === true) {
 
@@ -171,7 +171,7 @@ class AccountBallanceController extends Controller
                 }
                 if ($user_role->role == 'agent') {
                     $is_agent = true;
-                    $agent_permission = AgentPermisson::where('user_id', $user->account_id)->first();
+                    $agent_permission = AgentPermisson::where('user_id', $user_role->id)->first();
                     if (isset($agent_permission)) {
                         if ($agent_permission->minus_ballance == 1 || $agent_permission->minus_ballance == true) {
                             $minus_ballance_permission = true;
@@ -312,10 +312,10 @@ class AccountBallanceController extends Controller
                 $data->update();
                 return true;
             } else {
-                $agentPremissionCntrl = new AgentPermissonController();
-                $agentPr = $agentPremissionCntrl->getUserPremission();
-                if ($agentPr != null) {
-                    if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
+                $user = User::where('account_id', $userID)->first();
+                if ($user != null && $user->role == 'agent') {
+                    $agentPr = AgentPermisson::where('user_id', $user->id)->first();
+                    if ($agentPr != null && ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true)) {
                         $data->ballance -= $ballance;
                         $data->update();
                         return true;
