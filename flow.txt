@@ -90,7 +90,6 @@ cd power_ps_front_3
 cd /www/wwwroot/core.powerps.ir
 
 composer install --no-dev --optimize-autoloader
-php artisan migrate --force
 
 chown -R www:www storage bootstrap/cache
 chmod -R 775 storage bootstrap/cache

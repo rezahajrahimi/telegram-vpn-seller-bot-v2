@@ -20,12 +20,12 @@ class AuthController extends Controller
     private CustomTextController $customText;
     private LicenseCheckService $licenseCheckService;
 
-    public function __construct(LicenseCheckService $licenseCheckService)
+    public function __construct(?LicenseCheckService $licenseCheckService = null)
     {
         $this->generalCntrl = new GeneralController();
         $this->telegramService = new TelegramService();
         $this->customText = new CustomTextController();
-        $this->licenseCheckService = $licenseCheckService;
+        $this->licenseCheckService = $licenseCheckService ?? app(LicenseCheckService::class);
     }
     public function me()
     {

@@ -38,7 +38,10 @@ class LicenseCheckService
         $cacheKey = "license_check:{$host}:{$licenseType}";
 
         if (Cache::has($cacheKey)) {
-            return (string) Cache::get($cacheKey);
+            $cached = Cache::get($cacheKey);
+            if ($cached !== 'false') {
+                return (string) $cached;
+            }
         }
 
         $accountType = $this->fetchLicenseType($host, $licenseType);
@@ -46,7 +49,9 @@ class LicenseCheckService
             return 'false';
         }
 
-        Cache::put($cacheKey, $accountType, self::CACHE_TTL_SECONDS);
+        if ($accountType !== 'false') {
+            Cache::put($cacheKey, $accountType, self::CACHE_TTL_SECONDS);
+        }
 
         return $accountType;
     }
@@ -67,7 +72,9 @@ class LicenseCheckService
 
         if (Cache::has($cacheKey)) {
             $accountType = Cache::get($cacheKey);
-            return $this->isPaidLicenseType($accountType);
+            if ($accountType !== 'false') {
+                return $this->isPaidLicenseType($accountType);
+            }
         }
 
         $accountType = $this->fetchLicenseType($host, $licenseType);
@@ -76,7 +83,9 @@ class LicenseCheckService
             return true;
         }
 
-        Cache::put($cacheKey, $accountType, self::CACHE_TTL_SECONDS);
+        if ($accountType !== 'false') {
+            Cache::put($cacheKey, $accountType, self::CACHE_TTL_SECONDS);
+        }
 
         return $this->isPaidLicenseType($accountType);
     }
