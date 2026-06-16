@@ -135,13 +135,19 @@ PASSWORD: admin123456
 
 ## UPDATE
 
-first of all take a back up from database after that change "APP_ENV" to "dev" in .env files, then insert migration command in console and run it:
+First take a backup from the database, then run migrations on the server:
 
 ```sh
-php artisan migrate
+php artisan migrate --force
 ```
 
-Finaly, rechange "APP_ENV" to "production".
+Then clear caches:
+
+```sh
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
 
 ## YOUTUBE Toturial
 

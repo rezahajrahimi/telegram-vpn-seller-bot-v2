@@ -208,13 +208,17 @@ class SubscriptionProcessController extends Controller
             return $this->agentProductCtrl->getActiveProductCategoriesForAgent($agentUser->id, $panelId);
         }
 
-        $userGroupId = User::where('account_id', $this->chatId)->value('user_group_id');
+        $filterByUserGroup = User::hasUserGroupColumn()
+            && \Illuminate\Support\Facades\Schema::hasColumn('product_categories', 'allowed_user_group_ids');
+        $userGroupId = $filterByUserGroup
+            ? User::resolveUserGroupIdForAccount($this->chatId)
+            : null;
 
         if ($panelId !== null) {
-            return $this->prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId, $userGroupId, true);
+            return $this->prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId, $userGroupId, $filterByUserGroup);
         }
 
-        return $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice($userGroupId, true);
+        return $this->prCatCntrl->getAllActiveProdctCategoryOrderByPrice($userGroupId, $filterByUserGroup);
     }
 
     public function prepareSubscriptionButtons($prCat = null)

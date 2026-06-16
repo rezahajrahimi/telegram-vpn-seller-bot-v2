@@ -96,25 +96,25 @@ class TelegramWebhookController extends Controller
                     $this->handleAwaitingReply($this->chatId, $message['text']);
                     return response()->json(['status' => 'success']);
                 }
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['photo'])) {
                 $response = $this->processPhotoMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['document'])) {
                 $response = $this->processDocumentMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['location'])) {
                 $response = $this->processLocationMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['voice'])) {
                 $response = $this->processVoiceMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['video'])) {
                 $response = $this->processVideoMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['contact'])) {
                 $response = $this->processContactMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             }
 
             return response()->json(['status' => 'success']);
@@ -799,6 +799,19 @@ class TelegramWebhookController extends Controller
             $this->telegramService->sendMessage($adminChatId, "تراکنش یافت نشد.");
             $this->clearAwaitingReply($adminChatId);
         }
+    }
+
+    private function sendResponseIfNotEmpty(string $chatId, string|array|null $response): void
+    {
+        if ($response === null || $response === '') {
+            return;
+        }
+
+        if (is_array($response) && $response === []) {
+            return;
+        }
+
+        $this->telegramService->sendMessage($chatId, $response);
     }
 
     private function addNewBotLog($type, $message, $event)
