@@ -16,5 +16,6 @@ class Setting extends Model
         'panel_address',
         'welcome_message',
         'config_name_prefix',
+        'config_name_format',
     ];
 }

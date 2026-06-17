@@ -18,6 +18,7 @@ class SettingController extends Controller
             $setting->welcome_message = 'به ربات  [@powerPsBot] خوش آمدید.';
             $setting->panel_address = env('APP_URL');
             $setting->config_name_prefix = ConfigNameService::DEFAULT_PREFIX;
+            $setting->config_name_format = ConfigNameService::DEFAULT_FORMAT;
             $setting->save();
             return true;
         }
@@ -53,6 +54,7 @@ class SettingController extends Controller
             'admin_id' => 'required',
             'panel_address' => 'required|string',
             'config_name_prefix' => 'nullable|string|max:20|regex:/^[a-zA-Z0-9]*$/',
+            'config_name_format' => 'nullable|string|max:64|regex:/^[a-zA-Z0-9_{}\-]*$/',
         ]);
 
         $data = Setting::first();
@@ -66,6 +68,9 @@ class SettingController extends Controller
         $data->panel_address = $request->panel_address;
         $data->config_name_prefix = ConfigNameService::normalizePrefix(
             $request->input('config_name_prefix')
+        );
+        $data->config_name_format = ConfigNameService::normalizeFormat(
+            $request->input('config_name_format')
         );
 
         // Only set welcome message if it's empty
