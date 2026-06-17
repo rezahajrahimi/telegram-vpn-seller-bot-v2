@@ -618,7 +618,8 @@ class CronJobController extends Controller
         }
 
         $authCntrl = new AuthController();
-        if (in_array($authCntrl->getPowerPsLicenseType(), ['false', 'trial', 'boronze'], true)) {
+        $license = strtolower((string) $authCntrl->getPowerPsLicenseType());
+        if ($license !== 'gold') {
             return false;
         }
 

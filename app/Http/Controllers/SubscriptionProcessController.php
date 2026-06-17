@@ -161,7 +161,10 @@ class SubscriptionProcessController extends Controller
 
             $selectedCategory = $pricing['category'];
             if (! empty($selectedCategory->upsell_category_id)) {
-                return $this->showUpsellOffer($chatId, (int) $categoryId, $selectedCategory);
+                $authCntrl = new AuthController();
+                if (strtolower((string) $authCntrl->getPowerPsLicenseType()) === 'gold') {
+                    return $this->showUpsellOffer($chatId, (int) $categoryId, $selectedCategory);
+                }
             }
 
             return $this->showPurchaseConfirm($chatId, (int) $categoryId, $pricing);

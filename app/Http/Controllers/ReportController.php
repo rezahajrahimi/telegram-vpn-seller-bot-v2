@@ -9,6 +9,7 @@ use App\Models\ProductCategory;
 use App\Models\AccountBallance;
 use App\Models\PurchaseIntent;
 use App\Models\PromoCodeUsage;
+use App\Services\LicenseFeatureService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -164,6 +165,11 @@ class ReportController extends Controller
     public function getRetentionStats()
     {
         try {
+            $license = new LicenseFeatureService();
+            if ($license->isBronzeOrBelow()) {
+                return $license->silverRequiredResponse();
+            }
+
             $since30 = Carbon::now()->subDays(30);
             $buyersLast30 = Product::where('created_at', '>=', $since30)->distinct()->count('account_id');
             $repeatBuyers = Product::where('created_at', '>=', $since30)
@@ -174,21 +180,28 @@ class ReportController extends Controller
                 ->count();
 
             $renewalRate = $buyersLast30 > 0 ? round($repeatBuyers / $buyersLast30, 4) : 0;
-            $abandonedToday = PurchaseIntent::whereNull('completed_at')
-                ->whereDate('created_at', Carbon::today())
-                ->count();
-            $promoRevenueToday = PromoCodeUsage::whereDate('applied_at', Carbon::today())->sum('discount_amount');
 
-            return response()->json([
+            $payload = [
                 'renewal_rate_30d' => $renewalRate,
                 'repeat_buyers_30d' => $repeatBuyers,
                 'buyers_30d' => $buyersLast30,
-                'abandoned_intents_today' => $abandonedToday,
-                'open_abandoned_intents' => PurchaseIntent::whereNull('completed_at')->count(),
-                'promo_discount_today' => $promoRevenueToday,
                 'total_users' => BotUser::count(),
                 'users_with_purchase' => Product::distinct('account_id')->count('account_id'),
-            ], 200);
+                'license_tier' => $license->current(),
+            ];
+
+            if ($license->isGold()) {
+                $abandonedToday = PurchaseIntent::whereNull('completed_at')
+                    ->whereDate('created_at', Carbon::today())
+                    ->count();
+                $promoRevenueToday = PromoCodeUsage::whereDate('applied_at', Carbon::today())->sum('discount_amount');
+
+                $payload['abandoned_intents_today'] = $abandonedToday;
+                $payload['open_abandoned_intents'] = PurchaseIntent::whereNull('completed_at')->count();
+                $payload['promo_discount_today'] = $promoRevenueToday;
+            }
+
+            return response()->json($payload, 200);
         } catch (\Throwable $th) {
             return response()->json(['error' => $th->getMessage()], 500);
         }
@@ -197,6 +210,11 @@ class ReportController extends Controller
     public function getRetentionChart()
     {
         try {
+            $license = new LicenseFeatureService();
+            if (! $license->isGold()) {
+                return $license->goldRequiredResponse();
+            }
+
             $monthlySales = Product::join('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
                 ->select(
                     DB::raw('CAST(COUNT(products.id) AS UNSIGNED) as sales_count'),

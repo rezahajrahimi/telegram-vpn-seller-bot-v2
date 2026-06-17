@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 use App\Models\ProductCategory;
 use App\Models\Product;
+use App\Services\LicenseFeatureService;
 
 use Illuminate\Http\Request;
 
@@ -168,9 +169,11 @@ class ProductCategoryController extends Controller
         }
         if ($request->has('upsell_category_id')) {
             $upsellId = $request->upsell_category_id;
-            $data->upsell_category_id = ($upsellId === '' || $upsellId === '0' || $upsellId === 0)
-                ? null
-                : (int) $upsellId;
+            if ((new LicenseFeatureService())->isGold()) {
+                $data->upsell_category_id = ($upsellId === '' || $upsellId === '0' || $upsellId === 0)
+                    ? null
+                    : (int) $upsellId;
+            }
         }
         if ($data->save()) {
             return $this->getAllProdctCategory();
@@ -209,9 +212,11 @@ class ProductCategoryController extends Controller
 
             if ($request->has('upsell_category_id')) {
                 $upsellId = $request->upsell_category_id;
-                $data->upsell_category_id = ($upsellId === '' || $upsellId === '0' || $upsellId === 0)
-                    ? null
-                    : (int) $upsellId;
+                if ((new LicenseFeatureService())->isGold()) {
+                    $data->upsell_category_id = ($upsellId === '' || $upsellId === '0' || $upsellId === 0)
+                        ? null
+                        : (int) $upsellId;
+                }
             }
 
             if ($data->update()) {

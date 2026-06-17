@@ -4,19 +4,30 @@ namespace App\Http\Controllers;
 
 use App\Jobs\BatchMessageJob;
 use App\Models\MarketingCampaign;
+use App\Services\LicenseFeatureService;
 use App\Services\MarketingSegmentService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class MarketingCampaignController extends Controller
 {
+    public function __construct(private LicenseFeatureService $license) {}
+
     public function index()
     {
+        if (! $this->license->isGold()) {
+            return $this->license->goldRequiredResponse();
+        }
+
         return response()->json(MarketingCampaign::orderByDesc('id')->get());
     }
 
     public function previewRecipients(Request $request, MarketingSegmentService $segmentService)
     {
+        if (! $this->license->isGold()) {
+            return $this->license->goldRequiredResponse();
+        }
+
         $request->validate([
             'segment_type' => 'required|string',
             'segment_params' => 'nullable|array',
@@ -35,6 +46,10 @@ class MarketingCampaignController extends Controller
 
     public function store(Request $request, MarketingSegmentService $segmentService)
     {
+        if (! $this->license->isGold()) {
+            return $this->license->goldRequiredResponse();
+        }
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'segment_type' => 'required|string',
@@ -102,6 +117,10 @@ class MarketingCampaignController extends Controller
 
     public function destroy(int $id)
     {
+        if (! $this->license->isGold()) {
+            return $this->license->goldRequiredResponse();
+        }
+
         MarketingCampaign::findOrFail($id)->delete();
 
         return response()->json(true);
