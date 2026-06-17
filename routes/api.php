@@ -41,6 +41,7 @@ use App\Http\Controllers\ReferralLogsController;
 use App\Http\Controllers\ReserverdConfigController;
 use App\Http\Controllers\AdvanceSettingLookupController;
 use App\Http\Controllers\WebAppMenuItemController;
+use App\Http\Controllers\WebAppUserController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\CustomTextController;
@@ -543,6 +544,15 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('/getReferralLogsByAccountId/{account_id}', [ReferralLogsController::class, 'get_referral_logs']);
     // WebAppMenuItemController
     Route::get('/getAllActiveWebAppMenuItems', [WebAppMenuItemController::class, 'get_all_active_web_app_menu_items']);
+
+    // WebApp user features (read-only + actions for user/agent panels)
+    Route::get('/webapp/faqs', [WebAppUserController::class, 'getFaqs']);
+    Route::get('/webapp/supports', [WebAppUserController::class, 'getSupports']);
+    Route::get('/webapp/application-oses', [WebAppUserController::class, 'getApplicationOses']);
+    Route::get('/webapp/applications/{os}', [WebAppUserController::class, 'getApplicationsByOs']);
+    Route::get('/webapp/referral-info', [WebAppUserController::class, 'getReferralInfo']);
+    Route::post('/webapp/redeem-gift-card', [WebAppUserController::class, 'redeemGiftCard']);
+    Route::post('/webapp/claim-test-account', [WebAppUserController::class, 'claimTestAccount']);
 
     //ProxyController
 
