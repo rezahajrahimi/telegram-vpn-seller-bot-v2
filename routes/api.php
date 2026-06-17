@@ -47,6 +47,7 @@ use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\BlockedUserController;
 use App\Http\Controllers\ShetabVerifyController;
 use App\Http\Controllers\SubscriptionProcessController;
+use App\Http\Controllers\GroupOperationController;
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\PromoCodeController;
@@ -443,6 +444,8 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
 
     // SubscriptionProcessController
     Route::post('/batchExistSubscriptionJob', [SubscriptionProcessController::class, 'batchExistSubscriptionJob']);
+    Route::get('/groupOperationJobs', [GroupOperationController::class, 'index']);
+    Route::get('/groupOperationJobs/{id}', [GroupOperationController::class, 'show']);
 
 
     // CustomTextController

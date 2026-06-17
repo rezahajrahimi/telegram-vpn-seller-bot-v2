@@ -1361,6 +1361,17 @@ class SubscriptionProcessController extends Controller
         if (! is_array($listOfConfigs) || $listOfConfigs === []) {
             return response()->json(['status' => 'error', 'message' => 'حداقل یک کانفیگ باید انتخاب شود.']);
         }
+
+        $jobRecord = \App\Models\GroupOperationJob::create([
+            'action' => $action,
+            'panel_id' => $panelID,
+            'status' => 'pending',
+            'total_configs' => count($listOfConfigs),
+            'processed_configs' => 0,
+            'success_items' => [],
+            'failed_items' => [],
+        ]);
+
         // اگر chat_id ارسال شده بود، پیام به کاربر بده
         if ($request->has('chat_id')) {
             try {
@@ -1375,9 +1386,15 @@ class SubscriptionProcessController extends Controller
             $action,
             $listOfConfigs,
             $panelID,
-            $extra
+            $extra,
+            $jobRecord->id
         );
-        return response()->json(['status' => 'success', 'message' => 'درخواست شما دریافت شد و در حال اجراست.']);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'درخواست شما دریافت شد و در حال اجراست.',
+            'job_id' => $jobRecord->id,
+        ]);
     }
     public function remark($chatId, $productID)
     {

@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\GroupOperationJob;
 use App\Models\Pannel;
 use App\Services\BatchPanelOperationService;
 use Illuminate\Bus\Queueable;
@@ -15,14 +16,15 @@ class BatchSubscriptionJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $action, $listOfConfigs, $panelID, $extra;
+    protected $action, $listOfConfigs, $panelID, $extra, $jobRecordId;
 
-    public function __construct($action, $listOfConfigs, $panelID, $extra = [])
+    public function __construct($action, $listOfConfigs, $panelID, $extra = [], $jobRecordId = null)
     {
         $this->action = $action;
         $this->listOfConfigs = $listOfConfigs;
         $this->panelID = $panelID;
         $this->extra = $extra;
+        $this->jobRecordId = $jobRecordId;
     }
 
     public function handle()
@@ -32,6 +34,11 @@ class BatchSubscriptionJob implements ShouldQueue
         $adminId = env(key: 'TELEGRAM_ADMIN_ID');
         $telegramService = app(\App\Services\TelegramService::class);
         $operationService = app(BatchPanelOperationService::class);
+        $jobRecord = $this->jobRecordId
+            ? GroupOperationJob::find($this->jobRecordId)
+            : null;
+        $successItems = [];
+        $failedItems = [];
 
         try {
             $action = $this->action;
@@ -39,6 +46,10 @@ class BatchSubscriptionJob implements ShouldQueue
             $panelID = $this->panelID;
             $extra = $this->extra;
             $panel = Pannel::find($panelID);
+
+            if ($jobRecord) {
+                $jobRecord->update(['status' => 'processing']);
+            }
 
             if (! isset($listOfConfigs)) {
                 $success = false;
@@ -54,18 +65,7 @@ class BatchSubscriptionJob implements ShouldQueue
                 return;
             }
 
-            $actionLabels = [
-                'inc_days' => 'افزایش روزها',
-                'dec_days' => 'کاهش روزها',
-                'modify_days' => 'تغییر روزها',
-                'inc_vol' => 'افزایش حجم',
-                'dec_vol' => 'کاهش حجم',
-                'modify_vol' => 'تغییر حجم',
-                'reset' => 'ریست',
-                'active' => 'فعالسازی',
-                'deactive' => 'غیرفعالسازی',
-                'delete' => 'حذف',
-            ];
+            $actionLabels = GroupOperationJob::actionLabels();
 
             if (! array_key_exists($action, $actionLabels)) {
                 $success = false;
@@ -90,25 +90,53 @@ class BatchSubscriptionJob implements ShouldQueue
 
             $telegramService->sendMessage($adminId, 'عملیات ' . $actionLabels[$action] . ' شروع شد.');
 
+            $processed = 0;
             foreach ($listOfConfigs as $config) {
                 $aa = is_array($config) ? $config : json_decode($config, true);
                 $config = (array) $aa;
                 $configName = $config['name'] ?? ($config['uuid'] ?? 'نامشخص');
 
                 $result = $operationService->execute($action, $config, $panel, $extra);
+                $processed++;
+
                 if (! $result) {
                     $success = false;
                     $message = 'خطا در اجرای عملیات روی پیکربندی: ' . $configName;
+                    $failedItems[] = [
+                        'name' => $configName,
+                        'error' => $message,
+                    ];
                     $telegramService->sendMessage($adminId, $message);
-                    break;
+                } else {
+                    $successItems[] = ['name' => $configName];
+                    $telegramService->sendMessage($adminId, 'عملیات ' . $actionLabels[$action] . ' برای ' . $configName . ' با موفقیت انجام شد.');
                 }
 
-                $telegramService->sendMessage($adminId, 'عملیات ' . $actionLabels[$action] . ' برای ' . $configName . ' با موفقیت انجام شد.');
+                if ($jobRecord) {
+                    $jobRecord->update([
+                        'processed_configs' => $processed,
+                        'success_items' => $successItems,
+                        'failed_items' => $failedItems,
+                    ]);
+                }
+
+                if (! $result) {
+                    break;
+                }
             }
         } catch (\Throwable $th) {
             $success = false;
             $message = 'خطا در اجرای عملیات: ' . $th->getMessage();
             Log::error($message);
+        } finally {
+            if ($jobRecord) {
+                $jobRecord->update([
+                    'status' => $success ? 'completed' : 'failed',
+                    'error_message' => $success ? null : $message,
+                    'success_items' => $successItems,
+                    'failed_items' => $failedItems,
+                ]);
+            }
         }
 
         try {
