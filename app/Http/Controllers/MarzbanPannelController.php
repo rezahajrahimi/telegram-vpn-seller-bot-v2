@@ -25,7 +25,7 @@ class MarzbanPannelController extends Controller
     public function buildBotUsername(int|string $chatId, int|string $productId): string
     {
         $botUser = BotUser::query()->where('account_id', $chatId)->first();
-        if ($botUser && filled($botUser->admin_alias)) {
+        if (ConfigNameService::useAdminAliasInConfigName() && $botUser && filled($botUser->admin_alias)) {
             $sanitized = $this->sanitizeUsername(BotUser::resolveConfigAccountLabel($chatId, $productId));
             if ($sanitized !== '') {
                 return $sanitized;
@@ -40,7 +40,7 @@ class MarzbanPannelController extends Controller
     public function buildTestAccountUsername(int|string $chatId): string
     {
         $botUser = BotUser::query()->where('account_id', $chatId)->first();
-        if ($botUser && filled($botUser->admin_alias)) {
+        if (ConfigNameService::useAdminAliasInConfigName() && $botUser && filled($botUser->admin_alias)) {
             $sanitized = $this->sanitizeUsername(BotUser::resolveConfigAccountLabel($chatId, 'Test'));
             if ($sanitized !== '') {
                 return $sanitized;

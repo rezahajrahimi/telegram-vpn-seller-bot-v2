@@ -19,6 +19,7 @@ class SettingController extends Controller
             $setting->panel_address = env('APP_URL');
             $setting->config_name_prefix = ConfigNameService::DEFAULT_PREFIX;
             $setting->config_name_format = ConfigNameService::DEFAULT_FORMAT;
+            $setting->use_admin_alias_in_config_name = true;
             $setting->save();
             return true;
         }
@@ -55,6 +56,7 @@ class SettingController extends Controller
             'panel_address' => 'required|string',
             'config_name_prefix' => 'nullable|string|max:20|regex:/^[a-zA-Z0-9]*$/',
             'config_name_format' => 'nullable|string|max:64|regex:/^[a-zA-Z0-9_{}\-]*$/',
+            'use_admin_alias_in_config_name' => 'nullable|boolean',
         ]);
 
         $data = Setting::first();
@@ -72,6 +74,11 @@ class SettingController extends Controller
         $data->config_name_format = ConfigNameService::normalizeFormat(
             $request->input('config_name_format')
         );
+        if ($request->has('use_admin_alias_in_config_name')) {
+            $data->use_admin_alias_in_config_name = $request->boolean('use_admin_alias_in_config_name');
+        } elseif (! $data->exists) {
+            $data->use_admin_alias_in_config_name = true;
+        }
 
         // Only set welcome message if it's empty
         if (empty($data->welcome_message)) {

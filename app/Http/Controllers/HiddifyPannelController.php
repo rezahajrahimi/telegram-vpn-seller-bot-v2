@@ -15,6 +15,21 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class HiddifyPannelController extends Controller
 {
+    private function buildHiddifyUserName(Request $request): string
+    {
+        $accountLabel = ConfigNameService::resolvePanelAccountLabel(
+            $request->chat_id ?? null,
+            $request->product_id ?? null,
+            $request->accountId
+        );
+
+        return ConfigNameService::buildHiddifyName(
+            $accountLabel,
+            $request->chat_id ?? null,
+            $request->product_id ?? null
+        );
+    }
+
     public function generateUUID($data = null)
     {
         // Generate 16 bytes (128 bits) of random data or use the data passed into the function.
@@ -251,7 +266,7 @@ class HiddifyPannelController extends Controller
         $uuid = $this->generateUUID();
         $params = [
             'uuid' => "$uuid",
-            'name' => ConfigNameService::buildHiddifyName((string) $accountId),
+            'name' => $this->buildHiddifyUserName($request),
             'current_usage_GB' => 0,
             'usage_limit_GB' => $vol,
             'package_days' => $day,
@@ -285,7 +300,7 @@ class HiddifyPannelController extends Controller
         $uuid = $this->generateUUID();
         $params = [
             'uuid' => "$uuid",
-            'name' => ConfigNameService::buildHiddifyName((string) $accountId),
+            'name' => $this->buildHiddifyUserName($request),
             'current_usage_GB' => 0,
             'usage_limit_GB' => $vol,
             'package_days' => $day,

@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Pannel;
 use App\Models\User;
 use App\Models\AgentPermisson;
+use App\Services\ConfigNameService;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
@@ -16,6 +17,16 @@ use Hekmatinasser\Verta\Verta;
 
 class AgentProductController extends Controller
 {
+    private function applyPanelIdentityToRequest(
+        Request $req,
+        int|string $accountId,
+        int|string|null $suffix = null,
+    ): void {
+        $req->chat_id = $accountId;
+        $req->product_id = $suffix;
+        $req->accountId = ConfigNameService::resolveAccountLabel($accountId, $suffix);
+    }
+
     public function obtainBatchOfExistProductsToUser(Request $request)
     {
         $pannelID = $request['pannelID'];
@@ -1002,7 +1013,7 @@ class AgentProductController extends Controller
             $prCntrl = new ProductController();
             if ($pannel->type == 'hiddify') {
                 $req = new Request();
-                $req->accountId = $remark;
+                $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
@@ -1029,7 +1040,7 @@ class AgentProductController extends Controller
             if ($pannel->type == 'sanaei') {
                 $snCtrl = new SanaeiPannelController();
                 $req = new Request();
-                $req->accountId = $remark;
+                $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
@@ -1048,7 +1059,7 @@ class AgentProductController extends Controller
                     $subId = $uuid;
                 }
 
-                $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
+                $links = $snCtrl->getUserLinks($pannel, $uuid, $req->accountId, $selectedPrCat->inbound_id);
 
                 if ($selectedPrCat->show_subscription_link) {
                     $userPannelLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
@@ -1104,7 +1115,7 @@ class AgentProductController extends Controller
             $prCntrl = new ProductController();
             if ($pannel->type == 'hiddify') {
                 $req = new Request();
-                $req->accountId = $remark;
+                $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
@@ -1134,7 +1145,7 @@ class AgentProductController extends Controller
             if ($pannel->type == 'sanaei') {
                 $snCtrl = new SanaeiPannelController();
                 $req = new Request();
-                $req->accountId = $remark;
+                $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
@@ -1153,7 +1164,7 @@ class AgentProductController extends Controller
                     $subId = $uuid;
                 }
 
-                $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
+                $links = $snCtrl->getUserLinks($pannel, $uuid, $req->accountId, $selectedPrCat->inbound_id);
 
                 if ($selectedPrCat->show_subscription_link) {
                     $userPannelLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
@@ -1309,7 +1320,7 @@ class AgentProductController extends Controller
         $prCntrl = new ProductController();
         if ($pannel->type == 'hiddify') {
             $req = new Request();
-            $req->accountId = $remark;
+            $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
@@ -1340,7 +1351,7 @@ class AgentProductController extends Controller
         if ($pannel->type == 'sanaei') {
             $snCtrl = new SanaeiPannelController();
             $req = new Request();
-            $req->accountId = $remark;
+            $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
@@ -1359,7 +1370,7 @@ class AgentProductController extends Controller
                 $subId = $uuid;
             }
 
-            $links = $snCtrl->getUserLinks($pannel, $uuid, $remark, $selectedPrCat->inbound_id);
+            $links = $snCtrl->getUserLinks($pannel, $uuid, $req->accountId, $selectedPrCat->inbound_id);
 
             if ($selectedPrCat->show_subscription_link) {
                 $userPannelLink = $snCtrl->buildSubscriptionLink($pannel, $subId);

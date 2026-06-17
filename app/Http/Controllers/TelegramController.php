@@ -1647,6 +1647,8 @@ class TelegramController extends Controller
             $testAccountLabel = BotUser::resolveConfigAccountLabel($this->chat_id, 'اکانت_آزمایشی');
             $req = new Request();
             $req->accountId = $testAccountLabel;
+            $req->chat_id = $this->chat_id;
+            $req->product_id = 'اکانت_آزمایشی';
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;

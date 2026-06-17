@@ -17,5 +17,10 @@ class Setting extends Model
         'welcome_message',
         'config_name_prefix',
         'config_name_format',
+        'use_admin_alias_in_config_name',
+    ];
+
+    protected $casts = [
+        'use_admin_alias_in_config_name' => 'boolean',
     ];
 }

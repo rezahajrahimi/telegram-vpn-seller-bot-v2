@@ -768,7 +768,11 @@ class SanaeiPannelController extends Controller
             $pannelID = (int) $request->pannelID;
             $day = (int) $request->day;
             $volGb = (int) $request->vol;
-            $accountId = (string) ($request->accountId ?? 'bot');
+            $accountLabel = ConfigNameService::resolvePanelAccountLabel(
+                $request->chat_id ?? null,
+                $request->product_id ?? null,
+                $request->accountId ?? 'bot'
+            );
 
             $panel = Pannel::find($pannelID);
             if (!$panel) {
@@ -807,7 +811,12 @@ class SanaeiPannelController extends Controller
 
             $client = $this->buildNewSanaeiClient(
                 $uuid,
-                ConfigNameService::buildSanaeiClientId($accountId, Random::generate(4)),
+                ConfigNameService::buildSanaeiClientId(
+                    $accountLabel,
+                    Random::generate(4),
+                    $request->chat_id ?? null,
+                    $request->product_id ?? null
+                ),
                 $totalBytes,
                 $expiryMs,
                 (int) ($request->ip_limit ?? 0),

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BotUser;
 use App\Models\Setting;
 use Illuminate\Support\Str;
 
@@ -58,6 +59,33 @@ class ConfigNameService
         $format = preg_replace('/[^{}a-zA-Z0-9_\-]/', '', $format) ?? '';
 
         return $format !== '' ? $format : self::DEFAULT_FORMAT;
+    }
+
+    public static function resolveAccountLabel(int|string $accountId, int|string|null $suffix = null): string
+    {
+        $botUser = BotUser::query()->where('account_id', $accountId)->first();
+        $useAlias = self::useAdminAliasInConfigName();
+        $label = ($useAlias && $botUser && filled($botUser->admin_alias))
+            ? trim($botUser->admin_alias)
+            : (string) $accountId;
+
+        if ($suffix !== null && $suffix !== '') {
+            return "{$label}-{$suffix}";
+        }
+
+        return $label;
+    }
+
+    public static function resolvePanelAccountLabel(
+        int|string|null $chatId,
+        int|string|null $productId = null,
+        ?string $fallbackAccountId = null,
+    ): string {
+        if ($chatId !== null && $chatId !== '') {
+            return self::resolveAccountLabel($chatId, $productId);
+        }
+
+        return (string) ($fallbackAccountId ?? '');
     }
 
     public static function applyFormat(string $format, array $vars): string
@@ -162,5 +190,15 @@ class ConfigNameService
             'product_id' => '42',
             'random' => 'abcd',
         ]);
+    }
+
+    public static function useAdminAliasInConfigName(): bool
+    {
+        $setting = Setting::query()->first();
+        if ($setting === null || $setting->use_admin_alias_in_config_name === null) {
+            return true;
+        }
+
+        return (bool) $setting->use_admin_alias_in_config_name;
     }
 }

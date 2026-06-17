@@ -453,6 +453,8 @@ class GeneralController extends Controller
 
             $req = new Request();
             $req->accountId = $accountLabel;
+            $req->chat_id = $chat_id;
+            $req->product_id = $productID;
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
@@ -507,6 +509,8 @@ class GeneralController extends Controller
             $accountLabel = BotUser::resolveConfigAccountLabel($chat_id, $productID);
             $req = new Request();
             $req->accountId = $accountLabel;
+            $req->chat_id = $chat_id;
+            $req->product_id = $productID;
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ConfigNameService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Verta;
@@ -20,16 +21,7 @@ class BotUser extends Model
 
     public static function resolveConfigAccountLabel(int|string $accountId, int|string|null $suffix = null): string
     {
-        $botUser = static::query()->where('account_id', $accountId)->first();
-        $label = ($botUser && filled($botUser->admin_alias))
-            ? trim($botUser->admin_alias)
-            : (string) $accountId;
-
-        if ($suffix !== null && $suffix !== '') {
-            return "{$label}-{$suffix}";
-        }
-
-        return $label;
+        return ConfigNameService::resolveAccountLabel($accountId, $suffix);
     }
 
     public function getUserNameByAccountID($accountId)
