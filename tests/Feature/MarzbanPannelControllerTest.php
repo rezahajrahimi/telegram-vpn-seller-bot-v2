@@ -249,9 +249,9 @@ class MarzbanPannelControllerTest extends TestCase
     {
         $controller = new MarzbanPannelController();
 
-        $this->assertSame('BotUser91965429', $controller->sanitizeUsername('BotUser91965429 اکانت_آزمایشی'));
-        $this->assertSame('BotUser9196542991', $controller->buildBotUsername(91965429, 91));
-        $this->assertSame('BotUser91965429Test', $controller->buildTestAccountUsername(91965429));
+        $this->assertSame('bot91965429', $controller->sanitizeUsername('bot91965429 اکانت_آزمایشی'));
+        $this->assertSame('bot9196542991', $controller->buildBotUsername(91965429, 91));
+        $this->assertSame('bot91965429Test', $controller->buildTestAccountUsername(91965429));
     }
 
     public function test_create_user_builds_subscription_link(): void

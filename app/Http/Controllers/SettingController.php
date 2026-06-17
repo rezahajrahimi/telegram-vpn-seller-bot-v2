@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 use App\Models\Setting;
 use App\Http\Controllers\DotenvEditor;
+use App\Services\ConfigNameService;
 use Illuminate\Http\Request;
 
 class SettingController extends Controller
@@ -16,6 +17,7 @@ class SettingController extends Controller
             $setting->bot_token = env('TELEGRAM_BOT_TOKEN');
             $setting->welcome_message = 'به ربات  [@powerPsBot] خوش آمدید.';
             $setting->panel_address = env('APP_URL');
+            $setting->config_name_prefix = ConfigNameService::DEFAULT_PREFIX;
             $setting->save();
             return true;
         }
@@ -50,6 +52,7 @@ class SettingController extends Controller
             'bot_name' => 'required|string',
             'admin_id' => 'required',
             'panel_address' => 'required|string',
+            'config_name_prefix' => 'nullable|string|max:20|regex:/^[a-zA-Z0-9]*$/',
         ]);
 
         $data = Setting::first();
@@ -61,6 +64,9 @@ class SettingController extends Controller
         $data->admin_id = $request->admin_id;
         $data->bot_token = $request->bot_token;
         $data->panel_address = $request->panel_address;
+        $data->config_name_prefix = ConfigNameService::normalizePrefix(
+            $request->input('config_name_prefix')
+        );
 
         // Only set welcome message if it's empty
         if (empty($data->welcome_message)) {

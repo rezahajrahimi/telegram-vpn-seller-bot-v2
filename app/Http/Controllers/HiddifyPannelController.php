@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pannel;
+use App\Services\ConfigNameService;
 use App\Models\Proxy;
 use App\Models\Inbound;
 
@@ -250,7 +251,7 @@ class HiddifyPannelController extends Controller
         $uuid = $this->generateUUID();
         $params = [
             'uuid' => "$uuid",
-            'name' => "bot$accountId",
+            'name' => ConfigNameService::buildHiddifyName((string) $accountId),
             'current_usage_GB' => 0,
             'usage_limit_GB' => $vol,
             'package_days' => $day,
@@ -284,7 +285,7 @@ class HiddifyPannelController extends Controller
         $uuid = $this->generateUUID();
         $params = [
             'uuid' => "$uuid",
-            'name' => "bot$accountId",
+            'name' => ConfigNameService::buildHiddifyName((string) $accountId),
             'current_usage_GB' => 0,
             'usage_limit_GB' => $vol,
             'package_days' => $day,

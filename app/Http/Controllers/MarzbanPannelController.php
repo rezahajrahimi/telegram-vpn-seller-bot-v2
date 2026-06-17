@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BotUser;
 use App\Models\Pannel;
+use App\Services\ConfigNameService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -31,7 +32,9 @@ class MarzbanPannelController extends Controller
             }
         }
 
-        return $this->sanitizeUsername("BotUser{$chatId}{$productId}");
+        return $this->sanitizeUsername(
+            ConfigNameService::buildMarzbanFallbackUsername($chatId, $productId)
+        );
     }
 
     public function buildTestAccountUsername(int|string $chatId): string
@@ -44,7 +47,9 @@ class MarzbanPannelController extends Controller
             }
         }
 
-        return $this->sanitizeUsername("BotUser{$chatId}Test");
+        return $this->sanitizeUsername(
+            ConfigNameService::buildMarzbanTestFallbackUsername($chatId)
+        );
     }
 
     private function makeUniqueUsername(string $baseUsername): string

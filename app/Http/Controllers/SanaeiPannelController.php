@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pannel;
+use App\Services\ConfigNameService;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -806,7 +807,7 @@ class SanaeiPannelController extends Controller
 
             $client = $this->buildNewSanaeiClient(
                 $uuid,
-                'bot-' . $accountId . '-' . Random::generate(4),
+                ConfigNameService::buildSanaeiClientId($accountId, Random::generate(4)),
                 $totalBytes,
                 $expiryMs,
                 (int) ($request->ip_limit ?? 0),
