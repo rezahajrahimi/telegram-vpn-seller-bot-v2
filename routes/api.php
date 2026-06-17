@@ -49,6 +49,8 @@ use App\Http\Controllers\ShetabVerifyController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\PromoCodeController;
+use App\Http\Controllers\MarketingCampaignController;
 use App\Http\Controllers\InboundTemplateController;
 use App\Http\Controllers\SanaeiPannelController;
 use App\Http\Controllers\UserGroupController;
@@ -410,6 +412,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('/usage-more-than-85-percent', [CronJobController::class, 'execute_send_useage_more_than_85_percent']);
     Route::get('/auto-delete-expired-configs', [CronJobController::class, 'execute_auto_delete_expired_configs']);
     Route::get('/less-than-3-days', [CronJobController::class, 'execute_send_lass_there_than_3_days']);
+    Route::get('/abandoned-cart-reminders', [CronJobController::class, 'execute_send_abandoned_cart_reminders']);
     Route::post('/updatePricesByTether', [CronJobController::class, 'calculate_product_category_price_by_tether']);
 
     // ReferralSettingController
@@ -465,7 +468,23 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getFinancialReport', [ReportController::class, 'getFinancialReport']);
     Route::get('getUserReport', [ReportController::class, 'getUserReport']);
     Route::get('getProductReport', [ReportController::class, 'getProductReport']);
+    Route::get('getRetentionStats', [ReportController::class, 'getRetentionStats']);
+    Route::get('getRetentionChart', [ReportController::class, 'getRetentionChart']);
     Route::get('getLastProductSelled/{count}', [ProductController::class, 'getLastProductSelled']);
+
+    // Promo codes
+    Route::get('promo-codes', [PromoCodeController::class, 'index']);
+    Route::post('promo-codes', [PromoCodeController::class, 'store']);
+    Route::put('promo-codes/{id}', [PromoCodeController::class, 'update']);
+    Route::delete('promo-codes/{id}', [PromoCodeController::class, 'destroy']);
+    Route::get('promo-codes/{id}/usages', [PromoCodeController::class, 'usages']);
+    Route::post('promo-codes/validate', [PromoCodeController::class, 'validateCode']);
+
+    // Marketing campaigns
+    Route::get('marketing-campaigns', [MarketingCampaignController::class, 'index']);
+    Route::post('marketing-campaigns/preview', [MarketingCampaignController::class, 'previewRecipients']);
+    Route::post('marketing-campaigns', [MarketingCampaignController::class, 'store']);
+    Route::delete('marketing-campaigns/{id}', [MarketingCampaignController::class, 'destroy']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User

@@ -134,6 +134,16 @@ class TelegramWebhookController extends Controller
             if (str_starts_with($text, '/')) {
                 return $this->processCommand($text);
             }
+
+            $promoState = \App\Models\UserState::where('chat_id', $this->chatId)
+                ->whereIn('state', ['promo_code_pending', 'promo_code_pending_recharge'])
+                ->latest()
+                ->first();
+            if ($promoState) {
+                $this->subscriptionProcessCtrl->handlePromoCodeReply($this->chatId, trim($text));
+                return "";
+            }
+
             // check if text is a menu item
             $menuItemCtrl = new MainMenuItemController();
             $menuItem = $menuItemCtrl->getMenuItemByAliasName($text);
@@ -514,6 +524,11 @@ class TelegramWebhookController extends Controller
         $actionList = explode('-', $data);
         $action = array_shift($actionList); // Get action and remove it from list
         $params = $actionList; // Remaining items are params
+
+        if (in_array($action, ['confirmBuyPromo', 'confirmRechargePromo'], true) && count($params) >= 2) {
+            $entityId = array_shift($params);
+            $params = [$entityId, implode('-', $params)];
+        }
 
         $response = $this->callbackHandler->handle($chatId, $action, $params, $messageId, $callbackQueryId);
 

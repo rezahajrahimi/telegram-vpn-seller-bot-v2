@@ -7,6 +7,8 @@ use App\Models\Product;
 use App\Models\Transaction;
 use App\Models\ProductCategory;
 use App\Models\AccountBallance;
+use App\Models\PurchaseIntent;
+use App\Models\PromoCodeUsage;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -154,6 +156,73 @@ class ReportController extends Controller
             $products = $query->orderBy('id', 'desc')->paginate($request->count ?? 50);
 
             return response()->json($products, 200);
+        } catch (\Throwable $th) {
+            return response()->json(['error' => $th->getMessage()], 500);
+        }
+    }
+
+    public function getRetentionStats()
+    {
+        try {
+            $since30 = Carbon::now()->subDays(30);
+            $buyersLast30 = Product::where('created_at', '>=', $since30)->distinct()->count('account_id');
+            $repeatBuyers = Product::where('created_at', '>=', $since30)
+                ->select('account_id')
+                ->groupBy('account_id')
+                ->havingRaw('COUNT(*) > 1')
+                ->get()
+                ->count();
+
+            $renewalRate = $buyersLast30 > 0 ? round($repeatBuyers / $buyersLast30, 4) : 0;
+            $abandonedToday = PurchaseIntent::whereNull('completed_at')
+                ->whereDate('created_at', Carbon::today())
+                ->count();
+            $promoRevenueToday = PromoCodeUsage::whereDate('applied_at', Carbon::today())->sum('discount_amount');
+
+            return response()->json([
+                'renewal_rate_30d' => $renewalRate,
+                'repeat_buyers_30d' => $repeatBuyers,
+                'buyers_30d' => $buyersLast30,
+                'abandoned_intents_today' => $abandonedToday,
+                'open_abandoned_intents' => PurchaseIntent::whereNull('completed_at')->count(),
+                'promo_discount_today' => $promoRevenueToday,
+                'total_users' => BotUser::count(),
+                'users_with_purchase' => Product::distinct('account_id')->count('account_id'),
+            ], 200);
+        } catch (\Throwable $th) {
+            return response()->json(['error' => $th->getMessage()], 500);
+        }
+    }
+
+    public function getRetentionChart()
+    {
+        try {
+            $monthlySales = Product::join('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
+                ->select(
+                    DB::raw('CAST(COUNT(products.id) AS UNSIGNED) as sales_count'),
+                    DB::raw('CAST(SUM(product_categories.price) AS UNSIGNED) as amount'),
+                    DB::raw("DATE_FORMAT(products.created_at, '%Y-%m') as month")
+                )
+                ->groupBy('month')
+                ->orderBy('month', 'desc')
+                ->take(6)
+                ->get();
+
+            $categoryPerformance = Product::join('product_categories', 'products.product_categories_id', '=', 'product_categories.id')
+                ->select(
+                    'product_categories.id',
+                    'product_categories.category_name',
+                    DB::raw('COUNT(products.id) as sales_count')
+                )
+                ->groupBy('product_categories.id', 'product_categories.category_name')
+                ->orderByDesc('sales_count')
+                ->take(10)
+                ->get();
+
+            return response()->json([
+                'monthly_sales' => $monthlySales,
+                'top_categories' => $categoryPerformance,
+            ], 200);
         } catch (\Throwable $th) {
             return response()->json(['error' => $th->getMessage()], 500);
         }

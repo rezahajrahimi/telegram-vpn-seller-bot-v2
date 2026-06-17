@@ -166,6 +166,12 @@ class ProductCategoryController extends Controller
         if ($allowedGroupIds !== null || $request->has('allowed_user_group_ids')) {
             $data->allowed_user_group_ids = $allowedGroupIds;
         }
+        if ($request->has('upsell_category_id')) {
+            $upsellId = $request->upsell_category_id;
+            $data->upsell_category_id = ($upsellId === '' || $upsellId === '0' || $upsellId === 0)
+                ? null
+                : (int) $upsellId;
+        }
         if ($data->save()) {
             return $this->getAllProdctCategory();
         } else {
@@ -199,6 +205,13 @@ class ProductCategoryController extends Controller
             $allowedGroupIds = $this->normalizeAllowedUserGroupIds($request);
             if ($allowedGroupIds !== null || $request->has('allowed_user_group_ids')) {
                 $data->allowed_user_group_ids = $allowedGroupIds;
+            }
+
+            if ($request->has('upsell_category_id')) {
+                $upsellId = $request->upsell_category_id;
+                $data->upsell_category_id = ($upsellId === '' || $upsellId === '0' || $upsellId === 0)
+                    ? null
+                    : (int) $upsellId;
             }
 
             if ($data->update()) {

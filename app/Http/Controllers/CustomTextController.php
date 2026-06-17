@@ -794,6 +794,22 @@ class CustomTextController extends Controller
                 'description' => 'متن شارژ مجدد با موفقیت انجام شد'
             ],
             [
+                'key' => 'action.recharge.confirm',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'آیا از تمدید بسته {package} به مبلغ {price} تومان مطمئن هستید؟'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید تمدید بسته - پارامترها: {package} {price}'
+            ],
+            [
+                'key' => 'action.recharge.button_confirm',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید تمدید'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه تایید تمدید'
+            ],
+            [
                 'key' => 'action.account.details',
                 'default_text' => json_encode([
                     ['type' => 'bold', 'text' => 'اطلاعات حساب شما:'],
@@ -1053,6 +1069,174 @@ class CustomTextController extends Controller
                 'description' => 'متن کاربر با موفقیت رفع مسدودیت شد.'
             ],
 
+            [
+                'key' => 'action.promo.enter_code',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کد تخفیف خود را وارد کنید:'],
+                ]),
+                'custom_text' => null,
+                'description' => 'درخواست ورود کد تخفیف'
+            ],
+            [
+                'key' => 'action.promo.invalid',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کد تخفیف نامعتبر است. {reason}'],
+                ]),
+                'custom_text' => null,
+                'description' => 'کد تخفیف نامعتبر - پارامتر: {reason}'
+            ],
+            [
+                'key' => 'action.promo.applied',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کد {code} اعمال شد.'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'تخفیف: {discount} تومان'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'مبلغ نهایی: {final_price} تومان'],
+                ]),
+                'custom_text' => null,
+                'description' => 'کد تخفیف اعمال شد - پارامترها: {code} {discount} {final_price}'
+            ],
+            [
+                'key' => 'action.promo.button',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کد تخفیف دارم'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه کد تخفیف'
+            ],
+            [
+                'key' => 'action.promo.confirm_buy',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید خرید با تخفیف'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید خرید با کد تخفیف'
+            ],
+            [
+                'key' => 'action.buy_subscription.button_confirm',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید خرید'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه تایید خرید بدون تخفیف'
+            ],
+            [
+                'key' => 'action.promo.confirm_recharge',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید تمدید با تخفیف'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید تمدید با کد تخفیف'
+            ],
+            [
+                'key' => 'action.buy_subscription.confirm',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'آیا از خرید بسته {package} به مبلغ {price} تومان مطمئن هستید؟'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید خرید بسته - پارامترها: {package} {price}'
+            ],
+            [
+                'key' => 'action.upsell.offer',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'پیشنهاد ویژه!'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'بسته {current_package} ({current_price} تومان)'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'یا بسته {upsell_package} ({upsell_price} تومان)'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیشنهاد upsell - پارامترها: {current_package} {upsell_package} {current_price} {upsell_price}'
+            ],
+            [
+                'key' => 'action.upsell.buy_upsell',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'خرید {package}'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه خرید بسته پیشنهادی - پارامتر: {package}'
+            ],
+            [
+                'key' => 'action.upsell.continue_current',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'ادامه با {package}'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه ادامه با بسته فعلی - پارامتر: {package}'
+            ],
+            [
+                'key' => 'recovery.package_selected.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'بسته {package_name} را انتخاب کردید ولی خرید را تکمیل نکردید. برای ادامه خرید دکمه زیر را بزنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'یادآوری خرید ناتمام - پارامتر: {package_name}'
+            ],
+            [
+                'key' => 'recovery.insufficient_balance.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'موجودی شما برای خرید بسته {package_name} کافی نیست. کیف پول خود را شارژ کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'یادآوری موجودی ناکافی - پارامتر: {package_name}'
+            ],
+            [
+                'key' => 'recovery.recharge.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تمدید بسته {package_name} را فراموش نکنید!'],
+                ]),
+                'custom_text' => null,
+                'description' => 'یادآوری تمدید ناتمام - پارامتر: {package_name}'
+            ],
+            [
+                'key' => 'recovery.button.buy',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'ادامه خرید'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه ادامه خرید در یادآوری'
+            ],
+            [
+                'key' => 'recovery.button.add_balance',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'شارژ کیف پول'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه شارژ کیف پول در یادآوری'
+            ],
+            [
+                'key' => 'cron.expired.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کاربر گرامی بسته {product_text} منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیام خودکار انقضای بسته - پارامترها: {product_name} {category_name} {product_text}'
+            ],
+            [
+                'key' => 'cron.expiring_soon.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کاربر گرامی تنها {days_left} روز دیگر از بسته {product_text} باقی مانده است.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیام خودکار نزدیک انقضا - پارامترها: {product_name} {category_name} {product_text} {days_left}'
+            ],
+            [
+                'key' => 'cron.usage_high.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کاربر گرامی شما بیشتر از {usage_percent} درصد از بسته {product_text} را مصرف کرده‌اید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیام خودکار مصرف بالا - پارامترها: {product_name} {category_name} {product_text} {usage_percent}'
+            ],
+            [
+                'key' => 'cron.button.renew',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تمدید بسته'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه تمدید در پیام‌های خودکار'
+            ],
             [
                 'key' => 'error.menu.not_found',
                 'default_text' => json_encode([

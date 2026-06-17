@@ -14,6 +14,8 @@ use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 use App\Services\SubscriptionPurchaseLock;
 use App\Services\InventoryPurchaseService;
+use App\Services\PromoCodeService;
+use App\Services\PurchaseIntentService;
 // add cache
 use Carbon\Carbon;
 use Hekmatinasser\Verta\Verta;
@@ -155,6 +157,58 @@ class SubscriptionProcessController extends Controller
                 return "";
             }
 
+            (new PurchaseIntentService())->record($chatId, (int) $categoryId, 'package_selected');
+
+            $selectedCategory = $pricing['category'];
+            if (! empty($selectedCategory->upsell_category_id)) {
+                return $this->showUpsellOffer($chatId, (int) $categoryId, $selectedCategory);
+            }
+
+            return $this->showPurchaseConfirm($chatId, (int) $categoryId, $pricing);
+
+        } catch (\Throwable $th) {
+            \Log::error("Error in buySubscriptionAction: " . $th->getMessage());
+            $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
+    }
+
+    public function showPurchaseConfirm($chatId, int $categoryId, array $pricing)
+    {
+        $category = $pricing['category'];
+        $price = number_format((float) $pricing['price'], 0, ',', '.');
+
+        $text = $this->customTextCtrl->getText('action.buy_subscription.confirm', [
+            'package' => $category->category_name,
+            'price' => $price,
+        ]);
+        if (is_array($text)) {
+            $text = $this->telegramService->formatText($text);
+        }
+
+        $confirmLabel = $this->customTextCtrl->getText('action.buy_subscription.button_confirm');
+        $promoLabel = $this->customTextCtrl->getText('action.promo.button');
+        if (is_array($confirmLabel)) {
+            $confirmLabel = $this->telegramService->formatText($confirmLabel);
+        }
+        if (is_array($promoLabel)) {
+            $promoLabel = $this->telegramService->formatText($promoLabel);
+        }
+
+        $opr = [
+            [$confirmLabel => "confirmBuy-{$categoryId}"],
+            [$promoLabel => "applyPromo-{$categoryId}"],
+        ];
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        return "";
+    }
+
+    public function confirmPurchase($chatId, $categoryId, ?string $promoCode = null)
+    {
+        try {
+            $this->chatId = $chatId;
+
             if (SubscriptionPurchaseLock::isInProgress($chatId)) {
                 return [
                     'alert' => 'خرید قبلی شما در حال پردازش است. لطفاً چند لحظه صبر کنید.',
@@ -162,19 +216,446 @@ class SubscriptionProcessController extends Controller
             }
 
             SubscriptionPurchaseLock::markInProgress($chatId);
-
-            // Dispatch the job to handle the purchase asynchronously
-            ProcessSubscriptionPurchase::dispatch($chatId, $categoryId);
-
-            // Send a typing action to indicate processing
+            ProcessSubscriptionPurchase::dispatch($chatId, $categoryId, $promoCode);
             $this->telegramService->sendChatAction($chatId, 'typing');
 
             return "";
-
         } catch (\Throwable $th) {
-            \Log::error("Error in buySubscriptionAction: " . $th->getMessage());
+            \Log::error("Error in confirmPurchase: " . $th->getMessage());
             $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+
             return "";
+        }
+    }
+
+    public function showUpsellOffer($chatId, int $categoryId, ProductCategory $category)
+    {
+        $upsell = ProductCategory::find($category->upsell_category_id);
+        if ($upsell === null || ! $upsell->is_active) {
+            return $this->confirmPurchase($chatId, $categoryId, null);
+        }
+
+        $upsellPricing = $this->agentProductCtrl->resolveProductPricingForAccount($chatId, $upsell->id);
+        if ($upsellPricing === null) {
+            return $this->confirmPurchase($chatId, $categoryId, null);
+        }
+
+        $text = $this->customTextCtrl->getText('action.upsell.offer', [
+            'current_package' => $category->category_name,
+            'upsell_package' => $upsell->category_name,
+            'current_price' => number_format((float) $category->price, 0, ',', '.'),
+            'upsell_price' => number_format((float) $upsellPricing['price'], 0, ',', '.'),
+        ]);
+        if (is_array($text)) {
+            $text = $this->telegramService->formatText($text);
+        }
+
+        $upsellLabel = $this->customTextCtrl->getText('action.upsell.buy_upsell', [
+            'package' => $upsell->category_name,
+        ]);
+        $continueLabel = $this->customTextCtrl->getText('action.upsell.continue_current', [
+            'package' => $category->category_name,
+        ]);
+        $promoLabel = $this->customTextCtrl->getText('action.promo.button');
+        if (is_array($upsellLabel)) {
+            $upsellLabel = $this->telegramService->formatText($upsellLabel);
+        }
+        if (is_array($continueLabel)) {
+            $continueLabel = $this->telegramService->formatText($continueLabel);
+        }
+        if (is_array($promoLabel)) {
+            $promoLabel = $this->telegramService->formatText($promoLabel);
+        }
+
+        $opr = [
+            [$upsellLabel => "confirmBuy-{$upsell->id}"],
+            [$continueLabel => "confirmBuy-{$categoryId}"],
+            [$promoLabel => "applyPromo-{$categoryId}"],
+        ];
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        return "";
+    }
+
+    public function promptPromoCode($chatId, $categoryId)
+    {
+        $userState = new UserState();
+        $userState->chat_id = $chatId;
+        $userState->state = 'promo_code_pending';
+        $userState->data = ['category_id' => (int) $categoryId];
+        $userState->save();
+
+        $text = $this->customTextCtrl->getText('action.promo.enter_code');
+        if (is_array($text)) {
+            $text = $this->telegramService->formatText($text);
+        }
+        $this->telegramService->sendMessage($chatId, $text);
+
+        return "";
+    }
+
+    public function handlePromoCodeReply($chatId, string $code)
+    {
+        $userState = UserState::where('chat_id', $chatId)
+            ->whereIn('state', ['promo_code_pending', 'promo_code_pending_recharge'])
+            ->latest()
+            ->first();
+
+        if ($userState === null) {
+            return "";
+        }
+
+        if ($userState->state === 'promo_code_pending_recharge') {
+            return $this->handleRechargePromoCodeReply($chatId, $code, $userState);
+        }
+
+        if (empty($userState->data['category_id'])) {
+            return "";
+        }
+
+        $categoryId = (int) $userState->data['category_id'];
+        $userState->delete();
+
+        $pricing = $this->agentProductCtrl->resolveProductPricingForAccount($chatId, $categoryId);
+        if ($pricing === null) {
+            $this->telegramService->sendMessage($chatId, 'این بسته برای شما در دسترس نیست.');
+            return "";
+        }
+
+        $promoService = new PromoCodeService();
+        $result = $promoService->validate(
+            $code,
+            $chatId,
+            $categoryId,
+            (float) $pricing['price'],
+            (float) $pricing['price_in_dollar']
+        );
+
+        if (! ($result['valid'] ?? false)) {
+            $text = $this->customTextCtrl->getText('action.promo.invalid', [
+                'reason' => $result['message'] ?? '',
+            ]);
+            if (is_array($text)) {
+                $text = $this->telegramService->formatText($text);
+            }
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+
+        $text = $this->customTextCtrl->getText('action.promo.applied', [
+            'code' => strtoupper(trim($code)),
+            'discount' => number_format((float) ($result['discount_toman'] ?? 0), 0, ',', '.'),
+            'final_price' => number_format((float) ($result['final_price_toman'] ?? 0), 0, ',', '.'),
+        ]);
+        if (is_array($text)) {
+            $text = $this->telegramService->formatText($text);
+        }
+
+        $confirmLabel = $this->customTextCtrl->getText('action.promo.confirm_buy');
+        if (is_array($confirmLabel)) {
+            $confirmLabel = $this->telegramService->formatText($confirmLabel);
+        }
+
+        $opr = [[$confirmLabel => "confirmBuyPromo-{$categoryId}-" . strtoupper(trim($code))]];
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        return "";
+    }
+
+    public function promptPromoCodeForRecharge($chatId, $productId)
+    {
+        $userState = new UserState();
+        $userState->chat_id = $chatId;
+        $userState->state = 'promo_code_pending_recharge';
+        $userState->data = ['product_id' => (int) $productId];
+        $userState->save();
+
+        $text = $this->customTextCtrl->getText('action.promo.enter_code');
+        if (is_array($text)) {
+            $text = $this->telegramService->formatText($text);
+        }
+        $this->telegramService->sendMessage($chatId, $text);
+
+        return "";
+    }
+
+    public function handleRechargePromoCodeReply($chatId, string $code, ?UserState $userState = null)
+    {
+        $userState ??= UserState::where('chat_id', $chatId)
+            ->where('state', 'promo_code_pending_recharge')
+            ->latest()
+            ->first();
+
+        if ($userState === null || empty($userState->data['product_id'])) {
+            return "";
+        }
+
+        $productId = (int) $userState->data['product_id'];
+        $userState->delete();
+
+        $context = $this->resolveRechargeContext($chatId, $productId);
+        if (isset($context['error'])) {
+            $this->telegramService->sendMessage($chatId, $context['error']);
+            return "";
+        }
+
+        $prCat = $context['prCat'];
+        $pricing = $context['pricing'];
+
+        $promoService = new PromoCodeService();
+        $result = $promoService->validate(
+            $code,
+            $chatId,
+            (int) $prCat->id,
+            (float) $pricing['price'],
+            (float) $pricing['price_in_dollar']
+        );
+
+        if (! ($result['valid'] ?? false)) {
+            $text = $this->customTextCtrl->getText('action.promo.invalid', [
+                'reason' => $result['message'] ?? '',
+            ]);
+            if (is_array($text)) {
+                $text = $this->telegramService->formatText($text);
+            }
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+
+        $text = $this->customTextCtrl->getText('action.promo.applied', [
+            'code' => strtoupper(trim($code)),
+            'discount' => number_format((float) ($result['discount_toman'] ?? 0), 0, ',', '.'),
+            'final_price' => number_format((float) ($result['final_price_toman'] ?? 0), 0, ',', '.'),
+        ]);
+        if (is_array($text)) {
+            $text = $this->telegramService->formatText($text);
+        }
+
+        $confirmLabel = $this->customTextCtrl->getText('action.promo.confirm_recharge');
+        if (is_array($confirmLabel)) {
+            $confirmLabel = $this->telegramService->formatText($confirmLabel);
+        }
+
+        $opr = [[$confirmLabel => "confirmRechargePromo-{$productId}-" . strtoupper(trim($code))]];
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        return "";
+    }
+
+    public function showRechargeConfirm($chatId, int $productId, array $context)
+    {
+        $prCat = $context['prCat'];
+        $pricing = $context['pricing'];
+        $price = number_format((float) $pricing['price'], 0, ',', '.');
+
+        $text = $this->customTextCtrl->getText('action.recharge.confirm', [
+            'package' => $prCat->category_name,
+            'price' => $price,
+        ]);
+        if (is_array($text)) {
+            $text = $this->telegramService->formatText($text);
+        }
+
+        $confirmLabel = $this->customTextCtrl->getText('action.recharge.button_confirm');
+        $promoLabel = $this->customTextCtrl->getText('action.promo.button');
+        if (is_array($confirmLabel)) {
+            $confirmLabel = $this->telegramService->formatText($confirmLabel);
+        }
+        if (is_array($promoLabel)) {
+            $promoLabel = $this->telegramService->formatText($promoLabel);
+        }
+
+        $opr = [
+            [$confirmLabel => "confirmRecharge-{$productId}"],
+            [$promoLabel => "applyPromoRecharge-{$productId}"],
+        ];
+        $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
+
+        return "";
+    }
+
+    /**
+     * @return array{product: Product, prCat: ProductCategory, pannel: mixed, pricing: array}|array{error: string}
+     */
+    private function resolveRechargeContext($chatId, $productID): array
+    {
+        $this->chatId = $chatId;
+        $this->botUser = $this->botUser->getUserByAccountID($chatId);
+
+        $product = Product::find($productID);
+        if ($product == null) {
+            return ['error' => $this->customTextCtrl->getText('error.product_not_found')];
+        }
+
+        $prCat = $this->selectedPrCat->getProdctCategorByID($product->product_categories_id);
+        if ($prCat == null) {
+            return ['error' => $this->customTextCtrl->getText('error.product_category_not_found')];
+        }
+
+        $pannel = $this->panelCntrl->getPannelById($prCat->pannel_id);
+        if ($pannel?->isInventoryPanel()) {
+            return ['error' => $this->customTextCtrl->getText('error.product_not_rechargeable')];
+        }
+
+        if ($prCat->rechargable == false || $prCat->rechargable == 0) {
+            return ['error' => $this->customTextCtrl->getText('error.product_not_rechargeable')];
+        }
+
+        if ($prCat->category_name == 'اکانت آزمایشی' || $prCat->is_active == false || $prCat->is_active == 0) {
+            return ['error' => $this->customTextCtrl->getText('error.product_not_rechargeable')];
+        }
+
+        $pricing = $this->agentProductCtrl->resolveProductPricingForAccount($chatId, $prCat->id);
+        if ($pricing === null) {
+            return ['error' => 'این بسته برای شما در دسترس نیست.'];
+        }
+
+        if ($pannel == null) {
+            return ['error' => $this->customTextCtrl->getText('error.pannel_not_found')];
+        }
+
+        return [
+            'product' => $product,
+            'prCat' => $prCat,
+            'pannel' => $pannel,
+            'pricing' => $pricing,
+        ];
+    }
+
+    public function confirmRecharge($chatId, $productId, ?string $promoCode = null)
+    {
+        try {
+            $this->chatId = $chatId;
+            $this->botUser = $this->botUser->getUserByAccountID($chatId);
+            $this->addNewBotLog('subscription', 'تایید شارژ مجدد', 'show');
+
+            $context = $this->resolveRechargeContext($chatId, $productId);
+            if (isset($context['error'])) {
+                $this->telegramService->sendMessage($chatId, $context['error']);
+                return "";
+            }
+
+            $product = $context['product'];
+            $prCat = $context['prCat'];
+            $pannel = $context['pannel'];
+            $productPrice = (float) $context['pricing']['price'];
+            $productPriceInDollar = (float) $context['pricing']['price_in_dollar'];
+
+            $appliedPromo = null;
+            $promoDiscountToman = 0.0;
+
+            if ($promoCode) {
+                $promoService = new PromoCodeService();
+                $promoResult = $promoService->validate(
+                    $promoCode,
+                    $chatId,
+                    (int) $prCat->id,
+                    $productPrice,
+                    $productPriceInDollar
+                );
+
+                if (! ($promoResult['valid'] ?? false)) {
+                    $this->telegramService->sendMessage($chatId, $promoResult['message'] ?? 'کد تخفیف نامعتبر است.');
+                    return "";
+                }
+
+                $productPrice = (float) ($promoResult['final_price_toman'] ?? $productPrice);
+                $productPriceInDollar = (float) ($promoResult['final_price_dollar'] ?? $productPriceInDollar);
+                $promoDiscountToman = (float) ($promoResult['discount_toman'] ?? 0);
+                $appliedPromo = $promoResult['promo'] ?? null;
+            }
+
+            $hasBallance = $this->accBlCtrl->checkUserHasBalance($chatId, $productPrice, $productPriceInDollar);
+            $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($chatId, $productPrice);
+            if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
+                $this->generalCntrl->send_insufficient_balance_message($chatId, $prCat->id);
+                return '';
+            }
+
+            if ($pannel->type == 'hiddify') {
+                $hiddifcCntrl = new HiddifyPannelController();
+                $uuid = $hiddifcCntrl->extractUUID($product->subscription_link);
+                $day = $prCat->expire_day;
+                $volume = $prCat->volume;
+
+                $req = new Request();
+                $req->pannelID = $pannel->id;
+                $req->name = $product->remark;
+                $req->uuid = $uuid;
+                $req->vol = $volume;
+                $req->day = $day;
+                $req->comment = "شارژ مجدد در " . Verta::now();
+
+                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
+                if ($updateRemark->getStatusCode() == 200) {
+                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+                    if ($paymentSuccess) {
+                        if ($appliedPromo) {
+                            (new PromoCodeService())->recordUsage($appliedPromo, $chatId, $promoDiscountToman, $product->id);
+                        }
+                        (new PurchaseIntentService())->completeForAccount($chatId, (int) $prCat->id);
+                        $text = $this->customTextCtrl->getText('action.recharge.success');
+                        $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
+                        $this->telegramService->sendMessage($chatId, $text);
+                    }
+                    return "";
+                }
+                return $this->customTextCtrl->getText('error.server_error');
+            }
+
+            if ($pannel->type == 'sanaei') {
+                $sn = new SanaeiPannelController();
+                $uuid = json_decode($product->configs ?? '{}', true)['uuid'] ?? null;
+                if (! $uuid) {
+                    return $this->customTextCtrl->getText('error.server_error');
+                }
+
+                $day = $prCat->expire_day;
+                $volume = $prCat->volume;
+
+                $ok = $sn->rechargeClient($pannel->id, $uuid, $day, $volume);
+                if ($ok) {
+                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+                    if ($paymentSuccess) {
+                        if ($appliedPromo) {
+                            (new PromoCodeService())->recordUsage($appliedPromo, $chatId, $promoDiscountToman, $product->id);
+                        }
+                        (new PurchaseIntentService())->completeForAccount($chatId, (int) $prCat->id);
+                        $text = $this->customTextCtrl->getText('action.recharge.success');
+                        $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
+                        $this->telegramService->sendMessage($chatId, $text);
+                        return "";
+                    }
+                }
+                return $this->customTextCtrl->getText('error.server_error');
+            }
+
+            if ($pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
+                $day = $prCat->expire_day;
+                $volume = $prCat->volume;
+
+                $ok = $mb->rechargeUser($pannel->id, $product->remark, $day, $volume);
+                if ($ok) {
+                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+                    if ($paymentSuccess) {
+                        if ($appliedPromo) {
+                            (new PromoCodeService())->recordUsage($appliedPromo, $chatId, $promoDiscountToman, $product->id);
+                        }
+                        (new PurchaseIntentService())->completeForAccount($chatId, (int) $prCat->id);
+                        $text = $this->customTextCtrl->getText('action.recharge.success');
+                        $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
+                        $this->telegramService->sendMessage($chatId, $text);
+                        return "";
+                    }
+                }
+                return $this->customTextCtrl->getText('error.server_error');
+            }
+
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error("خطا در شارژ مجدد: " . $th->getMessage());
+            return $this->customTextCtrl->getText('error.server_error');
         }
     }
 
@@ -834,129 +1315,24 @@ class SubscriptionProcessController extends Controller
     public function recharge($chatId, $productID)
     {
         try {
-            $this->chatId  = $chatId;
+            $this->chatId = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
             $this->addNewBotLog('subscription', 'وارد بخش شارژ مجدد شد.', 'show');
-            // check product is exist
-            $product = Product::find($productID);
-            if ($product == null) {
-                return $this->customTextCtrl->getText('error.product_not_found');
-            }
-            // get product category
-            $prCat = $this->selectedPrCat->getProdctCategorByID($product->product_categories_id);
-            if ($prCat == null) {
-                return $this->customTextCtrl->getText('error.product_category_not_found');
-            }
 
-            $pannel = $this->panelCntrl->getPannelById($prCat->pannel_id);
-            if ($pannel?->isInventoryPanel()) {
-                $text = $this->customTextCtrl->getText('error.product_not_rechargeable');
-                $this->telegramService->sendMessage($this->chatId, $text);
+            $context = $this->resolveRechargeContext($chatId, $productID);
+            if (isset($context['error'])) {
+                $this->telegramService->sendMessage($chatId, $context['error']);
                 return "";
             }
 
-            // chcek product cat is rechargeable or not
-            if ($prCat->rechargable == false || $prCat->rechargable == 0) {
-                $text = $this->customTextCtrl->getText('error.product_not_rechargeable');
-                $this->telegramService->sendMessage($this->chatId, $text);
-                return "";
-            }
-            // check selectedPrCat is اکانت آزمایشی or not
-            if ($prCat->category_name == 'اکانت آزمایشی' || $prCat->is_active == false || $prCat->is_active == 0) {
-                $text = $this->customTextCtrl->getText('error.product_not_rechargeable');
-                $this->telegramService->sendMessage($this->chatId, $text);
-                return "";
-            }
-            // get product price & price in dollar
-            $pricing = $this->agentProductCtrl->resolveProductPricingForAccount($this->chatId, $prCat->id);
-            if ($pricing === null) {
-                $text = 'این بسته برای شما در دسترس نیست.';
-                $this->telegramService->sendMessage($this->chatId, $text);
-                return "";
-            }
-            $productPrice         = $pricing['price'];
-            $productPriceInDollar = $pricing['price_in_dollar'];
-            // check user has balance or has ref ballance
-            $hasBallance    = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
-            $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $productPrice);
-            if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
-                $resualt = $this->generalCntrl->send_insufficient_balance_message($this->chatId, $prCat->id);
-                return '';
-            }
-            // get pannel
-            $pannel = $this->panelCntrl->getPannelById($prCat->pannel_id);
-            if ($pannel == null) {
-                return $this->customTextCtrl->getText('error.pannel_not_found');
-            }
-            // check pannel type is hiddify
-            if ($pannel->type == 'hiddify') {
-                $hiddifcCntrl = new HiddifyPannelController();
-                $uuid         = $hiddifcCntrl->extractUUID($product->subscription_link);
-                $day          = $prCat->expire_day;
-                $volume       = $prCat->volume;
+            (new PurchaseIntentService())->record(
+                $chatId,
+                (int) $context['prCat']->id,
+                'recharge_pending',
+                (int) $productID
+            );
 
-                $req           = new Request();
-                $req->pannelID = $pannel->id;
-                $req->name     = $product->remark;
-                $req->uuid     = $uuid;
-                $req->vol      = $volume;
-                $req->day      = $day;
-                $req->comment  = "شارژ مجدد در " . Verta::now();
-
-                $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-                if ($updateRemark->getStatusCode() == 200) {
-                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
-
-                    $text = $this->customTextCtrl->getText('action.recharge.success');
-                    $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
-                    $this->telegramService->sendMessage($this->chatId, $text);
-                    return "";
-                }
-                return $this->customTextCtrl->getText('error.server_error');
-            }
-
-            if ($pannel->type == 'sanaei') {
-                $sn   = new SanaeiPannelController();
-                $uuid = json_decode($product->configs ?? '{}', true)['uuid'] ?? null;
-                if (! $uuid) {
-                    return $this->customTextCtrl->getText('error.server_error');
-                }
-
-                $day    = $prCat->expire_day;
-                $volume = $prCat->volume;
-
-                $ok = $sn->rechargeClient($pannel->id, $uuid, $day, $volume);
-                if ($ok) {
-                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
-                    if ($paymentSuccess) {
-                        $text = $this->customTextCtrl->getText('action.recharge.success');
-                        $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
-                        $this->telegramService->sendMessage($this->chatId, $text);
-                        return "";
-                    }
-                }
-                return $this->customTextCtrl->getText('error.server_error');
-            }
-
-            if ($pannel->isMarzbanCompatible()) {
-                $mb = MarzbanPannelController::resolve($pannel);
-                $day    = $prCat->expire_day;
-                $volume = $prCat->volume;
-
-                $ok = $mb->rechargeUser($pannel->id, $product->remark, $day, $volume);
-                if ($ok) {
-                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
-                    if ($paymentSuccess) {
-                        $text = $this->customTextCtrl->getText('action.recharge.success');
-                        $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
-                        $this->telegramService->sendMessage($this->chatId, $text);
-                        return "";
-                    }
-                }
-                return $this->customTextCtrl->getText('error.server_error');
-            }
-
-            return "";
+            return $this->showRechargeConfirm($chatId, (int) $productID, $context);
         } catch (\Throwable $th) {
             \Log::error("خطا در شارژ مجدد: " . $th->getMessage());
             return $this->customTextCtrl->getText('error.server_error');

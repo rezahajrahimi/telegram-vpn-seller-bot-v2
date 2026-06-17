@@ -18,6 +18,8 @@ use App\Models\BotUser;
 use App\Services\TelegramService;
 use App\Services\SubscriptionPurchaseLock;
 use App\Services\InventoryPurchaseService;
+use App\Services\PromoCodeService;
+use App\Services\PurchaseIntentService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -37,14 +39,16 @@ class ProcessSubscriptionPurchase implements ShouldQueue
 
     protected $chatId;
     protected $productCategoryId;
+    protected ?string $promoCode;
 
     /**
      * Create a new job instance.
      */
-    public function __construct($chatId, $productCategoryId)
+    public function __construct($chatId, $productCategoryId, ?string $promoCode = null)
     {
         $this->chatId = $chatId;
         $this->productCategoryId = $productCategoryId;
+        $this->promoCode = $promoCode;
     }
 
     /**
@@ -105,9 +109,30 @@ class ProcessSubscriptionPurchase implements ShouldQueue
             }
 
             \Log::info("Selected Product Category: 111111" . $selectedPrCat->category_name);
-            // بررسی موجودی کاربر
             $productPrice = $pricing['price'];
             $productPriceInDollar = $pricing['price_in_dollar'];
+            $promoDiscountToman = 0.0;
+            $appliedPromo = null;
+
+            if ($this->promoCode) {
+                $promoService = new PromoCodeService();
+                $promoResult = $promoService->validate(
+                    $this->promoCode,
+                    $this->chatId,
+                    (int) $this->productCategoryId,
+                    (float) $productPrice,
+                    (float) $productPriceInDollar
+                );
+                if (! ($promoResult['valid'] ?? false)) {
+                    $telegramService->sendMessage($this->chatId, $promoResult['message'] ?? 'کد تخفیف نامعتبر است.');
+                    return;
+                }
+                $productPrice = (float) ($promoResult['final_price_toman'] ?? $productPrice);
+                $productPriceInDollar = (float) ($promoResult['final_price_dollar'] ?? $productPriceInDollar);
+                $promoDiscountToman = (float) ($promoResult['discount_toman'] ?? 0);
+                $appliedPromo = $promoResult['promo'] ?? null;
+            }
+
             $hasBallance = $accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
             // بررسی کیف پول ارجاع
             $hasRefballance = $referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $productPrice);
@@ -220,6 +245,13 @@ class ProcessSubscriptionPurchase implements ShouldQueue
             // send useful
             $generalCntrl->send_using_subscription_manual_message($this->chatId, null, null, $pannel->isInventoryPanel());
             $logCtrl->addNewLog('subscription', 'خرید اشتراک با موفقیت انجام شد.', $this->chatId, $username, 'success');
+
+            if ($appliedPromo !== null) {
+                $soldProductId = is_numeric($resualt) ? (int) $resualt : null;
+                (new PromoCodeService())->recordUsage($appliedPromo, $this->chatId, $promoDiscountToman, $soldProductId);
+            }
+
+            (new PurchaseIntentService())->completeForAccount($this->chatId, (int) $this->productCategoryId);
 
         } catch (\Throwable $th) {
             \Log::error("خطا در خرید بسته (Job): " . $th->getMessage());

@@ -9,11 +9,78 @@ use App\Models\Pannel;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
+use App\Services\TelegramService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
 class CronJobController extends Controller
 {
+    private function telegramService(): TelegramService
+    {
+        return app(TelegramService::class);
+    }
+
+    private function customTextCtrl(): CustomTextController
+    {
+        return new CustomTextController();
+    }
+
+    private function formatCronMessage(string $messageKey, array $variables): string
+    {
+        $text = $this->customTextCtrl()->getText($messageKey, $variables);
+        if (is_array($text)) {
+            return $this->telegramService()->formatText($text);
+        }
+
+        return (string) $text;
+    }
+
+    private function formatCronButtonLabel(string $messageKey): string
+    {
+        $text = $this->customTextCtrl()->getText($messageKey);
+        if (is_array($text)) {
+            return $this->telegramService()->formatText($text);
+        }
+
+        return (string) $text;
+    }
+
+    private function canShowRenewButton(?ProductCategory $category, Pannel $panel): bool
+    {
+        if ($category === null || $panel->isInventoryPanel()) {
+            return false;
+        }
+
+        return $category->rechargable == true || $category->rechargable == 1;
+    }
+
+    private function sendProductCronNotification(
+        Product $product,
+        ProductCategory $category,
+        Pannel $panel,
+        string $messageKey,
+        array $variables = []
+    ): bool {
+        $productText = "{$category->category_name} - {$product->remark}";
+        $text = $this->formatCronMessage($messageKey, array_merge([
+            'product_name' => $product->remark,
+            'category_name' => $category->category_name,
+            'product_text' => $productText,
+        ], $variables));
+
+        $telegramService = $this->telegramService();
+        if ($this->canShowRenewButton($category, $panel)) {
+            $buttons = [[
+                $this->formatCronButtonLabel('cron.button.renew') => "recharge-{$product->id}",
+            ]];
+            $response = $telegramService->sendMessageWithInlineKeyboard($product->account_id, $text, $buttons);
+        } else {
+            $response = $telegramService->sendMessage($product->account_id, $text);
+        }
+
+        return ($response['ok'] ?? false) === true;
+    }
+
     public function seed()
     {
         if (CronJob::all()->isEmpty()) {
@@ -36,6 +103,12 @@ class CronJobController extends Controller
             $usageMoreThan85PercentCronJob->is_active = true;
             $usageMoreThan85PercentCronJob->description = 'ارسال پیام به کاربرانی که میزان استفاده از اکانت بیشتر از 85 درصد دارند.';
             $usageMoreThan85PercentCronJob->save();
+            $abandonedCartCronJob = new CronJob();
+            $abandonedCartCronJob->name = 'Abandoned Cart Reminders';
+            $abandonedCartCronJob->frequency = '30m';
+            $abandonedCartCronJob->is_active = true;
+            $abandonedCartCronJob->description = 'یادآوری خریدهای ناتمام و موجودی ناکافی.';
+            $abandonedCartCronJob->save();
             // $createDailyBackupCronJob              = new CronJob();
             // $createDailyBackupCronJob->name        = 'Create Daily Backup';
             // $createDailyBackupCronJob->frequency   = '1d';
@@ -55,6 +128,7 @@ class CronJobController extends Controller
     public function get_all_cron_jobs()
     {
         try {
+            $this->syncMissingCronJobs();
             $cronJobs = CronJob::all();
             if ($cronJobs->count() > 0) {
                 return response()->json($cronJobs);
@@ -67,6 +141,18 @@ class CronJobController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+    private function syncMissingCronJobs(): void
+    {
+        if (! CronJob::where('name', 'Abandoned Cart Reminders')->exists()) {
+            $abandonedCartCronJob = new CronJob();
+            $abandonedCartCronJob->name = 'Abandoned Cart Reminders';
+            $abandonedCartCronJob->frequency = '30m';
+            $abandonedCartCronJob->is_active = true;
+            $abandonedCartCronJob->description = 'یادآوری خریدهای ناتمام و موجودی ناکافی.';
+            $abandonedCartCronJob->save();
+        }
+    }
+
     public function get_all_active_cron_jobs()
     {
         try {
@@ -144,7 +230,18 @@ class CronJobController extends Controller
                             ->where('product_id', $product->id)
                             ->get();
                         if ($cronLog->count() == 0) {
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی شما بیشتر از $usagePercent درصد از بسته $productText را مصرف کرده اید.", $user_id, null, 'MarkDown');
+                            $prcategory = ProductCategory::find($product->product_categories_id);
+                            if ($prcategory === null) {
+                                continue;
+                            }
+
+                            $sendNotificationToUser = $this->sendProductCronNotification(
+                                $product,
+                                $prcategory,
+                                $panel,
+                                'cron.usage_high.message',
+                                ['usage_percent' => (string) $usagePercent]
+                            );
 
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
@@ -343,7 +440,18 @@ class CronJobController extends Controller
                         // add $dateDifference +1 because time diff is on hout base
 
                         if ($cronLog->count() < 4) {
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی تنها $dateDifference روز دیگر از بسته $productText باقی مانده است.", $user_id, null, 'MarkDown');
+                            $prcategory = ProductCategory::find($product->product_categories_id);
+                            if ($prcategory === null) {
+                                continue;
+                            }
+
+                            $sendNotificationToUser = $this->sendProductCronNotification(
+                                $product,
+                                $prcategory,
+                                $panel,
+                                'cron.expiring_soon.message',
+                                ['days_left' => (string) $dateDifference]
+                            );
 
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
@@ -476,23 +584,19 @@ class CronJobController extends Controller
                             ->get();
 
                         if ($cronLog->count() == 0) {
-                            // get product category
                             $prcategory = ProductCategory::find($product->product_categories_id);
-                            // get product category name
-                            $productCategoryName = $prcategory->category_name;
-                            $productText = "{$productCategoryName} - {$product->remark}";
+                            if ($prcategory === null) {
+                                continue;
+                            }
 
-                            // send notification
-                            $user_id = $product->account_id;
-
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage(
-                                "کاربر گرامی بسته $productText منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.",
-                                $user_id,
-                                null,
-                                'MarkDown'
+                            $sendNotificationToUser = $this->sendProductCronNotification(
+                                $product,
+                                $prcategory,
+                                $panel,
+                                'cron.expired.message'
                             );
 
-                            if ($sendNotificationToUser['success']) {
+                            if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
                                 $cronLog->cron_id = $cronJob->id;
                                 $cronLog->product_id = $product->id;
@@ -503,6 +607,107 @@ class CronJobController extends Controller
                 }
             }
         }
+        return true;
+    }
+
+    public function execute_send_abandoned_cart_reminders()
+    {
+        $cronJob = CronJob::where('name', 'Abandoned Cart Reminders')->first();
+        if ($cronJob === null || $cronJob->is_active == false) {
+            return false;
+        }
+
+        $authCntrl = new AuthController();
+        if (in_array($authCntrl->getPowerPsLicenseType(), ['false', 'trial', 'boronze'], true)) {
+            return false;
+        }
+
+        $intentService = new \App\Services\PurchaseIntentService();
+        $customTextCtrl = $this->customTextCtrl();
+        $telegramService = $this->telegramService();
+
+        foreach ($intentService->getFirstReminders('package_selected', 1) as $intent) {
+            $category = ProductCategory::find($intent->product_category_id);
+            if ($category === null) {
+                continue;
+            }
+
+            $text = $this->formatCronMessage('recovery.package_selected.message', [
+                'package_name' => $category->category_name,
+            ]);
+            $buyLabel = $this->formatCronButtonLabel('recovery.button.buy');
+            $response = $telegramService->sendMessageWithInlineKeyboard($intent->account_id, $text, [[
+                $buyLabel => "buySubscription-{$category->id}",
+            ]]);
+
+            if (($response['ok'] ?? false) === true) {
+                $intentService->markReminded($intent);
+            }
+        }
+
+        foreach ($intentService->getFollowUpReminders('package_selected', 23) as $intent) {
+            if ($intent->reminder_count >= 2) {
+                continue;
+            }
+            $category = ProductCategory::find($intent->product_category_id);
+            if ($category === null) {
+                continue;
+            }
+
+            $text = $this->formatCronMessage('recovery.package_selected.message', [
+                'package_name' => $category->category_name,
+            ]);
+            $buyLabel = $this->formatCronButtonLabel('recovery.button.buy');
+            $response = $telegramService->sendMessageWithInlineKeyboard($intent->account_id, $text, [[
+                $buyLabel => "buySubscription-{$category->id}",
+            ]]);
+
+            if (($response['ok'] ?? false) === true) {
+                $intentService->markReminded($intent);
+            }
+        }
+
+        foreach ($intentService->getFirstReminders('insufficient_balance', 2) as $intent) {
+            $category = ProductCategory::find($intent->product_category_id);
+            if ($category === null) {
+                continue;
+            }
+
+            $text = $this->formatCronMessage('recovery.insufficient_balance.message', [
+                'package_name' => $category->category_name,
+            ]);
+            $balanceLabel = $this->formatCronButtonLabel('recovery.button.add_balance');
+            $response = $telegramService->sendMessageWithInlineKeyboard($intent->account_id, $text, [[
+                $balanceLabel => 'accountAddBalance',
+            ]]);
+
+            if (($response['ok'] ?? false) === true) {
+                $intentService->markReminded($intent);
+            }
+        }
+
+        foreach ($intentService->getFirstReminders('recharge_pending', 2) as $intent) {
+            if ($intent->product_id === null) {
+                continue;
+            }
+            $category = ProductCategory::find($intent->product_category_id);
+            if ($category === null) {
+                continue;
+            }
+
+            $text = $this->formatCronMessage('recovery.recharge.message', [
+                'package_name' => $category->category_name,
+            ]);
+            $renewLabel = $this->formatCronButtonLabel('cron.button.renew');
+            $response = $telegramService->sendMessageWithInlineKeyboard($intent->account_id, $text, [[
+                $renewLabel => "recharge-{$intent->product_id}",
+            ]]);
+
+            if (($response['ok'] ?? false) === true) {
+                $intentService->markReminded($intent);
+            }
+        }
+
         return true;
     }
 

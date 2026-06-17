@@ -798,6 +798,7 @@ class GeneralController extends Controller
                 $text = $formatter->addFormattedText('', $text)->getMessage();
             }
             $this->telegramService->sendMessage($chat_id, $text);
+            (new \App\Services\PurchaseIntentService())->record($chat_id, (int) $productCategoryID, 'insufficient_balance');
             $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar, $productCategoryID);
             return true;
         } catch (\Throwable $th) {
