@@ -6,6 +6,7 @@ use App\Models\BotUser;
 use App\Models\Pannel;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 // use carbon
@@ -15,15 +16,45 @@ class ProductController extends Controller
 {
     public function getProductConfigAndChangeStatus($selectedProductCatID, $userID)
     {
-        $data = Product::where('product_categories_id', $selectedProductCatID)->where('isActive', true)->first();
-        if ($data != null) {
+        return DB::transaction(function () use ($selectedProductCatID, $userID) {
+            $data = Product::query()
+                ->where('product_categories_id', $selectedProductCatID)
+                ->where('isActive', true)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($data === null) {
+                return null;
+            }
+
             $data->isActive = false;
             $data->account_id = $userID;
-            $data->update();
+            $data->save();
+
             return $data;
-        } else {
-            return null;
+        });
+    }
+
+    public function countActiveInventory(int $categoryId): int
+    {
+        return Product::query()
+            ->where('product_categories_id', $categoryId)
+            ->where('isActive', true)
+            ->count();
+    }
+
+    public function releaseInventoryProduct(int $productId): bool
+    {
+        $product = Product::find($productId);
+        if ($product === null) {
+            return false;
         }
+
+        $product->isActive = true;
+        $product->account_id = null;
+
+        return $product->save();
     }
 
     public function getProductConfigById($id, $userID)

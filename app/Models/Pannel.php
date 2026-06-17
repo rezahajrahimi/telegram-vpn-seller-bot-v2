@@ -13,6 +13,8 @@ class Pannel extends Model
 
     public const TYPE_PASARGUARD = 'pasarguard';
 
+    public const TYPE_INVENTORY = 'custome';
+
     protected $guarded = ['id'];
     protected $fillable = ['type', 'api_version', 'username', 'password', 'token', 'location', 'url_port', 'sub_port', 'admin_url', 'capacity', 'secret_code', 'cookie_session', 'user_link'];
 
@@ -29,6 +31,16 @@ class Pannel extends Model
     public function isMarzbanCompatible(): bool
     {
         return self::isMarzbanCompatibleType($this->type);
+    }
+
+    public function isInventoryPanel(): bool
+    {
+        return $this->type === self::TYPE_INVENTORY;
+    }
+
+    public static function isInventoryPanelType(?string $type): bool
+    {
+        return $type === self::TYPE_INVENTORY;
     }
 
     /**

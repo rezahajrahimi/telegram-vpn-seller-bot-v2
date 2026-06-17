@@ -13,6 +13,7 @@ use App\Models\UserState;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 use App\Services\SubscriptionPurchaseLock;
+use App\Services\InventoryPurchaseService;
 // add cache
 use Carbon\Carbon;
 use Hekmatinasser\Verta\Verta;
@@ -348,32 +349,44 @@ class SubscriptionProcessController extends Controller
             $resualt = false;
 
             $prCntrl = new ProductController();
-            $reservedProductId = $prCntrl->reserveProductId($this->chatId, $this->selectedPrCat->id);
-            if ($reservedProductId === null) {
-                return $this->customTextCtrl->getText('action.process.failed_buy');
-            }
+            $inventoryPurchaseService = new InventoryPurchaseService();
+            $soldInventoryProductId = null;
 
-            if ($pannel->type == 'hiddify') {
-                $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $reservedProductId);
-            } elseif ($pannel->isMarzbanCompatible()) {
-                $resualt = $this->generalCntrl->new_marzban_config_telegram_text(
-                    $this->selectedPrCat,
-                    $pannel,
-                    $volume,
-                    $day,
-                    $this->chatId,
-                    $reservedProductId
-                );
-            } elseif ($pannel->type == 'sanaei') {
-                \Log::info("sanaei pannel");
-                $resualt = $this->generalCntrl->new_sanaei_config_telegram_text(
-                    $this->selectedPrCat,
-                    $pannel,
-                    $volume,
-                    $day,
-                    $this->chatId,
-                    $reservedProductId
-                );
+            if ($pannel->isInventoryPanel()) {
+                if ($prCntrl->countActiveInventory($this->selectedPrCat->id) < 1) {
+                    return 'موجودی این بسته تمام شده است.';
+                }
+
+                $soldInventoryProductId = $inventoryPurchaseService->deliverInventoryProduct($this->selectedPrCat, $this->chatId);
+                $resualt = $soldInventoryProductId !== false ? $soldInventoryProductId : false;
+            } else {
+                $reservedProductId = $prCntrl->reserveProductId($this->chatId, $this->selectedPrCat->id);
+                if ($reservedProductId === null) {
+                    return $this->customTextCtrl->getText('action.process.failed_buy');
+                }
+
+                if ($pannel->type == 'hiddify') {
+                    $resualt = $this->generalCntrl->new_hiddify_config_telegram_text($this->selectedPrCat, $pannel, $volume, $day, $this->chatId, $reservedProductId);
+                } elseif ($pannel->isMarzbanCompatible()) {
+                    $resualt = $this->generalCntrl->new_marzban_config_telegram_text(
+                        $this->selectedPrCat,
+                        $pannel,
+                        $volume,
+                        $day,
+                        $this->chatId,
+                        $reservedProductId
+                    );
+                } elseif ($pannel->type == 'sanaei') {
+                    \Log::info("sanaei pannel");
+                    $resualt = $this->generalCntrl->new_sanaei_config_telegram_text(
+                        $this->selectedPrCat,
+                        $pannel,
+                        $volume,
+                        $day,
+                        $this->chatId,
+                        $reservedProductId
+                    );
+                }
             }
             \Log::info("resualt response buoght from sanaei: " . $resualt);
 
@@ -387,7 +400,9 @@ class SubscriptionProcessController extends Controller
             \Log::info("paymentSuccess: " . $paymentSuccess);
 
             if ($paymentSuccess == false || $paymentSuccess == null) {
-                if ($pannel->type == 'hiddify') {
+                if ($pannel->isInventoryPanel() && $soldInventoryProductId !== null) {
+                    $inventoryPurchaseService->rollbackDelivery($soldInventoryProductId);
+                } elseif ($pannel->type == 'hiddify') {
                     // remove created product from database and panel
                     $uuid = $resualt;
                     $this->hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
@@ -422,7 +437,7 @@ class SubscriptionProcessController extends Controller
             }
 
             // send useful
-            $this->generalCntrl->send_using_subscription_manual_message($this->chatId);
+            $this->generalCntrl->send_using_subscription_manual_message($this->chatId, null, null, $pannel->isInventoryPanel());
             $this->addNewBotLog('subscription', 'خرید اشتراک با موفقیت انجام شد.', 'show');
             return "";
 
@@ -779,6 +794,34 @@ class SubscriptionProcessController extends Controller
                     $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
 
                     return "";
+
+                } elseif ($pannel->isInventoryPanel()) {
+                    $text = "📦 بسته: {$product->remark}\r\n";
+                    $text .= "🏷️ دسته: {$prCat->category_name}\r\n";
+
+                    if ($prCat->show_subscription_link && ! empty($product->subscription_link)) {
+                        $text .= "🔗 لینک سابسکریپشن:\r\n{$product->subscription_link}\r\n";
+                    }
+
+                    if ($prCat->shouldSendConfigToUser() && ! empty($product->configs)) {
+                        $configLinks = ProductCategory::extractConfigLinks($product->configs);
+                        if ($configLinks !== []) {
+                            foreach ($configLinks as $link) {
+                                $image = $this->panelCntrl->generateQrMOC($link);
+                                $this->telegramService->sendPhotoFile($chatId, $image, $link);
+                            }
+                        } else {
+                            $text .= "⚙️ کانفیگ:\r\n{$product->configs}\r\n";
+                        }
+                    }
+
+                    if (trim($text) !== '') {
+                        $this->telegramService->sendMessage($chatId, $text);
+                    }
+
+                    $this->generalCntrl->send_using_subscription_manual_message($chatId, true, $product->id);
+
+                    return "";
                 }
 
             }
@@ -803,6 +846,13 @@ class SubscriptionProcessController extends Controller
             $prCat = $this->selectedPrCat->getProdctCategorByID($product->product_categories_id);
             if ($prCat == null) {
                 return $this->customTextCtrl->getText('error.product_category_not_found');
+            }
+
+            $pannel = $this->panelCntrl->getPannelById($prCat->pannel_id);
+            if ($pannel?->isInventoryPanel()) {
+                $text = $this->customTextCtrl->getText('error.product_not_rechargeable');
+                $this->telegramService->sendMessage($this->chatId, $text);
+                return "";
             }
 
             // chcek product cat is rechargeable or not
@@ -961,6 +1011,12 @@ class SubscriptionProcessController extends Controller
 
             $product = Product::find($productID);
             if ($product == null || (string) $product->account_id !== (string) $chatId) {
+                return $this->customTextCtrl->getText('error.history_not_found');
+            }
+
+            $prCat = $this->selectedPrCat->getProdctCategorByID((int) $product->product_categories_id);
+            $pannel = $prCat ? $this->panelCntrl->getPannelById($prCat->pannel_id) : null;
+            if ($pannel?->isInventoryPanel()) {
                 return $this->customTextCtrl->getText('error.history_not_found');
             }
 

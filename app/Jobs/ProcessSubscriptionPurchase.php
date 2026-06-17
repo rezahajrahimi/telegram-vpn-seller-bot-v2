@@ -17,6 +17,7 @@ use App\Http\Controllers\SanaeiPannelController;
 use App\Models\BotUser;
 use App\Services\TelegramService;
 use App\Services\SubscriptionPurchaseLock;
+use App\Services\InventoryPurchaseService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -72,7 +73,9 @@ class ProcessSubscriptionPurchase implements ShouldQueue
         $agentProductCtrl = new AgentProductController();
         $telegramService = new TelegramService();
         $prCntrl = new ProductController();
+        $inventoryPurchaseService = new InventoryPurchaseService();
         $reservedProductId = null;
+        $soldInventoryProductId = null;
 
         // Fetch user for logging
         $botUser = BotUser::where('account_id', $this->chatId)->first();
@@ -119,33 +122,43 @@ class ProcessSubscriptionPurchase implements ShouldQueue
             $volume = $selectedPrCat->volume;
             $resualt = false;
 
-            $reservedProductId = $prCntrl->reserveProductId($this->chatId, $selectedPrCat->id);
-            if ($reservedProductId === null) {
-                $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
-                return;
-            }
+            if ($pannel->isInventoryPanel()) {
+                if ($prCntrl->countActiveInventory($selectedPrCat->id) < 1) {
+                    $telegramService->sendMessage($this->chatId, 'موجودی این بسته تمام شده است.');
+                    return;
+                }
 
-            if ($pannel->type == 'hiddify') {
-                $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chatId, $reservedProductId);
-            } elseif ($pannel->isMarzbanCompatible()) {
-                $resualt = $generalCntrl->new_marzban_config_telegram_text(
-                    $selectedPrCat,
-                    $pannel,
-                    $volume,
-                    $day,
-                    $this->chatId,
-                    $reservedProductId
-                );
-            } elseif ($pannel->type == 'sanaei') {
-                \Log::info("sanaei pannel");
-                $resualt = $generalCntrl->new_sanaei_config_telegram_text(
-                    $selectedPrCat,
-                    $pannel,
-                    $volume,
-                    $day,
-                    $this->chatId,
-                    $reservedProductId
-                );
+                $soldInventoryProductId = $inventoryPurchaseService->deliverInventoryProduct($selectedPrCat, $this->chatId);
+                $resualt = $soldInventoryProductId !== false ? $soldInventoryProductId : false;
+            } else {
+                $reservedProductId = $prCntrl->reserveProductId($this->chatId, $selectedPrCat->id);
+                if ($reservedProductId === null) {
+                    $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
+                    return;
+                }
+
+                if ($pannel->type == 'hiddify') {
+                    $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chatId, $reservedProductId);
+                } elseif ($pannel->isMarzbanCompatible()) {
+                    $resualt = $generalCntrl->new_marzban_config_telegram_text(
+                        $selectedPrCat,
+                        $pannel,
+                        $volume,
+                        $day,
+                        $this->chatId,
+                        $reservedProductId
+                    );
+                } elseif ($pannel->type == 'sanaei') {
+                    \Log::info("sanaei pannel");
+                    $resualt = $generalCntrl->new_sanaei_config_telegram_text(
+                        $selectedPrCat,
+                        $pannel,
+                        $volume,
+                        $day,
+                        $this->chatId,
+                        $reservedProductId
+                    );
+                }
             }
             \Log::info("resualt response buoght from sanaei: " . $resualt);
 
@@ -154,7 +167,10 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                     $prCntrl->deletePendingProduct($reservedProductId);
                 }
                 $logCtrl->addNewLog('subscription', 'خرید اشتراک با شکست مواجه شد.', $this->chatId, $username, 'failed');
-                $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
+                $message = $pannel->isInventoryPanel()
+                    ? 'موجودی این بسته تمام شده است.'
+                    : $customTextCtrl->getText('action.process.failed_buy');
+                $telegramService->sendMessage($this->chatId, $message);
                 return;
             }
 
@@ -164,7 +180,9 @@ class ProcessSubscriptionPurchase implements ShouldQueue
             \Log::info("paymentSuccess: " . $paymentSuccess);
 
             if ($paymentSuccess == false || $paymentSuccess == null) {
-                if ($pannel->type == 'hiddify') {
+                if ($pannel->isInventoryPanel() && $soldInventoryProductId !== null) {
+                    $inventoryPurchaseService->rollbackDelivery($soldInventoryProductId);
+                } elseif ($pannel->type == 'hiddify') {
                     // remove created product from database and panel
                     $uuid = $resualt;
                     $hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
@@ -200,13 +218,16 @@ class ProcessSubscriptionPurchase implements ShouldQueue
             }
 
             // send useful
-            $generalCntrl->send_using_subscription_manual_message($this->chatId);
+            $generalCntrl->send_using_subscription_manual_message($this->chatId, null, null, $pannel->isInventoryPanel());
             $logCtrl->addNewLog('subscription', 'خرید اشتراک با موفقیت انجام شد.', $this->chatId, $username, 'success');
 
         } catch (\Throwable $th) {
             \Log::error("خطا در خرید بسته (Job): " . $th->getMessage());
             if ($reservedProductId !== null) {
                 $prCntrl->deletePendingProduct($reservedProductId);
+            }
+            if (isset($soldInventoryProductId) && $soldInventoryProductId !== null) {
+                $inventoryPurchaseService->rollbackDelivery($soldInventoryProductId);
             }
             $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
         } finally {

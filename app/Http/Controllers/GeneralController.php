@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\CustomTextController;
 use App\Models\MainMenuItem;
 use App\Models\ProductCategory;
+use App\Models\Product;
 use App\Models\BotUser;
 use App\Models\TransactionSetting;
 use App\Services\TelegramMessageFormatter;
@@ -663,7 +664,7 @@ class GeneralController extends Controller
         return $formatter->addFormattedText('', (string) $text)->getMessage();
     }
 
-    public function send_using_subscription_manual_message($chat_id, $recharge = null, $productID = null)
+    public function send_using_subscription_manual_message($chat_id, $recharge = null, $productID = null, $inventoryOnly = false)
     {
         $opr = [];
         // check faq is active in menu
@@ -691,31 +692,37 @@ class GeneralController extends Controller
                 $text => "toturial-appDownload",
             ];
         }
-        if ($recharge != null) {
-            $text = $this->customTextCtrl->getText('action.history.buttun.recharge');
-            if (is_array($text)) {
-                // use format text service
-                $text = $this->telegramService->formatText($text);
-            }
-            $opr[] = [
-                $text => "recharge-{$productID}",
-            ];
-            $text = $this->customTextCtrl->getText('action.history.buttun.remark');
-            if (is_array($text)) {
-                // use format text service
-                $text = $this->telegramService->formatText($text);
-            }
-            $opr[] = [
-                $text => "remark-{$productID}",
-            ];
-            $text = $this->customTextCtrl->getText('action.history.buttun.delete');
-            if (is_array($text)) {
-                $text = $this->telegramService->formatText($text);
-            }
-            $opr[] = [
-                $text => "deleteHistory-{$productID}",
-            ];
+        if ($recharge != null && ! $inventoryOnly) {
+            $product = $productID !== null
+                ? Product::with('product_category.pannel')->find($productID)
+                : null;
+            $isInventoryProduct = $product?->product_category?->pannel?->isInventoryPanel() ?? false;
 
+            if (! $isInventoryProduct) {
+                $text = $this->customTextCtrl->getText('action.history.buttun.recharge');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
+                $opr[] = [
+                    $text => "recharge-{$productID}",
+                ];
+                $text = $this->customTextCtrl->getText('action.history.buttun.remark');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
+                $opr[] = [
+                    $text => "remark-{$productID}",
+                ];
+                $text = $this->customTextCtrl->getText('action.history.buttun.delete');
+                if (is_array($text)) {
+                    $text = $this->telegramService->formatText($text);
+                }
+                $opr[] = [
+                    $text => "deleteHistory-{$productID}",
+                ];
+            }
         }
 
         $text = $this->customTextCtrl->getText('action.help.using_subscription');

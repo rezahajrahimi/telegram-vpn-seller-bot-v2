@@ -54,6 +54,7 @@ use App\Http\Controllers\SanaeiPannelController;
 use App\Http\Controllers\UserGroupController;
 
 
+use App\Http\Controllers\InventoryImportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -165,6 +166,12 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('deleteProductByProductID/{id}', [ProductController::class, 'deleteProductByProductID']);
     Route::get('syncUserProductsHistoryByAccountIDwithPanels/{accountid}', [ProductController::class, 'syncUserProductsHistoryByAccountIDwithPanels']);
     Route::get('getUserProductsHistoryByUserIDWithPagination/{userId}', [ProductController::class, 'getUserProductsHistoryByUserIDWithPagination']);
+    Route::get('getInventoryPanels', [InventoryImportController::class, 'getInventoryPanels']);
+    Route::get('downloadInventoryImportTemplate', [InventoryImportController::class, 'downloadTemplate']);
+    Route::post('importInventoryExcel', [InventoryImportController::class, 'import']);
+    Route::get('getInventoryStock', [InventoryImportController::class, 'getInventoryStock']);
+    Route::post('updateInventoryStockItem', [InventoryImportController::class, 'updateInventoryStockItem']);
+    Route::get('deleteInventoryStockItem/{id}', [InventoryImportController::class, 'deleteInventoryStockItem']);
 
     //Settings
     Route::get('getBotSetting', [SettingController::class, 'getBotSetting']);
