@@ -553,6 +553,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('/webapp/referral-info', [WebAppUserController::class, 'getReferralInfo']);
     Route::post('/webapp/redeem-gift-card', [WebAppUserController::class, 'redeemGiftCard']);
     Route::post('/webapp/claim-test-account', [WebAppUserController::class, 'claimTestAccount']);
+    Route::post('/webapp/validate-promo-code', [WebAppUserController::class, 'validatePromoCode']);
 
     //ProxyController
 

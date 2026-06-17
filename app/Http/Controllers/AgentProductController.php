@@ -9,6 +9,7 @@ use App\Models\Pannel;
 use App\Models\User;
 use App\Models\AgentPermisson;
 use App\Services\ConfigNameService;
+use App\Services\PromoCodeService;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
@@ -25,6 +26,15 @@ class AgentProductController extends Controller
         $req->chat_id = $accountId;
         $req->product_id = $suffix;
         $req->accountId = ConfigNameService::resolveAccountLabel($accountId, $suffix);
+    }
+
+    private function recordWebPromoUsage($appliedPromo, string $accountId, float $discountToman): void
+    {
+        if ($appliedPromo === null) {
+            return;
+        }
+
+        (new PromoCodeService())->recordUsage($appliedPromo, $accountId, $discountToman);
     }
 
     public function obtainBatchOfExistProductsToUser(Request $request)
@@ -489,6 +499,57 @@ class AgentProductController extends Controller
             'price' => $agentProduct->price,
             'price_in_dollar' => $agentProduct->price_in_dollar,
             'is_agent' => true,
+        ];
+    }
+
+    /**
+     * @return array{ok: bool, message?: string, status?: int, category?: ProductCategory, price?: float, price_in_dollar?: float, applied_promo?: \App\Models\PromoCode|null, promo_discount_toman?: float}
+     */
+    public function resolveWebPurchasePricing(string $accountId, int $categoryId, ?string $promoCode = null): array
+    {
+        $pricing = $this->resolveProductPricingForAccount($accountId, $categoryId);
+        if ($pricing === null) {
+            return [
+                'ok' => false,
+                'message' => 'این بسته برای شما در دسترس نیست.',
+                'status' => 404,
+            ];
+        }
+
+        $priceToman = (float) $pricing['price'];
+        $priceDollar = (float) $pricing['price_in_dollar'];
+        $appliedPromo = null;
+        $promoDiscountToman = 0.0;
+
+        if ($promoCode !== null && trim($promoCode) !== '') {
+            $promoService = new PromoCodeService();
+            $promoResult = $promoService->validate(
+                $promoCode,
+                $accountId,
+                $categoryId,
+                $priceToman,
+                $priceDollar
+            );
+            if (! ($promoResult['valid'] ?? false)) {
+                return [
+                    'ok' => false,
+                    'message' => $promoResult['message'] ?? 'کد تخفیف نامعتبر است.',
+                    'status' => 422,
+                ];
+            }
+            $priceToman = (float) ($promoResult['final_price_toman'] ?? $priceToman);
+            $priceDollar = (float) ($promoResult['final_price_dollar'] ?? $priceDollar);
+            $promoDiscountToman = (float) ($promoResult['discount_toman'] ?? 0);
+            $appliedPromo = $promoResult['promo'] ?? null;
+        }
+
+        return [
+            'ok' => true,
+            'category' => $pricing['category'],
+            'price' => $priceToman,
+            'price_in_dollar' => $priceDollar,
+            'applied_promo' => $appliedPromo,
+            'promo_discount_toman' => $promoDiscountToman,
         ];
     }
 
@@ -976,12 +1037,29 @@ class AgentProductController extends Controller
     }
     public function buyProductByAgentWithPrID(Request $request)
     {
-        $selectedPrCat = ProductCategory::find($request->id);
-
         $accountID = auth('sanctum')->user()->account_id;
         $userID = auth('sanctum')->user()->id;
         $agentname = auth('sanctum')->user()->name;
         $remark = "$agentname -  $request->remark ";
+        $promoCode = $request->input('promo_code');
+
+        $pricingResolved = $this->resolveWebPurchasePricing(
+            (string) $accountID,
+            (int) $request->id,
+            is_string($promoCode) ? $promoCode : null
+        );
+        if (! ($pricingResolved['ok'] ?? false)) {
+            return response()->json(
+                $pricingResolved['message'] ?? 'خطا',
+                $pricingResolved['status'] ?? 422
+            );
+        }
+
+        $selectedPrCat = $pricingResolved['category'];
+        $productPrice = $pricingResolved['price'];
+        $productPriceInDollar = $pricingResolved['price_in_dollar'];
+        $appliedPromo = $pricingResolved['applied_promo'] ?? null;
+        $promoDiscountToman = (float) ($pricingResolved['promo_discount_toman'] ?? 0);
 
         if ($selectedPrCat == null) {
             return response()->json(false, 500);
@@ -995,13 +1073,6 @@ class AgentProductController extends Controller
         if ($limitMessage !== null) {
             return response()->json($limitMessage, 401);
         }
-
-        //
-        $agentProduct = AgentProduct::where('product_categories_id', $selectedPrCat->id)
-            ->where('user_id', $userID)
-            ->first();
-        $productPrice = $agentProduct->price;
-        $productPriceInDollar = $agentProduct->price_in_dollar;
 
         $accBlCtrl = new AccountBallanceController();
         if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
@@ -1033,6 +1104,7 @@ class AgentProductController extends Controller
                 $prCntrl->addAutomatedProductDetails($reqProductDetails);
                 $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                 $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+                $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
 
                 return $userPannelLink;
             }
@@ -1079,6 +1151,7 @@ class AgentProductController extends Controller
                 $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                 $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
                 $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
+                $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
 
                 return $userPannelLink;
             }
@@ -1087,14 +1160,29 @@ class AgentProductController extends Controller
     }
     public function buyProductByUserWithPrID(Request $request)
     {
-        $selectedPrCat = ProductCategory::find($request->id);
-
         $accountID = auth('sanctum')->user()->account_id;
-        $userID = auth('sanctum')->user()->id;
         $agentname = auth('sanctum')->user()->name;
         $remark = "$agentname -  $request->remark ";
+        $promoCode = $request->input('promo_code');
 
-        //
+        $pricingResolved = $this->resolveWebPurchasePricing(
+            (string) $accountID,
+            (int) $request->id,
+            is_string($promoCode) ? $promoCode : null
+        );
+        if (! ($pricingResolved['ok'] ?? false)) {
+            return response()->json(
+                $pricingResolved['message'] ?? 'خطا',
+                $pricingResolved['status'] ?? 422
+            );
+        }
+
+        $selectedPrCat = $pricingResolved['category'];
+        $productPrice = $pricingResolved['price'];
+        $productPriceInDollar = $pricingResolved['price_in_dollar'];
+        $appliedPromo = $pricingResolved['applied_promo'] ?? null;
+        $promoDiscountToman = (float) ($pricingResolved['promo_discount_toman'] ?? 0);
+
         if ($selectedPrCat == null) {
             return response()->json(false, 500);
         }
@@ -1102,8 +1190,6 @@ class AgentProductController extends Controller
         if ($selectedPrCat->is_active == false) {
             return response()->json(false, 500);
         }
-        $productPrice = $selectedPrCat->price;
-        $productPriceInDollar = $selectedPrCat->price_in_dollar;
 
         $accBlCtrl = new AccountBallanceController();
         if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
@@ -1138,6 +1224,7 @@ class AgentProductController extends Controller
                 $prCntrl->addAutomatedProductDetails($reqProductDetails);
                 $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                 $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+                $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
 
                 return $userPannelLink;
             }
@@ -1184,6 +1271,7 @@ class AgentProductController extends Controller
                 $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                 $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
                 $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
+                $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
 
                 return $userPannelLink;
             }

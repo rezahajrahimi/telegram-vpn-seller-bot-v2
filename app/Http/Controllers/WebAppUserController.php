@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BotUser;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use App\Services\PromoCodeService;
 
 class WebAppUserController extends Controller
 {
@@ -326,6 +326,52 @@ class WebAppUserController extends Controller
 
             return response()->json([
                 'success' => false,
+                'message' => 'خطای سرور',
+            ], 500);
+        }
+    }
+
+    public function validatePromoCode(Request $request)
+    {
+        try {
+            $user = auth('sanctum')->user();
+            if ($user == null) {
+                return response()->json(['valid' => false, 'message' => 'Unauthorized'], 401);
+            }
+
+            $request->validate([
+                'code' => 'required|string',
+                'category_id' => 'required|integer',
+            ]);
+
+            $agentProductCtrl = new AgentProductController();
+            $pricing = $agentProductCtrl->resolveProductPricingForAccount(
+                (string) $user->account_id,
+                (int) $request->category_id
+            );
+
+            if ($pricing === null) {
+                return response()->json([
+                    'valid' => false,
+                    'message' => 'این بسته برای شما در دسترس نیست.',
+                ], 422);
+            }
+
+            $service = new PromoCodeService();
+            $result = $service->validate(
+                $request->code,
+                (string) $user->account_id,
+                (int) $request->category_id,
+                (float) $pricing['price'],
+                (float) $pricing['price_in_dollar']
+            );
+
+            return response()->json($result, ($result['valid'] ?? false) ? 200 : 422);
+        } catch (\Throwable $th) {
+            \Log::error('WebAppUserController@validatePromoCode: ' . $th->getMessage());
+
+            return response()->json([
+                'valid' => false,
                 'message' => 'خطای سرور',
             ], 500);
         }
