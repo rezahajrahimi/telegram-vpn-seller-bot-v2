@@ -1353,6 +1353,14 @@ class SubscriptionProcessController extends Controller
         $listOfConfigs = json_decode($request['configs'], true);
         $panelID       = $request->panel_id;
         $extra         = $request->all();
+        $panel         = \App\Models\Pannel::find($panelID);
+        $batchService  = app(\App\Services\BatchPanelOperationService::class);
+        if (! $batchService->supportsPanel($panel)) {
+            return response()->json(['status' => 'error', 'message' => 'این نوع پنل از عملیات گروهی پشتیبانی نمی‌شود.']);
+        }
+        if (! is_array($listOfConfigs) || $listOfConfigs === []) {
+            return response()->json(['status' => 'error', 'message' => 'حداقل یک کانفیگ باید انتخاب شود.']);
+        }
         // اگر chat_id ارسال شده بود، پیام به کاربر بده
         if ($request->has('chat_id')) {
             try {
