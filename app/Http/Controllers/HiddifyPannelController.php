@@ -152,21 +152,45 @@ class HiddifyPannelController extends Controller
         }
     }
 
-    public function getHiddifyPanelUsersByPannelID($pannelID)
+    public function resolvePanelUsersList($pannelID): array
     {
         $pannel = Pannel::find($pannelID);
-        if (!$pannel)
-            return response()->json([], 404);
+        if (! $pannel) {
+            return [];
+        }
 
         if ($pannel->type == 'sanaei') {
             $sn = new SanaeiPannelController();
+
             return $sn->getAllClients($pannel);
         }
 
-        $adminUUID = $pannel->admin_url;
+        if (Pannel::isMarzbanCompatibleType($pannel->type)) {
+            $mb = MarzbanPannelController::resolve($pannel);
 
-        $data = $this->sendGetRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/");
+            return $mb->getAllUsers($pannel);
+        }
+
+        if ($pannel->type !== 'hiddify') {
+            return [];
+        }
+
+        $data = $this->sendGetRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/');
+        if ($data instanceof \Illuminate\Http\JsonResponse || ! is_array($data)) {
+            return [];
+        }
+
         return $data;
+    }
+
+    public function getHiddifyPanelUsersByPannelID($pannelID)
+    {
+        $pannel = Pannel::find($pannelID);
+        if (! $pannel) {
+            return response()->json([], 404);
+        }
+
+        return response()->json($this->resolvePanelUsersList($pannelID));
     }
     public function getHiddifyPanelUserByPannelID($pannelID, $userUUID)
     {

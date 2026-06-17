@@ -104,24 +104,8 @@ class CronJobController extends Controller
 
         $pannel = Pannel::all();
         foreach ($pannel as $key => $panel) {
-            if ($panel->type == 'hiddify') {
-                $controller = new HiddifyPannelController();
-                $usersResponse = $controller->getHiddifyPanelUsersByPannelID($panel->id);
-            } elseif ($panel->type == 'sanaei') {
-                $controller = new SanaeiPannelController();
-                $usersResponse = $controller->getAllClients($panel);
-            } elseif ($panel->isMarzbanCompatible()) {
-                $controller = MarzbanPannelController::resolve($panel);
-                $usersResponse = $controller->getAllUsers($panel);
-            } else {
-                continue;
-            }
-            // تبدیل Response به آرایه
-            // check if usersResponse is json or array
-            // $users = json_decode($usersResponse->getContent(), true);
-            // \Log::info("users: " . json_encode($users));
-
-            if (!is_array($usersResponse)) {
+            $usersResponse = $this->getPanelUsers($panel);
+            if ($usersResponse === []) {
                 continue;
             }
 
@@ -132,7 +116,7 @@ class CronJobController extends Controller
 
                 // check divide zero
                 if ($usageGB == 0 || $limitGB == 0) {
-                    return true;
+                    continue;
                 }
 
                 // get usage percent
@@ -206,18 +190,11 @@ class CronJobController extends Controller
             $pannel = Pannel::all();
 
             foreach ($pannel as $key => $panel) {
-                if ($panel->type == 'hiddify') {
-                    $controller = new HiddifyPannelController();
-                    $usersResponse = $controller->getHiddifyPanelUsersByPannelID($panel->id);
-                } elseif ($panel->type == 'sanaei') {
-                    $controller = new SanaeiPannelController();
-                    $usersResponse = $controller->getAllClients($panel);
-                } else {
+                $usersResponse = $this->getPanelUsers($panel);
+                if ($usersResponse === []) {
                     continue;
                 }
-                if (!is_array($usersResponse)) {
-                    continue;
-                }
+
                 $products = [];
                 // create a empty array of products ids and uuid
                 $productsIds = [];
@@ -226,13 +203,23 @@ class CronJobController extends Controller
                     // get releated products by uuid
                     $uuid = $value['uuid'];
 
-                    $startDate = $value['start_date'];
-                    // convert $startDate to valid carbon date
-                    $startDate = Carbon::parse($startDate);
+                    $package_days = intval($value['package_days'] ?? 0);
+                    $startDateRaw = $value['start_date'] ?? null;
+                    if (empty($startDateRaw) || $package_days <= 0) {
+                        $currentUsageGB = $value['current_usage_GB'] ?? 0;
+                        $usageLimitGB = $value['usage_limit_GB'] ?? 0;
+                        if ($currentUsageGB > 0 && $usageLimitGB > 0 && $currentUsageGB >= $usageLimitGB) {
+                            $product = $this->findProductForPanelUser($panel, $uuid);
+                            if ($product != null) {
+                                $products[] = $product;
+                                $productsIds[] = $product->id;
+                                $productsUuids[] = $uuid;
+                            }
+                        }
+                        continue;
+                    }
 
-                    $package_days = $value['package_days'];
-                    // convert $package_days to integer
-                    $package_days = intval($package_days);
+                    $startDate = Carbon::parse($startDateRaw);
                     // add expireDate to $startDate
                     $expireDate = Carbon::parse($startDate);
 
@@ -285,13 +272,7 @@ class CronJobController extends Controller
                 Product::whereIn('id', $productsIds)->delete();
                 // delete users from panel
                 foreach ($productsUuids as $key => $uuid) {
-                    if ($panel->type == 'hiddify') {
-                        $controller->deleteUserOfHiddifyPanel($panel->id, $uuid);
-                    } elseif ($panel->type == 'sanaei') {
-                        $controller->deleteUser($panel, $uuid);
-                    } elseif ($panel->isMarzbanCompatible()) {
-                        $controller->deleteUser($panel, $uuid);
-                    }
+                    $this->deletePanelUser($panel, $uuid);
                 }
 
             }
@@ -318,30 +299,19 @@ class CronJobController extends Controller
         }
         $pannel = Pannel::all();
         foreach ($pannel as $key => $panel) {
-            if ($panel->type == 'hiddify') {
-                $controller = new HiddifyPannelController();
-                $usersResponse = $controller->getHiddifyPanelUsersByPannelID($panel->id);
-            } elseif ($panel->type == 'sanaei') {
-                $controller = new SanaeiPannelController();
-                $usersResponse = $controller->getAllClients($panel);
-            } elseif ($panel->isMarzbanCompatible()) {
-                $controller = MarzbanPannelController::resolve($panel);
-                $usersResponse = $controller->getAllUsers($panel);
-            } else {
+            $usersResponse = $this->getPanelUsers($panel);
+            if ($usersResponse === []) {
                 continue;
             }
 
-            if (!is_array($usersResponse)) {
-                continue;
-            }
             foreach ($usersResponse as $key => $value) {
-                $startDate = $value['start_date'];
-                // convert $startDate to valid carbon date
-                $startDate = Carbon::parse($startDate);
+                $package_days = intval($value['package_days'] ?? 0);
+                $startDateRaw = $value['start_date'] ?? null;
+                if (empty($startDateRaw) || $package_days <= 0) {
+                    continue;
+                }
 
-                $package_days = $value['package_days'];
-                // convert $package_days to integer
-                $package_days = intval($package_days);
+                $startDate = Carbon::parse($startDateRaw);
                 // add expireDate to $startDate
                 $expireDate = Carbon::parse($startDate);
                 // add $pacje_days to $expireDate
@@ -478,20 +448,10 @@ class CronJobController extends Controller
         $pannel = Pannel::all();
 
         foreach ($pannel as $key => $panel) {
-            if ($panel->type == 'hiddify') {
-                $controller = new HiddifyPannelController();
-                $usersResponse = $controller->getHiddifyPanelUsersByPannelID($panel->id);
-            } elseif ($panel->type == 'sanaei') {
-                $controller = new SanaeiPannelController();
-                $usersResponse = $controller->getAllClients($panel);
-            } elseif ($panel->isMarzbanCompatible()) {
-                $controller = MarzbanPannelController::resolve($panel);
-                $usersResponse = $controller->getAllUsers($panel);
-            } else {
+            $usersResponse = $this->getPanelUsers($panel);
+            if ($usersResponse === []) {
                 continue;
             }
-            // تبدیل Response به آرایه
-
 
             foreach ($usersResponse as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
@@ -632,6 +592,26 @@ class CronJobController extends Controller
         } catch (\Throwable $th) {
             \Log::error("Error clearing laravel log: " . $th->getMessage());
             return false;
+        }
+    }
+
+    private function getPanelUsers(Pannel $panel): array
+    {
+        if ($panel->type === 'hiddify' || $panel->type === 'sanaei' || $panel->isMarzbanCompatible()) {
+            return (new HiddifyPannelController())->resolvePanelUsersList($panel->id);
+        }
+
+        return [];
+    }
+
+    private function deletePanelUser(Pannel $panel, string $uuid): void
+    {
+        if ($panel->type === 'hiddify') {
+            (new HiddifyPannelController())->deleteUserOfHiddifyPanel($panel->id, $uuid);
+        } elseif ($panel->type === 'sanaei') {
+            (new SanaeiPannelController())->deleteUser($panel, $uuid);
+        } elseif ($panel->isMarzbanCompatible()) {
+            MarzbanPannelController::resolve($panel)->deleteUser($panel, $uuid);
         }
     }
 

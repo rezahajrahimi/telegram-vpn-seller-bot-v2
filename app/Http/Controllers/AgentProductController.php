@@ -18,30 +18,79 @@ class AgentProductController extends Controller
 {
     public function obtainBatchOfExistProductsToUser(Request $request)
     {
-        $data = json_decode($request, true);
-
         $pannelID = $request['pannelID'];
         $accountID = $request['accountID'];
-        $userID = User::where('account_id', $accountID)->first()->id;
-        if ($userID == null) {
+        $user = User::where('account_id', $accountID)->first();
+        if ($user == null) {
             return response()->json(false, 201);
         }
+
+        $pannel = Pannel::find($pannelID);
+        if ($pannel == null) {
+            return response()->json(false, 201);
+        }
+
         $selectedExistConfig = json_decode($request['configs'], true);
+        if (! is_array($selectedExistConfig)) {
+            return response()->json(false, 201);
+        }
+
         $prCatCntrl = new ProductCategoryController();
         $prCntrl = new ProductController();
-        foreach ($selectedExistConfig as $value) {
-            $aa = json_decode($value, true);
 
-            $value = (array) $aa;
-            $uuid = $value['uuid'];
+        foreach ($selectedExistConfig as $rawValue) {
+            $value = is_string($rawValue) ? json_decode($rawValue, true) : $rawValue;
+            if (! is_array($value)) {
+                continue;
+            }
+
+            $uuid = (string) ($value['uuid'] ?? '');
+            if ($uuid === '') {
+                continue;
+            }
+
+            $name = (string) ($value['name'] ?? $uuid);
+            $packageDays = (int) ($value['packageDays'] ?? $value['package_days'] ?? 0);
+            $usageLimitGB = (float) ($value['usageLimitGB'] ?? $value['usage_limit_GB'] ?? 0);
+
             $req = new Request();
-            $req->product_categories_id = $prCatCntrl->getProductCatIdBYExpireDayPannelIDVolume($value['packageDays'], $pannelID, $value['usageLimitGB']);
+            $req->product_categories_id = $prCatCntrl->getProductCatIdBYExpireDayPannelIDVolume(
+                $packageDays,
+                $pannelID,
+                $usageLimitGB
+            );
             $req->pannelID = $pannelID;
-            $req->remark = $value['name'];
-            $req->configs = '';
+            $req->remark = $name;
             $req->account_id = $accountID;
-            $req->subscription_link = "/{$uuid}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-            $req->panel_link = "/{$uuid}/#{$req->remark}";
+
+            if ($pannel->type === 'sanaei') {
+                $snCtrl = new SanaeiPannelController();
+                $links = $snCtrl->getUserLinks($pannel, $uuid, $name);
+                $subLink = $links[0] ?? '';
+                if ($subLink === '') {
+                    $found = $snCtrl->findClientByUUID($pannel, $uuid);
+                    $subId = $found['client']['subId'] ?? $uuid;
+                    $subLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
+                }
+                $req->subscription_link = $subLink;
+                $req->panel_link = '';
+                $req->configs = json_encode(['uuid' => $uuid, 'links' => $links]);
+            } elseif ($pannel->isMarzbanCompatible()) {
+                $mb = MarzbanPannelController::resolve($pannel);
+                $username = $uuid;
+                $panelUser = $mb->getUser($pannel, $username);
+                $userSub = $mb->getSubscriptionLink($pannel, $username) ?? '';
+                $req->subscription_link = $panelUser['subscription_url'] ?? '';
+                $req->panel_link = $userSub;
+                $req->configs = json_encode([
+                    'username' => $username,
+                    'links' => $panelUser['links'] ?? [],
+                ]);
+            } else {
+                $req->configs = '';
+                $req->subscription_link = "/{$uuid}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+                $req->panel_link = "/{$uuid}/#{$name}";
+            }
 
             $prCntrl->addOrUpdateProductDetailsBySubscriptionLink($req);
         }
