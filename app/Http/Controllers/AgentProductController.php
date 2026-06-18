@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AgentProduct;
+use App\Models\BotUser;
 use App\Models\ProductCategory;
 use App\Models\Product;
 use App\Models\Pannel;
@@ -35,6 +36,46 @@ class AgentProductController extends Controller
         }
 
         (new PromoCodeService())->recordUsage($appliedPromo, $accountId, $discountToman);
+    }
+
+    /**
+     * @return array{
+     *     ok: bool,
+     *     message?: string,
+     *     remark?: string,
+     *     reserved_product_id?: int,
+     *     account_label?: string
+     * }
+     */
+    private function prepareWebPurchaseIdentity(
+        int|string $accountID,
+        int $categoryId,
+        ?string $userRemark,
+        ?string $displayNamePrefix = null,
+    ): array {
+        $prCntrl = new ProductController();
+        $reservedProductId = $prCntrl->reserveProductId($accountID, $categoryId);
+        if ($reservedProductId === null) {
+            return ['ok' => false, 'message' => 'خطا در رزرو بسته'];
+        }
+
+        $accountLabel = BotUser::resolveConfigAccountLabel($accountID, $reservedProductId);
+        $trimmedRemark = trim((string) ($userRemark ?? ''));
+
+        if ($trimmedRemark === '') {
+            $remark = $accountLabel;
+        } elseif ($displayNamePrefix !== null && trim($displayNamePrefix) !== '') {
+            $remark = trim($displayNamePrefix) . ' - ' . $trimmedRemark;
+        } else {
+            $remark = $trimmedRemark;
+        }
+
+        return [
+            'ok' => true,
+            'remark' => $remark,
+            'reserved_product_id' => $reservedProductId,
+            'account_label' => $accountLabel,
+        ];
     }
 
     public function obtainBatchOfExistProductsToUser(Request $request)
@@ -1040,7 +1081,6 @@ class AgentProductController extends Controller
         $accountID = auth('sanctum')->user()->account_id;
         $userID = auth('sanctum')->user()->id;
         $agentname = auth('sanctum')->user()->name;
-        $remark = "$agentname -  $request->remark ";
         $promoCode = $request->input('promo_code');
 
         $pricingResolved = $this->resolveWebPurchasePricing(
@@ -1076,6 +1116,19 @@ class AgentProductController extends Controller
 
         $accBlCtrl = new AccountBallanceController();
         if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+            $identity = $this->prepareWebPurchaseIdentity(
+                $accountID,
+                (int) $selectedPrCat->id,
+                $request->remark,
+                $agentname
+            );
+            if (! ($identity['ok'] ?? false)) {
+                return response()->json($identity['message'] ?? 'خطا در رزرو بسته', 500);
+            }
+
+            $remark = $identity['remark'];
+            $reservedProductId = $identity['reserved_product_id'];
+
             $pnlCntrl = new PannelController();
             $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
             // get selected item specefic data
@@ -1084,13 +1137,18 @@ class AgentProductController extends Controller
             $prCntrl = new ProductController();
             if ($pannel->type == 'hiddify') {
                 $req = new Request();
-                $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
+                $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
                 $hiddifcCntrl = new HiddifyPannelController();
 
                 $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
+                if ($newUUID == false) {
+                    $prCntrl->deletePendingProduct($reservedProductId);
+
+                    return response()->json('Error in creating user in panel', 500);
+                }
                 $userPannelLink = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
 
                 $reqProductDetails = new Request();
@@ -1100,6 +1158,7 @@ class AgentProductController extends Controller
                 $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
                 $reqProductDetails->configs = '';
                 $reqProductDetails->remark = $remark;
+                $reqProductDetails->product_id = $reservedProductId;
 
                 $prCntrl->addAutomatedProductDetails($reqProductDetails);
                 $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
@@ -1112,7 +1171,7 @@ class AgentProductController extends Controller
             if ($pannel->type == 'sanaei') {
                 $snCtrl = new SanaeiPannelController();
                 $req = new Request();
-                $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
+                $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
@@ -1121,6 +1180,8 @@ class AgentProductController extends Controller
 
                 $result = $snCtrl->addUserToSanaeiPanel($req);
                 if ($result === false) {
+                    $prCntrl->deletePendingProduct($reservedProductId);
+
                     return response()->json('Error in creating user in panel', 500);
                 }
                 if (is_array($result)) {
@@ -1146,6 +1207,7 @@ class AgentProductController extends Controller
                 $reqProductDetails->panel_link = '';
                 $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
                 $reqProductDetails->remark = $remark;
+                $reqProductDetails->product_id = $reservedProductId;
 
                 $prCntrl->addAutomatedProductDetails($reqProductDetails);
                 $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
@@ -1161,8 +1223,7 @@ class AgentProductController extends Controller
     public function buyProductByUserWithPrID(Request $request)
     {
         $accountID = auth('sanctum')->user()->account_id;
-        $agentname = auth('sanctum')->user()->name;
-        $remark = "$agentname -  $request->remark ";
+        $userName = auth('sanctum')->user()->name;
         $promoCode = $request->input('promo_code');
 
         $pricingResolved = $this->resolveWebPurchasePricing(
@@ -1193,6 +1254,19 @@ class AgentProductController extends Controller
 
         $accBlCtrl = new AccountBallanceController();
         if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+            $identity = $this->prepareWebPurchaseIdentity(
+                $accountID,
+                (int) $selectedPrCat->id,
+                $request->remark,
+                $userName
+            );
+            if (! ($identity['ok'] ?? false)) {
+                return response()->json($identity['message'] ?? 'خطا در رزرو بسته', 500);
+            }
+
+            $remark = $identity['remark'];
+            $reservedProductId = $identity['reserved_product_id'];
+
             $pnlCntrl = new PannelController();
             $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
             // get selected item specefic data
@@ -1201,13 +1275,18 @@ class AgentProductController extends Controller
             $prCntrl = new ProductController();
             if ($pannel->type == 'hiddify') {
                 $req = new Request();
-                $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
+                $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
                 $hiddifcCntrl = new HiddifyPannelController();
 
                 $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
+                if ($newUUID == false) {
+                    $prCntrl->deletePendingProduct($reservedProductId);
+
+                    return response()->json('Error in creating user in panel', 500);
+                }
                 // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
 
 
@@ -1220,6 +1299,7 @@ class AgentProductController extends Controller
                 $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
                 $reqProductDetails->configs = '';
                 $reqProductDetails->remark = $remark;
+                $reqProductDetails->product_id = $reservedProductId;
 
                 $prCntrl->addAutomatedProductDetails($reqProductDetails);
                 $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
@@ -1232,7 +1312,7 @@ class AgentProductController extends Controller
             if ($pannel->type == 'sanaei') {
                 $snCtrl = new SanaeiPannelController();
                 $req = new Request();
-                $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
+                $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
                 $req->pannelID = $selectedPrCat->pannel_id;
                 $req->vol = $volume;
                 $req->day = $day;
@@ -1241,6 +1321,8 @@ class AgentProductController extends Controller
 
                 $result = $snCtrl->addUserToSanaeiPanel($req);
                 if ($result === false) {
+                    $prCntrl->deletePendingProduct($reservedProductId);
+
                     return response()->json('Error in creating user in panel', 500);
                 }
                 if (is_array($result)) {
@@ -1266,6 +1348,7 @@ class AgentProductController extends Controller
                 $reqProductDetails->panel_link = '';
                 $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
                 $reqProductDetails->remark = $remark;
+                $reqProductDetails->product_id = $reservedProductId;
 
                 $prCntrl->addAutomatedProductDetails($reqProductDetails);
                 $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);

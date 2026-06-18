@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BotUser;
 use Illuminate\Http\Request;
+use App\Services\ConfigNameService;
 use App\Services\PromoCodeService;
 
 class WebAppUserController extends Controller
@@ -374,6 +375,29 @@ class WebAppUserController extends Controller
                 'valid' => false,
                 'message' => 'خطای سرور',
             ], 500);
+        }
+    }
+
+    public function getPackageNameHint()
+    {
+        try {
+            return response()->json([
+                'preview' => ConfigNameService::preview(
+                    ConfigNameService::getFormat(),
+                    ConfigNameService::getPrefix()
+                ),
+                'hint' => 'اگر نام بسته را وارد نکنید، مطابق تنظیمات ربات نام‌گذاری می‌شود.',
+            ], 200);
+        } catch (\Throwable $th) {
+            \Log::error('WebAppUserController@getPackageNameHint: ' . $th->getMessage());
+
+            return response()->json([
+                'preview' => ConfigNameService::preview(
+                    ConfigNameService::DEFAULT_FORMAT,
+                    ConfigNameService::DEFAULT_PREFIX
+                ),
+                'hint' => 'اگر نام بسته را وارد نکنید، مطابق تنظیمات ربات نام‌گذاری می‌شود.',
+            ], 200);
         }
     }
 }

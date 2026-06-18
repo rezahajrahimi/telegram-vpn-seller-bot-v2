@@ -554,6 +554,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('/webapp/redeem-gift-card', [WebAppUserController::class, 'redeemGiftCard']);
     Route::post('/webapp/claim-test-account', [WebAppUserController::class, 'claimTestAccount']);
     Route::post('/webapp/validate-promo-code', [WebAppUserController::class, 'validatePromoCode']);
+    Route::get('/webapp/package-name-hint', [WebAppUserController::class, 'getPackageNameHint']);
 
     //ProxyController
 
