@@ -481,7 +481,10 @@ class TelegramWebhookController extends Controller
 
             $result = $botUserCtrl->hasRegistred($chatId, $userName, $firstName, $lastName);
             if ($ref != null) {
-                $saveRef = $referralLogsCntrl->check_user_has_referral_and_create($chatId, $ref);
+                $referralSettingCntrl = new ReferralSettingController();
+                if ($referralSettingCntrl->check_referral_setting_is_active()) {
+                    $referralLogsCntrl->check_user_has_referral_and_create($chatId, $ref);
+                }
             }
             return '/start';
         } catch (\Throwable $th) {

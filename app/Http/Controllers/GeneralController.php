@@ -1284,6 +1284,12 @@ class GeneralController extends Controller
     public function referral($chatId)
     {
         try {
+            $referralSettingCntrl = new ReferralSettingController();
+            if (!$referralSettingCntrl->check_referral_setting_is_active()) {
+                $this->telegramService->sendMessage($chatId, 'سیستم بازاریابی در حال حاضر غیرفعال است.');
+                return '';
+            }
+
             $text = $this->customTextCtrl->getText('action.referral.title');
             $opr = [];
             $opr[] = [
@@ -1306,27 +1312,21 @@ class GeneralController extends Controller
     {
         try {
             $referralSettingCntrl = new ReferralSettingController();
+            if (!$referralSettingCntrl->check_referral_setting_is_active()) {
+                $text = $this->customTextCtrl->getText('error.server_error');
+                $this->telegramService->sendMessage($chatId, 'سیستم بازاریابی در حال حاضر غیرفعال است.');
+                return '';
+            }
+
             $settingCntrl = new SettingController();
             $botName = $settingCntrl->get_bot_name();
             $inviteUrl = "https://t.me/{$botName}?start={$chatId}";
 
-            // get percent of referral
             $referralPercent = $referralSettingCntrl->get_referral_setting_referral_percent();
-            // check referralPercent is null
             if ($referralPercent == null) {
                 $referralPercent = 0;
             }
-            // check referal is double or not
-
-            // درصد چون اعشار هست و متن هم فارسی، ترتیب نوشتاریش تغییر می کنه برای همین می بایست متنش را بصورت استرینگ و برعکس کنیم
-            // تبدیل به رشته و معکوس کردن درصد برای نمایش صحیح در متن فارسی
-            // بررسی اینکه آیا درصد اعشاری هست یا خیر و اگر  رقم اعشار ان برابر با صفر نبود
-            if (is_double($referralPercent)) {
-                $referralPercentStr = (string) $referralPercent;
-                // $referralPercentStr = strrev($referralPercentStr);
-            } else {
-                $referralPercentStr = "0";
-            }
+            $referralPercentStr = rtrim(rtrim((string) $referralPercent, '0'), '.');
 
             $text = $this->customTextCtrl->getText('action.referral.text', [
                 'link' => $inviteUrl,

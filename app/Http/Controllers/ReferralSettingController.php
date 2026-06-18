@@ -33,15 +33,21 @@ class ReferralSettingController extends Controller
     public function update_referral_setting(Request $request)
     {
         try {
+            $validated = $request->validate([
+                'description' => 'required|string|max:4000',
+                'visit_card_text' => 'required|string|max:4000',
+                'referral_percent' => 'required|numeric|min:0|max:100',
+                'is_active' => 'required|boolean',
+            ]);
+
             $referralSetting = ReferralSetting::first();
             if ($referralSetting != null) {
-                $referralSetting->description = $request->description;
-                $referralSetting->visit_card_text = $request->visit_card_text;
-                // $referralSetting->image_src = $request->visit_card_text;
-
-                $referralSetting->referral_percent = $request->referral_percent;
-                $referralSetting->is_active = $request->is_active;
+                $referralSetting->description = $validated['description'];
+                $referralSetting->visit_card_text = $validated['visit_card_text'];
+                $referralSetting->referral_percent = $validated['referral_percent'];
+                $referralSetting->is_active = $validated['is_active'];
                 $referralSetting->update();
+
                 return $referralSetting;
             } else {
                 return response()->json(null, 404);

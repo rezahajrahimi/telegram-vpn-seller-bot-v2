@@ -179,7 +179,14 @@ class AccountProcessController extends Controller
             if ($botUser == null) {
                 return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.server_error'));
             }
-            $subAccounts = ReferralLogs::where('referral_user_id', $botUser->id)->get();
+            $user = User::where('account_id', $chatId)->first();
+            if ($user == null) {
+                return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.server_error'));
+            }
+            $subAccounts = ReferralLogs::where('referral_user_id', $user->id)
+                ->whereNull('transaction_id')
+                ->with('referral_to')
+                ->get();
             $text = $this->customTextCtrl->getText('action.account.sub_accounts.title');
             $this->telegramService->sendMessage($chatId, $text);
             $text = "";

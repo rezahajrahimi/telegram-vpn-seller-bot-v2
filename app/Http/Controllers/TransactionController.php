@@ -146,27 +146,6 @@ class TransactionController extends Controller
             $transaction->recipe_number = $recipeNUmber;
             $transaction->payment_type_id = $paymentTypeId;
             $transaction->save();
-            // check user have referral, if has create referral log
-            $referralLogsCntrl = new ReferralLogsController();
-            $hasRef = $referralLogsCntrl->check_user_is_referred($transaction->account_id);
-
-            if ($hasRef == true) {
-                // get amount from referralsetting and calculate by percent stored in db
-                $referralSettingCntrl = new ReferralSettingController();
-                $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
-                $amount = 0;
-                if ($referral_percent !== null || $referral_percent !== 0) {
-                    $amount = ($transaction->amount / 100) * $referral_percent;
-                }
-
-                $referReq = new Request();
-                $referReq->referral_to_id = $userID;
-
-                $referReq->amount = $amount;
-                $referReq->transaction_id = $transaction->id;
-
-                $referralLogsCntrl->add_new_referral_logs($referReq);
-            }
 
             return $transaction->id;
         } catch (\Throwable $th) {
@@ -226,7 +205,7 @@ class TransactionController extends Controller
 
                     $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
                     $amount = 0;
-                    if ($referral_percent !== null || $referral_percent !== 0) {
+                    if ($referral_percent !== null && $referral_percent != 0) {
                         $amount = ($transaction->amount / 100) * $referral_percent;
                     }
                     if ($isConfirmed) {
@@ -276,9 +255,14 @@ class TransactionController extends Controller
             $data->update();
 
             $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$data->amount} به حساب شما افزوده شد.", $data->account_id, null, 'MarkDown');
-            // set referral wallet
             $referralLogsCntrl = new ReferralLogsController();
-            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($data->id, $data->amount);
+            $referralSettingCntrl = new ReferralSettingController();
+            $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
+            $commissionAmount = 0;
+            if ($referral_percent !== null && $referral_percent != 0) {
+                $commissionAmount = ($data->amount / 100) * $referral_percent;
+            }
+            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($data->id, $commissionAmount, false);
 
             return true;
         } else {
