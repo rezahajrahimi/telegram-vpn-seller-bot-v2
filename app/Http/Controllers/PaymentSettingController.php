@@ -100,11 +100,15 @@ class PaymentSettingController extends Controller
     public function setPaymentSettingStatusByKey($key, $status)
     {
         try {
-            
-            $status = $status == 'true' || $status == 1 ? true : false;
+            $parsedStatus = filter_var($status, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($parsedStatus === null) {
+                $parsedStatus = $status === 1 || $status === '1';
+            }
+
             $paymentSetting = $this->getPaymentSettingByKey($key);
-            $paymentSetting->status = $status;
+            $paymentSetting->status = $parsedStatus;
             $paymentSetting->save();
+
             return $paymentSetting;
         } catch (\Throwable $th) {
             \Log::info("PaymentSetting table seeding failed: $th");
@@ -118,10 +122,8 @@ class PaymentSettingController extends Controller
             $this->seed();
             $paymentSetting = $this->getPaymentSettingByKey($key);
         }
-        if ($paymentSetting->status == true || $paymentSetting->status == 1) {
-            return true;
-        }
-        return false;
+
+        return (bool) ($paymentSetting->status ?? false);
     }
 
 }

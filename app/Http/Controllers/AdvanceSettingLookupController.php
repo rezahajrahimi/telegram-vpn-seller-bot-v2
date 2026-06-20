@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AdvanceSettingLookup;
+use App\Services\PackageButtonLayoutService;
 use Illuminate\Http\Request;
 
 class AdvanceSettingLookupController extends Controller
@@ -9,6 +10,7 @@ class AdvanceSettingLookupController extends Controller
     public function getAll()
     {
         try {
+            (new PackageButtonLayoutService())->ensureLayoutSettingExists();
             $advanceSettingLookups = AdvanceSettingLookup::all();
             if ($advanceSettingLookups->isEmpty()) {
                 $this->seed();
@@ -44,7 +46,8 @@ class AdvanceSettingLookupController extends Controller
             ['name' => 'bot_show_configs_by_panels_category', 'value' => 'false', 'description' => 'نمایش کانفیگ ها براساس موقیت جغرافیایی پنل'],
             ['name' => 'bot_auto_set_price_by_dollar_price', 'value' => 'false', 'description' => 'قیمت گذاری اتوماتیک بر اساس قیمت دلار'],
             ['name' => 'bot_calculate_product_category_price_in_dollar_by_toman', 'value' => 'false', 'description' => 'قیمت گذاری اتوماتیک بر اساس قیمت تومان'],
-            ['name' => 'bot_show_one_row_config', 'value' => 'true', 'description' => 'نمایش پیکربندی ها در یک ردیف'],
+            ['name' => 'bot_show_one_row_config', 'value' => 'true', 'description' => 'نمایش پیکربندی ها در یک ردیف (قدیمی — در صورت تنظیم «نحوه نمایش لیست بسته‌ها» نادیده گرفته می‌شود)'],
+            ['name' => PackageButtonLayoutService::SETTING_KEY, 'value' => PackageButtonLayoutService::LAYOUT_FULL_BUTTON, 'description' => 'نحوه نمایش لیست بسته‌ها در ربات'],
             ['name' => 'bot_daily_backup', 'value' => 'true', 'description' => 'برای ایجاد بکاپ روزانه'],
             ['name' => 'bot_auto_delete_expired_configs', 'value' => 'true', 'description' => 'حذف کانفیگ هایی که 10 روز از انقضا آنها می گذرد'],
         ];

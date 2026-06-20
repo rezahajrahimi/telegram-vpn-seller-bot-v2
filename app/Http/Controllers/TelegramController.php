@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Hekmatinasser\Verta\Verta;
+use App\Services\PackageButtonLayoutService;
 
 class TelegramController extends Controller
 {
@@ -536,37 +537,8 @@ class TelegramController extends Controller
         $prCatCntrl = new ProductCategoryController();
 
         $prCat = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
-        $opr = [];
-        $index = 0;
-        $advancedSettingCntrl = new AdvanceSettingLookupController();
-        $hasShowOneRowConfigText = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
-        if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
-            // check if show one row config text is true or not
-            $advancedSettingCntrl = new AdvancedSettingController();
-            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->category_name - $value->price_in_dollar$ - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            } else {
-                array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            }
-        } else {
-            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->category_name - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            } else {
-                array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            }
-        }
-
-        $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        $selection = $this->buildPackageSelectionLegacyMessage($prCat, $text);
+        $result = app('telegram_bot')->commandMessage($selection['opr'], $this->chat_id, $selection['text']);
         // $result = app('telegram_bot')->editMessageReplyMarkup( $this->chat_id,$this->message_id,$opr,);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
@@ -581,37 +553,8 @@ class TelegramController extends Controller
         $prCatCntrl = new ProductCategoryController();
 
         $prCat = $prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
-        $opr = [];
-        $index = 0;
-        $advancedSettingCntrl = new AdvanceSettingLookupController();
-        $hasShowOneRowConfigText = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
-        if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
-            // check if show one row config text is true or not
-            $advancedSettingCntrl = new AdvancedSettingController();
-            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->category_name - $value->price_in_dollar$ - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            } else {
-                array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            }
-        } else {
-            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->category_name - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            } else {
-                array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            }
-        }
-
-        $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        $selection = $this->buildPackageSelectionLegacyMessage($prCat, $text);
+        $result = app('telegram_bot')->commandMessage($selection['opr'], $this->chat_id, $selection['text']);
         // $result = app('telegram_bot')->editMessageReplyMarkup( $this->chat_id,$this->message_id,$opr,);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
@@ -1851,6 +1794,28 @@ class TelegramController extends Controller
             return false;
         }
     }
+
+    /**
+     * @param  iterable<int, object>  $categories
+     * @return array{text: string, opr: array<int, array<int, array{text: string, callback_data: string}>>}
+     */
+    private function buildPackageSelectionLegacyMessage(iterable $categories, string $baseText): array
+    {
+        $paymnetSettingCntrl = new PaymentSettingController();
+        $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        $layoutService = new PackageButtonLayoutService();
+        $selection = $layoutService->buildPackageSelection(
+            collect($categories),
+            $dollarTransaction == true || $dollarTransaction == 1,
+            $baseText
+        );
+
+        return [
+            'text' => $selection['message'],
+            'opr' => $layoutService->toLegacyInlineKeyboard($selection['buttons']),
+        ];
+    }
+
     // preper text
     public function prepareText($text)
     {

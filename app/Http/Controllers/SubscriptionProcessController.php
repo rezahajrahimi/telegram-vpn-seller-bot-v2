@@ -17,10 +17,12 @@ use App\Services\InventoryPurchaseService;
 use App\Services\PromoCodeService;
 use App\Services\PurchaseIntentService;
 use App\Services\SubscriptionPaymentService;
+use App\Services\PackageButtonLayoutService;
 // add cache
 use Carbon\Carbon;
 use Hekmatinasser\Verta\Verta;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class SubscriptionProcessController extends Controller
@@ -710,6 +712,10 @@ class SubscriptionProcessController extends Controller
     public function prepareSubscriptionButtons($prCat = null)
     {
         $text = $this->customTextCtrl->getText('action.buy_subscription.select_package');
+        if (is_array($text)) {
+            $text = $this->telegramService->formatText($text);
+        }
+
         if ($prCat === null) {
             $prCat = $this->resolveProductCategoriesForChat();
         }
@@ -719,51 +725,22 @@ class SubscriptionProcessController extends Controller
             return "";
         }
 
-        $opr               = [];
         $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
         \Log::info("dollarTransaction: " . $dollarTransaction);
-        $showOneRowConfig = $this->advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
-        if ($showOneRowConfig) {
-            foreach ($prCat as $key => $value) {
-                // هر دکمه به صورت یک ردیف جداگانه
-                if ($dollarTransaction == true) {
-                    $buttonText = "$value->category_name - $value->price_in_dollar$ - $value->price تومان";
-                } else {
-                    $buttonText = "$value->category_name - $value->price تومان";
-                }
-                $opr[] = [
-                    $buttonText => "buySubscription-" . strval($value->id),
-                ];
-            }
-        } else {
-            if ($dollarTransaction == true) {
-                $opr[] = [
-                    'قیمت(دلار)'  => '0',
-                    'قیمت(تومان)' => '0',
-                    'بسته'        => '0',
-                ];
-                foreach ($prCat as $key => $value) {
-                    $opr[] = [
-                        "$value->price_in_dollar" => "buySubscription-" . strval($value->id),
-                        "$value->price"           => "buySubscription-" . strval($value->id),
-                        "$value->category_name"   => "buySubscription-" . strval($value->id),
-                    ];
-                }
-            } else {
-                $opr[] = [
-                    'قیمت(تومان)' => '0',
-                    'بسته'        => '0',
-                ];
-                foreach ($prCat as $key => $value) {
-                    $opr[] = [
-                        "$value->price"         => "buySubscription-" . strval($value->id),
-                        "$value->category_name" => "buySubscription-" . strval($value->id),
-                    ];
-                }
-            }
-        }
 
-        $this->telegramService->sendMessageWithInlineKeyboard($this->chatId, $text, $opr);
+        $layoutService = new PackageButtonLayoutService();
+        $selection = $layoutService->buildPackageSelection(
+            $prCat instanceof Collection ? $prCat : collect($prCat),
+            $dollarTransaction == true || $dollarTransaction == 1,
+            (string) $text
+        );
+
+        $this->telegramService->sendMessageWithInlineKeyboard(
+            $this->chatId,
+            $selection['message'],
+            $selection['buttons']
+        );
+
         return "";
     }
 
