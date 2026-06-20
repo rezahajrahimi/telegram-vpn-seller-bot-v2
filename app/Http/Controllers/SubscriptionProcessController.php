@@ -16,6 +16,7 @@ use App\Services\SubscriptionPurchaseLock;
 use App\Services\InventoryPurchaseService;
 use App\Services\PromoCodeService;
 use App\Services\PurchaseIntentService;
+use App\Services\SubscriptionPaymentService;
 // add cache
 use Carbon\Carbon;
 use Hekmatinasser\Verta\Verta;
@@ -766,45 +767,24 @@ class SubscriptionProcessController extends Controller
         return "";
     }
 
-    private function processPayment($productPrice, $productPriceInDollar, $hasRefballance)
+    private function processPayment($productPrice, $productPriceInDollar, $hasRefballance): bool
     {
         try {
-            $request           = new Request();
-            $request->userID   = $this->chatId;
-            $request->ballance = $productPrice;
-            $request->type     = 'toman';
+            $username = $this->botUser->username ?? '';
+            $paymentService = new SubscriptionPaymentService(
+                $this->accBlCtrl,
+                $this->paymnetSettingCntrl,
+                $this->referralCntrl
+            );
+            $chargeResult = $paymentService->charge(
+                $this->chatId,
+                (float) $productPrice,
+                (float) $productPriceInDollar,
+                (bool) $hasRefballance,
+                $username
+            );
 
-            // تلاش برای کسر از کیف پول تومانی
-            $balance = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
-            \Log::info("processPayment balance: " . $balance);
-            if ($balance != false || $balance != 0 || $balance != null) {
-                $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPrice . ' تومان', 'show');
-                return true;
-            }
-
-            // بررسی پرداخت دلاری
-            $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
-            \Log::info("dollarTransaction: " . $dollarTransaction);
-            if ($dollarTransaction == true || $dollarTransaction == 1) {
-                $request->ballance = $productPriceInDollar;
-                $request->type     = 'dollar';
-                $balance           = $this->accBlCtrl->decreaseUserAccuntBalanceByUserID($request);
-                if ($balance != false || $balance != 0 || $balance != null) {
-                    $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول کاربر به مقدار ' . $productPriceInDollar . ' دلار', 'show');
-                    return true;
-                }
-            }
-
-            // بررسی کیف پول ارجاع
-            if ($hasRefballance == true || $hasRefballance == 1) {
-                $balance = $this->referralCntrl->dec_user_ref_wallet_ballance($this->chatId, $productPrice);
-                \Log::info("processPayment referral balance: " . $balance);
-                if ($balance != false || $balance != 0 || $balance != null) {
-                    $this->addNewBotLog('subscription', 'کسر موجودی از کیف پول همکاری به مقدار ' . $productPrice . ' تومان', 'show');
-                    return true;
-                }
-            }
-            return false;
+            return $paymentService->wasCharged($chargeResult);
         } catch (\Throwable $th) {
             \Log::error("خطا در پرداخت: " . $th->getMessage());
             return false;
@@ -813,13 +793,17 @@ class SubscriptionProcessController extends Controller
 
     private function processSubscriptionPurchase()
     {
+        $reservedProductId = null;
+        $soldInventoryProductId = null;
+        $chargeResult = null;
+        $purchaseDelivered = false;
+        $username = $this->botUser->username ?? '';
+
         try {
             $selectedPrCat = $this->selectedPrCat;
-            // بررسی موجودی کاربر
             $productPrice         = $this->selectedPrCat->price;
             $productPriceInDollar = $this->selectedPrCat->price_in_dollar;
             $hasBallance          = $this->accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
-            // بررسی کیف پول ارجاع
             $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $this->selectedPrCat->price);
 
             if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
@@ -834,19 +818,58 @@ class SubscriptionProcessController extends Controller
 
             $prCntrl = new ProductController();
             $inventoryPurchaseService = new InventoryPurchaseService();
-            $soldInventoryProductId = null;
+            $paymentService = new SubscriptionPaymentService(
+                $this->accBlCtrl,
+                $this->paymnetSettingCntrl,
+                $this->referralCntrl
+            );
 
             if ($pannel->isInventoryPanel()) {
                 if ($prCntrl->countActiveInventory($this->selectedPrCat->id) < 1) {
                     return 'موجودی این بسته تمام شده است.';
                 }
 
+                $chargeResult = $paymentService->charge(
+                    $this->chatId,
+                    (float) $productPrice,
+                    (float) $productPriceInDollar,
+                    (bool) $hasRefballance,
+                    $username
+                );
+                \Log::info('paymentSuccess: ' . ($chargeResult['success'] ? '1' : '0'));
+
+                if (! $paymentService->wasCharged($chargeResult)) {
+                    $this->generalCntrl->send_insufficient_balance_message($this->chatId, $this->selectedPrCat->id);
+                    return "";
+                }
+
                 $soldInventoryProductId = $inventoryPurchaseService->deliverInventoryProduct($this->selectedPrCat, $this->chatId);
                 $resualt = $soldInventoryProductId !== false ? $soldInventoryProductId : false;
+
+                if ($resualt == false || $resualt == null) {
+                    $paymentService->refund($this->chatId, $chargeResult, $username);
+                    $this->addNewBotLog('subscription', 'خرید اشتراک با شکست مواجه شد.', 'show');
+                    return 'موجودی این بسته تمام شده است.';
+                }
             } else {
                 $reservedProductId = $prCntrl->reserveProductId($this->chatId, $this->selectedPrCat->id);
                 if ($reservedProductId === null) {
                     return $this->customTextCtrl->getText('action.process.failed_buy');
+                }
+
+                $chargeResult = $paymentService->charge(
+                    $this->chatId,
+                    (float) $productPrice,
+                    (float) $productPriceInDollar,
+                    (bool) $hasRefballance,
+                    $username
+                );
+                \Log::info('paymentSuccess: ' . ($chargeResult['success'] ? '1' : '0'));
+
+                if (! $paymentService->wasCharged($chargeResult)) {
+                    $prCntrl->deletePendingProduct($reservedProductId);
+                    $this->generalCntrl->send_insufficient_balance_message($this->chatId, $this->selectedPrCat->id);
+                    return "";
                 }
 
                 if ($pannel->type == 'hiddify') {
@@ -871,62 +894,45 @@ class SubscriptionProcessController extends Controller
                         $reservedProductId
                     );
                 }
-            }
-            \Log::info("resualt response buoght from sanaei: " . $resualt);
 
-            if ($resualt == false || $resualt == null) {
-                $this->addNewBotLog('subscription', 'خرید اشتراک با شکست مواجه شد.', 'show');
-                return $this->customTextCtrl->getText('action.process.failed_buy');
-            }
-            // پردازش پرداخت
-            $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
-
-            \Log::info("paymentSuccess: " . $paymentSuccess);
-
-            if ($paymentSuccess == false || $paymentSuccess == null) {
-                if ($pannel->isInventoryPanel() && $soldInventoryProductId !== null) {
-                    $inventoryPurchaseService->rollbackDelivery($soldInventoryProductId);
-                } elseif ($pannel->type == 'hiddify') {
-                    // remove created product from database and panel
-                    $uuid = $resualt;
-                    $this->hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
-                    // delete product from database
-                    $prCntrl = new ProductController();
-                    $res     = $prCntrl->delete_product_by_uuid($uuid);
-                    if ($res) {
-                        $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل و دیتابیس', 'show');
-                    }
-                } elseif ($pannel->type == 'sanaei') {
-                    // remove created product from Sanaei panel and database
-                    $uuid = $resualt;
-                    $sn   = new SanaeiPannelController();
-                    $sn->deleteUser($pannel->id, $uuid);
-                    // delete product from database
-                    $prCntrl = new ProductController();
-                    $res     = $prCntrl->delete_sanaei_product_by_uuid($uuid);
-                    if ($res) {
-                        $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل سنایی و دیتابیس', 'show');
-                    }
-                } elseif ($pannel->isMarzbanCompatible()) {
-                    $marzbanUsername = $resualt;
-                    $mb              = MarzbanPannelController::resolve($pannel);
-                    $mb->deleteUser($pannel->id, $marzbanUsername);
-                    $prCntrl = new ProductController();
-                    $res     = $prCntrl->delete_marzban_product_by_username($marzbanUsername);
-                    if ($res) {
-                        $this->addNewBotLog('subscription', 'به دلیل عدم داشتن موجودی، حذف کالا از پنل مرزبان و دیتابیس', 'show');
-                    }
+                if ($resualt == false || $resualt == null) {
+                    $paymentService->refund($this->chatId, $chargeResult, $username);
+                    $prCntrl->deletePendingProduct($reservedProductId);
+                    $this->addNewBotLog('subscription', 'خرید اشتراک با شکست مواجه شد.', 'show');
+                    return $this->customTextCtrl->getText('action.process.failed_buy');
                 }
-                return $this->customTextCtrl->getText('action.process.failed_buy');
             }
 
-            // send useful
+            \Log::info("resualt response buoght from sanaei: " . $resualt);
+            $purchaseDelivered = true;
+
             $this->generalCntrl->send_using_subscription_manual_message($this->chatId, null, null, $pannel->isInventoryPanel());
             $this->addNewBotLog('subscription', 'خرید اشتراک با موفقیت انجام شد.', 'show');
             return "";
 
         } catch (\Throwable $th) {
             \Log::error("خطا در خرید بسته: " . $th->getMessage());
+
+            if (! $purchaseDelivered && $chargeResult !== null) {
+                $paymentService = new SubscriptionPaymentService(
+                    $this->accBlCtrl,
+                    $this->paymnetSettingCntrl,
+                    $this->referralCntrl
+                );
+
+                if ($paymentService->wasCharged($chargeResult)) {
+                    $paymentService->refund($this->chatId, $chargeResult, $username);
+                }
+            }
+
+            if (! $purchaseDelivered && $reservedProductId !== null) {
+                (new ProductController())->deletePendingProduct($reservedProductId);
+            }
+
+            if (! $purchaseDelivered && $soldInventoryProductId !== null) {
+                (new InventoryPurchaseService())->rollbackDelivery($soldInventoryProductId);
+            }
+
             return $this->customTextCtrl->getText('action.process.failed_buy');
         }
     }
