@@ -37,7 +37,9 @@ mkdir -p "${OUTPUT_DIR}"
 RSYNC_EXCLUDES=(
     --exclude '.git'
     --exclude '.env'
-    --exclude '.env.*'
+    --exclude '.env.backup'
+    --exclude '.env.production'
+    --exclude '.env.local'
     --exclude 'node_modules'
     --exclude 'vendor'
     --exclude 'encrypted'
