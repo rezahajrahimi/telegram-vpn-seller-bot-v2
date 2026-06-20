@@ -1184,8 +1184,9 @@ class SanaeiPannelController extends Controller
 
             $found = $this->findClientByUUID($panel, $uuid);
             if (!$found) {
-                \Log::warning("deleteUser: client $uuid not found on panel {$panel->id}");
-                return false;
+                \Log::info("deleteUser: client $uuid not found on panel {$panel->id}, treating as already deleted");
+
+                return true;
             }
             $inboundId = $found['inbound']['id'] ?? 1;
             return $this->deleteClient($panel, $inboundId, $uuid);

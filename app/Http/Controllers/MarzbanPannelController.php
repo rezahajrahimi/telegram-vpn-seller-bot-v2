@@ -622,7 +622,15 @@ class MarzbanPannelController extends Controller
             $response = $this->sendRequest($panel, 'DELETE', $path);
         }
 
-        return $response !== null && $response->successful();
+        if ($response === null) {
+            return false;
+        }
+
+        if ($response->status() === 404) {
+            return true;
+        }
+
+        return $response->successful();
     }
 
     public function changeUserActivation($panelOrId, string $username, bool $enable): bool

@@ -68,12 +68,13 @@ class ProductController extends Controller
     }
     public function getUserProductsHistoryByAccountID($userID)
     {
-        $data = Product::where('account_id', $userID)->with('product_category')->get();
-        if ($data != null) {
-            return $data;
-        } else {
-            return null;
-        }
+        $data = Product::where('account_id', $userID)
+            ->where('remark', '!=', 'pending')
+            ->with('product_category')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return $data->isEmpty() ? null : $data;
     }
     public function syncUserProductsHistoryByAccountIDwithPanels($userID)
     {

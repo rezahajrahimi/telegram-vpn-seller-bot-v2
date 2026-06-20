@@ -1063,7 +1063,7 @@ class SubscriptionProcessController extends Controller
 
                 }
                 $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
-            } elseif (count($opr) < 10) {
+            } elseif (count($opr) > 0) {
                 $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
             } else {
                 $text = $this->customTextCtrl->getText('action.buy_history.no_history');
@@ -1457,7 +1457,8 @@ class SubscriptionProcessController extends Controller
 
             $this->telegramService->sendChatAction($chatId, 'typing');
 
-            if (! $this->deleteProductOnPanel($product, $pannel)) {
+            $panelDeleted = $this->deleteProductOnPanel($product, $pannel);
+            if (! $panelDeleted && ! $this->isProductAbsentFromPanel($product, $pannel)) {
                 $text = $this->customTextCtrl->getText('action.delete_history.failed');
                 if (is_array($text)) {
                     $text = $this->telegramService->formatText($text);
@@ -1468,7 +1469,15 @@ class SubscriptionProcessController extends Controller
             }
 
             $remark = $product->remark;
-            $product->delete();
+            if (! $product->delete()) {
+                \Log::error('confirmDeleteHistory: panel user removed but DB delete failed', [
+                    'product_id' => $productID,
+                    'account_id' => $chatId,
+                ]);
+                $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+
+                return "";
+            }
 
             $this->addNewBotLog('history', "بسته $remark حذف شد.", 'delete product');
 
@@ -1494,7 +1503,7 @@ class SubscriptionProcessController extends Controller
             $configs = json_decode($product->configs ?? '', true) ?? [];
             $uuid    = $configs['uuid'] ?? null;
             if ($uuid == null) {
-                return false;
+                return true;
             }
             $sn  = new SanaeiPannelController();
             $res = $sn->deleteUser($pannel->id, $uuid);
@@ -1504,13 +1513,17 @@ class SubscriptionProcessController extends Controller
 
         if ($pannel->isMarzbanCompatible()) {
             $mb = MarzbanPannelController::resolve($pannel);
+            $username = $this->resolveMarzbanUsernameForDelete($product);
+            if ($username === '') {
+                return true;
+            }
 
-            return $mb->deleteUser($pannel->id, $product->remark);
+            return $mb->deleteUser($pannel->id, $username);
         }
 
         $uuid = $this->hiddifyPannelCntrl->extractUUID($product->subscription_link);
         if ($uuid == null || $uuid === '') {
-            return false;
+            return true;
         }
 
         $result = $this->hiddifyPannelCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
@@ -1519,6 +1532,59 @@ class SubscriptionProcessController extends Controller
         }
 
         return $result !== false;
+    }
+
+    private function isProductAbsentFromPanel(Product $product, $pannel): bool
+    {
+        if ($pannel->type == 'sanaei') {
+            $configs = json_decode($product->configs ?? '', true) ?? [];
+            $uuid    = $configs['uuid'] ?? null;
+            if ($uuid == null) {
+                return true;
+            }
+            $sn = new SanaeiPannelController();
+
+            return $sn->findClientByUUID($pannel, $uuid) === false;
+        }
+
+        if ($pannel->isMarzbanCompatible()) {
+            $username = $this->resolveMarzbanUsernameForDelete($product);
+            if ($username === '') {
+                return true;
+            }
+            $mb = MarzbanPannelController::resolve($pannel);
+
+            return $mb->getUser($pannel->id, $username) === null;
+        }
+
+        $uuid = $this->hiddifyPannelCntrl->extractUUID($product->subscription_link);
+        if ($uuid == null || $uuid === '') {
+            return true;
+        }
+
+        $userData = $this->hiddifyPannelCntrl->getHiddifyPanelUserByPannelID($pannel->id, $uuid);
+        if ($userData === false) {
+            return true;
+        }
+        if (is_object($userData) && method_exists($userData, 'getStatusCode')) {
+            return $userData->getStatusCode() !== 200;
+        }
+        if (is_array($userData)) {
+            return empty($userData['uuid'] ?? null);
+        }
+
+        return false;
+    }
+
+    private function resolveMarzbanUsernameForDelete(Product $product): string
+    {
+        $configs = json_decode($product->configs ?? '', true) ?? [];
+        $username = $configs['username'] ?? null;
+        if (is_string($username) && trim($username) !== '') {
+            return trim($username);
+        }
+
+        return trim((string) ($product->remark ?? ''));
     }
 
     public function remarkReply($chatId, $newName)
