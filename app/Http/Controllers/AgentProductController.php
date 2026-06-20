@@ -10,7 +10,9 @@ use App\Models\Pannel;
 use App\Models\User;
 use App\Models\AgentPermisson;
 use App\Services\ConfigNameService;
+use App\Services\InventoryPurchaseService;
 use App\Services\PromoCodeService;
+use App\Services\SubscriptionPaymentService;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
@@ -1455,114 +1457,179 @@ class AgentProductController extends Controller
     public function buyProductByAdmin(Request $request)
     {
         $selectedPrCat = ProductCategory::find($request->id);
+        if ($selectedPrCat == null || ! $selectedPrCat->is_active) {
+            return response()->json('بسته یافت نشد یا غیرفعال است', 500);
+        }
 
         $accountID = $request->account_id;
         $userID = $request->user_id;
         $agentname = $request->username;
-        $remark = "$agentname -  $request->remark ";
+        $deductFromWallet = filter_var($request->input('deduct_from_wallet', true), FILTER_VALIDATE_BOOLEAN);
 
-        if ($selectedPrCat == null) {
-            return response()->json(false, 500);
-        }
-
-        if ($selectedPrCat->is_active == false) {
-            return response()->json(false, 500);
-        }
         $productPrice = $selectedPrCat->price;
         $productPriceInDollar = $selectedPrCat->price_in_dollar;
-
-        $accBlCtrl = new AccountBallanceController();
 
         $agentProduct = AgentProduct::where('product_categories_id', $selectedPrCat->id)
             ->where('user_id', $userID)
             ->first();
-
         if ($agentProduct != null) {
             $productPrice = $agentProduct->price;
             $productPriceInDollar = $agentProduct->price_in_dollar;
         }
 
         $accBlCtrl = new AccountBallanceController();
+        $referralCntrl = new ReferralWalletController();
+        $paymentService = new SubscriptionPaymentService($accBlCtrl, new PaymentSettingController(), $referralCntrl, new LogController());
+        $chargeResult = null;
+
+        if ($deductFromWallet) {
+            $hasBallance = $accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar);
+            $hasRefballance = $referralCntrl->check_user_has_ref_wallet_ballance($accountID, $productPrice);
+            if ((! $hasRefballance && ! $hasBallance) || ($hasBallance == 0 && $hasRefballance == 0)) {
+                return response()->json('موجودی کیف پول کاربر کافی نیست', 401);
+            }
+        }
+
         $pnlCntrl = new PannelController();
         $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
-        // get selected item specefic data
+        if ($pannel == null) {
+            return response()->json('پنل یافت نشد', 500);
+        }
+
         $day = $selectedPrCat->expire_day;
         $volume = $selectedPrCat->volume;
         $prCntrl = new ProductController();
-        if ($pannel->type == 'hiddify') {
-            $req = new Request();
-            $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
-            $req->pannelID = $selectedPrCat->pannel_id;
-            $req->vol = $volume;
-            $req->day = $day;
-            $hiddifcCntrl = new HiddifyPannelController();
+        $generalCntrl = new GeneralController();
+        $botUser = BotUser::where('account_id', $accountID)->first();
+        $username = $botUser?->username ?? (string) $accountID;
+        $reservedProductId = null;
+        $soldInventoryProductId = null;
 
-            $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
-            // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
+        try {
+            if ($pannel->isInventoryPanel()) {
+                if ($prCntrl->countActiveInventory($selectedPrCat->id) < 1) {
+                    return response()->json('موجودی این بسته تمام شده است', 500);
+                }
 
-            $userPannelLink = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
+                if ($deductFromWallet) {
+                    $hasRefballance = $referralCntrl->check_user_has_ref_wallet_ballance($accountID, $productPrice);
+                    $chargeResult = $paymentService->charge(
+                        $accountID,
+                        (float) $productPrice,
+                        (float) $productPriceInDollar,
+                        (bool) $hasRefballance,
+                        $username,
+                        'admin_purchase'
+                    );
+                    if (! $paymentService->wasCharged($chargeResult)) {
+                        return response()->json('موجودی کیف پول کاربر کافی نیست', 401);
+                    }
+                    $this->addNewBotLog('ballance', "مبلغ $productPrice از حساب کاربر $accountID بابت خرید بسته توسط ادمین کم شد.", 'minus ballance');
+                }
 
-            $userSubscriptionLInk = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->user_link, "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new");
+                $inventoryService = new InventoryPurchaseService();
+                $soldInventoryProductId = $inventoryService->deliverInventoryProduct($selectedPrCat, $accountID);
+                if ($soldInventoryProductId === false) {
+                    if ($chargeResult !== null) {
+                        $paymentService->refund($accountID, $chargeResult, $username, 'admin_purchase');
+                    }
 
-            $reqProductDetails = new Request();
-            $reqProductDetails->account_id = $accountID;
-            $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-            $reqProductDetails->product_categories_id = $selectedPrCat->id;
-            $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
-            $reqProductDetails->configs = '';
-            $reqProductDetails->remark = $remark;
+                    return response()->json('خطا در تحویل کانفیگ از موجودی', 500);
+                }
 
-            $prCntrl->addAutomatedProductDetails($reqProductDetails);
-            $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
-            $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته بصورت دستی کم شد.", 'minus ballance');
+                $trimmedRemark = trim((string) ($request->remark ?? ''));
+                if ($trimmedRemark !== '') {
+                    $inventoryRemark = ($agentname !== null && trim((string) $agentname) !== '')
+                        ? trim((string) $agentname) . ' - ' . $trimmedRemark
+                        : $trimmedRemark;
+                    Product::where('id', $soldInventoryProductId)->update(['remark' => $inventoryRemark]);
+                }
 
-            return $userPannelLink;
-        }
+                $generalCntrl->send_using_subscription_manual_message($accountID, null, null, true);
+                $this->addNewBotLog('product', "بسته {$selectedPrCat->category_name} برای کاربر $accountID توسط ادمین خریداری شد.", 'buy product');
 
-        if ($pannel->type == 'sanaei') {
-            $snCtrl = new SanaeiPannelController();
-            $req = new Request();
-            $this->applyPanelIdentityToRequest($req, $accountID, (string) time());
-            $req->pannelID = $selectedPrCat->pannel_id;
-            $req->vol = $volume;
-            $req->day = $day;
-            $req->inbound_id = $selectedPrCat->inbound_id;
-            $req->ip_limit = $selectedPrCat->ip_limit;
-
-            $result = $snCtrl->addUserToSanaeiPanel($req);
-            if ($result === false) {
-                return response()->json('Error in creating user in panel', 500);
+                return response()->json(['success' => true, 'product_id' => $soldInventoryProductId], 200);
             }
-            if (is_array($result)) {
-                $uuid = $result['uuid'];
-                $subId = $result['subId'];
+
+            $identity = $this->prepareWebPurchaseIdentity(
+                $accountID,
+                (int) $selectedPrCat->id,
+                $request->remark,
+                $agentname
+            );
+            if (! ($identity['ok'] ?? false)) {
+                return response()->json($identity['message'] ?? 'خطا در رزرو بسته', 500);
+            }
+
+            $remark = $identity['remark'];
+            $reservedProductId = $identity['reserved_product_id'];
+
+            if ($deductFromWallet) {
+                $hasRefballance = $referralCntrl->check_user_has_ref_wallet_ballance($accountID, $productPrice);
+                $chargeResult = $paymentService->charge(
+                    $accountID,
+                    (float) $productPrice,
+                    (float) $productPriceInDollar,
+                    (bool) $hasRefballance,
+                    $username,
+                    'admin_purchase'
+                );
+                if (! $paymentService->wasCharged($chargeResult)) {
+                    $prCntrl->deletePendingProduct($reservedProductId);
+
+                    return response()->json('موجودی کیف پول کاربر کافی نیست', 401);
+                }
+                $this->addNewBotLog('ballance', "مبلغ $productPrice از حساب کاربر $accountID بابت خرید بسته توسط ادمین کم شد.", 'minus ballance');
+            }
+
+            $result = null;
+            if ($pannel->type == 'hiddify') {
+                $result = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $accountID, $reservedProductId);
+            } elseif ($pannel->isMarzbanCompatible()) {
+                $result = $generalCntrl->new_marzban_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $accountID, $reservedProductId);
+            } elseif ($pannel->type == 'sanaei') {
+                $result = $generalCntrl->new_sanaei_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $accountID, $reservedProductId);
             } else {
-                $uuid = $result;
-                $subId = $uuid;
+                if ($chargeResult !== null) {
+                    $paymentService->refund($accountID, $chargeResult, $username, 'admin_purchase');
+                }
+                $prCntrl->deletePendingProduct($reservedProductId);
+
+                return response()->json('نوع پنل پشتیبانی نمی‌شود', 500);
             }
 
-            $links = $snCtrl->getUserLinks($pannel, $uuid, $req->accountId, $selectedPrCat->inbound_id);
+            if ($result === false || $result === null) {
+                if ($chargeResult !== null) {
+                    $paymentService->refund($accountID, $chargeResult, $username, 'admin_purchase');
+                }
+                $prCntrl->deletePendingProduct($reservedProductId);
 
-            if ($selectedPrCat->show_subscription_link) {
-                $userPannelLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
-            } else {
-                $userPannelLink = $links[0] ?? '';
+                return response()->json('خطا در ایجاد کانفیگ در پنل', 500);
             }
 
-            $reqProductDetails = new Request();
-            $reqProductDetails->account_id = $accountID;
-            $reqProductDetails->subscription_link = $userPannelLink;
-            $reqProductDetails->product_categories_id = $selectedPrCat->id;
-            $reqProductDetails->panel_link = '';
-            $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
-            $reqProductDetails->remark = $remark;
+            Product::where('id', $reservedProductId)->update(['remark' => $remark]);
+            $generalCntrl->send_using_subscription_manual_message($accountID, null, null, false);
+            $this->addNewBotLog('product', "$remark برای کاربر $accountID توسط ادمین خریداری شد.", 'buy product');
 
-            $prCntrl->addAutomatedProductDetails($reqProductDetails);
-            $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
-            $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته بصورت دستی کم شد.", 'minus ballance');
-            $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
+            return response()->json(['success' => true, 'product_id' => $reservedProductId], 200);
+        } catch (\Throwable $th) {
+            \Log::error('buyProductByAdmin failed: ' . $th->getMessage(), [
+                'account_id' => $accountID,
+                'category_id' => $selectedPrCat->id,
+                'trace' => $th->getTraceAsString(),
+            ]);
 
-            return $userPannelLink;
+            if ($chargeResult !== null && $paymentService->wasCharged($chargeResult)) {
+                $paymentService->refund($accountID, $chargeResult, $username, 'admin_purchase');
+            }
+            if ($reservedProductId !== null) {
+                $prCntrl->deletePendingProduct($reservedProductId);
+            }
+            if ($soldInventoryProductId !== null) {
+                (new InventoryPurchaseService())->rollbackDelivery($soldInventoryProductId);
+            }
+
+            return response()->json('خطا در خرید کانفیگ', 500);
         }
     }
     public function getAgentSelledProducts($count = 10)
