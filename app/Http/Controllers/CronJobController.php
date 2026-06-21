@@ -292,79 +292,19 @@ class CronJobController extends Controller
                     continue;
                 }
 
-                $products = [];
-                // create a empty array of products ids and uuid
                 $productsIds = [];
                 $productsUuids = [];
-                foreach ($usersResponse as $key => $value) {
-                    // get releated products by uuid
+                foreach ($usersResponse as $value) {
+                    if (! $this->shouldAutoDeletePanelUser($value)) {
+                        continue;
+                    }
+
                     $uuid = $value['uuid'];
-
-                    $package_days = intval($value['package_days'] ?? 0);
-                    $startDateRaw = $value['start_date'] ?? null;
-                    if (empty($startDateRaw) || $package_days <= 0) {
-                        $currentUsageGB = $value['current_usage_GB'] ?? 0;
-                        $usageLimitGB = $value['usage_limit_GB'] ?? 0;
-                        if ($currentUsageGB > 0 && $usageLimitGB > 0 && $currentUsageGB >= $usageLimitGB) {
-                            $product = $this->findProductForPanelUser($panel, $uuid);
-                            if ($product != null) {
-                                $products[] = $product;
-                                $productsIds[] = $product->id;
-                                $productsUuids[] = $uuid;
-                            }
-                        }
-                        continue;
-                    }
-
-                    $startDate = Carbon::parse($startDateRaw);
-                    // add expireDate to $startDate
-                    $expireDate = Carbon::parse($startDate);
-
-                    // add $package_days to $expireDate
-                    $expireDate->addDays($package_days);
-
-                    // get usage_limit_GB
-                    $currentUsageGB = $value['current_usage_GB'];
-                    // check if usage_limit_GB is 0
-                    if ($currentUsageGB == 0) {
-                        continue;
-                    }
-                    // get usage_limit_GB
-                    $usageLimitGB = $value['usage_limit_GB'];
-                    // check if currentUsageGB is more than usageLimitGB
-                    if ($currentUsageGB >= $usageLimitGB) {
-                        $product = $this->findProductForPanelUser($panel, $uuid);
-                        if ($product != null) {
-                            $products[] = $product;
-                            $productsIds[] = $product->id;
-                            $productsUuids[] = $uuid;
-                            continue;
-
-                        }
-
-                    }
-
-                    // check if expireDate is not in the past, skip
-                    if (!$expireDate->isPast()) {
-                        continue;
-                    }
-                    // check if more than 10 days have passed since expireDate
-                    $dateDifference = Carbon::now()->diffInDays($expireDate);
-                    if ($dateDifference < 10) {
-                        continue;
-                    }
-
-                    // add product to deletion list
                     $product = $this->findProductForPanelUser($panel, $uuid);
                     if ($product != null) {
-                        $products[] = $product;
                         $productsIds[] = $product->id;
                         $productsUuids[] = $uuid;
                     }
-                    // delete config on hiddify panel
-
-                    // delete products
-
                 }
                 Product::whereIn('id', $productsIds)->delete();
                 // delete users from panel
@@ -799,6 +739,41 @@ class CronJobController extends Controller
             \Log::error("Error clearing laravel log: " . $th->getMessage());
             return false;
         }
+    }
+
+    private function shouldAutoDeletePanelUser(array $user): bool
+    {
+        $graceDays = 10;
+        $now = Carbon::now('UTC');
+
+        $expireTs = (int) ($user['expire_timestamp'] ?? 0);
+        if ($expireTs > 0) {
+            $expireDate = Carbon::createFromTimestamp($expireTs, 'UTC');
+            if (! $expireDate->isPast()) {
+                return false;
+            }
+
+            return $now->diffInDays($expireDate, true) >= $graceDays;
+        }
+
+        $packageDays = (int) ($user['package_days'] ?? 0);
+        $startDateRaw = $user['start_date'] ?? null;
+        if (! empty($startDateRaw) && $packageDays > 0) {
+            $expireDate = Carbon::parse($startDateRaw)->addDays($packageDays);
+            if (! $expireDate->isPast()) {
+                return false;
+            }
+
+            return Carbon::now()->diffInDays($expireDate, true) >= $graceDays;
+        }
+
+        $currentUsageGB = (float) ($user['current_usage_GB'] ?? 0);
+        $usageLimitGB = (float) ($user['usage_limit_GB'] ?? 0);
+        if ($currentUsageGB <= 0 || $usageLimitGB <= 0) {
+            return false;
+        }
+
+        return $currentUsageGB >= $usageLimitGB;
     }
 
     private function getPanelUsers(Pannel $panel): array

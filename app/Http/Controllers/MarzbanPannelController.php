@@ -362,6 +362,20 @@ class MarzbanPannelController extends Controller
         return (int) round((float) $gb * 1024 * 1024 * 1024);
     }
 
+    private function normalizeExpireTimestamp($expireRaw): int
+    {
+        $expireTs = (int) $expireRaw;
+        if ($expireTs <= 0) {
+            return 0;
+        }
+
+        if ($expireTs > 9999999999) {
+            return (int) floor($expireTs / 1000);
+        }
+
+        return $expireTs;
+    }
+
     private function expireTimestamp(int $days): int
     {
         $utc = Carbon::now('UTC')->addDays($days);
@@ -678,7 +692,7 @@ class MarzbanPannelController extends Controller
         $currentUsageGb = round($usedBytes / 1024 / 1024 / 1024, 2);
         $usageLimitGb = $limitBytes > 0 ? round($limitBytes / 1024 / 1024 / 1024, 2) : 0;
 
-        $expireTs = (int) ($user['expire'] ?? 0);
+        $expireTs = $this->normalizeExpireTimestamp($user['expire'] ?? 0);
         $startDate = null;
         $packageDays = 0;
         if ($expireTs > 0) {
@@ -697,6 +711,7 @@ class MarzbanPannelController extends Controller
             'usage_limit_GB' => $usageLimitGb,
             'start_date' => $startDate,
             'package_days' => $packageDays,
+            'expire_timestamp' => $expireTs > 0 ? $expireTs : null,
             'marzban' => true,
         ]);
     }
@@ -762,7 +777,7 @@ class MarzbanPannelController extends Controller
     {
         $usedBytes = (int) ($user['used_traffic'] ?? 0);
         $limitBytes = (int) ($user['data_limit'] ?? 0);
-        $expireTs = (int) ($user['expire'] ?? 0);
+        $expireTs = $this->normalizeExpireTimestamp($user['expire'] ?? 0);
 
         $packageDays = 0;
         $startDate = Carbon::now('UTC')->toDateString();
@@ -778,6 +793,7 @@ class MarzbanPannelController extends Controller
                 : 0,
             'start_date' => $startDate,
             'package_days' => $packageDays,
+            'expire_timestamp' => $expireTs > 0 ? $expireTs : null,
             'is_active' => ($user['status'] ?? '') === 'active',
         ];
     }
