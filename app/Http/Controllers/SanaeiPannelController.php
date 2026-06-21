@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Pannel;
 use App\Services\ConfigNameService;
+use App\Services\LicenseFeatureService;
 use GuzzleHttp\Cookie\CookieJar;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -1975,23 +1976,9 @@ class SanaeiPannelController extends Controller
     public function addSanaeiPannel(Request $request)
     {
         try {
-            $authCntrl = new AuthController();
-            $license = $authCntrl->getPowerPsLicenseType();
-            if ($license === false) {
-                $license = 'false';
-            }
-            $license = strtolower((string) $license);
-
-            $panelCount = Pannel::count();
-            $limitedLicenses = ['false', 'trial', 'bronze'];
-            $hasAccountLimitation = in_array($license, $limitedLicenses, true)
-                || ($license === 'silver' && $panelCount >= 2);
-
-            if ($hasAccountLimitation && $panelCount >= 2) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.',
-                ], 403);
+            $licenseService = new LicenseFeatureService();
+            if (! $licenseService->canAddPanel(Pannel::count())) {
+                return $licenseService->panelLimitReachedResponse();
             }
 
             $adminUrl = $this->normalizeAdminUrl($request->admin_url ?? $request->pannelUrl ?? '');

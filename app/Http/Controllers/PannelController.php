@@ -5,6 +5,7 @@ use App\Models\Pannel;
 use App\Models\Proxy;
 use App\Models\Inbound;
 use App\Models\Product;
+use App\Services\LicenseFeatureService;
 
 
 use Illuminate\Http\Request;
@@ -19,25 +20,11 @@ class PannelController extends Controller
     public function addNewPannel(Request $request)
     {
         try {
-            $authCntrl = new AuthController();
-            $license = $authCntrl->getPowerPsLicenseType();
-            // normalize license (handle boolean false and case)
-            if ($license === false) {
-                $license = 'false';
+            $licenseService = new LicenseFeatureService();
+            if (! $licenseService->canAddPanel(Pannel::count())) {
+                return $licenseService->panelLimitReachedResponse();
             }
-            $license = strtolower((string) $license);
 
-            // check license
-            $panelCount = Pannel::count();
-            $limitedLicenses = ['false', 'trial', 'bronze'];
-            $hasAccountLimitation = in_array($license, $limitedLicenses, true) || ($license === 'silver' && $panelCount >= 2);
-
-            if ($hasAccountLimitation && $panelCount >= 2) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.'
-                ], 403);
-            }
             $pannel = new Pannel();
             $pannel->type = $request->type;
             $pannel->username = $request->username ?? 'admin';
@@ -59,6 +46,11 @@ class PannelController extends Controller
     public function addNewPannelMarzban(Request $request)
     {
         try {
+            $licenseService = new LicenseFeatureService();
+            if (! $licenseService->canAddPanel(Pannel::count())) {
+                return $licenseService->panelLimitReachedResponse();
+            }
+
             $pannel = new Pannel();
             $pannel->type = $request->type;
             $pannel->username = $request->username ?? 'admin';

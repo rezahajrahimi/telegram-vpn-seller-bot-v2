@@ -23,6 +23,28 @@ PHP_VERSION="$(tr -d '[:space:]' < "${PROJECT_ROOT}/.powerps-php-version")"
 BOLT_VERSION="$(tr -d '[:space:]' < "${PROJECT_ROOT}/.powerps-bolt-version")"
 ARCH="$(uname -m)"
 
+sanitize_release_composer_json() {
+ php -r '
+$path = $argv[1];
+$data = json_decode(file_get_contents($path), true);
+if (!is_array($data)) { exit(1); }
+unset($data["require-dev"]["sbamtr/laravel-source-encrypter"]);
+if (isset($data["autoload-dev"]["psr-4"]["sbamtr\\LaravelSourceEncrypter\\"])) {
+ unset($data["autoload-dev"]["psr-4"]["sbamtr\\LaravelSourceEncrypter\\"]);
+}
+if (!empty($data["repositories"])) {
+ $data["repositories"] = array_values(array_filter(
+ $data["repositories"],
+ fn($repo) => ($repo["type"] ?? "") !== "path"
+ ));
+}
+file_put_contents(
+ $path,
+ json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
+);
+' "$1"
+}
+
 if [[ "${SKIP_ENCRYPT}" -eq 0 ]]; then
     echo "==> Encrypting app and routes (database stays plain)"
     "${PROJECT_ROOT}/tools/encrypt-source.sh" --source=app,routes --force
@@ -105,6 +127,12 @@ phpBolt: ${BOLT_VERSION}
 Built on: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
 Host arch: ${ARCH}
 EOF
+
+echo "==> Sanitizing composer files for production release"
+sanitize_release_composer_json "${OUTPUT_DIR}/composer.json"
+if command -v composer >/dev/null 2>&1; then
+ (cd "${OUTPUT_DIR}" && composer update --lock --no-install --no-dev --no-interaction --ignore-platform-reqs --no-scripts) || true
+fi
 
 echo "==> Release ready at ${OUTPUT_DIR}"
 echo "    PHP ${PHP_VERSION} | phpBolt ${BOLT_VERSION} | bolt.so arch: ${ARCH}"
