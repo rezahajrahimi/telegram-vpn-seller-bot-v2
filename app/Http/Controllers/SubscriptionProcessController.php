@@ -1479,7 +1479,11 @@ class SubscriptionProcessController extends Controller
                 return "";
             }
 
-            $this->addNewBotLog('history', "بسته $remark حذف شد.", 'delete product');
+            $this->addNewBotLog(
+                'product',
+                "بسته {$remark} توسط کاربر از ربات حذف شد.",
+                'remove product'
+            );
 
             $text = $this->customTextCtrl->getText('action.delete_history.success', [
                 'name' => $remark,
@@ -1664,8 +1668,20 @@ class SubscriptionProcessController extends Controller
 
     private function addNewBotLog($type, $message, $event)
     {
-        $logCtrl = new LogController();
-        $logCtrl->addNewLog($type, $message, $this->chatId, $this->botUser->username, $event);
+        try {
+            $logCtrl = new LogController();
+            $username = $this->botUser?->username
+                ?? $this->botUser?->first_name
+                ?? (string) $this->chatId;
+            $logCtrl->addNewLog($type, $message, $this->chatId, $username, $event);
+        } catch (\Throwable $th) {
+            \Log::error('addNewBotLog failed: ' . $th->getMessage(), [
+                'type' => $type,
+                'event' => $event,
+                'account_id' => $this->chatId,
+            ]);
+        }
+
         return true;
     }
     // سایر متدهای کمکی مورد نیاز...
