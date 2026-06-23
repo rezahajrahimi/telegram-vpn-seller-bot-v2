@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BotButtonConfigController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\OrderController;
@@ -190,6 +191,12 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::post('changeMainMenuAliasName', [MainMenuItemController::class, 'changeMainMenuAliasName']);
     Route::post('changeMainMenuPosition', [MainMenuItemController::class, 'changeMainMenuPosition']);
     Route::post('reorder-main-menu-items', [MainMenuItemController::class, 'reorderMainMenuItems']);
+    Route::post('update-main-menu-button-style', [MainMenuItemController::class, 'updateMainMenuButtonStyle']);
+
+    // bot button customization
+    Route::get('get-bot-button-config', [BotButtonConfigController::class, 'getConfig']);
+    Route::post('update-bot-button-layout', [BotButtonConfigController::class, 'updateLayoutSettings']);
+    Route::post('update-bot-button-style-rules', [BotButtonConfigController::class, 'updateStyleRules']);
 
     // payment type
     Route::get('getPaymentTypes', [PaymentTypeController::class, 'getPaymentTypes']);

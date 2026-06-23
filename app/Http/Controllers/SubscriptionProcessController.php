@@ -738,7 +738,9 @@ class SubscriptionProcessController extends Controller
         $this->telegramService->sendMessageWithInlineKeyboard(
             $this->chatId,
             $selection['message'],
-            $selection['buttons']
+            $selection['buttons'],
+            null,
+            false,
         );
 
         return "";

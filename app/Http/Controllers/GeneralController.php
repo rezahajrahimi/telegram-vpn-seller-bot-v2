@@ -361,32 +361,8 @@ class GeneralController extends Controller
     {
         $menu = new MainMenuItemController();
         $menuItem = $menu->getAllActivatedMainMenuItems();
-        $opr = [];
-
-        if ($menuItem[0]->name == 'خرید اشتراک') {
-            array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
-            $menuItem = $menuItem->slice(1);
-        }
-
-        $countOfMenuItem = count($menuItem);
-        for ($i = 0; $i < $countOfMenuItem; $i += 2) {
-            $pair = $menuItem->slice($i, 2);
-            $row = [];
-
-            foreach ($pair as $item) {
-                $row[] = [
-                    'text' => $item->alias_name,
-                    'callback_data' => "main-{$item->id}",
-                ];
-            }
-
-            if (!empty($row)) {
-                $opr[] = $row;
-            }
-        }
-
-        // $settingCtrl = new SettingController();
-// $this->message = $settingCtrl->getWelcomeMessage();
+        $keyboardConfig = new \App\Services\BotKeyboardConfigService();
+        $opr = $keyboardConfig->buildMainMenuKeyboard($menuItem);
 
         $result = $this->telegramService->sendMessageWithKeyboard($chat_id, $message, $opr);
 
@@ -1150,6 +1126,12 @@ class GeneralController extends Controller
             }
         }
         $text = $this->customTextCtrl->getText('action.help.support.title');
+        if ($opr === []) {
+            $this->telegramService->sendMessage($chatId, $text);
+
+            return "";
+        }
+
         $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
         return "";
     }

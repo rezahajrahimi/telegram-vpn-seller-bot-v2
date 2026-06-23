@@ -5,6 +5,7 @@ use App\Models\Setting;
 use App\Http\Controllers\DotenvEditor;
 use App\Services\ConfigNameService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 
 class SettingController extends Controller
 {
@@ -107,6 +108,8 @@ class SettingController extends Controller
 
                 file_put_contents($path, $envContent);
             }
+
+            Artisan::call('config:clear');
 
             return response()->json([
                 'status' => true,

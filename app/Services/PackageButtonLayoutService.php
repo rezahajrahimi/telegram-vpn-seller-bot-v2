@@ -57,12 +57,18 @@ class PackageButtonLayoutService
         bool $dollarTransaction,
         string $baseMessage,
     ): array {
-        return match ($this->resolveLayout()) {
+        $result = match ($this->resolveLayout()) {
             self::LAYOUT_MULTI_COLUMN => $this->buildMultiColumnLayout($categories, $dollarTransaction, $baseMessage),
             self::LAYOUT_LIST_IN_MESSAGE => $this->buildListInMessageLayout($categories, $dollarTransaction, $baseMessage),
             self::LAYOUT_COMPACT_BUTTON => $this->buildCompactButtonLayout($categories, $dollarTransaction, $baseMessage),
             default => $this->buildFullButtonLayout($categories, $dollarTransaction, $baseMessage),
         };
+
+        if ($this->resolveLayout() !== self::LAYOUT_MULTI_COLUMN) {
+            $result['buttons'] = (new BotKeyboardConfigService())->applyPackageButtonLayout($result['buttons']);
+        }
+
+        return $result;
     }
 
     public function ensureLayoutSettingExists(): void
@@ -112,26 +118,28 @@ class PackageButtonLayoutService
 
         if ($dollarTransaction) {
             $buttons[] = [
-                'قیمت(دلار)' => '0',
-                'قیمت(تومان)' => '0',
-                'بسته' => '0',
+                $this->inlineButton('قیمت(دلار)', '0'),
+                $this->inlineButton('قیمت(تومان)', '0'),
+                $this->inlineButton('بسته', '0'),
             ];
             foreach ($categories as $category) {
+                $callback = 'buySubscription-' . $category->id;
                 $buttons[] = [
-                    (string) $category->price_in_dollar => 'buySubscription-' . $category->id,
-                    (string) $category->price => 'buySubscription-' . $category->id,
-                    (string) $category->category_name => 'buySubscription-' . $category->id,
+                    $this->inlineButton($this->formatDollarPrice((float) $category->price_in_dollar), $callback),
+                    $this->inlineButton($this->formatTomanPrice((float) $category->price), $callback),
+                    $this->inlineButton((string) $category->category_name, $callback),
                 ];
             }
         } else {
             $buttons[] = [
-                'قیمت(تومان)' => '0',
-                'بسته' => '0',
+                $this->inlineButton('قیمت(تومان)', '0'),
+                $this->inlineButton('بسته', '0'),
             ];
             foreach ($categories as $category) {
+                $callback = 'buySubscription-' . $category->id;
                 $buttons[] = [
-                    (string) $category->price => 'buySubscription-' . $category->id,
-                    (string) $category->category_name => 'buySubscription-' . $category->id,
+                    $this->inlineButton($this->formatTomanPrice((float) $category->price), $callback),
+                    $this->inlineButton((string) $category->category_name, $callback),
                 ];
             }
         }
@@ -237,6 +245,17 @@ class PackageButtonLayoutService
         }
 
         return rtrim(mb_substr($text, 0, max(1, $maxLength - 1))) . '…';
+    }
+
+    /**
+     * @return array{text: string, callback_data: string}
+     */
+    private function inlineButton(string $text, string $callbackData): array
+    {
+        return [
+            'text' => $text,
+            'callback_data' => $callbackData,
+        ];
     }
 
     /**

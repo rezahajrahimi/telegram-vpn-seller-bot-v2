@@ -2,6 +2,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AdvanceSettingLookup;
+use App\Services\BotKeyboardConfigService;
 use App\Services\PackageButtonLayoutService;
 use Illuminate\Http\Request;
 
@@ -48,6 +49,12 @@ class AdvanceSettingLookupController extends Controller
             ['name' => 'bot_calculate_product_category_price_in_dollar_by_toman', 'value' => 'false', 'description' => 'قیمت گذاری اتوماتیک بر اساس قیمت تومان'],
             ['name' => 'bot_show_one_row_config', 'value' => 'true', 'description' => 'نمایش پیکربندی ها در یک ردیف (قدیمی — در صورت تنظیم «نحوه نمایش لیست بسته‌ها» نادیده گرفته می‌شود)'],
             ['name' => PackageButtonLayoutService::SETTING_KEY, 'value' => PackageButtonLayoutService::LAYOUT_FULL_BUTTON, 'description' => 'نحوه نمایش لیست بسته‌ها در ربات'],
+            ['name' => BotKeyboardConfigService::SETTING_REPLY_COLUMNS, 'value' => '2', 'description' => 'تعداد دکمه در هر ردیف منوی اصلی (کیبورد پایین)'],
+            ['name' => BotKeyboardConfigService::SETTING_INLINE_COLUMNS, 'value' => '1', 'description' => 'تعداد دکمه در هر ردیف کیبورد اینلاین (پیش‌فرض)'],
+            ['name' => BotKeyboardConfigService::SETTING_PACKAGE_COLUMNS, 'value' => '1', 'description' => 'تعداد دکمه در هر ردیف لیست بسته‌ها'],
+            ['name' => BotKeyboardConfigService::SETTING_REPLY_PERSISTENT, 'value' => 'false', 'description' => 'کیبورد پایین همیشه نمایش داده شود (is_persistent)'],
+            ['name' => BotKeyboardConfigService::SETTING_MAIN_MENU_FIRST_ALONE, 'value' => 'true', 'description' => 'اولین آیتم منوی اصلی در ردیف جداگانه'],
+            ['name' => BotKeyboardConfigService::SETTING_STYLE_RULES, 'value' => json_encode(BotKeyboardConfigService::DEFAULT_STYLE_RULES, JSON_UNESCAPED_UNICODE), 'description' => 'قوانین استایل و رنگ دکمه‌های اینلاین'],
             ['name' => 'bot_daily_backup', 'value' => 'true', 'description' => 'برای ایجاد بکاپ روزانه'],
             ['name' => 'bot_auto_delete_expired_configs', 'value' => 'true', 'description' => 'حذف کانفیگ هایی که 10 روز از انقضا آنها می گذرد'],
         ];

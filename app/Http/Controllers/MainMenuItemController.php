@@ -17,6 +17,7 @@ class MainMenuItemController extends Controller
             $menu1->alias_name = 'خرید اشتراک';
             $menu1->is_active = true;
             $menu1->position = 1;
+            $menu1->solo_row = true;
             $menu1->save();
             $menu2 = new MainMenuItem();
 
@@ -207,5 +208,39 @@ class MainMenuItemController extends Controller
         } else {
             return false;
         }
+    }
+
+    public function updateMainMenuButtonStyle(Request $request)
+    {
+        $license = new LicenseFeatureService();
+        if (! $license->canCustomizeBotButtons()) {
+            return $license->silverRequiredResponse();
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string',
+            'button_style' => 'nullable|string|in:primary,success,danger',
+            'icon_custom_emoji_id' => 'nullable|string|max:64',
+            'solo_row' => 'nullable|boolean',
+        ]);
+
+        $item = MainMenuItem::where('name', $validated['name'])->first();
+        if ($item === null) {
+            return response()->json(['success' => false], 404);
+        }
+
+        if (array_key_exists('button_style', $validated)) {
+            $item->button_style = $validated['button_style'];
+        }
+        if (array_key_exists('icon_custom_emoji_id', $validated)) {
+            $item->icon_custom_emoji_id = $validated['icon_custom_emoji_id'];
+        }
+        if (array_key_exists('solo_row', $validated)) {
+            $item->solo_row = (bool) $validated['solo_row'];
+        }
+
+        $item->update();
+
+        return response()->json(['success' => true, 'item' => $item]);
     }
 }

@@ -2,18 +2,20 @@
 
 namespace App\Services;
 
-use App\Http\Controllers\AuthController;
 use Illuminate\Http\JsonResponse;
 
 class LicenseFeatureService
 {
     public const SILVER_PROMO_MAX = 5;
 
+    public function __construct(
+        private readonly LicenseCheckService $licenseCheck = new LicenseCheckService(),
+    ) {
+    }
+
     public function current(): string
     {
-        $auth = new AuthController();
-
-        return strtolower((string) $auth->getPowerPsLicenseType());
+        return strtolower((string) $this->licenseCheck->getLicenseType());
     }
 
     public function isGold(): bool
@@ -43,6 +45,11 @@ class LicenseFeatureService
         return response()->json([
             'message' => 'این قابلیت برای لایسنس نقره‌ای و طلایی فعال است.',
         ], 403);
+    }
+
+    public function canCustomizeBotButtons(): bool
+    {
+        return $this->isSilverOrAbove();
     }
 
     public function maxPanels(): ?int
