@@ -382,6 +382,7 @@ class ProductController extends Controller
     public function getLastProductSelled($count)
     {
         $data = Product::with(['user', 'product_category'])
+            ->where('remark', '!=', 'pending')
             ->orderBy('id', 'desc')
             ->take($count)
             ->get();

@@ -81,6 +81,219 @@ class AgentProductController extends Controller
         ];
     }
 
+    /**
+     * @return array{ok: bool, status?: int, body?: mixed}
+     */
+    private function processWebPurchase(
+        int|string $accountID,
+        ProductCategory $selectedPrCat,
+        float $productPrice,
+        float $productPriceInDollar,
+        ?string $userRemark,
+        ?string $displayNamePrefix,
+        $appliedPromo,
+        float $promoDiscountToman,
+        bool $logProductPurchase = true,
+    ): array {
+        $pnlCntrl = new PannelController();
+        $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
+        if ($pannel == null) {
+            return ['ok' => false, 'status' => 500, 'body' => 'پنل یافت نشد'];
+        }
+
+        $day = $selectedPrCat->expire_day;
+        $volume = $selectedPrCat->volume;
+        $prCntrl = new ProductController();
+        $accBlCtrl = new AccountBallanceController();
+
+        if ($pannel->isInventoryPanel()) {
+            if ($prCntrl->countActiveInventory($selectedPrCat->id) < 1) {
+                return ['ok' => false, 'status' => 500, 'body' => 'موجودی این بسته تمام شده است'];
+            }
+
+            $soldInventoryProductId = (new InventoryPurchaseService())->deliverInventoryProduct($selectedPrCat, $accountID);
+            if ($soldInventoryProductId === false) {
+                return ['ok' => false, 'status' => 500, 'body' => 'خطا در تحویل کانفیگ از موجودی'];
+            }
+
+            $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+            $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+
+            $trimmedRemark = trim((string) ($userRemark ?? ''));
+            if ($trimmedRemark !== '') {
+                $inventoryRemark = ($displayNamePrefix !== null && trim((string) $displayNamePrefix) !== '')
+                    ? trim((string) $displayNamePrefix) . ' - ' . $trimmedRemark
+                    : $trimmedRemark;
+                Product::where('id', $soldInventoryProductId)->update(['remark' => $inventoryRemark]);
+            }
+
+            if ($logProductPurchase) {
+                $this->addNewBotLog('product', "بسته {$selectedPrCat->category_name} خریداری شد.", 'buy product');
+            }
+            $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
+
+            $soldProduct = Product::find($soldInventoryProductId);
+            $deliveryLink = '';
+            if ($soldProduct !== null) {
+                if ($selectedPrCat->show_subscription_link && ! empty($soldProduct->subscription_link)) {
+                    $deliveryLink = (string) $soldProduct->subscription_link;
+                } else {
+                    $configLinks = ProductCategory::extractConfigLinks($soldProduct->configs);
+                    $deliveryLink = $configLinks[0] ?? (string) ($soldProduct->subscription_link ?? '');
+                }
+            }
+
+            return ['ok' => true, 'body' => $deliveryLink];
+        }
+
+        $identity = $this->prepareWebPurchaseIdentity(
+            $accountID,
+            (int) $selectedPrCat->id,
+            $userRemark,
+            $displayNamePrefix
+        );
+        if (! ($identity['ok'] ?? false)) {
+            return ['ok' => false, 'status' => 500, 'body' => $identity['message'] ?? 'خطا در رزرو بسته'];
+        }
+
+        $remark = $identity['remark'];
+        $reservedProductId = $identity['reserved_product_id'];
+
+        if ($pannel->type == 'hiddify') {
+            $req = new Request();
+            $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
+            $req->pannelID = $selectedPrCat->pannel_id;
+            $req->vol = $volume;
+            $req->day = $day;
+            $hiddifcCntrl = new HiddifyPannelController();
+
+            $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req);
+            if ($newUUID == false) {
+                $prCntrl->deletePendingProduct($reservedProductId);
+
+                return ['ok' => false, 'status' => 500, 'body' => 'Error in creating user in panel'];
+            }
+
+            $userPannelLink = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
+
+            $reqProductDetails = new Request();
+            $reqProductDetails->account_id = $accountID;
+            $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            $reqProductDetails->product_categories_id = $selectedPrCat->id;
+            $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
+            $reqProductDetails->configs = '';
+            $reqProductDetails->remark = $remark;
+            $reqProductDetails->product_id = $reservedProductId;
+
+            $prCntrl->addAutomatedProductDetails($reqProductDetails);
+            $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+            $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+            if ($logProductPurchase) {
+                $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
+            }
+            $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
+
+            return ['ok' => true, 'body' => $userPannelLink];
+        }
+
+        if ($pannel->type == 'sanaei') {
+            $snCtrl = new SanaeiPannelController();
+            $req = new Request();
+            $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
+            $req->pannelID = $selectedPrCat->pannel_id;
+            $req->vol = $volume;
+            $req->day = $day;
+            $req->inbound_id = $selectedPrCat->inbound_id;
+            $req->ip_limit = $selectedPrCat->ip_limit;
+
+            $result = $snCtrl->addUserToSanaeiPanel($req);
+            if ($result === false) {
+                $prCntrl->deletePendingProduct($reservedProductId);
+
+                return ['ok' => false, 'status' => 500, 'body' => 'Error in creating user in panel'];
+            }
+            if (is_array($result)) {
+                $uuid = $result['uuid'];
+                $subId = $result['subId'];
+            } else {
+                $uuid = $result;
+                $subId = $uuid;
+            }
+
+            $links = $snCtrl->getUserLinks($pannel, $uuid, $req->accountId, $selectedPrCat->inbound_id);
+
+            if ($selectedPrCat->show_subscription_link) {
+                $userPannelLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
+            } else {
+                $userPannelLink = $links[0] ?? '';
+            }
+
+            $reqProductDetails = new Request();
+            $reqProductDetails->account_id = $accountID;
+            $reqProductDetails->subscription_link = $userPannelLink;
+            $reqProductDetails->product_categories_id = $selectedPrCat->id;
+            $reqProductDetails->panel_link = '';
+            $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
+            $reqProductDetails->remark = $remark;
+            $reqProductDetails->product_id = $reservedProductId;
+
+            $prCntrl->addAutomatedProductDetails($reqProductDetails);
+            $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+            $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+            if ($logProductPurchase) {
+                $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
+            }
+            $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
+
+            return ['ok' => true, 'body' => $userPannelLink];
+        }
+
+        if ($pannel->isMarzbanCompatible()) {
+            $mbCtrl = MarzbanPannelController::resolve($pannel);
+            $marzbanUsername = $mbCtrl->buildBotUsername($accountID, $reservedProductId);
+            $userData = $mbCtrl->createUser($pannel, $marzbanUsername, (int) $day, $volume);
+            if ($userData === false) {
+                $prCntrl->deletePendingProduct($reservedProductId);
+
+                return ['ok' => false, 'status' => 500, 'body' => 'Error in creating user in panel'];
+            }
+
+            $links = $userData['links'] ?? [];
+            $userSub = $userData['subscription_link'] ?? '';
+            if ($selectedPrCat->show_subscription_link) {
+                $deliveryLink = $userSub !== '' ? $userSub : (string) ($userData['subscription_url'] ?? '');
+            } else {
+                $deliveryLink = $links[0] ?? $userSub;
+            }
+
+            $reqProductDetails = new Request();
+            $reqProductDetails->account_id = $accountID;
+            $reqProductDetails->subscription_link = $userData['subscription_url'] ?? '';
+            $reqProductDetails->product_categories_id = $selectedPrCat->id;
+            $reqProductDetails->panel_link = $userSub;
+            $reqProductDetails->configs = json_encode([
+                'username' => $userData['username'] ?? $marzbanUsername,
+                'links' => $links,
+            ]);
+            $reqProductDetails->remark = $remark;
+            $reqProductDetails->product_id = $reservedProductId;
+
+            $prCntrl->addAutomatedProductDetails($reqProductDetails);
+            $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
+            $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
+            if ($logProductPurchase) {
+                $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
+            }
+            $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
+
+            return ['ok' => true, 'body' => $deliveryLink];
+        }
+
+        $prCntrl->deletePendingProduct($reservedProductId);
+
+        return ['ok' => false, 'status' => 500, 'body' => 'نوع پنل پشتیبانی نمی‌شود'];
+    }
+
     public function obtainBatchOfExistProductsToUser(Request $request)
     {
         $pannelID = $request['pannelID'];
@@ -1118,110 +1331,30 @@ class AgentProductController extends Controller
         }
 
         $accBlCtrl = new AccountBallanceController();
-        if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
-            $identity = $this->prepareWebPurchaseIdentity(
-                $accountID,
-                (int) $selectedPrCat->id,
-                $request->remark,
-                $agentname
-            );
-            if (! ($identity['ok'] ?? false)) {
-                return response()->json($identity['message'] ?? 'خطا در رزرو بسته', 500);
-            }
-
-            $remark = $identity['remark'];
-            $reservedProductId = $identity['reserved_product_id'];
-
-            $pnlCntrl = new PannelController();
-            $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
-            // get selected item specefic data
-            $day = $selectedPrCat->expire_day;
-            $volume = $selectedPrCat->volume;
-            $prCntrl = new ProductController();
-            if ($pannel->type == 'hiddify') {
-                $req = new Request();
-                $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
-                $req->pannelID = $selectedPrCat->pannel_id;
-                $req->vol = $volume;
-                $req->day = $day;
-                $hiddifcCntrl = new HiddifyPannelController();
-
-                $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
-                if ($newUUID == false) {
-                    $prCntrl->deletePendingProduct($reservedProductId);
-
-                    return response()->json('Error in creating user in panel', 500);
-                }
-                $userPannelLink = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
-
-                $reqProductDetails = new Request();
-                $reqProductDetails->account_id = $accountID;
-                $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                $reqProductDetails->product_categories_id = $selectedPrCat->id;
-                $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
-                $reqProductDetails->configs = '';
-                $reqProductDetails->remark = $remark;
-                $reqProductDetails->product_id = $reservedProductId;
-
-                $prCntrl->addAutomatedProductDetails($reqProductDetails);
-                $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
-                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
-                $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
-
-                return $userPannelLink;
-            }
-
-            if ($pannel->type == 'sanaei') {
-                $snCtrl = new SanaeiPannelController();
-                $req = new Request();
-                $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
-                $req->pannelID = $selectedPrCat->pannel_id;
-                $req->vol = $volume;
-                $req->day = $day;
-                $req->inbound_id = $selectedPrCat->inbound_id;
-                $req->ip_limit = $selectedPrCat->ip_limit;
-
-                $result = $snCtrl->addUserToSanaeiPanel($req);
-                if ($result === false) {
-                    $prCntrl->deletePendingProduct($reservedProductId);
-
-                    return response()->json('Error in creating user in panel', 500);
-                }
-                if (is_array($result)) {
-                    $uuid = $result['uuid'];
-                    $subId = $result['subId'];
-                } else {
-                    $uuid = $result;
-                    $subId = $uuid;
-                }
-
-                $links = $snCtrl->getUserLinks($pannel, $uuid, $req->accountId, $selectedPrCat->inbound_id);
-
-                if ($selectedPrCat->show_subscription_link) {
-                    $userPannelLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
-                } else {
-                    $userPannelLink = $links[0] ?? '';
-                }
-
-                $reqProductDetails = new Request();
-                $reqProductDetails->account_id = $accountID;
-                $reqProductDetails->subscription_link = $userPannelLink;
-                $reqProductDetails->product_categories_id = $selectedPrCat->id;
-                $reqProductDetails->panel_link = '';
-                $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
-                $reqProductDetails->remark = $remark;
-                $reqProductDetails->product_id = $reservedProductId;
-
-                $prCntrl->addAutomatedProductDetails($reqProductDetails);
-                $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
-                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
-                $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
-                $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
-
-                return $userPannelLink;
-            }
+        if (! $accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+            return response()->json('low ballance', 401);
         }
-        return response()->json('low ballance', 401);
+
+        $purchaseResult = $this->processWebPurchase(
+            $accountID,
+            $selectedPrCat,
+            (float) $productPrice,
+            (float) $productPriceInDollar,
+            $request->remark,
+            $agentname,
+            $appliedPromo,
+            $promoDiscountToman,
+            true
+        );
+
+        if (! ($purchaseResult['ok'] ?? false)) {
+            return response()->json(
+                $purchaseResult['body'] ?? 'خطا در خرید کانفیگ',
+                $purchaseResult['status'] ?? 500
+            );
+        }
+
+        return $purchaseResult['body'];
     }
     public function buyProductByUserWithPrID(Request $request)
     {
@@ -1266,113 +1399,30 @@ class AgentProductController extends Controller
         }
 
         $accBlCtrl = new AccountBallanceController();
-        if ($accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
-            $identity = $this->prepareWebPurchaseIdentity(
-                $accountID,
-                (int) $selectedPrCat->id,
-                $request->remark,
-                $userName
-            );
-            if (! ($identity['ok'] ?? false)) {
-                return response()->json($identity['message'] ?? 'خطا در رزرو بسته', 500);
-            }
-
-            $remark = $identity['remark'];
-            $reservedProductId = $identity['reserved_product_id'];
-
-            $pnlCntrl = new PannelController();
-            $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
-            // get selected item specefic data
-            $day = $selectedPrCat->expire_day;
-            $volume = $selectedPrCat->volume;
-            $prCntrl = new ProductController();
-            if ($pannel->type == 'hiddify') {
-                $req = new Request();
-                $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
-                $req->pannelID = $selectedPrCat->pannel_id;
-                $req->vol = $volume;
-                $req->day = $day;
-                $hiddifcCntrl = new HiddifyPannelController();
-
-                $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
-                if ($newUUID == false) {
-                    $prCntrl->deletePendingProduct($reservedProductId);
-
-                    return response()->json('Error in creating user in panel', 500);
-                }
-                // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req); // api v1
-
-
-                $userPannelLink = $hiddifcCntrl->get_hiddify_subscription_link($pannel->user_link, "/{$newUUID}/#{$req->accountId}");
-
-                $reqProductDetails = new Request();
-                $reqProductDetails->account_id = $accountID;
-                $reqProductDetails->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                $reqProductDetails->product_categories_id = $selectedPrCat->id;
-                $reqProductDetails->panel_link = "/{$newUUID}/#{$req->accountId}";
-                $reqProductDetails->configs = '';
-                $reqProductDetails->remark = $remark;
-                $reqProductDetails->product_id = $reservedProductId;
-
-                $prCntrl->addAutomatedProductDetails($reqProductDetails);
-                $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
-                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
-                $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
-
-                return $userPannelLink;
-            }
-
-            if ($pannel->type == 'sanaei') {
-                $snCtrl = new SanaeiPannelController();
-                $req = new Request();
-                $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
-                $req->pannelID = $selectedPrCat->pannel_id;
-                $req->vol = $volume;
-                $req->day = $day;
-                $req->inbound_id = $selectedPrCat->inbound_id;
-                $req->ip_limit = $selectedPrCat->ip_limit;
-
-                $result = $snCtrl->addUserToSanaeiPanel($req);
-                if ($result === false) {
-                    $prCntrl->deletePendingProduct($reservedProductId);
-
-                    return response()->json('Error in creating user in panel', 500);
-                }
-                if (is_array($result)) {
-                    $uuid = $result['uuid'];
-                    $subId = $result['subId'];
-                } else {
-                    $uuid = $result;
-                    $subId = $uuid;
-                }
-
-                $links = $snCtrl->getUserLinks($pannel, $uuid, $req->accountId, $selectedPrCat->inbound_id);
-
-                if ($selectedPrCat->show_subscription_link) {
-                    $userPannelLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
-                } else {
-                    $userPannelLink = $links[0] ?? '';
-                }
-
-                $reqProductDetails = new Request();
-                $reqProductDetails->account_id = $accountID;
-                $reqProductDetails->subscription_link = $userPannelLink;
-                $reqProductDetails->product_categories_id = $selectedPrCat->id;
-                $reqProductDetails->panel_link = '';
-                $reqProductDetails->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
-                $reqProductDetails->remark = $remark;
-                $reqProductDetails->product_id = $reservedProductId;
-
-                $prCntrl->addAutomatedProductDetails($reqProductDetails);
-                $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
-                $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت خرید بسته کم شد.", 'minus ballance');
-                $this->addNewBotLog('product', "$remark خریداری شد.", 'buy product');
-                $this->recordWebPromoUsage($appliedPromo, (string) $accountID, $promoDiscountToman);
-
-                return $userPannelLink;
-            }
+        if (! $accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+            return response()->json('low ballance', 401);
         }
-        return response()->json('low ballance', 401);
+
+        $purchaseResult = $this->processWebPurchase(
+            $accountID,
+            $selectedPrCat,
+            (float) $productPrice,
+            (float) $productPriceInDollar,
+            $request->remark,
+            $userName,
+            $appliedPromo,
+            $promoDiscountToman,
+            true
+        );
+
+        if (! ($purchaseResult['ok'] ?? false)) {
+            return response()->json(
+                $purchaseResult['body'] ?? 'خطا در خرید کانفیگ',
+                $purchaseResult['status'] ?? 500
+            );
+        }
+
+        return $purchaseResult['body'];
     }
     public function reChargeProductByUserWithPrID(Request $request)
     {
