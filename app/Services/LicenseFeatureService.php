@@ -8,6 +8,12 @@ class LicenseFeatureService
 {
     public const SILVER_PROMO_MAX = 5;
 
+    /** @var list<string> */
+    public const GOLD_ADVANCED_SETTINGS = [
+        'bot_auto_set_price_by_dollar_price',
+        'bot_calculate_product_category_price_in_dollar_by_toman',
+    ];
+
     public function __construct(
         private readonly LicenseCheckService $licenseCheck = new LicenseCheckService(),
     ) {
@@ -50,6 +56,29 @@ class LicenseFeatureService
     public function canCustomizeBotButtons(): bool
     {
         return $this->isSilverOrAbove();
+    }
+
+    public function canUseAdvancedSettings(): bool
+    {
+        return $this->isSilverOrAbove();
+    }
+
+    public function canUseAdvancedSetting(string $name): bool
+    {
+        if (in_array($name, self::GOLD_ADVANCED_SETTINGS, true)) {
+            return $this->isGold();
+        }
+
+        return $this->isSilverOrAbove();
+    }
+
+    public function advancedSettingRequiredResponse(string $name): JsonResponse
+    {
+        if (in_array($name, self::GOLD_ADVANCED_SETTINGS, true)) {
+            return $this->goldRequiredResponse();
+        }
+
+        return $this->silverRequiredResponse();
     }
 
     public function maxPanels(): ?int

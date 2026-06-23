@@ -3,12 +3,35 @@ namespace App\Http\Controllers;
 
 use App\Models\AdvanceSettingLookup;
 use App\Services\BotKeyboardConfigService;
+use App\Services\LicenseFeatureService;
 use App\Services\MobileVerificationService;
 use App\Services\PackageButtonLayoutService;
 use Illuminate\Http\Request;
 
 class AdvanceSettingLookupController extends Controller
 {
+    public function __construct(
+        private readonly LicenseFeatureService $license = new LicenseFeatureService(),
+    ) {}
+
+    private function advancedSettingLicenseRequired(string $name): ?\Illuminate\Http\JsonResponse
+    {
+        if (! $this->license->canUseAdvancedSetting($name)) {
+            return $this->license->advancedSettingRequiredResponse($name);
+        }
+
+        return null;
+    }
+
+    private function silverLicenseRequired(): ?\Illuminate\Http\JsonResponse
+    {
+        if (! $this->license->canUseAdvancedSettings()) {
+            return $this->license->silverRequiredResponse();
+        }
+
+        return null;
+    }
+
     public function getAll()
     {
         try {
@@ -64,6 +87,10 @@ class AdvanceSettingLookupController extends Controller
         AdvanceSettingLookup::insert($advanceSettingLookups);
     }
     public function re_seed_advance_settings_lookup(){
+        if ($denied = $this->silverLicenseRequired()) {
+            return $denied;
+        }
+
         try{
             // truncate all date and run seed
             AdvanceSettingLookup::truncate();
@@ -103,6 +130,10 @@ class AdvanceSettingLookupController extends Controller
     public function getValueByNameWithBooleanValue($name)
     {
         try {
+            if (! $this->license->canUseAdvancedSetting((string) $name)) {
+                return false;
+            }
+
             $advanceSettingLookup = AdvanceSettingLookup::getByName($name);
             if ($advanceSettingLookup == null) {
                 // get all advance setting lookups, then clear all of them, then run $this->seed function, update new ones with old values, then get the advance setting lookup by name
@@ -145,6 +176,10 @@ class AdvanceSettingLookupController extends Controller
     }
     public function update(Request $request)
     {
+        if ($denied = $this->silverLicenseRequired()) {
+            return $denied;
+        }
+
         try {
             $advanceSettingLookup              = AdvanceSettingLookup::find($request->id);
             $advanceSettingLookup->name        = $request->name;
@@ -165,6 +200,11 @@ class AdvanceSettingLookupController extends Controller
     }
     public function updateByName(Request $request)
     {
+        $name = (string) ($request->name ?? '');
+        if ($denied = $this->advancedSettingLicenseRequired($name)) {
+            return $denied;
+        }
+
         try {
             $advanceSettingLookup              = AdvanceSettingLookup::where('name', $request->name)->first();
             $advanceSettingLookup->value       = $request->value;

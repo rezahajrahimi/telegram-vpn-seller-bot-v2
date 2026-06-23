@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Http\Controllers\AdvanceSettingLookupController;
 use App\Models\AdvanceSettingLookup;
+use App\Services\LicenseFeatureService;
 use Illuminate\Support\Collection;
 
 class PackageButtonLayoutService
@@ -33,6 +34,10 @@ class PackageButtonLayoutService
 
     public function resolveLayout(): string
     {
+        if (! (new LicenseFeatureService())->canUseAdvancedSetting(self::SETTING_KEY)) {
+            return self::LAYOUT_MULTI_COLUMN;
+        }
+
         $this->ensureLayoutSettingExists();
 
         $lookup = AdvanceSettingLookup::query()->where('name', self::SETTING_KEY)->first();
