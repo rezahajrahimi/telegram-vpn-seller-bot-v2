@@ -232,7 +232,7 @@ class UserController extends Controller
             $request->validate([
                 'name' => 'required|string|max:255',
                 'account_id' => 'required|max:8',
-                'password' => 'required|string|min:8',
+                'password' => 'nullable|string|min:8',
                 'role' => 'required|string',
             ]);
 
@@ -249,7 +249,9 @@ class UserController extends Controller
             $user->name = $request->name;
             $user->account_id = $request->account_id;
             $user->role = $request->role;
-            $user->password = Hash::make($request->password);
+            if ($request->filled('password')) {
+                $user->password = Hash::make($request->password);
+            }
             $user->save();
 
             return response()->json(
