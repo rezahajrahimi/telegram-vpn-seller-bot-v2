@@ -53,6 +53,11 @@ class LicenseFeatureService
         ], 403);
     }
 
+    public function canUseLoyaltyPoints(): bool
+    {
+        return $this->isSilverOrAbove();
+    }
+
     public function canCustomizeBotButtons(): bool
     {
         return $this->isSilverOrAbove();

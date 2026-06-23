@@ -70,7 +70,7 @@ class BotUser extends Model
     // }
     public function user()
     {
-        return $this->hasOne(User::class, 'account_id', 'account_id')->with('referral_wallet');
+        return $this->hasOne(User::class, 'account_id', 'account_id')->with(['referral_wallet', 'loyalty_wallet']);
     }
     public function blocked_user()
     {

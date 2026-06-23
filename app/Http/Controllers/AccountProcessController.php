@@ -7,6 +7,7 @@ use App\Models\Transaction;
 use App\Models\TransactionSetting;
 use App\Models\User;
 use App\Models\UserState;
+use App\Services\LoyaltyPointsService;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 // add cache
@@ -65,9 +66,12 @@ class AccountProcessController extends Controller
             $ballance = $this->accBlCtrl->getUserAccuntBalance($chatId);
             $ballanceInDollar = $this->accBlCtrl->getUserAccuntBalanceInDollar($chatId);
             $referralAmount = $this->referralWalletCtrl->get_amount_of_ref_wallet_by_account_id($chatId);
+            $loyaltyService = new LoyaltyPointsService();
+            $loyaltyPoints = $loyaltyService->getBalanceByAccountId($chatId);
             $ballance = number_format($ballance, 0, '.', ',');
             $ballanceInDollar = number_format($ballanceInDollar, 0, '.', ',');
             $referralAmount = number_format($referralAmount, 0, '.', ',');
+            $loyaltyPointsFormatted = number_format($loyaltyPoints, 0, '.', ',');
             $text = $this->customTextCtrl->getText('action.account.details', [
                 'username' => $botUser->username,
                 'name' => $botUser->first_name,
@@ -76,6 +80,7 @@ class AccountProcessController extends Controller
                 'balance' => "$ballance تومان",
                 'balance_in_dollar' => "$ballanceInDollar دلار",
                 'referral_balance' => "$referralAmount تومان",
+                'loyalty_balance' => "$loyaltyPointsFormatted امتیاز",
             ]);
 
             $formatter = new TelegramMessageFormatter($this->telegramService);
@@ -107,6 +112,16 @@ class AccountProcessController extends Controller
             $opr[] = [
                 $text => "accountTransactions",
             ];
+            $loyaltyService = new LoyaltyPointsService();
+            if ($loyaltyService->isActive()) {
+                $text = $this->customTextCtrl->getText('action.account.additional_options.loyalty_history');
+                if (is_array($text)) {
+                    $text = $this->telegramService->formatText($text);
+                }
+                $opr[] = [
+                    $text => 'accountLoyaltyHistory',
+                ];
+            }
             $text = $this->customTextCtrl->getText('action.account.additional_options.sub_accounts');
             if (is_array($text)) {
                 // use format text service
@@ -169,6 +184,86 @@ class AccountProcessController extends Controller
             return "";
         }
     }
+
+    public function accountLoyaltyHistory($chatId)
+    {
+        try {
+            $this->telegramService->sendChatAction($chatId, 'typing');
+            $this->chatId = $chatId;
+            $this->addNewBotLog('account', 'وارد بخش تاریخچه امتیاز شد.', 'show');
+
+            $loyaltyService = new LoyaltyPointsService();
+            if (! $loyaltyService->isActive()) {
+                return $this->generalCntrl->return_main_menu_items(
+                    $chatId,
+                    $this->customTextCtrl->getText('error.action.not_found')
+                );
+            }
+
+            $balance = $loyaltyService->getBalanceByAccountId($chatId);
+            $settings = $loyaltyService->getSettings();
+            $title = $this->customTextCtrl->getText('action.account.loyalty_history.title', [
+                'balance' => number_format($balance, 0, '.', ','),
+                'toman_per_point' => (string) ($settings?->toman_per_point ?? 10),
+            ]);
+            if (is_array($title)) {
+                $title = $this->telegramService->formatText($title);
+            }
+            $this->telegramService->sendMessage($chatId, $title);
+
+            $user = User::where('account_id', $chatId)->first();
+            if ($user === null) {
+                return $this->generalCntrl->return_main_menu_items(
+                    $chatId,
+                    $this->customTextCtrl->getText('error.user_not_found')
+                );
+            }
+
+            $transactions = \App\Models\LoyaltyTransaction::where('user_id', $user->id)
+                ->orderByDesc('id')
+                ->limit(15)
+                ->get();
+
+            if ($transactions->isEmpty()) {
+                $text = $this->customTextCtrl->getText('action.account.loyalty_history.no_records');
+                if (is_array($text)) {
+                    $text = $this->telegramService->formatText($text);
+                }
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
+            }
+
+            $lines = [];
+            foreach ($transactions as $transaction) {
+                $sign = $transaction->points > 0 ? '+' : '';
+                $eventLabel = match ($transaction->event) {
+                    'purchase' => 'خرید',
+                    'renewal' => 'تمدید',
+                    'deposit' => 'واریز',
+                    'referral_signup' => 'معرفی',
+                    'checkout' => 'استفاده در خرید',
+                    'admin' => 'تغییر مدیر',
+                    default => $transaction->event ?? 'امتیاز',
+                };
+                $description = trim((string) ($transaction->description ?? ''));
+                $line = "{$sign}{$transaction->points} امتیاز — {$eventLabel}";
+                if ($description !== '') {
+                    $line .= " — {$description}";
+                }
+                $lines[] = $line;
+            }
+
+            $this->telegramService->sendMessage($chatId, implode("\n", $lines));
+
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(['accountLoyaltyHistory: ' . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+
+            return "";
+        }
+    }
+
     public function accountSubAccounts($chatId)
     {
         try {

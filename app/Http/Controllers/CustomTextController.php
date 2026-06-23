@@ -917,10 +917,42 @@ class CustomTextController extends Controller
                     ['type' => 'text', 'text' => 'موجودی دلاری: {balance_in_dollar}'],
                     ['type' => 'newline'],
                     ['type' => 'text', 'text' => 'موجودی کیف همکاری: {referral_balance}'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'امتیاز باشگاه مشتریان: {loyalty_balance}'],
 
                 ]),
                 'custom_text' => null,
-                'description' => 'متن اطلاعات حساب شما: - پارامترها: {username} {name} {last_name} {account_id} {balance} {balance_in_dollar} {referral_balance}'
+                'description' => 'متن اطلاعات حساب شما: - پارامترها: {username} {name} {last_name} {account_id} {balance} {balance_in_dollar} {referral_balance} {loyalty_balance}'
+            ],
+            [
+                'key' => 'action.account.additional_options.loyalty_history',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تاریخچه امتیاز ⭐'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه تاریخچه امتیاز باشگاه مشتریان'
+            ],
+            [
+                'key' => 'action.account.loyalty_history.title',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => 'باشگاه مشتریان'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'موجودی امتیاز شما: {balance}'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'ارزش هر امتیاز: {toman_per_point} تومان'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'آخرین فعالیت‌ها:'],
+                ]),
+                'custom_text' => null,
+                'description' => 'عنوان تاریخچه امتیاز — پارامترها: {balance} {toman_per_point}'
+            ],
+            [
+                'key' => 'action.account.loyalty_history.no_records',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'هنوز هیچ امتیازی برای شما ثبت نشده است.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خالی بودن تاریخچه امتیاز'
             ],
             [
                 'key' => 'action.account.additional_options',

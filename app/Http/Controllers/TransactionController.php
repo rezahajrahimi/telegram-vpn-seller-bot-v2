@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\LoyaltyPointsService;
 use App\Services\ZarinpalService;
 use Illuminate\Support\Facades\Config;
 
@@ -210,6 +211,11 @@ class TransactionController extends Controller
                     }
                     if ($isConfirmed) {
                         $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$transaction->amount} به حساب شما افزوده شد.", $transaction->account_id, null, 'MarkDown');
+                        (new LoyaltyPointsService())->awardDepositPoints(
+                            $transaction->account_id,
+                            (float) $transaction->amount,
+                            $transaction->id
+                        );
                         // set referral wallet
                         if ($request->isPaymntBack == true) {
                             $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($transaction->id, $amount, true);

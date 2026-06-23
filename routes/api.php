@@ -39,6 +39,9 @@ use App\Http\Controllers\CronJobController;
 use App\Http\Controllers\ReferralSettingController;
 use App\Http\Controllers\ReferralWalletController;
 use App\Http\Controllers\ReferralLogsController;
+use App\Http\Controllers\LoyaltySettingController;
+use App\Http\Controllers\LoyaltyWalletController;
+use App\Http\Controllers\LoyaltyLogsController;
 use App\Http\Controllers\ReserverdConfigController;
 use App\Http\Controllers\AdvanceSettingLookupController;
 use App\Http\Controllers\WebAppMenuItemController;
@@ -435,6 +438,13 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     //  ReferralWalletController
     Route::put('/editAmountOfRefWalletByAccountId', [ReferralWalletController::class, 'edit_amount_of_ref_wallet_by_account_id']);
 
+    // LoyaltySettingController
+    Route::get('/getLoyaltySetting', [LoyaltySettingController::class, 'get_loyalty_setting']);
+    Route::put('/updateLoyaltySetting', [LoyaltySettingController::class, 'update_loyalty_setting']);
+    Route::get('/getAllLoyaltyLogs', [LoyaltyLogsController::class, 'get_all_loyalty_logs']);
+    Route::get('/getTopLoyaltyUsers', [LoyaltyLogsController::class, 'get_top_loyalty_users']);
+    Route::put('/editLoyaltyPointsByAccountId', [LoyaltyWalletController::class, 'edit_points_by_account_id']);
+
     // ReserverdConfigController
     Route::post('/checkAProductHasReservedConfigByProductId', [ReserverdConfigController::class, 'check_a_product_has_reserved_config_by_product_id']);
 
@@ -549,6 +559,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::put('updateUserPassword', [UserController::class, 'update_logged_password']);
     //  ReferralLogsController
     Route::get('/getReferralLogsByAccountId/{account_id}', [ReferralLogsController::class, 'get_referral_logs']);
+    Route::get('/getLoyaltyLogsByAccountId/{account_id}', [LoyaltyLogsController::class, 'get_loyalty_logs']);
     // WebAppMenuItemController
     Route::get('/getAllActiveWebAppMenuItems', [WebAppMenuItemController::class, 'get_all_active_web_app_menu_items']);
 
@@ -558,6 +569,8 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('/webapp/application-oses', [WebAppUserController::class, 'getApplicationOses']);
     Route::get('/webapp/applications/{os}', [WebAppUserController::class, 'getApplicationsByOs']);
     Route::get('/webapp/referral-info', [WebAppUserController::class, 'getReferralInfo']);
+    Route::get('/webapp/loyalty-info', [LoyaltyWalletController::class, 'get_auth_user_loyalty']);
+    Route::post('/webapp/validate-loyalty-redemption', [LoyaltyWalletController::class, 'validate_redemption']);
     Route::post('/webapp/redeem-gift-card', [WebAppUserController::class, 'redeemGiftCard']);
     Route::post('/webapp/claim-test-account', [WebAppUserController::class, 'claimTestAccount']);
     Route::post('/webapp/validate-promo-code', [WebAppUserController::class, 'validatePromoCode']);

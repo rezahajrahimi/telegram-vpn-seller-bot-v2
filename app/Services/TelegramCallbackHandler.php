@@ -62,6 +62,7 @@ class TelegramCallbackHandler
             'confirmDeleteHistory' => $this->subscriptionProcessCtrl->confirmDeleteHistory($chatId, $params[0] ?? null),
 
             'accountTransactions' => $this->accountProcessCtrl->accountTransactions($chatId),
+            'accountLoyaltyHistory' => $this->accountProcessCtrl->accountLoyaltyHistory($chatId),
             'accountSubAccounts' => $this->accountProcessCtrl->accountSubAccounts($chatId),
             'accountAddBalance' => $this->accountProcessCtrl->accountAddBalance($chatId),
             'accountSubAccountsZarinpal' => $this->accountProcessCtrl->handleActionAddBalanceZarinpal($chatId),

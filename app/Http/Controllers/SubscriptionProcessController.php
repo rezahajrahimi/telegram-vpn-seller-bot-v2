@@ -18,6 +18,7 @@ use App\Services\PromoCodeService;
 use App\Services\PurchaseIntentService;
 use App\Services\SubscriptionPaymentService;
 use App\Services\PackageButtonLayoutService;
+use App\Services\LoyaltyPointsService;
 use App\Services\MobileVerificationService;
 // add cache
 use Carbon\Carbon;
@@ -588,9 +589,19 @@ class SubscriptionProcessController extends Controller
                 $appliedPromo = $promoResult['promo'] ?? null;
             }
 
-            $hasBallance = $this->accBlCtrl->checkUserHasBalance($chatId, $productPrice, $productPriceInDollar);
-            $hasRefballance = $this->referralCntrl->check_user_has_ref_wallet_ballance($chatId, $productPrice);
-            if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
+            $loyaltyService = new LoyaltyPointsService();
+            $loyaltyCheckout = $loyaltyService->resolveCheckout(
+                $chatId,
+                (float) $productPrice,
+                (float) $productPriceInDollar,
+                fn ($accountId, $price, $priceDollar) => $this->accBlCtrl->checkUserHasBalance($accountId, $price, $priceDollar),
+                fn ($accountId, $price) => $this->referralCntrl->check_user_has_ref_wallet_ballance($accountId, $price),
+            );
+            $productPrice = $loyaltyCheckout['charge_price_toman'];
+            $hasBallance = $loyaltyCheckout['has_balance'];
+            $hasRefballance = $loyaltyCheckout['has_ref_balance'];
+
+            if (! $loyaltyCheckout['can_proceed']) {
                 $this->generalCntrl->send_insufficient_balance_message($chatId, $prCat->id);
                 return '';
             }
@@ -611,11 +622,12 @@ class SubscriptionProcessController extends Controller
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
                 if ($updateRemark->getStatusCode() == 200) {
-                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance, $loyaltyCheckout, $product->id);
                     if ($paymentSuccess) {
                         if ($appliedPromo) {
                             (new PromoCodeService())->recordUsage($appliedPromo, $chatId, $promoDiscountToman, $product->id);
                         }
+                        $loyaltyService->awardRenewalPoints($chatId, $product->id);
                         (new PurchaseIntentService())->completeForAccount($chatId, (int) $prCat->id);
                         $text = $this->customTextCtrl->getText('action.recharge.success');
                         $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
@@ -638,11 +650,12 @@ class SubscriptionProcessController extends Controller
 
                 $ok = $sn->rechargeClient($pannel->id, $uuid, $day, $volume);
                 if ($ok) {
-                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance, $loyaltyCheckout, $product->id);
                     if ($paymentSuccess) {
                         if ($appliedPromo) {
                             (new PromoCodeService())->recordUsage($appliedPromo, $chatId, $promoDiscountToman, $product->id);
                         }
+                        $loyaltyService->awardRenewalPoints($chatId, $product->id);
                         (new PurchaseIntentService())->completeForAccount($chatId, (int) $prCat->id);
                         $text = $this->customTextCtrl->getText('action.recharge.success');
                         $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
@@ -660,11 +673,12 @@ class SubscriptionProcessController extends Controller
 
                 $ok = $mb->rechargeUser($pannel->id, $product->remark, $day, $volume);
                 if ($ok) {
-                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance);
+                    $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance, $loyaltyCheckout, $product->id);
                     if ($paymentSuccess) {
                         if ($appliedPromo) {
                             (new PromoCodeService())->recordUsage($appliedPromo, $chatId, $promoDiscountToman, $product->id);
                         }
+                        $loyaltyService->awardRenewalPoints($chatId, $product->id);
                         (new PurchaseIntentService())->completeForAccount($chatId, (int) $prCat->id);
                         $text = $this->customTextCtrl->getText('action.recharge.success');
                         $this->addNewBotLog('subscription', 'تمدید اشتراک با موفقیت انجام شد.', 'show');
@@ -767,8 +781,13 @@ class SubscriptionProcessController extends Controller
         return "";
     }
 
-    private function processPayment($productPrice, $productPriceInDollar, $hasRefballance): bool
-    {
+    private function processPayment(
+        $productPrice,
+        $productPriceInDollar,
+        $hasRefballance,
+        ?array $loyaltyCheckout = null,
+        int|string|null $productId = null,
+    ): bool {
         try {
             $username = $this->botUser->username ?? '';
             $paymentService = new SubscriptionPaymentService(
@@ -776,6 +795,24 @@ class SubscriptionProcessController extends Controller
                 $this->paymnetSettingCntrl,
                 $this->referralCntrl
             );
+            $loyaltyService = new LoyaltyPointsService();
+            $loyaltyPointsRedeemed = (int) ($loyaltyCheckout['points_to_redeem'] ?? 0);
+
+            if ($loyaltyCheckout !== null && ($loyaltyCheckout['points_only'] ?? false)) {
+                if ($loyaltyPointsRedeemed > 0) {
+                    $loyaltyService->redeemPoints(
+                        $this->chatId,
+                        $loyaltyPointsRedeemed,
+                        'renewal',
+                        'product',
+                        $productId,
+                        'استفاده از امتیاز در تمدید اشتراک'
+                    );
+                }
+
+                return true;
+            }
+
             $chargeResult = $paymentService->charge(
                 $this->chatId,
                 (float) $productPrice,
@@ -784,7 +821,22 @@ class SubscriptionProcessController extends Controller
                 $username
             );
 
-            return $paymentService->wasCharged($chargeResult);
+            if (! $paymentService->wasCharged($chargeResult)) {
+                return false;
+            }
+
+            if ($loyaltyPointsRedeemed > 0) {
+                $loyaltyService->redeemPoints(
+                    $this->chatId,
+                    $loyaltyPointsRedeemed,
+                    'renewal',
+                    'product',
+                    $productId,
+                    'استفاده از امتیاز در تمدید اشتراک'
+                );
+            }
+
+            return true;
         } catch (\Throwable $th) {
             \Log::error("خطا در پرداخت: " . $th->getMessage());
             return false;

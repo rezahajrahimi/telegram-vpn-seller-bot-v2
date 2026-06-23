@@ -12,6 +12,7 @@ use App\Models\AgentPermisson;
 use App\Services\ConfigNameService;
 use App\Services\InventoryPurchaseService;
 use App\Services\PromoCodeService;
+use App\Services\LoyaltyPointsService;
 use App\Services\MobileVerificationService;
 use App\Services\SubscriptionPaymentService;
 use Illuminate\Http\Request;
@@ -1331,14 +1332,31 @@ class AgentProductController extends Controller
         }
 
         $accBlCtrl = new AccountBallanceController();
-        if (! $accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+        $loyaltyService = new LoyaltyPointsService();
+        $useLoyaltyPoints = $request->boolean('use_loyalty_points', true);
+        $loyaltyCheckout = $loyaltyService->resolveCheckout(
+            $accountID,
+            (float) $productPrice,
+            (float) $productPriceInDollar,
+            fn ($id, $price, $priceDollar) => $accBlCtrl->checkUserHasBalance($id, $price, $priceDollar),
+            fn () => false,
+            $useLoyaltyPoints,
+        );
+        $chargePrice = (float) $loyaltyCheckout['charge_price_toman'];
+
+        if (! $loyaltyCheckout['can_proceed']) {
+            return response()->json('low ballance', 401);
+        }
+
+        if (! $accBlCtrl->checkUserHasBalance($accountID, $chargePrice, $productPriceInDollar)
+            && ! ($loyaltyCheckout['points_only'] ?? false)) {
             return response()->json('low ballance', 401);
         }
 
         $purchaseResult = $this->processWebPurchase(
             $accountID,
             $selectedPrCat,
-            (float) $productPrice,
+            $chargePrice,
             (float) $productPriceInDollar,
             $request->remark,
             $agentname,
@@ -1353,6 +1371,19 @@ class AgentProductController extends Controller
                 $purchaseResult['status'] ?? 500
             );
         }
+
+        if ((int) $loyaltyCheckout['points_to_redeem'] > 0) {
+            $loyaltyService->redeemPoints(
+                $accountID,
+                (int) $loyaltyCheckout['points_to_redeem'],
+                'purchase',
+                'product_category',
+                $selectedPrCat->id,
+                'استفاده از امتیاز در خرید وب'
+            );
+        }
+
+        $loyaltyService->awardPurchasePoints($accountID, (float) $productPrice, $selectedPrCat->id);
 
         return $purchaseResult['body'];
     }
@@ -1399,14 +1430,31 @@ class AgentProductController extends Controller
         }
 
         $accBlCtrl = new AccountBallanceController();
-        if (! $accBlCtrl->checkUserHasBalance($accountID, $productPrice, $productPriceInDollar)) {
+        $loyaltyService = new LoyaltyPointsService();
+        $useLoyaltyPoints = $request->boolean('use_loyalty_points', true);
+        $loyaltyCheckout = $loyaltyService->resolveCheckout(
+            $accountID,
+            (float) $productPrice,
+            (float) $productPriceInDollar,
+            fn ($id, $price, $priceDollar) => $accBlCtrl->checkUserHasBalance($id, $price, $priceDollar),
+            fn () => false,
+            $useLoyaltyPoints,
+        );
+        $chargePrice = (float) $loyaltyCheckout['charge_price_toman'];
+
+        if (! $loyaltyCheckout['can_proceed']) {
+            return response()->json('low ballance', 401);
+        }
+
+        if (! $accBlCtrl->checkUserHasBalance($accountID, $chargePrice, $productPriceInDollar)
+            && ! ($loyaltyCheckout['points_only'] ?? false)) {
             return response()->json('low ballance', 401);
         }
 
         $purchaseResult = $this->processWebPurchase(
             $accountID,
             $selectedPrCat,
-            (float) $productPrice,
+            $chargePrice,
             (float) $productPriceInDollar,
             $request->remark,
             $userName,
@@ -1421,6 +1469,19 @@ class AgentProductController extends Controller
                 $purchaseResult['status'] ?? 500
             );
         }
+
+        if ((int) $loyaltyCheckout['points_to_redeem'] > 0) {
+            $loyaltyService->redeemPoints(
+                $accountID,
+                (int) $loyaltyCheckout['points_to_redeem'],
+                'purchase',
+                'product_category',
+                $selectedPrCat->id,
+                'استفاده از امتیاز در خرید وب'
+            );
+        }
+
+        $loyaltyService->awardPurchasePoints($accountID, (float) $productPrice, $selectedPrCat->id);
 
         return $purchaseResult['body'];
     }

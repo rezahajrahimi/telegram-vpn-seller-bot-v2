@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\LoyaltyPointsService;
 use App\Models\ReferralLogs;
 use App\Models\User;
 use App\Models\ReferralWallet;
@@ -116,6 +117,11 @@ class ReferralLogsController extends Controller
                     'signup',
                     (string) $referrer->account_id,
                     (string) ($referrer->name ?? $referrer->username ?? 'referrer')
+                );
+
+                (new LoyaltyPointsService())->awardReferralSignupPoints(
+                    $referrer->account_id,
+                    $account_id
                 );
             }
 

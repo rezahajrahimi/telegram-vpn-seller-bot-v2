@@ -1364,6 +1364,8 @@ class TelegramController extends Controller
         $ballanceInDollar = $accCntrl->getUserAccuntBalanceInDollar($this->chat_id);
         $referalCntrl = new ReferralWalletController();
         $referralAmount = $referalCntrl->get_amount_of_ref_wallet_by_account_id($this->chat_id);
+        $loyaltyService = new \App\Services\LoyaltyPointsService();
+        $loyaltyPoints = $loyaltyService->getBalanceByAccountId($this->chat_id);
         $text = "♦️ اطلاعات حساب شما: \n\r";
 
         $text .= "نام کاربری: $this->username \n\r";
@@ -1382,6 +1384,11 @@ class TelegramController extends Controller
         // show $ballance with thousands seperator
         $text .= number_format($referralAmount, 0, '.', ',');
         $text .= " تومان \n\r";
+        if ($loyaltyService->isActive()) {
+            $text .= 'امتیاز باشگاه مشتریان: ';
+            $text .= number_format($loyaltyPoints, 0, '.', ',');
+            $text .= " امتیاز \n\r";
+        }
 
         $text .= ' ➖➖➖ ';
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');

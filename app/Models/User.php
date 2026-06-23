@@ -65,6 +65,11 @@ class User extends Authenticatable
     {
         return $this->hasOne(ReferralWallet::class, 'referral_user_id', 'id');
     }
+
+    public function loyalty_wallet()
+    {
+        return $this->hasOne(LoyaltyWallet::class, 'user_id', 'id');
+    }
     public function shetab_verifies()
     {
         return $this->hasMany(ShetabVerify::class, 'user_id', 'id');

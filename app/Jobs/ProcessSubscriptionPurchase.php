@@ -21,6 +21,7 @@ use App\Services\InventoryPurchaseService;
 use App\Services\PromoCodeService;
 use App\Services\PurchaseIntentService;
 use App\Services\SubscriptionPaymentService;
+use App\Services\LoyaltyPointsService;
 use App\Services\MobileVerificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -78,10 +79,13 @@ class ProcessSubscriptionPurchase implements ShouldQueue
         $prCntrl = new ProductController();
         $inventoryPurchaseService = new InventoryPurchaseService();
         $paymentService = new SubscriptionPaymentService($accBlCtrl, $paymnetSettingCntrl, $referralCntrl, $logCtrl);
+        $loyaltyService = new LoyaltyPointsService();
         $reservedProductId = null;
         $soldInventoryProductId = null;
         $chargeResult = null;
         $purchaseDelivered = false;
+        $loyaltyPointsRedeemed = 0;
+        $originalProductPrice = 0.0;
 
         // Fetch user for logging
         $botUser = BotUser::where('account_id', $this->chatId)->first();
@@ -143,10 +147,20 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                 $appliedPromo = $promoResult['promo'] ?? null;
             }
 
-            $hasBallance = $accBlCtrl->checkUserHasBalance($this->chatId, $productPrice, $productPriceInDollar);
-            $hasRefballance = $referralCntrl->check_user_has_ref_wallet_ballance($this->chatId, $productPrice);
+            $originalProductPrice = (float) $productPrice;
+            $loyaltyCheckout = $loyaltyService->resolveCheckout(
+                $this->chatId,
+                (float) $productPrice,
+                (float) $productPriceInDollar,
+                fn ($accountId, $price, $priceDollar) => $accBlCtrl->checkUserHasBalance($accountId, $price, $priceDollar),
+                fn ($accountId, $price) => $referralCntrl->check_user_has_ref_wallet_ballance($accountId, $price),
+            );
+            $productPrice = $loyaltyCheckout['charge_price_toman'];
+            $loyaltyPointsRedeemed = $loyaltyCheckout['points_to_redeem'];
+            $hasBallance = $loyaltyCheckout['has_balance'];
+            $hasRefballance = $loyaltyCheckout['has_ref_balance'];
 
-            if (($hasRefballance == false && $hasBallance == false) || ($hasBallance == 0 && $hasRefballance == 0)) {
+            if (! $loyaltyCheckout['can_proceed']) {
                 $generalCntrl->send_insufficient_balance_message($this->chatId, $selectedPrCat->id);
                 return;
             }
@@ -171,9 +185,27 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                 );
                 \Log::info('paymentSuccess: ' . ($chargeResult['success'] ? '1' : '0'));
 
-                if (! $paymentService->wasCharged($chargeResult)) {
+                if ($loyaltyCheckout['points_only']) {
+                    $chargeResult = [
+                        'success' => true,
+                        'source' => 'loyalty',
+                        'amount_toman' => 0.0,
+                        'amount_dollar' => 0.0,
+                    ];
+                } elseif (! $paymentService->wasCharged($chargeResult)) {
                     $generalCntrl->send_insufficient_balance_message($this->chatId, $selectedPrCat->id);
                     return;
+                }
+
+                if ($loyaltyPointsRedeemed > 0) {
+                    $loyaltyService->redeemPoints(
+                        $this->chatId,
+                        $loyaltyPointsRedeemed,
+                        'purchase',
+                        'product_category',
+                        $selectedPrCat->id,
+                        'استفاده از امتیاز در خرید اشتراک'
+                    );
                 }
 
                 $soldInventoryProductId = $inventoryPurchaseService->deliverInventoryProduct($selectedPrCat, $this->chatId);
@@ -181,6 +213,9 @@ class ProcessSubscriptionPurchase implements ShouldQueue
 
                 if ($resualt == false || $resualt == null) {
                     $paymentService->refund($this->chatId, $chargeResult, $username);
+                    if ($loyaltyPointsRedeemed > 0) {
+                        $loyaltyService->refundRedeemedPoints($this->chatId, $loyaltyPointsRedeemed);
+                    }
                     $logCtrl->addNewLog('subscription', 'خرید اشتراک با شکست مواجه شد.', $this->chatId, $username, 'failed');
                     $telegramService->sendMessage($this->chatId, 'موجودی این بسته تمام شده است.');
                     return;
@@ -201,10 +236,28 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                 );
                 \Log::info('paymentSuccess: ' . ($chargeResult['success'] ? '1' : '0'));
 
-                if (! $paymentService->wasCharged($chargeResult)) {
+                if ($loyaltyCheckout['points_only']) {
+                    $chargeResult = [
+                        'success' => true,
+                        'source' => 'loyalty',
+                        'amount_toman' => 0.0,
+                        'amount_dollar' => 0.0,
+                    ];
+                } elseif (! $paymentService->wasCharged($chargeResult)) {
                     $prCntrl->deletePendingProduct($reservedProductId);
                     $generalCntrl->send_insufficient_balance_message($this->chatId, $selectedPrCat->id);
                     return;
+                }
+
+                if ($loyaltyPointsRedeemed > 0) {
+                    $loyaltyService->redeemPoints(
+                        $this->chatId,
+                        $loyaltyPointsRedeemed,
+                        'purchase',
+                        'product_category',
+                        $selectedPrCat->id,
+                        'استفاده از امتیاز در خرید اشتراک'
+                    );
                 }
 
                 if ($pannel->type == 'hiddify') {
@@ -232,6 +285,9 @@ class ProcessSubscriptionPurchase implements ShouldQueue
 
                 if ($resualt == false || $resualt == null) {
                     $paymentService->refund($this->chatId, $chargeResult, $username);
+                    if ($loyaltyPointsRedeemed > 0) {
+                        $loyaltyService->refundRedeemedPoints($this->chatId, $loyaltyPointsRedeemed);
+                    }
                     $prCntrl->deletePendingProduct($reservedProductId);
                     $logCtrl->addNewLog('subscription', 'خرید اشتراک با شکست مواجه شد.', $this->chatId, $username, 'failed');
                     $telegramService->sendMessage($this->chatId, $customTextCtrl->getText('action.process.failed_buy'));
@@ -250,6 +306,8 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                 (new PromoCodeService())->recordUsage($appliedPromo, $this->chatId, $promoDiscountToman, $soldProductId);
             }
 
+            $loyaltyService->awardPurchasePoints($this->chatId, $originalProductPrice, $selectedPrCat->id);
+
             (new PurchaseIntentService())->completeForAccount($this->chatId, (int) $this->productCategoryId);
 
         } catch (\Throwable $th) {
@@ -257,6 +315,10 @@ class ProcessSubscriptionPurchase implements ShouldQueue
 
             if (! $purchaseDelivered && $chargeResult !== null && $paymentService->wasCharged($chargeResult)) {
                 $paymentService->refund($this->chatId, $chargeResult, $username);
+            }
+
+            if (! $purchaseDelivered && $loyaltyPointsRedeemed > 0) {
+                $loyaltyService->refundRedeemedPoints($this->chatId, $loyaltyPointsRedeemed);
             }
 
             if (! $purchaseDelivered && $reservedProductId !== null) {
