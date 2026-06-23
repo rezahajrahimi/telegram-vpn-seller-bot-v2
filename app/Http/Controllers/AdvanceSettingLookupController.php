@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AdvanceSettingLookup;
 use App\Services\BotKeyboardConfigService;
+use App\Services\MobileVerificationService;
 use App\Services\PackageButtonLayoutService;
 use Illuminate\Http\Request;
 
@@ -57,6 +58,8 @@ class AdvanceSettingLookupController extends Controller
             ['name' => BotKeyboardConfigService::SETTING_STYLE_RULES, 'value' => json_encode(BotKeyboardConfigService::DEFAULT_STYLE_RULES, JSON_UNESCAPED_UNICODE), 'description' => 'قوانین استایل و رنگ دکمه‌های اینلاین'],
             ['name' => 'bot_daily_backup', 'value' => 'true', 'description' => 'برای ایجاد بکاپ روزانه'],
             ['name' => 'bot_auto_delete_expired_configs', 'value' => 'true', 'description' => 'حذف کانفیگ هایی که 10 روز از انقضا آنها می گذرد'],
+            ['name' => MobileVerificationService::SETTING_KEY, 'value' => 'false', 'description' => 'الزام تایید موبایل قبل از خرید (ارسال شماره تماس در تلگرام)'],
+            ['name' => MobileVerificationService::IRAN_ONLY_SETTING_KEY, 'value' => 'false', 'description' => 'تایید موبایل فقط برای شماره‌های ایران (+98)'],
         ];
         AdvanceSettingLookup::insert($advanceSettingLookups);
     }

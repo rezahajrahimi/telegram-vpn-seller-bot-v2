@@ -9,6 +9,7 @@ use App\Models\Transaction;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 use App\Services\TelegramCallbackHandler;
+use App\Services\MobileVerificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -347,11 +348,23 @@ class TelegramWebhookController extends Controller
     private function processContactMessage(array $message): string|array
     {
         $contact = $message['contact'];
-        $phoneNumber = $contact['phone_number'];
-        $firstName = $contact['first_name'];
-        $lastName = $contact['last_name'] ?? '';
+        $chatId = $message['chat']['id'] ?? $message['from']['id'] ?? null;
+        $from = $message['from'] ?? [];
 
-        return "اطلاعات تماس دریافت شد:\nنام: {$firstName} {$lastName}\nشماره تماس: {$phoneNumber}";
+        if ($chatId === null) {
+            return $this->customTextCtrl->getText('error.server_error');
+        }
+
+        $mobileVerification = new MobileVerificationService();
+        $result = $mobileVerification->verifyFromContact($chatId, $contact, $from);
+
+        if ($result['success']) {
+            $this->generalCntrl->return_main_menu_items($chatId, $result['message']);
+
+            return '';
+        }
+
+        return $result['message'];
     }
 
     private function processCommand(string $text): string|array

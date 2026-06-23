@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\BotUser;
 use Illuminate\Http\Request;
 use App\Services\ConfigNameService;
+use App\Services\MobileVerificationService;
 use App\Services\PromoCodeService;
 
 class WebAppUserController extends Controller
@@ -375,6 +376,24 @@ class WebAppUserController extends Controller
                 'valid' => false,
                 'message' => 'خطای سرور',
             ], 500);
+        }
+    }
+
+    public function getMobileVerificationStatus()
+    {
+        try {
+            $user = auth('sanctum')->user();
+            if ($user == null) {
+                return response()->json(['message' => 'Unauthorized'], 401);
+            }
+
+            $status = (new MobileVerificationService())->statusForAccount($user->account_id);
+
+            return response()->json($status, 200);
+        } catch (\Throwable $th) {
+            \Log::error('WebAppUserController@getMobileVerificationStatus: ' . $th->getMessage());
+
+            return response()->json(['message' => 'خطای سرور'], 500);
         }
     }
 

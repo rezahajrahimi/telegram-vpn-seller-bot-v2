@@ -101,6 +101,98 @@ class CustomTextController extends Controller
                 'description' => 'متن ارسال شماره تماس'
             ],
             [
+                'key' => 'action.mobile_verification.prompt',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'برای خرید، ابتدا باید شماره موبایل خود را تایید کنید.'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'لطفاً با دکمه زیر شماره تماس خود را ارسال کنید (فقط شماره متعلق به خودتان پذیرفته می‌شود).'],
+                ]),
+                'custom_text' => null,
+                'description' => 'درخواست تایید موبایل قبل از خرید'
+            ],
+            [
+                'key' => 'action.mobile_verification.prompt_iran_only',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'برای خرید، ابتدا باید شماره موبایل ایران خود را تایید کنید.'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'لطفاً با دکمه زیر شماره تماس خود را ارسال کنید. فقط شماره‌های با پیش‌شماره ایران (+98) پذیرفته می‌شوند.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'درخواست تایید موبایل (فقط ایران)'
+            ],
+            [
+                'key' => 'action.mobile_verification.button',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'ارسال شماره تماس برای تایید'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه ارسال شماره برای تایید موبایل'
+            ],
+            [
+                'key' => 'action.mobile_verification.success',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'شماره موبایل شما با موفقیت تایید شد. اکنون می‌توانید خرید کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیام موفقیت تایید موبایل'
+            ],
+            [
+                'key' => 'action.mobile_verification.already_verified',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'شماره موبایل شما قبلاً تایید شده است.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیام تایید قبلی موبایل'
+            ],
+            [
+                'key' => 'error.mobile_verification.required',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'برای خرید باید ابتدا شماره موبایل خود را در ربات تلگرام تایید کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'خطای الزام تایید موبایل'
+            ],
+            [
+                'key' => 'error.mobile_verification.required_iran_only',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'برای خرید باید ابتدا شماره موبایل ایران خود را در ربات تلگرام تایید کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'خطای الزام تایید موبایل ایران'
+            ],
+            [
+                'key' => 'error.mobile_verification.iran_only',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'فقط شماره موبایل با پیش‌شماره ایران (+98) برای تایید پذیرفته می‌شود.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'رد شماره غیرایرانی در تایید موبایل'
+            ],
+            [
+                'key' => 'error.mobile_verification.invalid_contact',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'شماره ارسالی معتبر نیست. لطفاً شماره متعلق به خودتان را از دکمه «ارسال شماره تماس» بفرستید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'خطای شماره تماس نامعتبر'
+            ],
+            [
+                'key' => 'error.mobile_verification.disabled',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید موبایل در حال حاضر فعال نیست.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید موبایل غیرفعال'
+            ],
+            [
+                'key' => 'error.mobile_verification.not_applicable',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید موبایل برای این حساب کاربری لازم نیست.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید موبایل برای نقش غیرکاربر'
+            ],
+            [
                 'key' => 'action.upload_file',
                 'default_text' => json_encode([
                     ['type' => 'text', 'text' => 'آپلود فایل'],

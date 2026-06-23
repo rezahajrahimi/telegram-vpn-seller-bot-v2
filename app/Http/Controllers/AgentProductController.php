@@ -12,6 +12,7 @@ use App\Models\AgentPermisson;
 use App\Services\ConfigNameService;
 use App\Services\InventoryPurchaseService;
 use App\Services\PromoCodeService;
+use App\Services\MobileVerificationService;
 use App\Services\SubscriptionPaymentService;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
@@ -1225,6 +1226,16 @@ class AgentProductController extends Controller
     public function buyProductByUserWithPrID(Request $request)
     {
         $accountID = auth('sanctum')->user()->account_id;
+        $mobileBlock = (new MobileVerificationService())->purchaseBlockResponse($accountID);
+        if ($mobileBlock['blocked'] ?? false) {
+            return response()->json([
+                'success' => false,
+                'code' => $mobileBlock['code'] ?? 'mobile_verification_required',
+                'message' => $mobileBlock['message'] ?? 'تایید موبایل لازم است.',
+                'bot_username' => $mobileBlock['bot_username'] ?? null,
+            ], 403);
+        }
+
         $userName = auth('sanctum')->user()->name;
         $promoCode = $request->input('promo_code');
 

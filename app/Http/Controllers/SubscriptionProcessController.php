@@ -18,6 +18,7 @@ use App\Services\PromoCodeService;
 use App\Services\PurchaseIntentService;
 use App\Services\SubscriptionPaymentService;
 use App\Services\PackageButtonLayoutService;
+use App\Services\MobileVerificationService;
 // add cache
 use Carbon\Carbon;
 use Hekmatinasser\Verta\Verta;
@@ -70,6 +71,10 @@ class SubscriptionProcessController extends Controller
     public function buySubscriptionMenu($chatId)
     {
         try {
+            if ($this->blockPurchaseForMobileVerification($chatId)) {
+                return "";
+            }
+
             $this->telegramService->sendChatAction($chatId, 'typing');
             $this->chatId = $chatId;
             // get the chat user name from user table with chatId
@@ -136,6 +141,10 @@ class SubscriptionProcessController extends Controller
     public function buySubscriptionAction($chatId, $categoryId)
     {
         try {
+            if ($this->blockPurchaseForMobileVerification($chatId)) {
+                return "";
+            }
+
             $this->chatId  = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
 
@@ -213,6 +222,10 @@ class SubscriptionProcessController extends Controller
     public function confirmPurchase($chatId, $categoryId, ?string $promoCode = null)
     {
         try {
+            if ($this->blockPurchaseForMobileVerification($chatId)) {
+                return "";
+            }
+
             $this->chatId = $chatId;
 
             if (SubscriptionPurchaseLock::isInProgress($chatId)) {
@@ -531,6 +544,10 @@ class SubscriptionProcessController extends Controller
     public function confirmRecharge($chatId, $productId, ?string $promoCode = null)
     {
         try {
+            if ($this->blockPurchaseForMobileVerification($chatId)) {
+                return "";
+            }
+
             $this->chatId = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
             $this->addNewBotLog('subscription', 'تایید شارژ مجدد', 'show');
@@ -668,6 +685,10 @@ class SubscriptionProcessController extends Controller
     public function buySubscriptionByLocationAction($chatId, $location)
     {
         try {
+            if ($this->blockPurchaseForMobileVerification($chatId)) {
+                return "";
+            }
+
             $this->chatId  = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
             $this->addNewBotLog('subscription', 'وارد بخش خرید اشتراک بر اساس لوکیشن شد.', 'show');
@@ -1303,6 +1324,10 @@ class SubscriptionProcessController extends Controller
     public function recharge($chatId, $productID)
     {
         try {
+            if ($this->blockPurchaseForMobileVerification($chatId)) {
+                return "";
+            }
+
             $this->chatId = $chatId;
             $this->botUser = $this->botUser->getUserByAccountID($chatId);
             $this->addNewBotLog('subscription', 'وارد بخش شارژ مجدد شد.', 'show');
@@ -1666,6 +1691,11 @@ class SubscriptionProcessController extends Controller
         } catch (\Throwable $th) {
             \Log::error("خطا در پاک کردن حالت کاربر: " . $th->getMessage());
         }
+    }
+
+    private function blockPurchaseForMobileVerification(int|string $chatId): bool
+    {
+        return (new MobileVerificationService())->blockBotPurchaseIfNeeded($chatId);
     }
 
     private function addNewBotLog($type, $message, $event)

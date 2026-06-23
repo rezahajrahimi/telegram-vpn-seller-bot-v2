@@ -21,6 +21,7 @@ use App\Services\InventoryPurchaseService;
 use App\Services\PromoCodeService;
 use App\Services\PurchaseIntentService;
 use App\Services\SubscriptionPaymentService;
+use App\Services\MobileVerificationService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -86,6 +87,14 @@ class ProcessSubscriptionPurchase implements ShouldQueue
         $botUser = BotUser::where('account_id', $this->chatId)->first();
         $username = $botUser ? $botUser->username : 'Unknown';
         try {
+            $mobileBlock = (new MobileVerificationService())->purchaseBlockResponse($this->chatId);
+            if ($mobileBlock['blocked'] ?? false) {
+                $telegramService->sendMessage($this->chatId, $mobileBlock['message'] ?? 'تایید موبایل لازم است.');
+                (new MobileVerificationService())->promptVerification($this->chatId);
+
+                return;
+            }
+
             $pricing = $agentProductCtrl->resolveProductPricingForAccount($this->chatId, $this->productCategoryId);
             if ($pricing === null) {
                 $telegramService->sendMessage($this->chatId, 'این بسته برای شما در دسترس نیست.');

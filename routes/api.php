@@ -562,6 +562,7 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::post('/webapp/claim-test-account', [WebAppUserController::class, 'claimTestAccount']);
     Route::post('/webapp/validate-promo-code', [WebAppUserController::class, 'validatePromoCode']);
     Route::get('/webapp/package-name-hint', [WebAppUserController::class, 'getPackageNameHint']);
+    Route::get('/webapp/mobile-verification-status', [WebAppUserController::class, 'getMobileVerificationStatus']);
 
     //ProxyController
 
