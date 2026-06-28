@@ -9,12 +9,111 @@ class ProductCategory extends Model
 {
     use HasFactory;
     protected $guarded = ['id', 'pannel_id'];
-    protected $fillable = ['pannel_id', 'category_name', 'price', 'expire_day', 'volume', 'rechargable', 'show_subscription_link', 'show_pannel_link', 'send_config_to_user', 'is_active', 'price_in_dollar', 'inbound_id', 'ip_limit', 'sample_inbound', 'allowed_user_group_ids', 'upsell_category_id'];
+    protected $fillable = ['pannel_id', 'category_name', 'price', 'expire_day', 'volume', 'rechargable', 'show_subscription_link', 'show_pannel_link', 'send_config_to_user', 'is_active', 'price_in_dollar', 'inbound_id', 'inbound_ids', 'ip_limit', 'sample_inbound', 'allowed_user_group_ids', 'upsell_category_id'];
 
     protected $casts = [
         'send_config_to_user' => 'boolean',
         'allowed_user_group_ids' => 'array',
+        'inbound_ids' => 'array',
     ];
+
+    /**
+     * Resolved inbound IDs for Sanaei panel (supports legacy single inbound_id).
+     *
+     * @return int[]
+     */
+    public function resolveInboundIds(): array
+    {
+        $resolved = [];
+
+        $appendIds = function (mixed $raw) use (&$resolved): void {
+            if ($raw === null || $raw === '' || $raw === []) {
+                return;
+            }
+
+            if (is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $raw = $decoded;
+                } else {
+                    $parts = preg_split('/[,; ]+/', trim($raw));
+                    $raw = array_filter($parts ?? [], fn ($part) => $part !== '');
+                }
+            }
+
+            if (! is_array($raw)) {
+                return;
+            }
+
+            foreach ($raw as $value) {
+                if ($value === null || $value === '') {
+                    continue;
+                }
+                $resolved[] = (int) $value;
+            }
+        };
+
+        $appendIds($this->inbound_ids);
+        $appendIds($this->attributes['inbound_ids'] ?? null);
+        $appendIds(self::extractInboundIdsFromSampleInbound(
+            $this->attributes['sample_inbound'] ?? null
+        ));
+
+        if ($resolved === [] && $this->inbound_id !== null) {
+            $resolved[] = (int) $this->inbound_id;
+        }
+
+        $resolved = array_values(array_unique($resolved));
+        sort($resolved);
+
+        return $resolved;
+    }
+
+    /**
+     * @return int[]
+     */
+    public static function extractInboundIdsFromSampleInbound(mixed $sampleInbound): array
+    {
+        if (! is_string($sampleInbound) || ! str_starts_with($sampleInbound, '__INBOUND_IDS__:')) {
+            return [];
+        }
+
+        $line = explode("\n", $sampleInbound, 2)[0];
+        $decoded = json_decode(substr($line, strlen('__INBOUND_IDS__:')), true);
+        if (! is_array($decoded) || $decoded === []) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map('intval', $decoded)));
+    }
+
+    public static function stripInboundIdsFromSampleInbound(mixed $sampleInbound): ?string
+    {
+        if (! is_string($sampleInbound) || $sampleInbound === '') {
+            return null;
+        }
+
+        if (! str_starts_with($sampleInbound, '__INBOUND_IDS__:')) {
+            return $sampleInbound;
+        }
+
+        $parts = explode("\n", $sampleInbound, 2);
+        $rest = isset($parts[1]) ? trim($parts[1]) : '';
+
+        return $rest !== '' ? $rest : null;
+    }
+
+    public function toArray()
+    {
+        $array = parent::toArray();
+        $resolved = $this->resolveInboundIds();
+        if ($resolved !== []) {
+            $array['inbound_ids'] = $resolved;
+            $array['inbound_id'] = $resolved[0];
+        }
+
+        return $array;
+    }
 
     public function isAllowedForUserGroup(?int $userGroupId): bool
     {
@@ -70,6 +169,7 @@ class ProductCategory extends Model
 
     public function getSampleInboundAttribute($value)
     {
+        $value = self::stripInboundIdsFromSampleInbound($value);
         if (!$value) {
             return null;
         }

@@ -119,6 +119,60 @@ class SanaeiPannelController extends Controller
         ];
     }
 
+    /**
+     * @return int[]
+     */
+    private function resolveInboundIdsFromRequest(Request $request, Pannel $panel): array
+    {
+        $resolved = [];
+
+        $appendIds = function (mixed $raw) use (&$resolved): void {
+            if ($raw === null || $raw === '' || $raw === []) {
+                return;
+            }
+
+            if (is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $raw = $decoded;
+                } else {
+                    $parts = preg_split('/[,; ]+/', trim($raw));
+                    $raw = array_filter($parts ?? [], fn ($part) => $part !== '');
+                }
+            }
+
+            if (! is_array($raw)) {
+                return;
+            }
+
+            foreach ($raw as $value) {
+                if ($value === null || $value === '') {
+                    continue;
+                }
+                $resolved[] = (int) $value;
+            }
+        };
+
+        $appendIds($request->input('inbound_ids'));
+
+        if ($request->filled('inbound_id')) {
+            $resolved[] = (int) $request->input('inbound_id');
+        }
+
+        $resolved = array_values(array_unique($resolved));
+        if ($resolved !== []) {
+            sort($resolved);
+
+            return $resolved;
+        }
+
+        if (! empty($panel->inbound_id)) {
+            return [(int) $panel->inbound_id];
+        }
+
+        return [1];
+    }
+
     /** 3x-ui v3 may return JSON fields as arrays; v2 returns JSON strings. */
     private function decodeJsonField(mixed $value): ?array
     {
@@ -763,7 +817,7 @@ class SanaeiPannelController extends Controller
         return $this->performPanelLogin($panel);
     }
 
-    public function addUserToSanaeiPanel(Request $request)
+    public function addUserToSanaeiPanel(Request $request, ?array $inboundIdsOverride = null)
     {
         try {
             $pannelID = (int) $request->pannelID;
@@ -788,16 +842,33 @@ class SanaeiPannelController extends Controller
             $panel->refresh();
             $this->ensureCsrfToken($panel);
 
-            $inboundId = $request->inbound_id ?: ($panel->inbound_id ?: 1);
-            $inbound = $this->getInboundFromPanel($panel, $inboundId);
-
-            if (!$inbound) {
-                \Log::error("Inbound $inboundId not found in panel $pannelID");
+            if ($inboundIdsOverride !== null && $inboundIdsOverride !== []) {
+                $inboundIds = array_values(array_unique(array_map('intval', $inboundIdsOverride)));
+            } else {
+                $inboundIds = $this->resolveInboundIdsFromRequest($request, $panel);
+            }
+            \Log::info('addUserToSanaeiPanel resolved inbound IDs', [
+                'panel_id' => $pannelID,
+                'inbound_ids' => $inboundIds,
+                'override' => $inboundIdsOverride !== null,
+            ]);
+            if ($inboundIds === []) {
+                \Log::error("No inbound IDs configured for panel $pannelID");
                 return false;
             }
 
-            // Update inboundId to the actual ID found (in case of fallback)
-            $inboundId = $inbound['id'];
+            $validatedInboundIds = [];
+            foreach ($inboundIds as $candidateId) {
+                $inbound = $this->getInboundFromPanel($panel, $candidateId);
+                if (!$inbound) {
+                    \Log::error("Inbound $candidateId not found in panel $pannelID");
+                    return false;
+                }
+                $validatedInboundIds[] = (int) $inbound['id'];
+            }
+            $validatedInboundIds = array_values(array_unique($validatedInboundIds));
+            $primaryInboundId = $validatedInboundIds[0];
+            $inbound = $this->getInboundFromPanel($panel, $primaryInboundId);
 
             $uuid = (new HiddifyPannelController())->generateUUID();
             $expireSec = now('UTC')->addDays($day)->timestamp;
@@ -829,7 +900,7 @@ class SanaeiPannelController extends Controller
             if ($this->isV3($panel)) {
                 $v3Body = [
                     'client' => $client,
-                    'inboundIds' => [(int) $inboundId],
+                    'inboundIds' => $validatedInboundIds,
                 ];
                 $res = $this->performRequest($panel, 'POST', '/clients/add', $v3Body, true);
                 if ($res !== null) {
@@ -839,17 +910,19 @@ class SanaeiPannelController extends Controller
                 return false;
             }
 
-            $body = [
-                'id' => $inboundId,
-                'settings' => json_encode(['clients' => [$client]]),
-            ];
-            $res = $this->performRequest($panel, 'POST', '/inbounds/addClient', $body, false);
-            if ($res !== null) {
-                return ['uuid' => $uuid, 'subId' => $client['subId'], 'email' => $client['email']];
+            foreach ($validatedInboundIds as $inboundId) {
+                $body = [
+                    'id' => $inboundId,
+                    'settings' => json_encode(['clients' => [$client]]),
+                ];
+                $res = $this->performRequest($panel, 'POST', '/inbounds/addClient', $body, false);
+                if ($res === null) {
+                    \Log::error("Failed to add client (v2) on panel $pannelID inbound $inboundId");
+                    return false;
+                }
             }
 
-            \Log::error('Failed to add client (v2) on panel ' . $pannelID);
-            return false;
+            return ['uuid' => $uuid, 'subId' => $client['subId'], 'email' => $client['email']];
 
         } catch (\Throwable $th) {
             \Log::error('addUserToSanaeiPanel error: ' . $th->getMessage());

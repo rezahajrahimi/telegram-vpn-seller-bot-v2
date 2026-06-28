@@ -448,7 +448,8 @@ class GeneralController extends Controller
                 $userLink = substr($userLink, 0, -1);
             }
 
-            $userSubscriptionLInk = "$userLink/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            // $userSubscriptionLInk = "$userLink/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            $userSubscriptionLInk = "$userLink/{$newUUID}/#{$req->accountId}";
             $userPannelLink = "$userLink/{$newUUID}/#{$req->accountId}";
 
             $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
@@ -483,17 +484,28 @@ class GeneralController extends Controller
         try {
             $snCtrl = new SanaeiPannelController();
             $accountLabel = BotUser::resolveConfigAccountLabel($chat_id, $productID);
-            $req = new Request();
-            $req->accountId = $accountLabel;
-            $req->chat_id = $chat_id;
-            $req->product_id = $productID;
-            $req->pannelID = $selectedPrCat->pannel_id;
-            $req->vol = $volume;
-            $req->day = $day;
-            $req->inbound_id = $selectedPrCat->inbound_id;
-            $req->ip_limit = $selectedPrCat->ip_limit;
+            $category = ProductCategory::query()->find($selectedPrCat->id) ?? $selectedPrCat;
+            $inboundIds = $category->resolveInboundIds();
+            \Log::info('Sanaei create client inbound_ids', [
+                'category_id' => $category->id,
+                'category_name' => $category->category_name,
+                'inbound_ids' => $inboundIds,
+            ]);
 
-            $result = $snCtrl->addUserToSanaeiPanel($req);
+            $req = new Request();
+            $req->merge([
+                'accountId' => $accountLabel,
+                'chat_id' => $chat_id,
+                'product_id' => $productID,
+                'pannelID' => $category->pannel_id,
+                'vol' => $volume,
+                'day' => $day,
+                'inbound_ids' => $inboundIds,
+                'inbound_id' => $inboundIds[0] ?? $category->inbound_id,
+                'ip_limit' => $category->ip_limit,
+            ]);
+
+            $result = $snCtrl->addUserToSanaeiPanel($req, $inboundIds);
             if ($result === false) {
                 return false;
             }

@@ -199,15 +199,20 @@ class AgentProductController extends Controller
 
         if ($pannel->type == 'sanaei') {
             $snCtrl = new SanaeiPannelController();
+            $category = ProductCategory::query()->find($selectedPrCat->id) ?? $selectedPrCat;
+            $inboundIds = $category->resolveInboundIds();
             $req = new Request();
             $this->applyPanelIdentityToRequest($req, $accountID, (string) $reservedProductId);
-            $req->pannelID = $selectedPrCat->pannel_id;
-            $req->vol = $volume;
-            $req->day = $day;
-            $req->inbound_id = $selectedPrCat->inbound_id;
-            $req->ip_limit = $selectedPrCat->ip_limit;
+            $req->merge([
+                'pannelID' => $category->pannel_id,
+                'vol' => $volume,
+                'day' => $day,
+                'inbound_ids' => $inboundIds,
+                'inbound_id' => $inboundIds[0] ?? $category->inbound_id,
+                'ip_limit' => $category->ip_limit,
+            ]);
 
-            $result = $snCtrl->addUserToSanaeiPanel($req);
+            $result = $snCtrl->addUserToSanaeiPanel($req, $inboundIds);
             if ($result === false) {
                 $prCntrl->deletePendingProduct($reservedProductId);
 

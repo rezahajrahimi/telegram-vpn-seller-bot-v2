@@ -6,9 +6,90 @@ use App\Models\Product;
 use App\Services\LicenseFeatureService;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 
 class ProductCategoryController extends Controller
 {
+    private function normalizeInboundIds(Request $request): ?array
+    {
+        if ($request->has('inbound_ids')) {
+            $raw = $request->input('inbound_ids');
+            if ($raw === null || $raw === '' || $raw === []) {
+                return null;
+            }
+
+            if (is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $raw = $decoded;
+                } else {
+                    $parts = preg_split('/[,; ]+/', trim($raw));
+                    $raw = array_filter($parts ?? [], fn ($part) => $part !== '');
+                }
+            }
+
+            if (! is_array($raw)) {
+                return null;
+            }
+
+            $ids = [];
+            foreach ($raw as $value) {
+                if ($value === null || $value === '') {
+                    continue;
+                }
+                $ids[] = (int) $value;
+            }
+
+            $ids = array_values(array_unique($ids));
+
+            return $ids === [] ? null : $ids;
+        }
+
+        if ($request->filled('inbound_id')) {
+            return [(int) $request->inbound_id];
+        }
+
+        return null;
+    }
+
+    private function applyInboundFields(ProductCategory $data, Request $request): void
+    {
+        $inboundIds = $this->normalizeInboundIds($request);
+        $data->inbound_id = $inboundIds[0] ?? null;
+
+        if (Schema::hasColumn('product_categories', 'inbound_ids')) {
+            $data->inbound_ids = $inboundIds;
+        }
+
+        if ($inboundIds !== null && count($inboundIds) > 1) {
+            $data->sample_inbound = $this->mergeInboundIdsIntoSampleInbound(
+                $data->sample_inbound,
+                $inboundIds
+            );
+        }
+    }
+
+    /**
+     * @param  int[]  $inboundIds
+     */
+    private function mergeInboundIdsIntoSampleInbound(mixed $sampleInbound, array $inboundIds): string
+    {
+        $metaLine = '__INBOUND_IDS__:' . json_encode(array_values($inboundIds));
+        $sample = is_string($sampleInbound) ? $sampleInbound : '';
+
+        if ($sample === '') {
+            return $metaLine;
+        }
+
+        if (str_starts_with($sample, '__INBOUND_IDS__:')) {
+            $parts = explode("\n", $sample, 2);
+
+            return $metaLine . (isset($parts[1]) ? "\n" . $parts[1] : '');
+        }
+
+        return $metaLine . "\n" . $sample;
+    }
+
     private function normalizeAllowedUserGroupIds(Request $request): ?array
     {
         if (! $request->has('allowed_user_group_ids')) {
@@ -144,40 +225,46 @@ class ProductCategoryController extends Controller
     }
     public function addNewProductCategory(Request $request)
     {
-        $data = new ProductCategory();
-        $data->pannel_id = $request->pannel_id;
-        $data->category_name = $request->category_name;
-        $data->price = $request->price;
-        $data->expire_day = $request->expire_day;
-        $data->volume = $request->volume;
-        $data->rechargable = $request->rechargable;
-        $data->show_subscription_link = $request->show_subscription_link;
-        $data->show_pannel_link = $request->show_pannel_link;
-        $data->send_config_to_user = $request->boolean('send_config_to_user', true);
-        $data->inbound_id = $request->inbound_id;
-        $data->sample_inbound = $request->sample_inbound;
-        $data->ip_limit = $request->ip_limit ?? 0;
-        if ($request->price_in_dollar != null && $request->price_in_dollar >= 0.00) {
-            $data->price_in_dollar = $request->price_in_dollar;
-        } else {
-            $data->price_in_dollar = 0.0;
-        }
-        $data->is_active = true;
-        $allowedGroupIds = $this->normalizeAllowedUserGroupIds($request);
-        if ($allowedGroupIds !== null || $request->has('allowed_user_group_ids')) {
-            $data->allowed_user_group_ids = $allowedGroupIds;
-        }
-        if ($request->has('upsell_category_id')) {
-            $upsellId = $request->upsell_category_id;
-            if ((new LicenseFeatureService())->isGold()) {
-                $data->upsell_category_id = ($upsellId === '' || $upsellId === '0' || $upsellId === 0)
-                    ? null
-                    : (int) $upsellId;
+        try {
+            $data = new ProductCategory();
+            $data->pannel_id = $request->pannel_id;
+            $data->category_name = $request->category_name;
+            $data->price = $request->price;
+            $data->expire_day = $request->expire_day;
+            $data->volume = $request->volume;
+            $data->rechargable = $request->rechargable;
+            $data->show_subscription_link = $request->show_subscription_link;
+            $data->show_pannel_link = $request->show_pannel_link;
+            $data->send_config_to_user = $request->boolean('send_config_to_user', true);
+            $data->sample_inbound = $request->sample_inbound;
+            $this->applyInboundFields($data, $request);
+            $data->ip_limit = $request->ip_limit ?? 0;
+            if ($request->price_in_dollar != null && $request->price_in_dollar >= 0.00) {
+                $data->price_in_dollar = $request->price_in_dollar;
+            } else {
+                $data->price_in_dollar = 0.0;
             }
-        }
-        if ($data->save()) {
-            return $this->getAllProdctCategory();
-        } else {
+            $data->is_active = true;
+            $allowedGroupIds = $this->normalizeAllowedUserGroupIds($request);
+            if ($allowedGroupIds !== null || $request->has('allowed_user_group_ids')) {
+                $data->allowed_user_group_ids = $allowedGroupIds;
+            }
+            if ($request->has('upsell_category_id')) {
+                $upsellId = $request->upsell_category_id;
+                if ((new LicenseFeatureService())->isGold()) {
+                    $data->upsell_category_id = ($upsellId === '' || $upsellId === '0' || $upsellId === 0)
+                        ? null
+                        : (int) $upsellId;
+                }
+            }
+            if ($data->save()) {
+                return $this->getAllProdctCategory();
+            }
+
+            return false;
+        } catch (\Throwable $e) {
+            \Log::error('addNewProductCategory error: ' . $e->getMessage());
+
             return false;
         }
     }
@@ -194,9 +281,9 @@ class ProductCategoryController extends Controller
             $data->show_subscription_link = $request->show_subscription_link;
             $data->show_pannel_link = $request->show_pannel_link;
             $data->send_config_to_user = $request->boolean('send_config_to_user', true);
-            $data->inbound_id = $request->inbound_id;
-            \Log::info("sample_inbound", [$request->sample_inbound]);
             $data->sample_inbound = $request->sample_inbound;
+            $this->applyInboundFields($data, $request);
+            \Log::info("sample_inbound", [$request->sample_inbound]);
             $data->ip_limit = $request->ip_limit ?? 0;
             $data->is_active = $request->is_active;
             if ($request->price_in_dollar != null && $request->price_in_dollar >= 0.00) {
@@ -225,6 +312,8 @@ class ProductCategoryController extends Controller
                 return response()->json(false, 401);
             }
         } catch (\Throwable $th) {
+            \Log::error('editProductCategory error: ' . $th->getMessage());
+
             return response()->json(false, 500);
         }
     }
