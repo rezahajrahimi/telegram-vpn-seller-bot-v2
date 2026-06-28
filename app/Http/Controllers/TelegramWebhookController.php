@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\AccountProcessController;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\SubscriptionProcessController;
+use App\Models\BotUser;
 use App\Models\User;
 use App\Models\Transaction;
 use App\Services\TelegramMessageFormatter;
@@ -278,7 +279,7 @@ class TelegramWebhookController extends Controller
 
             $imageTrCntrl = new TransactionImageController();
             $imageTrCntrl->saveNewTransactionImage($request);
-            \Log::info("processPhotoMessage received 44");
+            $this->addUserBotLog($chatId, 'payment', 'تصویر رسید پرداخت آفلاین ارسال شد', 'upload');
             $this->sendMessageToAdmin($chatId, $fileId, $request->transaction_id, 'image');
             // tell user that image is received
             $text = $this->customTextCtrl->getText('action.send_photo.success', [
@@ -785,6 +786,12 @@ class TelegramWebhookController extends Controller
             $transaction->confirmed = 0;
             $transaction->recipe_number = 'REJECTED';
             $transaction->save();
+            $this->addUserBotLog(
+                $transaction->account_id,
+                'payment',
+                'رسید پرداخت آفلاین توسط مدیر رد شد',
+                'reject'
+            );
             $this->telegramService->sendMessage($transaction->account_id, "رسید تراکنش شما توسط مدیریت رد شد.");
         }
 
@@ -814,6 +821,19 @@ class TelegramWebhookController extends Controller
             $transaction->save();
 
             $this->accountProcessCtrl->adminFastCharge($adminChatId, $amount, $transaction->account_id);
+            $formattedAmount = number_format($amount, 0, '.', ',');
+            $this->addUserBotLog(
+                $transaction->account_id,
+                'payment',
+                "رسید پرداخت آفلاین توسط مدیر تایید شد (مبلغ: {$formattedAmount} تومان)",
+                'confirm'
+            );
+            $this->addUserBotLog(
+                $transaction->account_id,
+                'ballance',
+                "میزان موجودی کاربر به مقدار {$formattedAmount} تومان افزایش یافت",
+                'edit'
+            );
 
             // Add referral amount
             $referralLogsCntrl = new ReferralLogsController();
@@ -850,6 +870,14 @@ class TelegramWebhookController extends Controller
         $logCtrl = new LogController();
         $logCtrl->addNewLog($type, $message, $this->getCurrentChatId(), $this->getCurrentChatUserName(), $event);
         return true;
+    }
+
+    private function addUserBotLog(string $accountId, string $type, string $message, string $event): void
+    {
+        $botUser = BotUser::where('account_id', $accountId)->first();
+        $username = $botUser?->username ?? '';
+        $logCtrl = new LogController();
+        $logCtrl->addNewLog($type, $message, $accountId, $username, $event);
     }
     private function is_first_time_bot_start_event()
     {
