@@ -59,6 +59,7 @@ use App\Http\Controllers\PromoCodeController;
 use App\Http\Controllers\MarketingCampaignController;
 use App\Http\Controllers\InboundTemplateController;
 use App\Http\Controllers\SanaeiPannelController;
+use App\Http\Controllers\MarzbanPannelController;
 use App\Http\Controllers\UserGroupController;
 
 
@@ -299,6 +300,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::post('addUserToSanaeiPanel', [SanaeiPannelController::class, 'addUserToSanaeiPanel']);
     Route::post('addUserWithTemplate', [SanaeiPannelController::class, 'addUserWithTemplate']);
     Route::get('syncSanaeiInbounds/{pannelID}', [SanaeiPannelController::class, 'syncInbounds']);
+    Route::get('syncMarzbanInbounds/{pannelID}', [MarzbanPannelController::class, 'syncInbounds']);
     Route::get('checkSanaeiLoginStatus/{pannelID}', [SanaeiPannelController::class, 'checkLoginStatus']);
     Route::post('refreshSanaeiLogin/{pannelID}', [SanaeiPannelController::class, 'refreshLogin']);
     Route::get('checkSanaeiInboundSources/{pannelID}', [SanaeiPannelController::class, 'checkInboundSources']);

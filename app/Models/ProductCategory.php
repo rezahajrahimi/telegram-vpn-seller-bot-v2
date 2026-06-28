@@ -9,12 +9,13 @@ class ProductCategory extends Model
 {
     use HasFactory;
     protected $guarded = ['id', 'pannel_id'];
-    protected $fillable = ['pannel_id', 'category_name', 'price', 'expire_day', 'volume', 'rechargable', 'show_subscription_link', 'show_pannel_link', 'send_config_to_user', 'is_active', 'price_in_dollar', 'inbound_id', 'inbound_ids', 'ip_limit', 'sample_inbound', 'allowed_user_group_ids', 'upsell_category_id'];
+    protected $fillable = ['pannel_id', 'category_name', 'price', 'expire_day', 'volume', 'rechargable', 'show_subscription_link', 'show_pannel_link', 'send_config_to_user', 'is_active', 'price_in_dollar', 'inbound_id', 'inbound_ids', 'marzban_inbounds', 'ip_limit', 'sample_inbound', 'allowed_user_group_ids', 'upsell_category_id'];
 
     protected $casts = [
         'send_config_to_user' => 'boolean',
         'allowed_user_group_ids' => 'array',
         'inbound_ids' => 'array',
+        'marzban_inbounds' => 'array',
     ];
 
     /**
@@ -67,6 +68,44 @@ class ProductCategory extends Model
         sort($resolved);
 
         return $resolved;
+    }
+
+    /**
+     * Marzban/PasarGuard inbounds map: protocol => [tag, ...]
+     *
+     * @return array<string, array<int, string>>
+     */
+    public function resolveMarzbanInbounds(): array
+    {
+        $raw = $this->marzban_inbounds;
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : null;
+        }
+
+        if (! is_array($raw) || $raw === []) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($raw as $protocol => $tags) {
+            $protocolKey = strtolower((string) $protocol);
+            if ($protocolKey === '' || ! is_array($tags)) {
+                continue;
+            }
+            $normalizedTags = [];
+            foreach ($tags as $tag) {
+                $tag = trim((string) $tag);
+                if ($tag !== '') {
+                    $normalizedTags[] = $tag;
+                }
+            }
+            if ($normalizedTags !== []) {
+                $result[$protocolKey] = array_values(array_unique($normalizedTags));
+            }
+        }
+
+        return $result;
     }
 
     /**

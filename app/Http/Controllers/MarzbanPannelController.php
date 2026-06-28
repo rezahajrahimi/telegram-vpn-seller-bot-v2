@@ -205,7 +205,7 @@ class MarzbanPannelController extends Controller
         return null;
     }
 
-    private function buildProxyPayload(Pannel $panel): array
+    private function buildProxyPayload(Pannel $panel, ?array $selectedInbounds = null): array
     {
         $liveInbounds = $this->resolveLiveInboundsMap($panel);
         if ($liveInbounds === null || $liveInbounds === []) {
@@ -214,6 +214,35 @@ class MarzbanPannelController extends Controller
             ]);
 
             return [[], []];
+        }
+
+        if ($selectedInbounds !== null && $selectedInbounds !== []) {
+            $filtered = [];
+            foreach ($selectedInbounds as $protocol => $tags) {
+                $protocolKey = strtolower((string) $protocol);
+                if ($protocolKey === '' || ! is_array($tags)) {
+                    continue;
+                }
+                $liveTags = $liveInbounds[$protocolKey] ?? [];
+                $validTags = array_values(array_intersect(
+                    array_map(static fn ($tag) => trim((string) $tag), $tags),
+                    array_map(static fn ($tag) => trim((string) $tag), $liveTags)
+                ));
+                if ($validTags !== []) {
+                    $filtered[$protocolKey] = $validTags;
+                }
+            }
+
+            if ($filtered === []) {
+                Log::error('Marzban buildProxyPayload failed: selected inbounds not found on panel', [
+                    'panel_id' => $panel->id,
+                    'selected' => $selectedInbounds,
+                ]);
+
+                return [[], []];
+            }
+
+            $liveInbounds = $filtered;
         }
 
         $proxy = [];
@@ -226,9 +255,10 @@ class MarzbanPannelController extends Controller
             $inbounds[$protocol] = array_values($tags);
         }
 
-        Log::info('Marzban using live panel inbounds', [
+        Log::info('Marzban using panel inbounds', [
             'panel_id' => $panel->id,
             'inbounds' => $inbounds,
+            'filtered' => $selectedInbounds !== null && $selectedInbounds !== [],
         ]);
 
         return [$proxy, $inbounds];
@@ -457,7 +487,7 @@ class MarzbanPannelController extends Controller
         return $response->json();
     }
 
-    public function createUser($panelOrId, string $username, int $day, $volGb): array|false
+    public function createUser($panelOrId, string $username, int $day, $volGb, ?array $selectedInbounds = null): array|false
     {
         try {
             $panel = $this->resolvePanel($panelOrId);
@@ -465,7 +495,7 @@ class MarzbanPannelController extends Controller
                 return false;
             }
 
-            [$proxy, $inbounds] = $this->buildProxyPayload($panel);
+            [$proxy, $inbounds] = $this->buildProxyPayload($panel, $selectedInbounds);
             if ($inbounds === []) {
                 Log::error('Marzban createUser failed: no valid inbounds for panel', [
                     'panel_id' => $panel->id,
@@ -558,14 +588,14 @@ class MarzbanPannelController extends Controller
         return is_array($body) ? $body : null;
     }
 
-    public function modifyUser($panelOrId, string $username, int $day, $volGb, bool $resetTraffic = true): bool
+    public function modifyUser($panelOrId, string $username, int $day, $volGb, bool $resetTraffic = true, ?array $selectedInbounds = null): bool
     {
         $panel = $this->resolvePanel($panelOrId);
         if (! $panel) {
             return false;
         }
 
-        [$proxy, $inbounds] = $this->buildProxyPayload($panel);
+        [$proxy, $inbounds] = $this->buildProxyPayload($panel, $selectedInbounds);
         if ($inbounds === []) {
             Log::error('Marzban modifyUser failed: no valid inbounds for panel', [
                 'panel_id' => $panel->id,
@@ -824,5 +854,32 @@ class MarzbanPannelController extends Controller
         $result = $this->performRequest($panel, 'GET', '/api/inbounds');
 
         return is_array($result);
+    }
+
+    public function syncInbounds($pannelID)
+    {
+        try {
+            $panel = Pannel::find((int) $pannelID);
+            if (! $panel || ! $panel->isMarzbanCompatible()) {
+                return response()->json(['success' => false, 'msg' => 'Panel not found'], 404);
+            }
+
+            $inbounds = $this->resolveLiveInboundsMap($panel);
+            if ($inbounds === null || $inbounds === []) {
+                return response()->json([
+                    'success' => false,
+                    'msg' => 'Could not fetch inbounds from panel',
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'inbounds' => $inbounds,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('syncMarzbanInbounds error: ' . $e->getMessage());
+
+            return response()->json(['success' => false, 'msg' => $e->getMessage()], 500);
+        }
     }
 }

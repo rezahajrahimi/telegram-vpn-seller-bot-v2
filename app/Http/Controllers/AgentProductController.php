@@ -256,8 +256,16 @@ class AgentProductController extends Controller
 
         if ($pannel->isMarzbanCompatible()) {
             $mbCtrl = MarzbanPannelController::resolve($pannel);
+            $category = ProductCategory::query()->find($selectedPrCat->id) ?? $selectedPrCat;
+            $marzbanInbounds = $category->resolveMarzbanInbounds();
             $marzbanUsername = $mbCtrl->buildBotUsername($accountID, $reservedProductId);
-            $userData = $mbCtrl->createUser($pannel, $marzbanUsername, (int) $day, $volume);
+            $userData = $mbCtrl->createUser(
+                $pannel,
+                $marzbanUsername,
+                (int) $day,
+                $volume,
+                $marzbanInbounds !== [] ? $marzbanInbounds : null
+            );
             if ($userData === false) {
                 $prCntrl->deletePendingProduct($reservedProductId);
 

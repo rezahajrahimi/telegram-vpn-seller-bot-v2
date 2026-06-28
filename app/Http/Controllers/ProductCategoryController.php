@@ -90,6 +90,61 @@ class ProductCategoryController extends Controller
         return $metaLine . "\n" . $sample;
     }
 
+    private function normalizeMarzbanInbounds(Request $request): ?array
+    {
+        if (! $request->has('marzban_inbounds')) {
+            return null;
+        }
+
+        $raw = $request->input('marzban_inbounds');
+        if ($raw === null || $raw === '' || $raw === []) {
+            return null;
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $raw = $decoded;
+            } else {
+                return null;
+            }
+        }
+
+        if (! is_array($raw)) {
+            return null;
+        }
+
+        $result = [];
+        foreach ($raw as $protocol => $tags) {
+            $protocolKey = strtolower((string) $protocol);
+            if ($protocolKey === '' || ! is_array($tags)) {
+                continue;
+            }
+            $normalizedTags = [];
+            foreach ($tags as $tag) {
+                $tag = trim((string) $tag);
+                if ($tag !== '') {
+                    $normalizedTags[] = $tag;
+                }
+            }
+            if ($normalizedTags !== []) {
+                $result[$protocolKey] = array_values(array_unique($normalizedTags));
+            }
+        }
+
+        return $result === [] ? null : $result;
+    }
+
+    private function applyMarzbanInboundFields(ProductCategory $data, Request $request): void
+    {
+        $marzbanInbounds = $this->normalizeMarzbanInbounds($request);
+        if ($marzbanInbounds !== null || $request->has('marzban_inbounds')) {
+            if (Schema::hasColumn('product_categories', 'marzban_inbounds')) {
+                $data->marzban_inbounds = $marzbanInbounds;
+            }
+        }
+    }
+
     private function normalizeAllowedUserGroupIds(Request $request): ?array
     {
         if (! $request->has('allowed_user_group_ids')) {
@@ -238,6 +293,7 @@ class ProductCategoryController extends Controller
             $data->send_config_to_user = $request->boolean('send_config_to_user', true);
             $data->sample_inbound = $request->sample_inbound;
             $this->applyInboundFields($data, $request);
+            $this->applyMarzbanInboundFields($data, $request);
             $data->ip_limit = $request->ip_limit ?? 0;
             if ($request->price_in_dollar != null && $request->price_in_dollar >= 0.00) {
                 $data->price_in_dollar = $request->price_in_dollar;
@@ -283,6 +339,7 @@ class ProductCategoryController extends Controller
             $data->send_config_to_user = $request->boolean('send_config_to_user', true);
             $data->sample_inbound = $request->sample_inbound;
             $this->applyInboundFields($data, $request);
+            $this->applyMarzbanInboundFields($data, $request);
             \Log::info("sample_inbound", [$request->sample_inbound]);
             $data->ip_limit = $request->ip_limit ?? 0;
             $data->is_active = $request->is_active;

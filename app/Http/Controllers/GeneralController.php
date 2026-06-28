@@ -575,7 +575,20 @@ class GeneralController extends Controller
             $username = $username ?? $mbCtrl->buildBotUsername($chat_id, $productID);
             $textKey = $textKey ?? $pannel->customTextKey('action.subscription.marzban');
 
-            $userData = $mbCtrl->createUser($pannel, $username, (int) $day, $volume);
+            $category = ProductCategory::query()->find($selectedPrCat->id) ?? $selectedPrCat;
+            $marzbanInbounds = $category->resolveMarzbanInbounds();
+            \Log::info('Marzban create client inbounds', [
+                'category_id' => $category->id,
+                'marzban_inbounds' => $marzbanInbounds,
+            ]);
+
+            $userData = $mbCtrl->createUser(
+                $pannel,
+                $username,
+                (int) $day,
+                $volume,
+                $marzbanInbounds !== [] ? $marzbanInbounds : null
+            );
             if ($userData === false) {
                 return false;
             }
