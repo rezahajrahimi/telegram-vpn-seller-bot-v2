@@ -443,6 +443,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     // LoyaltySettingController
     Route::get('/getLoyaltySetting', [LoyaltySettingController::class, 'get_loyalty_setting']);
     Route::put('/updateLoyaltySetting', [LoyaltySettingController::class, 'update_loyalty_setting']);
+    Route::post('/updateLoyaltySetting', [LoyaltySettingController::class, 'update_loyalty_setting']);
     Route::get('/getAllLoyaltyLogs', [LoyaltyLogsController::class, 'get_all_loyalty_logs']);
     Route::get('/getTopLoyaltyUsers', [LoyaltyLogsController::class, 'get_top_loyalty_users']);
     Route::put('/editLoyaltyPointsByAccountId', [LoyaltyWalletController::class, 'edit_points_by_account_id']);

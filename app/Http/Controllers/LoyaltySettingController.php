@@ -6,6 +6,7 @@ use App\Models\LoyaltyTransaction;
 use App\Services\LicenseFeatureService;
 use App\Services\LoyaltyPointsService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class LoyaltySettingController extends Controller
 {
@@ -24,19 +25,22 @@ class LoyaltySettingController extends Controller
 
             return $this->loyalty->seedDefaultSettings();
         } catch (\Throwable $th) {
-            \Log::info("Throwable get_loyalty_setting: $th");
+            \Log::error('get_loyalty_setting: ' . $th->getMessage());
 
-            return response()->json(null, 500);
+            return response()->json([
+                'success' => false,
+                'message' => $this->resolveLoyaltyErrorMessage($th),
+            ], 500);
         }
     }
 
     public function update_loyalty_setting(Request $request)
     {
-        try {
-            if ($this->license->isBronzeOrBelow()) {
-                return $this->license->silverRequiredResponse();
-            }
+        if ($this->license->isBronzeOrBelow()) {
+            return $this->license->silverRequiredResponse();
+        }
 
+        try {
             $validated = $request->validate([
                 'description' => 'nullable|string|max:4000',
                 'is_active' => 'required|boolean',
@@ -58,12 +62,34 @@ class LoyaltySettingController extends Controller
             $settings->fill($validated);
             $settings->save();
 
-            return $settings;
+            return response()->json([
+                'success' => true,
+                'data' => $settings,
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'داده‌های ورودی نامعتبر است.',
+                'errors' => $e->errors(),
+            ], 422);
         } catch (\Throwable $th) {
-            \Log::info("Throwable update_loyalty_setting: $th");
+            \Log::error('update_loyalty_setting: ' . $th->getMessage());
 
-            return response()->json(null, 500);
+            return response()->json([
+                'success' => false,
+                'message' => $this->resolveLoyaltyErrorMessage($th),
+            ], 500);
         }
+    }
+
+    private function resolveLoyaltyErrorMessage(\Throwable $th): string
+    {
+        $message = $th->getMessage();
+        if (str_contains($message, 'loyalty_settings') || str_contains($message, "doesn't exist")) {
+            return 'جدول باشگاه مشتریان در دیتابیس وجود ندارد. ابتدا php artisan migrate --force را اجرا کنید.';
+        }
+
+        return 'خطا در ذخیره تنظیمات باشگاه مشتریان.';
     }
 
     public function check_loyalty_is_active(): bool
