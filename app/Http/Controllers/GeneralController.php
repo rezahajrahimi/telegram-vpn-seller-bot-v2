@@ -1333,8 +1333,7 @@ class GeneralController extends Controller
             if ($referralPercent == null) {
                 $referralPercent = 0;
             }
-            // Format decimal without stripping trailing zeros from whole numbers (e.g. 10 → "10", not "1").
-            $referralPercentStr = rtrim(rtrim(number_format((float) $referralPercent, 2, '.', ''), '0'), '.');
+            $referralPercentStr = rtrim(rtrim((string) $referralPercent, '0'), '.');
 
             $text = $this->customTextCtrl->getText('action.referral.text', [
                 'link' => $inviteUrl,
