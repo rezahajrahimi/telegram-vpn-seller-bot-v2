@@ -9,7 +9,6 @@ use App\Models\Product;
 use App\Models\Pannel;
 use App\Models\User;
 use App\Models\AgentPermisson;
-use App\Models\AccountBallance;
 use App\Services\ConfigNameService;
 use App\Services\InventoryPurchaseService;
 use App\Services\PromoCodeService;
@@ -473,7 +472,6 @@ class AgentProductController extends Controller
             $reqPermission->merge([
                 'user_id' => $userID,
                 'minus_ballance' => $request['minusBallance'],
-                'minus_ballance_limit' => $request['minusBallanceLimit'] ?? null,
                 'create_products' => $request['createProducts'],
                 'delete_products' => $request['deleteProducts'],
                 'traffic_limitation_tb' => $request['trafficLimitationTB'] ? $request['trafficLimitationTB'] : 10,
@@ -893,7 +891,7 @@ class AgentProductController extends Controller
         $usedCount = max(0, $raw['product_count'] - $baselineCount);
         $usedTraffic = max(0, round($raw['traffic_tb'] - $baselineTraffic, 2));
 
-        $result = [
+        return [
             'product_limit' => $productLimit,
             'traffic_limit_tb' => $trafficLimit,
             'used_product_count' => $usedCount,
@@ -911,27 +909,6 @@ class AgentProductController extends Controller
                 ? min(100, round(($usedTraffic / $trafficLimit) * 100, 1))
                 : 0,
         ];
-
-        if ($agentPermisson->minus_ballance == 1 || $agentPermisson->minus_ballance === true) {
-            $accountBallance = AccountBallance::where('account_id', $user->account_id)->first();
-            $currentBalance = $accountBallance ? (float) $accountBallance->ballance : 0;
-            $debtLimit = $agentPermisson->minus_ballance_limit;
-            $currentDebt = max(0, round(-1 * $currentBalance, 2));
-            $hasDebtLimit = $debtLimit !== null && (float) $debtLimit > 0;
-            $remainingDebtLimit = $hasDebtLimit
-                ? max(0, round((float) $debtLimit - $currentDebt, 2))
-                : null;
-
-            $result['minus_ballance_limit'] = $hasDebtLimit ? (float) $debtLimit : null;
-            $result['current_balance'] = $currentBalance;
-            $result['current_debt'] = $currentDebt;
-            $result['remaining_debt_limit'] = $remainingDebtLimit;
-            $result['debt_usage_percent'] = $hasDebtLimit
-                ? min(100, round(($currentDebt / (float) $debtLimit) * 100, 1))
-                : 0;
-        }
-
-        return $result;
     }
 
     public function resetAgentLimitUsage(int $userId): ?array
