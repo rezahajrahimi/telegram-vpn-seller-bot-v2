@@ -284,6 +284,13 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                 }
 
                 if ($resualt == false || $resualt == null) {
+                    \Log::error('Subscription purchase delivery failed', [
+                        'chat_id' => $this->chatId,
+                        'product_category_id' => $this->productCategoryId,
+                        'panel_type' => $pannel->type ?? null,
+                        'panel_id' => $selectedPrCat->pannel_id ?? null,
+                        'reserved_product_id' => $reservedProductId,
+                    ]);
                     $paymentService->refund($this->chatId, $chargeResult, $username);
                     if ($loyaltyPointsRedeemed > 0) {
                         $loyaltyService->refundRedeemedPoints($this->chatId, $loyaltyPointsRedeemed);

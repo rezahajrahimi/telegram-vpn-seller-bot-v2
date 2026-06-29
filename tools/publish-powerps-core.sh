@@ -24,25 +24,7 @@ BOLT_VERSION="$(tr -d '[:space:]' < "${PROJECT_ROOT}/.powerps-bolt-version")"
 ARCH="$(uname -m)"
 
 sanitize_release_composer_json() {
- php -r '
-$path = $argv[1];
-$data = json_decode(file_get_contents($path), true);
-if (!is_array($data)) { exit(1); }
-unset($data["require-dev"]["sbamtr/laravel-source-encrypter"]);
-if (isset($data["autoload-dev"]["psr-4"]["sbamtr\\LaravelSourceEncrypter\\"])) {
- unset($data["autoload-dev"]["psr-4"]["sbamtr\\LaravelSourceEncrypter\\"]);
-}
-if (!empty($data["repositories"])) {
- $data["repositories"] = array_values(array_filter(
- $data["repositories"],
- fn($repo) => ($repo["type"] ?? "") !== "path"
- ));
-}
-file_put_contents(
- $path,
- json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
-);
-' "$1"
+ "${PROJECT_ROOT}/tools/sanitize-release-composer.php" "$1"
 }
 
 if [[ "${SKIP_ENCRYPT}" -eq 0 ]]; then
@@ -129,9 +111,14 @@ Host arch: ${ARCH}
 EOF
 
 echo "==> Sanitizing composer files for production release"
-sanitize_release_composer_json "${OUTPUT_DIR}/composer.json"
+cp "${PROJECT_ROOT}/tools/sanitize-release-composer.php" "${OUTPUT_DIR}/sanitize-release-composer.php"
+chmod +x "${OUTPUT_DIR}/sanitize-release-composer.php"
+sanitize_release_composer_json "${OUTPUT_DIR}"
 if command -v composer >/dev/null 2>&1; then
- (cd "${OUTPUT_DIR}" && composer update --lock --no-install --no-dev --no-interaction --ignore-platform-reqs --no-scripts) || true
+ if ! (cd "${OUTPUT_DIR}" && composer validate --no-check-publish --no-interaction >/dev/null 2>&1); then
+  echo "ERROR: composer.json and composer.lock are out of sync after sanitize" >&2
+  exit 1
+ fi
 fi
 
 echo "==> Release ready at ${OUTPUT_DIR}"

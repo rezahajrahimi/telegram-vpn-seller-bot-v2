@@ -437,6 +437,11 @@ class GeneralController extends Controller
 
             $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
             if ($newUUID == false) {
+                \Log::error('new_hiddify_config_telegram_text: addUserToHiddifyPanel returned false', [
+                    'chat_id' => $chat_id,
+                    'pannel_id' => $selectedPrCat->pannel_id,
+                    'product_id' => $productID,
+                ]);
 
                 return false;
             }

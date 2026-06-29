@@ -134,6 +134,20 @@ class MarzbanPannelController extends Controller
         if (array_is_list($body)) {
             $result = [];
             foreach ($body as $item) {
+                if (is_string($item)) {
+                    $tag = trim($item);
+                    if ($tag === '') {
+                        continue;
+                    }
+                    $protocol = strtolower((string) strtok($tag, ' '));
+                    if ($protocol === '') {
+                        continue;
+                    }
+                    $result[$protocol][] = $tag;
+
+                    continue;
+                }
+
                 $row = is_array($item) ? $item : (array) $item;
                 $protocol = strtolower(trim((string) ($row['protocol'] ?? '')));
                 $tag = $this->extractInboundTag($item);
@@ -170,10 +184,17 @@ class MarzbanPannelController extends Controller
         return $result;
     }
 
+    private function inboundsApiPath(Pannel $panel): string
+    {
+        return $panel->type === Pannel::TYPE_PASARGUARD
+            ? '/api/inbounds/details'
+            : '/api/inbounds';
+    }
+
     private function fetchLiveInboundsMap(Pannel $panel): ?array
     {
         try {
-            $body = $this->performRequest($panel, 'GET', '/api/inbounds');
+            $body = $this->performRequest($panel, 'GET', $this->inboundsApiPath($panel));
             if (! is_array($body)) {
                 return null;
             }
@@ -851,7 +872,7 @@ class MarzbanPannelController extends Controller
             return false;
         }
 
-        $result = $this->performRequest($panel, 'GET', '/api/inbounds');
+        $result = $this->performRequest($panel, 'GET', $this->inboundsApiPath($panel));
 
         return is_array($result);
     }

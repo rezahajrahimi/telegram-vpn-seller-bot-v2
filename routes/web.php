@@ -3,9 +3,8 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TransactionCryptoController;
-use App\Http\Controllers\ExecuteArtisanCommandController;
-use App\Http\Controllers\CryptomusController; // Added this line
-use Illuminate\Http\Request;
+use App\Http\Controllers\CryptomusController;
+use App\Http\Controllers\WebViewController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,39 +17,21 @@ use Illuminate\Http\Request;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
-Route::get('buy/{account_id}/{invoiceID}/{price}', function ($account_id, $invoiceID, $price) {
-    return view('shop', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
-});
+Route::get('/', [WebViewController::class, 'welcome']);
+Route::get('buy/{account_id}/{invoiceID}/{price}', [WebViewController::class, 'shop']);
 Route::post('shop', [TransactionController::class, 'add_order'])->name('shop.submit'); // for zarinpal
 
-Route::get('order', function (Request $request) {
-
-    return redirect()->action([TransactionController::class, 'order'], ['transaction_id' => $request->Authority, 'status' => $request->Status]);
-});
+Route::get('order', [WebViewController::class, 'orderRedirect']);
 
 // Laravel 8 & 9
 Route::get('/pay', [App\Http\Controllers\NowPaymentsController::class, 'createCryptoInvoice'])->name('pay');
-// Route::post('/pay', [App\Http\Controllers\NowPaymentsController::class, 'createCryptoPayment'])->name('pay');
 
-Route::get('cryptopayment/{account_id}/{invoiceID}/{price}', function ($account_id, $invoiceID, $price) {
-    return view('crypto', ['account_id' => $account_id, 'invoiceID' => $invoiceID, 'price' => $price]);
- });
- 
- Route::post('cryptogateway', [TransactionCryptoController::class, 'initiateCryptoPayment'])->name('crypto.initiate'); // Changed target method
- // back mowpayments
- // Route::post('/orderSuccess', [App\Http\Controllers\TransactionCryptoController::class, 'orderSuccess']);
+Route::get('cryptopayment/{account_id}/{invoiceID}/{price}', [WebViewController::class, 'cryptoPayment']);
 
-Route::get('/payback', function () {
-    $transaction_id = request()->query('NP_id');
-    // Now you can use $npId in your logic
-    return redirect()->action([TransactionCryptoController::class, 'orderSuccess'], ['transaction_id' => $transaction_id]);
-});
-Route::get('/cancelpay', function () {
-    return "پرداخت شما لغو شد.";
-});
+Route::post('cryptogateway', [TransactionCryptoController::class, 'initiateCryptoPayment'])->name('crypto.initiate');
+
+Route::get('/payback', [WebViewController::class, 'payback']);
+Route::get('/cancelpay', [WebViewController::class, 'cancelPay']);
 
 // Cryptomus Routes
 Route::post('/cryptomus/create', [CryptomusController::class, 'createPayment'])->name('cryptomus.create');

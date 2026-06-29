@@ -19,8 +19,8 @@ git push origin main
 
 # همین‌طور install.sh به‌روز را push کن:
 cd ../../powerps-core-scripts
-git add install.sh README.md
-git commit -m "chore: PHP 8.4 + phpBolt 1.0.7"
+git add install.sh sanitize-release-composer.php README.md
+git commit -m "chore: sync composer lock on release (no update --lock on server)"
 git push origin main
 
 
@@ -87,15 +87,22 @@ cd power_ps_front_3
 
 
 #!/bin/bash
-cd /www/wwwroot/core.powerps.ir
+# install.sh puts the app here (NOT /www/wwwroot/... — that is another host/panel)
+cd /var/www/html/laravel-app
+export COMPOSER_ALLOW_SUPERUSER=1
 
-composer install --no-dev --optimize-autoloader
+composer install --no-dev --optimize-autoloader --no-interaction
 
-chown -R www:www storage bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
 chmod -R 775 storage bootstrap/cache
 
 php artisan migrate --force
-
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
+
+# Do NOT run `composer update --lock` on the server — lock sync belongs in publish-powerps-core.sh
+
+
+
+#  composer install --no-dev --optimize-autoloader

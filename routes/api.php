@@ -88,13 +88,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout']);
 
 Route::post('/forgetPassword', [AuthController::class, 'forgetPassword']);
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
-    return $request->user();
-});
-// /auth/me
+Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'me']);
+Route::middleware('auth:sanctum')->get('/me', [AuthController::class, 'me']);
 Route::get('/auth/me', [AuthController::class, 'me']);
 // Admin Routes
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.license']], function () {
