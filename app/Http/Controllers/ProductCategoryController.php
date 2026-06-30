@@ -145,6 +145,54 @@ class ProductCategoryController extends Controller
         }
     }
 
+    private function normalizePasarguardGroupIds(Request $request): ?array
+    {
+        if (! $request->has('pasarguard_group_ids')) {
+            return null;
+        }
+
+        $raw = $request->input('pasarguard_group_ids');
+        if ($raw === null || $raw === '' || $raw === []) {
+            return null;
+        }
+
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $raw = $decoded;
+            } else {
+                $parts = preg_split('/[,; ]+/', trim($raw));
+                $raw = array_filter($parts ?? [], fn ($part) => $part !== '');
+            }
+        }
+
+        if (! is_array($raw)) {
+            return null;
+        }
+
+        $ids = [];
+        foreach ($raw as $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $ids[] = (int) $value;
+        }
+
+        $ids = array_values(array_unique($ids));
+
+        return $ids === [] ? null : $ids;
+    }
+
+    private function applyPasarguardGroupFields(ProductCategory $data, Request $request): void
+    {
+        $groupIds = $this->normalizePasarguardGroupIds($request);
+        if ($groupIds !== null || $request->has('pasarguard_group_ids')) {
+            if (Schema::hasColumn('product_categories', 'pasarguard_group_ids')) {
+                $data->pasarguard_group_ids = $groupIds;
+            }
+        }
+    }
+
     private function normalizeAllowedUserGroupIds(Request $request): ?array
     {
         if (! $request->has('allowed_user_group_ids')) {
@@ -294,6 +342,7 @@ class ProductCategoryController extends Controller
             $data->sample_inbound = $request->sample_inbound;
             $this->applyInboundFields($data, $request);
             $this->applyMarzbanInboundFields($data, $request);
+            $this->applyPasarguardGroupFields($data, $request);
             $data->ip_limit = $request->ip_limit ?? 0;
             if ($request->price_in_dollar != null && $request->price_in_dollar >= 0.00) {
                 $data->price_in_dollar = $request->price_in_dollar;
@@ -340,6 +389,7 @@ class ProductCategoryController extends Controller
             $data->sample_inbound = $request->sample_inbound;
             $this->applyInboundFields($data, $request);
             $this->applyMarzbanInboundFields($data, $request);
+            $this->applyPasarguardGroupFields($data, $request);
             \Log::info("sample_inbound", [$request->sample_inbound]);
             $data->ip_limit = $request->ip_limit ?? 0;
             $data->is_active = $request->is_active;

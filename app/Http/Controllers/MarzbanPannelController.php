@@ -52,7 +52,7 @@ class MarzbanPannelController extends Controller
         );
     }
 
-    private function makeUniqueUsername(string $baseUsername): string
+    protected function makeUniqueUsername(string $baseUsername): string
     {
         $suffix = bin2hex(random_bytes(2));
         $base = $this->sanitizeUsername($baseUsername);
@@ -68,7 +68,7 @@ class MarzbanPannelController extends Controller
         return substr($base, 0, $maxBaseLength) . $suffix;
     }
 
-    private function resolvePanel($panelOrId): ?Pannel
+    protected function resolvePanel($panelOrId): ?Pannel
     {
         return $panelOrId instanceof Pannel ? $panelOrId : Pannel::find($panelOrId);
     }
@@ -285,6 +285,32 @@ class MarzbanPannelController extends Controller
         return [$proxy, $inbounds];
     }
 
+    /**
+     * @param  array<string, array<int, string>>|null  $selectedInbounds
+     * @param  int[]|null  $selectedGroupIds
+     */
+    protected function buildUserMutationParams(
+        Pannel $panel,
+        int $day,
+        $volGb,
+        ?array $selectedInbounds = null,
+        ?array $selectedGroupIds = null,
+        bool $assignGroups = true
+    ): array {
+        [$proxy, $inbounds] = $this->buildProxyPayload($panel, $selectedInbounds);
+        if ($inbounds === []) {
+            return [];
+        }
+
+        return [
+            'expire' => $this->expireTimestamp($day),
+            'data_limit' => $this->gbToBytes($volGb),
+            'proxies' => $proxy,
+            'inbounds' => $inbounds,
+            'status' => 'active',
+        ];
+    }
+
     private function removeInvalidInboundFromParams(array &$params): bool
     {
         $detail = $params['_last_error_detail'] ?? null;
@@ -342,7 +368,7 @@ class MarzbanPannelController extends Controller
         return $params;
     }
 
-    private function isUserAlreadyExistsError(?array $errorBody): bool
+    protected function isUserAlreadyExistsError(?array $errorBody): bool
     {
         if (! is_array($errorBody)) {
             return false;
@@ -356,7 +382,7 @@ class MarzbanPannelController extends Controller
         return false;
     }
 
-    private function performUserMutation(Pannel $panel, string $method, string $path, array &$params): ?array
+    protected function performUserMutation(Pannel $panel, string $method, string $path, array &$params): ?array
     {
         $maxAttempts = 6;
         $this->lastMutationHttpStatus = null;
@@ -408,7 +434,7 @@ class MarzbanPannelController extends Controller
         return null;
     }
 
-    private function gbToBytes($gb): int
+    protected function gbToBytes($gb): int
     {
         return (int) round((float) $gb * 1024 * 1024 * 1024);
     }
@@ -427,7 +453,7 @@ class MarzbanPannelController extends Controller
         return $expireTs;
     }
 
-    private function expireTimestamp(int $days): int
+    protected function expireTimestamp(int $days): int
     {
         $utc = Carbon::now('UTC')->addDays($days);
 
@@ -485,7 +511,7 @@ class MarzbanPannelController extends Controller
         };
     }
 
-    private function performRequest(Pannel $panel, string $method, string $path, ?array $body = null, bool $allowRetry = true)
+    protected function performRequest(Pannel $panel, string $method, string $path, ?array $body = null, bool $allowRetry = true)
     {
         $response = $this->sendRequest($panel, $method, $path, $body);
 
@@ -508,7 +534,7 @@ class MarzbanPannelController extends Controller
         return $response->json();
     }
 
-    public function createUser($panelOrId, string $username, int $day, $volGb, ?array $selectedInbounds = null): array|false
+    public function createUser($panelOrId, string $username, int $day, $volGb, ?array $selectedInbounds = null, ?array $selectedGroupIds = null): array|false
     {
         try {
             $panel = $this->resolvePanel($panelOrId);
@@ -516,8 +542,8 @@ class MarzbanPannelController extends Controller
                 return false;
             }
 
-            [$proxy, $inbounds] = $this->buildProxyPayload($panel, $selectedInbounds);
-            if ($inbounds === []) {
+            $params = $this->buildUserMutationParams($panel, $day, $volGb, $selectedInbounds, $selectedGroupIds);
+            if ($params === []) {
                 Log::error('Marzban createUser failed: no valid inbounds for panel', [
                     'panel_id' => $panel->id,
                 ]);
@@ -529,14 +555,6 @@ class MarzbanPannelController extends Controller
             if ($baseUsername === '') {
                 $baseUsername = 'BotUser' . bin2hex(random_bytes(4));
             }
-
-            $params = [
-                'expire' => $this->expireTimestamp($day),
-                'data_limit' => $this->gbToBytes($volGb),
-                'proxies' => $proxy,
-                'inbounds' => $inbounds,
-                'status' => 'active',
-            ];
 
             $body = null;
             for ($usernameAttempt = 1; $usernameAttempt <= 8; $usernameAttempt++) {
@@ -580,7 +598,7 @@ class MarzbanPannelController extends Controller
         }
     }
 
-    private function buildCreateUserResult(Pannel $panel, array $body, string $username): array
+    protected function buildCreateUserResult(Pannel $panel, array $body, string $username): array
     {
         $mainUrl = $this->baseUrl($panel);
         $subPath = $body['subscription_url'];
@@ -609,29 +627,21 @@ class MarzbanPannelController extends Controller
         return is_array($body) ? $body : null;
     }
 
-    public function modifyUser($panelOrId, string $username, int $day, $volGb, bool $resetTraffic = true, ?array $selectedInbounds = null): bool
+    public function modifyUser($panelOrId, string $username, int $day, $volGb, bool $resetTraffic = true, ?array $selectedInbounds = null, ?array $selectedGroupIds = null): bool
     {
         $panel = $this->resolvePanel($panelOrId);
         if (! $panel) {
             return false;
         }
 
-        [$proxy, $inbounds] = $this->buildProxyPayload($panel, $selectedInbounds);
-        if ($inbounds === []) {
+        $params = $this->buildUserMutationParams($panel, $day, $volGb, $selectedInbounds, $selectedGroupIds);
+        if ($params === []) {
             Log::error('Marzban modifyUser failed: no valid inbounds for panel', [
                 'panel_id' => $panel->id,
             ]);
 
             return false;
         }
-
-        $params = [
-            'expire' => $this->expireTimestamp($day),
-            'data_limit' => $this->gbToBytes($volGb),
-            'proxies' => $proxy,
-            'inbounds' => $inbounds,
-            'status' => 'active',
-        ];
 
         $body = $this->performUserMutation(
             $panel,

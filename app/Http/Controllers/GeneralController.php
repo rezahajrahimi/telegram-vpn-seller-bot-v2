@@ -574,9 +574,11 @@ class GeneralController extends Controller
 
             $category = ProductCategory::query()->find($selectedPrCat->id) ?? $selectedPrCat;
             $marzbanInbounds = $category->resolveMarzbanInbounds();
+            $pasarguardGroupIds = $category->resolvePasarguardGroupIds();
             \Log::info('Marzban create client inbounds', [
                 'category_id' => $category->id,
                 'marzban_inbounds' => $marzbanInbounds,
+                'pasarguard_group_ids' => $pasarguardGroupIds,
             ]);
 
             $userData = $mbCtrl->createUser(
@@ -584,7 +586,8 @@ class GeneralController extends Controller
                 $username,
                 (int) $day,
                 $volume,
-                $marzbanInbounds !== [] ? $marzbanInbounds : null
+                $marzbanInbounds !== [] ? $marzbanInbounds : null,
+                $pasarguardGroupIds !== [] ? $pasarguardGroupIds : null
             );
             if ($userData === false) {
                 return false;

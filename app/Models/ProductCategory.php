@@ -9,13 +9,14 @@ class ProductCategory extends Model
 {
     use HasFactory;
     protected $guarded = ['id', 'pannel_id'];
-    protected $fillable = ['pannel_id', 'category_name', 'price', 'expire_day', 'volume', 'rechargable', 'show_subscription_link', 'show_pannel_link', 'send_config_to_user', 'is_active', 'price_in_dollar', 'inbound_id', 'inbound_ids', 'marzban_inbounds', 'ip_limit', 'sample_inbound', 'allowed_user_group_ids', 'upsell_category_id'];
+    protected $fillable = ['pannel_id', 'category_name', 'price', 'expire_day', 'volume', 'rechargable', 'show_subscription_link', 'show_pannel_link', 'send_config_to_user', 'is_active', 'price_in_dollar', 'inbound_id', 'inbound_ids', 'marzban_inbounds', 'pasarguard_group_ids', 'ip_limit', 'sample_inbound', 'allowed_user_group_ids', 'upsell_category_id'];
 
     protected $casts = [
         'send_config_to_user' => 'boolean',
         'allowed_user_group_ids' => 'array',
         'inbound_ids' => 'array',
         'marzban_inbounds' => 'array',
+        'pasarguard_group_ids' => 'array',
     ];
 
     /**
@@ -106,6 +107,35 @@ class ProductCategory extends Model
         }
 
         return $result;
+    }
+
+    /**
+     * @return int[]
+     */
+    public function resolvePasarguardGroupIds(): array
+    {
+        $raw = $this->pasarguard_group_ids;
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : null;
+        }
+
+        if (! is_array($raw) || $raw === []) {
+            return [];
+        }
+
+        $ids = [];
+        foreach ($raw as $value) {
+            if ($value === null || $value === '') {
+                continue;
+            }
+            $ids[] = (int) $value;
+        }
+
+        $ids = array_values(array_unique($ids));
+        sort($ids);
+
+        return $ids;
     }
 
     /**

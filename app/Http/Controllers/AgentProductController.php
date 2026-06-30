@@ -258,13 +258,15 @@ class AgentProductController extends Controller
             $mbCtrl = MarzbanPannelController::resolve($pannel);
             $category = ProductCategory::query()->find($selectedPrCat->id) ?? $selectedPrCat;
             $marzbanInbounds = $category->resolveMarzbanInbounds();
+            $pasarguardGroupIds = $category->resolvePasarguardGroupIds();
             $marzbanUsername = $mbCtrl->buildBotUsername($accountID, $reservedProductId);
             $userData = $mbCtrl->createUser(
                 $pannel,
                 $marzbanUsername,
                 (int) $day,
                 $volume,
-                $marzbanInbounds !== [] ? $marzbanInbounds : null
+                $marzbanInbounds !== [] ? $marzbanInbounds : null,
+                $pasarguardGroupIds !== [] ? $pasarguardGroupIds : null
             );
             if ($userData === false) {
                 $prCntrl->deletePendingProduct($reservedProductId);
