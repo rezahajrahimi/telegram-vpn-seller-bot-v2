@@ -1126,7 +1126,7 @@ class TelegramController extends Controller
                 $req->comment = "شارژ مجدد در {$today}";
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-                if ($updateRemark->getStatusCode() == 200) {
+                if ($hiddifcCntrl->hiddifyMutationSucceeded($updateRemark)) {
                     if ($hasBallance == true) {
                         $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                         $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');

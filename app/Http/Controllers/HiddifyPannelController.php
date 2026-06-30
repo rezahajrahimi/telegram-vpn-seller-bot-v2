@@ -460,64 +460,98 @@ class HiddifyPannelController extends Controller
 
         return $data;
     }
+
+    private function buildHiddifyRechargeParams(Request $request): array
+    {
+        $pannel = Pannel::find($request->pannelID);
+        $adminUUID = (string) ($pannel?->secret_code ?? '');
+        $today = date('Y-m-d');
+
+        return [
+            'uuid' => (string) $request->uuid,
+            'name' => (string) ($request->name ?? ''),
+            'current_usage_GB' => 0,
+            'usage_limit_GB' => (float) $request->vol,
+            'package_days' => (int) $request->day,
+            'mode' => 'no_reset',
+            'start_date' => $today,
+            'last_reset_time' => date('Y-m-d H:i:s'),
+            'enable' => true,
+            'added_by_uuid' => $adminUUID,
+            'comment' => (string) ($request->comment ?? ''),
+        ];
+    }
+
+    private function verifyHiddifyRechargeState(int|string $pannelID, string $uuid, float $expectedVolumeGb): bool
+    {
+        $user = $this->sendGetRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/");
+        if (! is_array($user)) {
+            return false;
+        }
+
+        $currentUsage = (float) ($user['current_usage_GB'] ?? -1);
+        $usageLimit = (float) ($user['usage_limit_GB'] ?? 0);
+
+        return $currentUsage <= 0.01 && abs($usageLimit - $expectedVolumeGb) < 0.01;
+    }
+
+    public function hiddifyMutationSucceeded(mixed $result): bool
+    {
+        if ($result === false || $result === null) {
+            return false;
+        }
+
+        if ($result instanceof \Illuminate\Http\Client\Response) {
+            return $result->successful();
+        }
+
+        if ($result instanceof \Symfony\Component\HttpFoundation\Response) {
+            return $result->getStatusCode() >= 200 && $result->getStatusCode() < 300;
+        }
+
+        return is_array($result);
+    }
+
     public function rechargeUserOfHiddifyPanelOldApi(Request $request)
     {
         $pannelID = $request->pannelID;
         $pannel = Pannel::find($pannelID);
-        $vol = $request->vol;
-        $day = $request->day;
+        if (! $pannel) {
+            return false;
+        }
 
         $adminUUID = $pannel->secret_code;
-
         $uuid = $request->uuid;
-        $name = $request->name ?? '';
-        $comment = $request->comment ?? '';
-        // get today date as format like 2024-01-01
-        $today = date('Y-m-d');
-        $params = [
-            'uuid' => "$uuid",
-            'name' => "$name",
-            'current_usage_GB' => 0,
-            'usage_limit_GB' => $vol,
-            'package_days' => $day,
-            'mode' => 'no_reset',
-            'start_date' => "$today",
-            'added_by_uuid' => "$adminUUID",
-            'comment' => "$comment",
-        ];
-        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
-        $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
+        $params = $this->buildHiddifyRechargeParams($request);
+        $path = "$adminUUID/api/v1/user/?uuid={$uuid}";
 
-        $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
-        return $data;
+        return $this->sendPostRequestToHiddifyPannel($pannelID, $path, $params);
     }
+
     public function rechargeUserOfHiddifyPanelApi(Request $request)
     {
         $pannelID = $request->pannelID;
-        $pannel = Pannel::find($pannelID);
-        $vol = $request->vol;
-        $day = $request->day;
+        $uuid = (string) $request->uuid;
+        $expectedVolume = (float) $request->vol;
+        $params = $this->buildHiddifyRechargeParams($request);
 
-        $adminUUID = $pannel->secret_code;
+        $response = $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
+        if ($this->hiddifyMutationSucceeded($response) && $this->verifyHiddifyRechargeState($pannelID, $uuid, $expectedVolume)) {
+            return $response;
+        }
 
-        $uuid = $request->uuid;
-        $name = $request->name ?? '';
-        $comment = $request->comment ?? '';
-        // get today date as format like 2024-01-01
-        $today = date('Y-m-d');
-        $params = [
-            'uuid' => "$uuid",
-            'name' => "$name",
-            'current_usage_GB' => 0,
-            'usage_limit_GB' => $vol,
-            'package_days' => $day,
-            'mode' => 'no_reset',
-            'start_date' => "$today",
-            'added_by_uuid' => "$adminUUID",
-            'comment' => "$comment",
-        ];
+        \Log::warning('Hiddify v2 recharge did not fully reset user, falling back to v1 API', [
+            'pannelID' => $pannelID,
+            'uuid' => $uuid,
+            'expected_volume_GB' => $expectedVolume,
+        ]);
 
-        return $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
+        $fallback = $this->rechargeUserOfHiddifyPanelOldApi($request);
+        if ($this->hiddifyMutationSucceeded($fallback)) {
+            return response()->json(['msg' => 'ok'], 200);
+        }
+
+        return false;
     }
     public function upgradeUserOfHiddifyPanelOldApi(Request $request)
     {

@@ -994,7 +994,7 @@ class AgentProductController extends Controller
             $req->comment = "شارژ مجدد در {$today}";
 
             $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-            if ($updateRemark->getStatusCode() == 200) {
+            if ($hiddifcCntrl->hiddifyMutationSucceeded($updateRemark)) {
                 $this->addNewBotLog('product', "$data->remark توسط مدیر شارژ شد", 'charge product');
 
                 return response()->json(true, 200);
@@ -1080,7 +1080,7 @@ class AgentProductController extends Controller
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
                 // $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelOldApi($req);
-                if ($updateRemark->getStatusCode() == 200) {
+                if ($hiddifcCntrl->hiddifyMutationSucceeded($updateRemark)) {
                     $this->addNewBotLog('product', "$data->remark توسط مدیر تغییر یافت.", 'charge product');
                 } else {
                     return response()->json(false, 500);
@@ -1543,7 +1543,7 @@ class AgentProductController extends Controller
                 $req->comment = "شارژ مجدد در {$today}";
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-                if ($updateRemark->getStatusCode() == 200) {
+                if ($hiddifcCntrl->hiddifyMutationSucceeded($updateRemark)) {
                     $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                     $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
                     $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
@@ -2087,7 +2087,7 @@ class AgentProductController extends Controller
                 $req->comment = "شارژ مجدد در {$today}";
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-                if ($updateRemark->getStatusCode() == 200) {
+                if ($hiddifcCntrl->hiddifyMutationSucceeded($updateRemark)) {
                     $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                     $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
                     $this->addNewBotLog('product', "$data->remark شارژ شد.", 'charge product');
@@ -2197,7 +2197,7 @@ class AgentProductController extends Controller
                     $req->comment = "تغییر دسته بندی همراه با ریست زمان و حجم {$today}";
 
                     $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-                    if ($updateRemark->getStatusCode() == 200) {
+                    if ($hiddifcCntrl->hiddifyMutationSucceeded($updateRemark)) {
                         $this->addNewBotLog('product', "$data->remark توسط کاربر تغییر یافت.", 'charge product');
                     } else {
                         return response()->json(false, 401);

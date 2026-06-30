@@ -621,7 +621,7 @@ class SubscriptionProcessController extends Controller
                 $req->comment = "شارژ مجدد در " . Verta::now();
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-                if ($updateRemark->getStatusCode() == 200) {
+                if ($hiddifcCntrl->hiddifyMutationSucceeded($updateRemark)) {
                     $paymentSuccess = $this->processPayment($productPrice, $productPriceInDollar, $hasRefballance, $loyaltyCheckout, $product->id);
                     if ($paymentSuccess) {
                         if ($appliedPromo) {
