@@ -1812,22 +1812,17 @@ class AgentProductController extends Controller
             return response()->json('Server Error', 500);
         }
     }
-    public function getBoughtProductsStatusFromServerById($id)
+    public function resolveBoughtProductStatusFromServer(int|string $id): ?array
     {
         $data = Product::where('id', $id)->with('product_category_and_panel')->first();
         if ($data == null) {
-            return response()->json(null, 404);
-        }
-
-        $authUser = auth('sanctum')->user();
-        if ($authUser && (string) $authUser->account_id !== (string) $data->account_id) {
-            return response()->json(false, 401);
+            return null;
         }
 
         try {
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
             if ($pannel == null) {
-                return response()->json(null, 404);
+                return null;
             }
 
             if ($pannel->type == 'sanaei') {
@@ -1835,7 +1830,7 @@ class AgentProductController extends Controller
                 $uuid = $configs['uuid'] ?? null;
                 $email = $configs['email'] ?? null;
                 if ($uuid == null) {
-                    return response()->json(null, 400);
+                    return null;
                 }
                 $sn = new SanaeiPannelController();
                 $status = $sn->getClientStatus($pannel, $uuid);
@@ -1848,10 +1843,10 @@ class AgentProductController extends Controller
                 if ($status) {
                     $status['panel_type'] = 'sanaei';
 
-                    return response()->json($status, 200);
+                    return $status;
                 }
 
-                return response()->json(null, 404);
+                return null;
             }
 
             if ($pannel->isMarzbanCompatible()) {
@@ -1860,45 +1855,53 @@ class AgentProductController extends Controller
                 if ($status) {
                     $status['panel_type'] = $pannel->type;
 
-                    return response()->json($status, 200);
+                    return $status;
                 }
 
-                return response()->json(null, 404);
+                return null;
             }
 
             $hiddifcCntrl = new HiddifyPannelController();
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
             if ($uuid == null || $uuid === '') {
-                return response()->json(null, 400);
+                return null;
             }
 
-            $url = $hiddifcCntrl->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
-            $url = "{$url}/api/v2/admin/user/$uuid";
-
-            $subsequentResponse = Http::timeout(15)->withHeaders([
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-                'Hiddify-API-Key' => $pannel->secret_code,
-            ])->get($url);
-
-            if ($subsequentResponse->getStatusCode() == 200) {
-                $body = json_decode($subsequentResponse->getBody(), true);
-                if (! is_array($body)) {
-                    return response()->json(null, 500);
-                }
-                $body['panel_type'] = 'hiddify';
-
-                return response()->json($body, 200);
+            $body = $hiddifcCntrl->sendGetRequestToHiddifyPannel($pannel->id, "/api/v2/admin/user/$uuid/");
+            if (! is_array($body)) {
+                return null;
             }
 
-            return response()->json(null, $subsequentResponse->getStatusCode() === 404 ? 404 : 502);
+            $body['panel_type'] = 'hiddify';
+
+            return $body;
         } catch (\Throwable $th) {
-            \Log::error('getBoughtProductsStatusFromServerById: ' . $th->getMessage(), [
+            \Log::error('resolveBoughtProductStatusFromServer: ' . $th->getMessage(), [
                 'product_id' => $id,
             ]);
 
-            return response()->json(null, 502);
+            return null;
         }
+    }
+
+    public function getBoughtProductsStatusFromServerById($id)
+    {
+        $data = Product::where('id', $id)->with('product_category_and_panel')->first();
+        if ($data == null) {
+            return response()->json(null, 404);
+        }
+
+        $authUser = auth('sanctum')->user();
+        if ($authUser && (string) $authUser->account_id !== (string) $data->account_id) {
+            return response()->json(false, 401);
+        }
+
+        $status = $this->resolveBoughtProductStatusFromServer($id);
+        if ($status === null) {
+            return response()->json(null, 404);
+        }
+
+        return response()->json($status, 200);
     }
     public function getBoughtProductsPannelLinkFromServerById($id)
     {
@@ -2323,7 +2326,7 @@ class AgentProductController extends Controller
         if ($data != null) {
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
             $currentUsage = 0;
-            $currentStatus = $this->getBoughtProductsStatusFromServerById($id);
+            $currentStatus = $this->resolveBoughtProductStatusFromServer($id);
             if ($currentStatus != null) {
                 $currentUsage = $currentStatus['current_usage_GB'];
             }

@@ -378,17 +378,9 @@ class GeneralController extends Controller
         $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
         $text = '';
         $agentCntrl = new AgentProductController();
-        $configStatus = $agentCntrl->getBoughtProductsStatusFromServerById($selectedProduct->id);
+        $configStatus = $agentCntrl->resolveBoughtProductStatusFromServer($selectedProduct->id);
 
-        // روش 1: بررسی نوع داده
-        if (is_string($configStatus)) {
-            $configStatus = json_decode($configStatus, true);
-        }
-        // یا
-        // روش 2: حذف json_decode
-        // $configStatus = $configStatus;
-
-        if ($configStatus != null) {
+        if (is_array($configStatus)) {
             $enableText = $configStatus['enable'] == true ? 'فعال' : 'غیر فعال';
             $text = "📦 وضعیت بسته: {$enableText} \r\n";
             $usageGB = $configStatus['current_usage_GB'];

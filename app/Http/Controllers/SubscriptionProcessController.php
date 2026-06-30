@@ -1183,11 +1183,13 @@ class SubscriptionProcessController extends Controller
                     $pnlCntrl             = new PannelController();
                     $image                = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
                     $agentCntrl           = new AgentProductController();
-                    $configStatus         = $agentCntrl->getBoughtProductsStatusFromServerById($product->id);
-                    // check configStatus is json
-                    if (is_string($configStatus)) {
-                        $configStatus = json_decode($configStatus, true);
+                    $configStatus = $agentCntrl->resolveBoughtProductStatusFromServer($product->id);
+                    if (! is_array($configStatus)) {
+                        $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+
+                        return "";
                     }
+
                     $enableText = $configStatus['enable'] == true ? 'فعال' : 'غیر فعال';
                     $usageGB    = $configStatus['current_usage_GB'];
                     $usageGB    = round($usageGB, 2);
