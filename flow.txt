@@ -93,7 +93,7 @@ export COMPOSER_ALLOW_SUPERUSER=1
 
 composer install --no-dev --optimize-autoloader --no-interaction
 
-chown -R www-data:www-data storage bootstrap/cache
+chown -R www:www storage bootstrap/cache
 chmod -R 775 storage bootstrap/cache
 
 php artisan migrate --force

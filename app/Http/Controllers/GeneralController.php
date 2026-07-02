@@ -572,11 +572,13 @@ class GeneralController extends Controller
             $username = $username ?? $mbCtrl->buildBotUsername($chat_id, $productID);
             $textKey = $textKey ?? $pannel->customTextKey('action.subscription.marzban');
 
-            $category = ProductCategory::query()->find($selectedPrCat->id) ?? $selectedPrCat;
-            $marzbanInbounds = $category->resolveMarzbanInbounds();
-            $pasarguardGroupIds = $category->resolvePasarguardGroupIds();
+            $category = $selectedPrCat instanceof ProductCategory
+                ? (ProductCategory::query()->find($selectedPrCat->id) ?? $selectedPrCat)
+                : null;
+            $marzbanInbounds = $category?->resolveMarzbanInbounds() ?? [];
+            $pasarguardGroupIds = $category?->resolvePasarguardGroupIds() ?? [];
             \Log::info('Marzban create client inbounds', [
-                'category_id' => $category->id,
+                'category_id' => $category?->id,
                 'marzban_inbounds' => $marzbanInbounds,
                 'pasarguard_group_ids' => $pasarguardGroupIds,
             ]);
@@ -1182,35 +1184,53 @@ class GeneralController extends Controller
             $this->telegramService->sendMessage($chatId, $text);
             return "";
         }
-        $text = $this->customTextCtrl->getText('action.test_account.success');
 
-        $this->telegramService->sendMessage($chatId, $text);
+        $selectedPrCat = $this->prCatCntrl->getProdctCategoryByCategoryName('اکانت آزمایشی');
+        if ($selectedPrCat == null) {
+            \Log::error('testAccount: ProductCategory اکانت آزمایشی not found', ['chat_id' => $chatId]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+
         $panelCntrl = new PannelController();
         $pannel = $panelCntrl->getPannelById($testAccount->pannel_id);
-        // get selected item specefic data
         $day = $testAccount->expire_day;
         $volume = $testAccount->volume;
+        $created = false;
 
         if ($pannel->type == 'hiddify') {
-
-            // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req);
-            $userLink = $pannel->user_link;
-            $text = $this->customTextCtrl->getText('action.test_account.success');
-            $this->new_hiddify_config_telegram_text($testAccount, $pannel, $volume, $day, $chatId, $testAccount->id);
-            $this->send_using_subscription_manual_message($chatId);
+            $created = $this->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $chatId, $selectedPrCat->id) !== false;
+            if ($created) {
+                $this->send_using_subscription_manual_message($chatId);
+            }
         } elseif ($pannel->isMarzbanCompatible()) {
             $mbCtrl = MarzbanPannelController::resolve($pannel);
-            $this->new_marzban_config_telegram_text(
-                $testAccount,
+            $created = $this->new_marzban_config_telegram_text(
+                $selectedPrCat,
                 $pannel,
                 $volume,
                 $day,
                 $chatId,
-                $testAccount->id,
+                $selectedPrCat->id,
                 $mbCtrl->buildTestAccountUsername($chatId),
                 $pannel->customTextKey('action.test_account.marzban')
-            );
-            $this->send_using_subscription_manual_message($chatId);
+            ) !== false;
+            if ($created) {
+                $this->send_using_subscription_manual_message($chatId);
+            }
+        }
+
+        if ($created) {
+            $text = $this->customTextCtrl->getText('action.test_account.success');
+            $this->telegramService->sendMessage($chatId, $text);
+        } else {
+            \Log::error('testAccount: failed to create test account on panel', [
+                'chat_id' => $chatId,
+                'panel_type' => $pannel->type ?? null,
+            ]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
         }
 
         return "";
