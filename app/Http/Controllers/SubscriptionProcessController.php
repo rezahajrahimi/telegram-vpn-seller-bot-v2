@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Jobs\ProcessRemarkJob;
 use App\Jobs\ProcessSubscriptionPurchase;
 use App\Models\BotUser;
+use App\Models\Pannel;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
@@ -1463,8 +1464,24 @@ class SubscriptionProcessController extends Controller
     public function remark($chatId, $productID)
     {
         try {
+            $product = Product::with('product_category_and_panel')->find($productID);
+            if ($product == null || (string) $product->account_id !== (string) $chatId) {
+                return $this->customTextCtrl->getText('error.history_not_found');
+            }
+
+            $pannel = Pannel::find($product->product_category_and_panel?->pannel_id);
+            if ($pannel === null || ! $pannel->supportsRemarkRename()) {
+                $this->telegramService->sendMessage(
+                    $chatId,
+                    'تغییر نام بسته فقط برای پنل‌های Hiddify و Sanaei امکان‌پذیر است.'
+                );
+
+                return '';
+            }
+
             $this->handleActionRemark($chatId, $productID);
-            return "";
+
+            return '';
         } catch (\Throwable $th) {
             \Log::error("خطا در تغییر نام بسته: " . $th->getMessage());
             return $this->customTextCtrl->getText('error.server_error');
@@ -1688,8 +1705,23 @@ class SubscriptionProcessController extends Controller
             }
 
             $productId = $user_state->data;
+            $product = Product::with('product_category_and_panel')->find($productId);
+            if ($product == null || (string) $product->account_id !== (string) $chatId) {
+                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.history_not_found'));
 
-            // Dispatch the job
+                return '';
+            }
+
+            $pannel = Pannel::find($product->product_category_and_panel?->pannel_id);
+            if ($pannel === null || ! $pannel->supportsRemarkRename()) {
+                $this->clearAwaitingReply(
+                    $chatId,
+                    'تغییر نام بسته فقط برای پنل‌های Hiddify و Sanaei امکان‌پذیر است.'
+                );
+
+                return '';
+            }
+
             ProcessRemarkJob::dispatch($chatId, $productId, $newName);
 
             $this->telegramService->sendChatAction($chatId, 'typing');

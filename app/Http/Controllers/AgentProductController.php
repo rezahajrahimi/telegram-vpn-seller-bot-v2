@@ -1944,57 +1944,44 @@ class AgentProductController extends Controller
         $data = Product::where('id', $request->id)
             ->with('product_category_and_panel')
             ->first();
+
+        if ($data == null) {
+            return response()->json(false, 500);
+        }
+
         $userId = auth('sanctum')->user()->account_id;
 
         if ($userId != $data->account_id) {
             return response()->json(false, 401);
         }
 
-        if ($data != null) {
-            $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
-            if ($pannel && $pannel->type == 'sanaei') {
-                $configs = json_decode($data->configs, true) ?? [];
-                $uuid = $configs['uuid'] ?? null;
-                if ($uuid == null) {
-                    return response()->json(false, 400);
-                }
-                $sn = new SanaeiPannelController();
-                $client = $sn->findClientByUUID($pannel->id, $uuid);
-                if (!$client) {
-                    return response()->json(false, 404);
-                }
-                $client['email'] = $request->name;
-                $res = $sn->updateClient($pannel->id, $client['id'], $client);
-                if ($res) {
-                    $data->remark = $request->name;
-                    $data->update();
-                    return response()->json(true, 200);
-                }
+        $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+        if ($pannel === null || ! $pannel->supportsRemarkRename()) {
+            return response()->json(false, 400);
+        }
+
+        if ($pannel->type == 'sanaei') {
+            $configs = json_decode($data->configs, true) ?? [];
+            $uuid = $configs['uuid'] ?? null;
+            if ($uuid == null) {
                 return response()->json(false, 400);
             }
-            if ($pannel && $pannel->isMarzbanCompatible()) {
-                $panelUrl = $pannel->url_port;
-                $panelUrl = str_replace('/dashboard/', '', $panelUrl);
-                $panelUrl = str_replace('/dashboard', '', $panelUrl);
-
-                $headers = [
-                    'Content-Type' => 'application/json',
-                    'Accept' => 'application/json',
-                    'authorization' => $pannel->token,
-                ];
-
-                $url = "{$panelUrl}/api/user/{$data->remark}";
-                $response = Http::withHeaders($headers)->put($url, [
-                    'username' => $request->name
-                ]);
-
-                if ($response->ok()) {
-                    $data->remark = $request->name;
-                    $data->update();
-                    return response()->json(true, 200);
-                }
-                return response()->json(false, 400);
+            $sn = new SanaeiPannelController();
+            $client = $sn->findClientByUUID($pannel->id, $uuid);
+            if (!$client) {
+                return response()->json(false, 404);
             }
+            $client['email'] = $request->name;
+            $res = $sn->updateClient($pannel->id, $client['id'], $client);
+            if ($res) {
+                $data->remark = $request->name;
+                $data->update();
+                return response()->json(true, 200);
+            }
+            return response()->json(false, 400);
+        }
+
+        if ($pannel->type == 'hiddify') {
             $hiddifcCntrl = new HiddifyPannelController();
             $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
             $req = new Request();
@@ -2012,9 +1999,9 @@ class AgentProductController extends Controller
                 return response()->json(true, 200);
             }
             return response()->json(false, 401);
-        } else {
-            return response()->json(false, 500);
         }
+
+        return response()->json(false, 400);
     }
     public function reChargeProductByAgentWithPrID(Request $request)
     {

@@ -714,14 +714,16 @@ class GeneralController extends Controller
                 $opr[] = [
                     $text => "recharge-{$productID}",
                 ];
-                $text = $this->customTextCtrl->getText('action.history.buttun.remark');
-                if (is_array($text)) {
-                    // use format text service
-                    $text = $this->telegramService->formatText($text);
+                if ($product?->product_category?->pannel?->supportsRemarkRename() ?? false) {
+                    $text = $this->customTextCtrl->getText('action.history.buttun.remark');
+                    if (is_array($text)) {
+                        // use format text service
+                        $text = $this->telegramService->formatText($text);
+                    }
+                    $opr[] = [
+                        $text => "remark-{$productID}",
+                    ];
                 }
-                $opr[] = [
-                    $text => "remark-{$productID}",
-                ];
                 $text = $this->customTextCtrl->getText('action.history.buttun.delete');
                 if (is_array($text)) {
                     $text = $this->telegramService->formatText($text);

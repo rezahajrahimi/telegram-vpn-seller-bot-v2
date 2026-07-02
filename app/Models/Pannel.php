@@ -15,6 +15,10 @@ class Pannel extends Model
 
     public const TYPE_INVENTORY = 'custome';
 
+    public const TYPE_HIDDIFY = 'hiddify';
+
+    public const TYPE_SANAEI = 'sanaei';
+
     protected $guarded = ['id'];
     protected $fillable = ['type', 'api_version', 'username', 'password', 'token', 'location', 'url_port', 'sub_port', 'admin_url', 'capacity', 'secret_code', 'cookie_session', 'user_link'];
 
@@ -41,6 +45,21 @@ class Pannel extends Model
     public static function isInventoryPanelType(?string $type): bool
     {
         return $type === self::TYPE_INVENTORY;
+    }
+
+    public static function remarkRenameSupportedTypes(): array
+    {
+        return [self::TYPE_HIDDIFY, self::TYPE_SANAEI];
+    }
+
+    public static function supportsRemarkRenameType(?string $type): bool
+    {
+        return in_array($type, self::remarkRenameSupportedTypes(), true);
+    }
+
+    public function supportsRemarkRename(): bool
+    {
+        return self::supportsRemarkRenameType($this->type);
     }
 
     /**

@@ -5,7 +5,6 @@ namespace App\Jobs;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\HiddifyPannelController;
 use App\Http\Controllers\LogController;
-use App\Http\Controllers\MarzbanPannelController;
 use App\Http\Controllers\SanaeiPannelController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Models\BotUser;
@@ -64,6 +63,15 @@ class ProcessRemark implements ShouldQueue
             }
 
             $pannel = Pannel::find($product->product_category_and_panel->pannel_id);
+            if ($pannel === null || ! $pannel->supportsRemarkRename()) {
+                $this->clearAwaitingReply(
+                    $this->chatId,
+                    'تغییر نام بسته فقط برای پنل‌های Hiddify و Sanaei امکان‌پذیر است.',
+                    $telegramService
+                );
+
+                return;
+            }
 
             if ($pannel->type == 'hiddify') {
                 $hiddifcCntrl = new HiddifyPannelController();
@@ -105,18 +113,6 @@ class ProcessRemark implements ShouldQueue
                     }
                 } else {
                     \Log::warning("ProcessRemark: No UUID found in configs for product " . $product->id);
-                }
-            } elseif ($pannel->isMarzbanCompatible()) {
-                $mb = MarzbanPannelController::resolve($pannel);
-                $ok = $mb->renameUser($pannel->id, $product->remark, $this->newName);
-                if ($ok) {
-                    $product->remark = $this->newName;
-                    $product->update();
-
-                    $logCtrl->addNewLog('subscription', 'تغییر نام بسته با موفقیت انجام شد.', $this->chatId, $username, 'show');
-                    $this->clearAwaitingReply($this->chatId, $customTextCtrl->getText('action.remark.success'), $telegramService);
-
-                    return;
                 }
             }
 
