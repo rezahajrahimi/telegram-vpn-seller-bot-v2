@@ -7,6 +7,7 @@ use App\Models\Transaction;
 use App\Models\TransactionSetting;
 use App\Models\User;
 use App\Models\UserState;
+use App\Services\LoyaltyPointsService;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 // add cache
@@ -65,9 +66,12 @@ class AccountProcessController extends Controller
             $ballance = $this->accBlCtrl->getUserAccuntBalance($chatId);
             $ballanceInDollar = $this->accBlCtrl->getUserAccuntBalanceInDollar($chatId);
             $referralAmount = $this->referralWalletCtrl->get_amount_of_ref_wallet_by_account_id($chatId);
+            $loyaltyService = new LoyaltyPointsService();
+            $loyaltyPoints = $loyaltyService->getBalanceByAccountId($chatId);
             $ballance = number_format($ballance, 0, '.', ',');
             $ballanceInDollar = number_format($ballanceInDollar, 0, '.', ',');
             $referralAmount = number_format($referralAmount, 0, '.', ',');
+            $loyaltyPointsFormatted = number_format($loyaltyPoints, 0, '.', ',');
             $text = $this->customTextCtrl->getText('action.account.details', [
                 'username' => $botUser->username,
                 'name' => $botUser->first_name,
@@ -76,6 +80,7 @@ class AccountProcessController extends Controller
                 'balance' => "$ballance تومان",
                 'balance_in_dollar' => "$ballanceInDollar دلار",
                 'referral_balance' => "$referralAmount تومان",
+                'loyalty_balance' => "$loyaltyPointsFormatted امتیاز",
             ]);
 
             $formatter = new TelegramMessageFormatter($this->telegramService);
@@ -107,6 +112,16 @@ class AccountProcessController extends Controller
             $opr[] = [
                 $text => "accountTransactions",
             ];
+            $loyaltyService = new LoyaltyPointsService();
+            if ($loyaltyService->isActive()) {
+                $text = $this->customTextCtrl->getText('action.account.additional_options.loyalty_history');
+                if (is_array($text)) {
+                    $text = $this->telegramService->formatText($text);
+                }
+                $opr[] = [
+                    $text => 'accountLoyaltyHistory',
+                ];
+            }
             $text = $this->customTextCtrl->getText('action.account.additional_options.sub_accounts');
             if (is_array($text)) {
                 // use format text service
@@ -169,6 +184,86 @@ class AccountProcessController extends Controller
             return "";
         }
     }
+
+    public function accountLoyaltyHistory($chatId)
+    {
+        try {
+            $this->telegramService->sendChatAction($chatId, 'typing');
+            $this->chatId = $chatId;
+            $this->addNewBotLog('account', 'وارد بخش تاریخچه امتیاز شد.', 'show');
+
+            $loyaltyService = new LoyaltyPointsService();
+            if (! $loyaltyService->isActive()) {
+                return $this->generalCntrl->return_main_menu_items(
+                    $chatId,
+                    $this->customTextCtrl->getText('error.action.not_found')
+                );
+            }
+
+            $balance = $loyaltyService->getBalanceByAccountId($chatId);
+            $settings = $loyaltyService->getSettings();
+            $title = $this->customTextCtrl->getText('action.account.loyalty_history.title', [
+                'balance' => number_format($balance, 0, '.', ','),
+                'toman_per_point' => (string) ($settings?->toman_per_point ?? 10),
+            ]);
+            if (is_array($title)) {
+                $title = $this->telegramService->formatText($title);
+            }
+            $this->telegramService->sendMessage($chatId, $title);
+
+            $user = User::where('account_id', $chatId)->first();
+            if ($user === null) {
+                return $this->generalCntrl->return_main_menu_items(
+                    $chatId,
+                    $this->customTextCtrl->getText('error.user_not_found')
+                );
+            }
+
+            $transactions = \App\Models\LoyaltyTransaction::where('user_id', $user->id)
+                ->orderByDesc('id')
+                ->limit(15)
+                ->get();
+
+            if ($transactions->isEmpty()) {
+                $text = $this->customTextCtrl->getText('action.account.loyalty_history.no_records');
+                if (is_array($text)) {
+                    $text = $this->telegramService->formatText($text);
+                }
+                $this->telegramService->sendMessage($chatId, $text);
+                return "";
+            }
+
+            $lines = [];
+            foreach ($transactions as $transaction) {
+                $sign = $transaction->points > 0 ? '+' : '';
+                $eventLabel = match ($transaction->event) {
+                    'purchase' => 'خرید',
+                    'renewal' => 'تمدید',
+                    'deposit' => 'واریز',
+                    'referral_signup' => 'معرفی',
+                    'checkout' => 'استفاده در خرید',
+                    'admin' => 'تغییر مدیر',
+                    default => $transaction->event ?? 'امتیاز',
+                };
+                $description = trim((string) ($transaction->description ?? ''));
+                $line = "{$sign}{$transaction->points} امتیاز — {$eventLabel}";
+                if ($description !== '') {
+                    $line .= " — {$description}";
+                }
+                $lines[] = $line;
+            }
+
+            $this->telegramService->sendMessage($chatId, implode("\n", $lines));
+
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(['accountLoyaltyHistory: ' . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+
+            return "";
+        }
+    }
+
     public function accountSubAccounts($chatId)
     {
         try {
@@ -179,7 +274,14 @@ class AccountProcessController extends Controller
             if ($botUser == null) {
                 return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.server_error'));
             }
-            $subAccounts = ReferralLogs::where('referral_user_id', $botUser->id)->get();
+            $user = User::where('account_id', $chatId)->first();
+            if ($user == null) {
+                return $this->generalCntrl->return_main_menu_items($chatId, $this->customTextCtrl->getText('error.server_error'));
+            }
+            $subAccounts = ReferralLogs::where('referral_user_id', $user->id)
+                ->whereNull('transaction_id')
+                ->with('referral_to')
+                ->get();
             $text = $this->customTextCtrl->getText('action.account.sub_accounts.title');
             $this->telegramService->sendMessage($chatId, $text);
             $text = "";
@@ -216,9 +318,11 @@ class AccountProcessController extends Controller
     private function return_payment_options()
     {
         try {
+            $paymentAccessService = new \App\Services\PaymentAccessService();
             $opr = [];
 
-            $hasZarinPal = $this->pymntCntrl->getZarinpalStatus();
+            $hasZarinPal = $this->pymntCntrl->getZarinpalStatus()
+                && $paymentAccessService->isAllowedForAccountId($this->chatId, 'zarinpal');
             if ($hasZarinPal == true || $hasZarinPal == 1) {
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal');
                 if (is_array($text)) {
@@ -233,7 +337,8 @@ class AccountProcessController extends Controller
             }
 
 
-            $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+            $hasDollarPay = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction')
+                && $paymentAccessService->isAllowedForAccountId($this->chatId, 'usd_transaction');
             \Log::info(["hasDollarPay: " . $hasDollarPay]);
             if ($hasDollarPay == true || $hasDollarPay == 1) {
                 // $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay');
@@ -247,7 +352,8 @@ class AccountProcessController extends Controller
                 // array_push($opr, $newOpr);
 
                 $cryptoPymentCntrl = new CryptoPaymentController();
-                $nowpayments = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('nowpayments');
+                $nowpayments = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('nowpayments')
+                    && $paymentAccessService->isAllowedForAccountId($this->chatId, 'nowpayments');
                 if ($nowpayments == true || $nowpayments == 1) {
                     $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.nowpayment');
                     if (is_array($text)) {
@@ -259,7 +365,8 @@ class AccountProcessController extends Controller
                     ];
                     array_push($opr, $newOpr);
                 }
-                $cryptomus = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('cryptomus');
+                $cryptomus = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('cryptomus')
+                    && $paymentAccessService->isAllowedForAccountId($this->chatId, 'cryptomus');
                 if ($cryptomus == true || $cryptomus == 1) {
                     $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.cryptomus');
                     if (is_array($text)) {
@@ -284,7 +391,8 @@ class AccountProcessController extends Controller
             // send offline item
             $opr = [];
             // check payment setting for shetab verify
-            $shetabVerifyStatus = $this->shetabVerifyCntrl->check_shetab_verify_status();
+            $allowOffline = $paymentAccessService->isAllowedForAccountId($this->chatId, 'offline');
+            $shetabVerifyStatus = $this->shetabVerifyCntrl->check_shetab_verify_status() && $allowOffline;
             if ($shetabVerifyStatus == true || $shetabVerifyStatus == 1) {
                 // $text = $this->paymnetSettingCntrl->getPaymentSettingDescriptionByKey('shetab_verify');
                 $text = $this->customTextCtrl->getText('action.process.add_online_balance.shetab_verify');
@@ -299,7 +407,7 @@ class AccountProcessController extends Controller
 
 
 
-            $offlinePayment = $this->pymntCntrl->getAllActiveOfflinePaymentTypes();
+            $offlinePayment = $allowOffline ? $this->pymntCntrl->getAllActiveOfflinePaymentTypes() : null;
             if ($offlinePayment != null) {
                 if ($hasZarinPal == true || $hasZarinPal == 1 || $hasDollarPay == true || $hasDollarPay == 1) {
                     $text = $this->customTextCtrl->getText('action.process.add_offline_balance_option_and_online_balance');
@@ -533,15 +641,44 @@ class AccountProcessController extends Controller
     public function processShetabVerification($chatId, $text)
     {
         try {
+            $this->chatId = $chatId;
+            $this->botUser = $this->botUser->getUserByAccountID($chatId);
+
+            $user = User::where('account_id', $chatId)->first();
+            if (! $user) {
+                $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.user_not_found'));
+
+                return false;
+            }
+
+            $productCategoryId = null;
+            $amount = $text;
+
+            $productCategory = \App\Models\ProductCategory::find($text);
+            if ($productCategory) {
+                $productCategoryId = (int) $productCategory->id;
+                $balance = $this->accBlCtrl->getLoggedUserBallancce($chatId);
+                $amount = max(1, (int) ceil($productCategory->price - $balance->ballance));
+
+                $this->addNewBotLog(
+                    'shetab_verify',
+                    "درخواست خرید خودکار با شتاب برای بسته «{$productCategory->category_name}» (مبلغ مورد نیاز: {$amount} تومان)",
+                    'auto_purchase_request'
+                );
+            }
+
             $request = new Request();
-            $request->amount = $text;
-            $request->user_id = User::where('account_id', $chatId)->first()->id;
+            $request->amount = $amount;
+            $request->user_id = $user->id;
+            $request->product_category_id = $productCategoryId;
 
             $shetabVerify_amount = $this->shetabVerifyCntrl->create_new_shetab_verify($request);
 
             if ($shetabVerify_amount === null) {
-                \Log::error(["shetabVerify amount is null"]);
+                \Log::error(['shetabVerify amount is null', 'chat_id' => $chatId, 'text' => $text]);
+                $this->addNewBotLog('shetab_verify', 'صدور فاکتور تایید خودکار شتاب ناموفق بود.', 'failed');
                 $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
+
                 return false;
             }
 
@@ -558,10 +695,11 @@ class AccountProcessController extends Controller
             $this->telegramService->sendMessage($chatId, $messageText);
             $this->clearAwaitingReply($chatId, $messageText);
 
-            return "";
+            return '';
 
         } catch (\Exception $e) {
-            \Log::error("Error in processShetabVerification: " . $e);
+            \Log::error('Error in processShetabVerification: ' . $e);
+            $this->addNewBotLog('shetab_verify', 'خطا در فرآیند تایید خودکار شتاب: ' . $e->getMessage(), 'failed');
             $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
 

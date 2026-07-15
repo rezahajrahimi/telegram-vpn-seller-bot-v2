@@ -6,6 +6,7 @@ use App\Models\BotUser;
 use App\Models\Pannel;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 // use carbon
@@ -15,15 +16,45 @@ class ProductController extends Controller
 {
     public function getProductConfigAndChangeStatus($selectedProductCatID, $userID)
     {
-        $data = Product::where('product_categories_id', $selectedProductCatID)->where('isActive', true)->first();
-        if ($data != null) {
+        return DB::transaction(function () use ($selectedProductCatID, $userID) {
+            $data = Product::query()
+                ->where('product_categories_id', $selectedProductCatID)
+                ->where('isActive', true)
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if ($data === null) {
+                return null;
+            }
+
             $data->isActive = false;
             $data->account_id = $userID;
-            $data->update();
+            $data->save();
+
             return $data;
-        } else {
-            return null;
+        });
+    }
+
+    public function countActiveInventory(int $categoryId): int
+    {
+        return Product::query()
+            ->where('product_categories_id', $categoryId)
+            ->where('isActive', true)
+            ->count();
+    }
+
+    public function releaseInventoryProduct(int $productId): bool
+    {
+        $product = Product::find($productId);
+        if ($product === null) {
+            return false;
         }
+
+        $product->isActive = true;
+        $product->account_id = null;
+
+        return $product->save();
     }
 
     public function getProductConfigById($id, $userID)
@@ -37,12 +68,13 @@ class ProductController extends Controller
     }
     public function getUserProductsHistoryByAccountID($userID)
     {
-        $data = Product::where('account_id', $userID)->with('product_category')->get();
-        if ($data != null) {
-            return $data;
-        } else {
-            return null;
-        }
+        $data = Product::where('account_id', $userID)
+            ->where('remark', '!=', 'pending')
+            ->with('product_category')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return $data->isEmpty() ? null : $data;
     }
     public function syncUserProductsHistoryByAccountIDwithPanels($userID)
     {
@@ -166,22 +198,58 @@ class ProductController extends Controller
             return false;
         }
     }
-    public function addAutomatedProductDetails(Request $request)
+    public function reserveProductId(int|string $accountId, int $categoryId): ?int
     {
         $data = new Product();
+        $data->product_categories_id = $categoryId;
+        $data->account_id = $accountId;
+        $data->remark = 'pending';
+        $data->isActive = false;
+        $data->deactive_by_admin = false;
+        $data->configs = '';
+        $data->subscription_link = '';
+        $data->panel_link = '';
+
+        if (! $data->save()) {
+            return null;
+        }
+
+        return (int) $data->id;
+    }
+
+    public function deletePendingProduct(int $productId): bool
+    {
+        return Product::query()
+            ->where('id', $productId)
+            ->where('remark', 'pending')
+            ->delete() > 0;
+    }
+
+    public function addAutomatedProductDetails(Request $request)
+    {
+        if (! empty($request->product_id)) {
+            $data = Product::find($request->product_id);
+            if (! $data) {
+                return false;
+            }
+        } else {
+            $data = new Product();
+            $data->isActive = false;
+            $data->deactive_by_admin = false;
+        }
+
         $data->product_categories_id = $request->product_categories_id;
         $data->configs = $request->configs;
         $data->subscription_link = $request->subscription_link;
         $data->panel_link = $request->panel_link;
-        $data->isActive = false;
         $data->account_id = $request->account_id;
         $data->remark = $request->remark;
-        $data->deactive_by_admin = false;
+
         if ($data->save()) {
             return $this->getActiveProductsByProductCatID($request->product_categories_id);
-        } else {
-            return false;
         }
+
+        return false;
     }
     public function getLastInsertedProductId()
     {
@@ -241,6 +309,25 @@ class ProductController extends Controller
             return response()->json(false, 500);
         }
     }
+
+    public function delete_marzban_product_by_username($username)
+    {
+        try {
+            $data = Product::where('remark', $username)->first();
+            if ($data != null) {
+                $data->delete();
+
+                return true;
+            }
+
+            return false;
+        } catch (\Throwable $th) {
+            \Log::info("Throwable:  $th");
+
+            return false;
+        }
+    }
+
     public function deleteProductByProductID($id)
     {
         try {
@@ -295,6 +382,7 @@ class ProductController extends Controller
     public function getLastProductSelled($count)
     {
         $data = Product::with(['user', 'product_category'])
+            ->where('remark', '!=', 'pending')
             ->orderBy('id', 'desc')
             ->take($count)
             ->get();

@@ -5,6 +5,7 @@ use App\Models\Pannel;
 use App\Models\Proxy;
 use App\Models\Inbound;
 use App\Models\Product;
+use App\Services\LicenseFeatureService;
 
 
 use Illuminate\Http\Request;
@@ -19,30 +20,16 @@ class PannelController extends Controller
     public function addNewPannel(Request $request)
     {
         try {
-            $authCntrl = new AuthController();
-            $license = $authCntrl->getPowerPsLicenseType();
-            // normalize license (handle boolean false and case)
-            if ($license === false) {
-                $license = 'false';
+            $licenseService = new LicenseFeatureService();
+            if (! $licenseService->canAddPanel(Pannel::count())) {
+                return $licenseService->panelLimitReachedResponse();
             }
-            $license = strtolower((string) $license);
 
-            // check license
-            $panelCount = Pannel::count();
-            $limitedLicenses = ['false', 'trial', 'bronze'];
-            $hasAccountLimitation = in_array($license, $limitedLicenses, true) || ($license === 'silver' && $panelCount >= 2);
-
-            if ($hasAccountLimitation && $panelCount >= 2) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.'
-                ], 403);
-            }
             $pannel = new Pannel();
             $pannel->type = $request->type;
             $pannel->username = $request->username ?? 'admin';
             $pannel->password = $request->password ?? '123456';
-            $pannel->token = $request->token ?? 'Bearer ';
+            $pannel->token = !empty($request->token) ? $request->token : null;
             $pannel->location = $request->location ?? null;
             $pannel->url_port = $request->url_port ?? null;
             $pannel->sub_port = $request->sub_port ?? null;
@@ -50,86 +37,40 @@ class PannelController extends Controller
             $pannel->user_link = $request->user_link ?? null;
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->save();
-            return response()->json($pannel->id, 201);
+            return response()->json(['success' => true, 'id' => $pannel->id], 201);
         } catch (\Throwable $th) {
-            return response()->json(false, 500);
+            \Log::error('addNewPannel failed: ' . $th->getMessage());
+            return response()->json(['success' => false, 'message' => 'خطا در ذخیره پنل.'], 500);
         }
     }
     public function addNewPannelMarzban(Request $request)
     {
         try {
+            $licenseService = new LicenseFeatureService();
+            if (! $licenseService->canAddPanel(Pannel::count())) {
+                return $licenseService->panelLimitReachedResponse();
+            }
+
             $pannel = new Pannel();
             $pannel->type = $request->type;
             $pannel->username = $request->username ?? 'admin';
             $pannel->password = $request->password ?? '123456';
-            $pannel->token = $request->token ?? 'Bearer ';
+            $pannel->token = !empty($request->token) ? $request->token : null;
             $pannel->location = $request->location ?? null;
             $pannel->url_port = $request->url_port ?? null;
             $pannel->admin_url = $request->admin_url ?? null;
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->save();
-            if ($pannel->type == 'marzban') {
-                $vmess = new Proxy();
-                $vmess->pannel_id = $pannel->id;
-                $vmess->type = 'vmess';
-                $vmess->is_active = $request->vmess == true || $request->vmess == 1 ? true : false;
-                $vmess->save();
-                $inbound = new Inbound();
-                $inbound->name = 'VMess TCP';
-                $inbound->data = 'VMess TCP';
-                $inbound->proxy_id = $vmess->id;
-                $inbound->is_active = $request->vmessTCP == true || $request->vmessTCP == 1 ? true : false;
-                $inbound->save();
-
-                $inbound = new Inbound();
-                $inbound->name = 'VMess Websocket';
-                $inbound->data = 'VMess Websocket';
-                $inbound->proxy_id = $vmess->id;
-                $inbound->is_active = $request->vmessWebSocket == true || $request->vmessWebSocket == 1 ? true : false;
-                $inbound->save();
-
-                $vless = new Proxy();
-                $vless->pannel_id = $pannel->id;
-                $vless->type = 'vless';
-                $vless->is_active = $request->vless == true || $request->vless == 1 ? true : false;
-                $vless->save();
-                $inbound = new Inbound();
-                $inbound->name = 'VLESS TCP REALITY';
-                $inbound->data = 'VLESS TCP REALITY';
-                $inbound->proxy_id = $vless->id;
-                $inbound->is_active = $request->vlessTcpReality == true || $request->vlessTcpReality == 1 ? true : false;
-                $inbound->save();
-
-                $inbound = new Inbound();
-                $inbound->name = 'VLESS GRPC REALITY';
-                $inbound->data = 'VLESS GRPC REALITY';
-                $inbound->proxy_id = $vless->id;
-                $inbound->is_active = $request->vlessGprcReality == true || $request->vlessGprcReality == 1 ? true : false;
-                $inbound->save();
-
-                $trojan = new Proxy();
-                $trojan->pannel_id = $pannel->id;
-                $trojan->type = 'trojan';
-                $trojan->is_active = $request->trojan == true || $request->trojan == 1 ? true : false;
-                $trojan->save();
-                $inbound = new Inbound();
-                $inbound->name = 'Trojan Websocket TLS';
-                $inbound->data = 'Trojan Websocket TLS';
-                $inbound->proxy_id = $trojan->id;
-                $inbound->is_active = $request->trojanWebsocketTLS == true || $request->trojanWebsocketTLS == 1 ? true : false;
-                $inbound->save();
-
-                $shadowsocks = new Proxy();
-                $shadowsocks->pannel_id = $pannel->id;
-                $shadowsocks->type = 'shadowsocks';
-                $shadowsocks->is_active = $request->shadowsocks == true || $request->shadowsocks == 1 ? true : false;
-                $shadowsocks->save();
-                $inbound = new Inbound();
-                $inbound->name = 'Shadowsocks TCP';
-                $inbound->data = 'chacha20-poly1305';
-                $inbound->proxy_id = $shadowsocks->id;
-                $inbound->is_active = $request->shadowsocksTCP == true || $request->shadowsocksTCP == 1 ? true : false;
-                $inbound->save();
+            if ($pannel->isMarzbanCompatible()) {
+                if (! empty($request->dynamic_inbounds)) {
+                    $items = $request->dynamic_inbounds;
+                    if (is_string($items)) {
+                        $items = json_decode($items, true);
+                    }
+                    if (is_array($items)) {
+                        $this->syncMarzbanProxiesFromPanel($pannel, $items);
+                    }
+                }
             }
             return response()->json($pannel->id, 201);
         } catch (\Throwable $th) {
@@ -142,114 +83,28 @@ class PannelController extends Controller
     {
         try {
             $pannel = Pannel::find($request->id);
-            $pannel->type = 'marzban';
+            $pannel->type = Pannel::isMarzbanCompatibleType($request->type ?? $pannel->type)
+                ? ($request->type ?? $pannel->type)
+                : Pannel::TYPE_MARZBAN;
             $pannel->username = $request->username ?? 'admin';
             $pannel->password = $request->password ?? '123456';
-            $pannel->token = $request->token ?? 'Bearer ';
+            $pannel->token = !empty($request->token) ? $request->token : null;
             $pannel->location = $request->location ?? null;
             $pannel->url_port = $request->url_port ?? null;
             $pannel->admin_url = $request->admin_url ?? null;
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->update();
 
-            $proxy = Proxy::where('pannel_id', $pannel->id)
-                ->where('type', 'vmess')
-                ->first();
-            $proxy->is_active = $request->vmess == true || $request->vmess == 1 ? true : false;
-            $proxy->update();
-            if ($request->vmessTCP != null && $request->vmessTCP != false) {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'VMess TCP')
-                    ->first();
-                $inbound->is_active = true;
-                $inbound->update();
-            } else {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'VMess TCP')
-                    ->first();
-                $inbound->is_active = false;
-                $inbound->update();
-            }
-            if ($request->vmessWebSocket != null && $request->vmessWebSocket != false) {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'VMess Websocket')
-                    ->first();
-                $inbound->is_active = true;
-                $inbound->update();
-            }
+            if (! empty($request->dynamic_inbounds)) {
+                $items = $request->dynamic_inbounds;
+                if (is_string($items)) {
+                    $items = json_decode($items, true);
+                }
+                if (is_array($items)) {
+                    $this->syncMarzbanProxiesFromPanel($pannel, $items);
 
-            $proxy = Proxy::where('pannel_id', $pannel->id)
-                ->where('type', 'vless')
-                ->first();
-
-            $proxy->is_active = $request->vless == true || $request->vless == 1 ? true : false;
-            $proxy->update();
-            if ($request->vlessTcpReality != null && $request->vlessTcpReality != false) {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'VLESS TCP REALITY')
-                    ->first();
-                $inbound->is_active = true;
-                $inbound->update();
-            } else {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'VLESS TCP REALITY')
-                    ->first();
-                $inbound->is_active = false;
-                $inbound->update();
-            }
-            if ($request->vlessGprcReality != null && $request->vlessGprcReality != false) {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'VLESS GRPC REALITY')
-                    ->first();
-                $inbound->is_active = true;
-                $inbound->update();
-            } else {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'VLESS GRPC REALITY')
-                    ->first();
-                $inbound->is_active = false;
-                $inbound->update();
-            }
-
-            $proxy = Proxy::where('pannel_id', $pannel->id)
-                ->where('type', 'trojan')
-                ->first();
-
-            $proxy->is_active = $request->trojan == true || $request->trojan == 1 ? true : false;
-            $proxy->update();
-            if ($request->trojanWebsocketTLS != null && $request->trojanWebsocketTLS != false) {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'Trojan Websocket TLS')
-                    ->first();
-                $inbound->is_active = true;
-                $inbound->update();
-            } else {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'Trojan Websocket TLS')
-                    ->first();
-                $inbound->is_active = false;
-                $inbound->update();
-            }
-
-            $proxy = Proxy::where('pannel_id', $pannel->id)
-                ->where('type', 'shadowsocks')
-                ->first();
-
-            $proxy->is_active = $request->shadowsocks == true || $request->shadowsocks == 1 ? true : false;
-            $proxy->update();
-
-            if ($request->shadowsocksTCP != null && $request->shadowsocksTCP != false) {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'Shadowsocks TCP')
-                    ->first();
-                $inbound->is_active = true;
-                $inbound->update();
-            } else {
-                $inbound = Inbound::where('proxy_id', $proxy->id)
-                    ->where('name', 'Shadowsocks TCP')
-                    ->first();
-                $inbound->is_active = false;
-                $inbound->update();
+                    return response()->json($pannel->id, 201);
+                }
             }
 
             return response()->json($pannel->id, 201);
@@ -267,22 +122,30 @@ class PannelController extends Controller
                 $pannel->type = $request->type;
                 $pannel->username = $request->username ?? 'admin';
                 $pannel->password = $request->password ?? '123456';
-                $pannel->token = $request->token ?? 'Bearer ';
+                $pannel->token = !empty($request->token) ? $request->token : null;
                 $pannel->location = $request->location ?? null;
                 $pannel->url_port = $request->url_port ?? null;
                 $pannel->sub_port = $request->sub_port ?? null;
                 $pannel->admin_url = $request->admin_url ?? null;
                 $pannel->user_link = $request->user_link ?? null;
                 $pannel->capacity = $request->capacity ?? 1333333;
-                if ($pannel->update()) {
-                    return true;
+                if ($pannel->type === 'sanaei') {
+                    if ($request->has('api_version')) {
+                        $v = strtolower(trim((string) $request->api_version));
+                        $pannel->api_version = in_array($v, ['v2', '2', 'v1', '1'], true) ? 'v2' : 'v3';
+                    }
+                    $pannel->cookie_session = null;
                 }
-                return response()->json(false, 500);
+                if ($pannel->update()) {
+                    return response()->json(['success' => true, 'id' => $pannel->id], 200);
+                }
+                return response()->json(['success' => false, 'message' => 'خطا در ویرایش پنل.'], 500);
             }
+            return response()->json(['success' => false, 'message' => 'پنل یافت نشد.'], 404);
         } catch (\Throwable $th) {
-            \Log::info("Throwable:  $th");
+            \Log::error('updatePannel failed: ' . $th->getMessage());
 
-            return response()->json(false, 500);
+            return response()->json(['success' => false, 'message' => 'خطا در ویرایش پنل.'], 500);
         }
     }
     public function getPannels()
@@ -369,7 +232,8 @@ class PannelController extends Controller
             return $pannels->pluck('location')->unique();
         } catch (\Throwable $th) {
             \Log::info("get_all_panells_by_location_capacity_mode:  $th");
-            return response()->json(null, 500);
+
+            return collect();
         }
 
     }
@@ -383,16 +247,19 @@ class PannelController extends Controller
 
             $pannels = Pannel::with('product_category_and_count_products')->get();
             foreach ($pannels as $key => $value) {
-                // remove each pannel wich capacity is above or equal to the products count
-                $rrr = $value->product_category_and_count_products[0]->products_count;
-                if ($value->product_category_and_count_products[0]->products_count >= $value->capacity) {
+                $rrr = 0;
+                if (! empty($value->product_category_and_count_products) && isset($value->product_category_and_count_products[0]->products_count)) {
+                    $rrr = $value->product_category_and_count_products[0]->products_count;
+                }
+                if ($rrr >= $value->capacity) {
                     $pannels->forget($key);
                 }
             }
             return $pannels->pluck('id');
         } catch (\Throwable $th) {
-            \Log::info("get_all_panells_by_location_capacity_mode:  $th");
-            return response()->json(null, 500);
+            \Log::info("get_all_panells_Id_by_location_capacity_mode:  $th");
+
+            return collect();
         }
 
     }
@@ -464,114 +331,80 @@ class PannelController extends Controller
     }
     public function createMarzbanUser($accountId, $day, $vol, $pannelID)
     {
-        // try {
-        $panel = Pannel::find($pannelID);
-        $token = $panel->token;
-        $mainUrl = $panel->url_port;
-        $mainUrl = str_replace('/dashboard/', '', $mainUrl);
-        $mainUrl = str_replace('/dashboard', '', $mainUrl);
-        //$vol must change to byte
-        $vol = $vol * 1024 * 1024 * 1024;
-        // crete an UTC date + $day
-        $utc = new \DateTime('now', new \DateTimeZone('UTC'));
-        $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
-        // convert utc to integer
-        $utc = $utc->getTimestamp();
-        $headers = [
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-            'authorization' => $token,
-        ];
-        $result = ['success' => false, 'body' => []];
-        // get active proxies
-        $proCntrl = new ProxyController();
-        $proxies = $proCntrl->getActiveProxiesByPannelID($pannelID);
-
-        $proxy = [];
-        $inbounds = [];
-        foreach ($proxies as $key => $pr) {
-            $proxy[$pr->type] = [];
-            foreach ($pr->inbounds as $key => $in) {
-                // merge inbounds
-                $inbounds[$pr->type][] = $in->name;
-            }
+        $mb = MarzbanPannelController::resolve($pannelID);
+        $result = $mb->createUser($pannelID, $accountId, (int) $day, $vol);
+        if ($result === false) {
+            return null;
         }
 
-        $params = [
-            'username' => $accountId,
-            'expire' => $utc,
-            'data_limit' => $vol,
-            'proxies' => $proxy,
-            'inbounds' => $inbounds,
+        return [
+            'links' => $result['links'],
+            'subscription_link' => $result['subscription_link'],
         ];
-        $url = "{$mainUrl}/api/user";
-
-        $response = Http::withHeaders($headers)->post($url, $params);
-        $result = ['success' => $response->ok(), 'body' => $response->json()];
-        \Log::info('TelegramBot->sendMessage->result', ['result' => $result]);
-
-        $sub = $result['body']['subscription_url'];
-
-        $sublink = "$mainUrl$sub";
-        return ['links' => $result['body']['links'], 'subscription_link' => $sublink];
-        // } catch (\Throwable $th) {
-        //     \Log::info('Marzban Resault', ['error' => ($result['error'] = $th->getMessage())]);
-
-        //     return null;
-        // }
     }
+
     public function modifyMarzbanUser($accountId, $day, $vol, $pannelID)
     {
-        try {
-            $panel = Pannel::find($pannelID);
-            $token = $panel->token;
-            $mainUrl = $panel->url_port;
-            $mainUrl = str_replace('/dashboard/', '', $mainUrl);
-            $mainUrl = str_replace('/dashboard', '', $mainUrl);
-            //$vol must change to byte
-            $vol = $vol * 1024 * 1024 * 1024;
-            // crete an UTC date + $day
-            $utc = new \DateTime('now', new \DateTimeZone('UTC'));
-            $utc = $utc->add(new \DateInterval('P' . $day . 'D'));
-            // convert utc to integer
-            $utc = $utc->getTimestamp();
-            $proCntrl = new ProxyController();
-            $proxies = $proCntrl->getActiveProxiesByPannelID($pannelID);
+        $mb = MarzbanPannelController::resolve($pannelID);
+        if (! $mb->modifyUser($pannelID, $accountId, (int) $day, $vol)) {
+            return null;
+        }
 
-            $proxy = [];
-            $inbounds = [];
-            foreach ($proxies as $key => $pr) {
-                $proxy[$pr->type] = [];
-                foreach ($pr->inbounds as $key => $in) {
-                    // merge inbounds
-                    $inbounds[$pr->type][] = $in->name;
+        $user = $mb->getUser($pannelID, $accountId);
+
+        return $user['links'] ?? null;
+    }
+
+    private function syncMarzbanProxiesFromPanel(Pannel $pannel, array $items): void
+    {
+        $byProtocol = [];
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+            $protocol = strtolower((string) ($item['protocol'] ?? ''));
+            $tag = trim((string) ($item['tag'] ?? ''));
+            if ($protocol === '' || $tag === '') {
+                continue;
+            }
+            $byProtocol[$protocol][] = [
+                'tag' => $tag,
+                'enabled' => ! empty($item['enabled']),
+            ];
+        }
+
+        foreach ($byProtocol as $protocol => $inboundItems) {
+            $proxy = Proxy::where('pannel_id', $pannel->id)
+                ->where('type', $protocol)
+                ->first();
+            if (! $proxy) {
+                $proxy = new Proxy();
+                $proxy->pannel_id = $pannel->id;
+                $proxy->type = $protocol;
+                $proxy->is_active = false;
+                $proxy->save();
+            }
+
+            $anyEnabled = false;
+            foreach ($inboundItems as $inboundItem) {
+                $inbound = Inbound::where('proxy_id', $proxy->id)
+                    ->where('name', $inboundItem['tag'])
+                    ->first();
+                if (! $inbound) {
+                    $inbound = new Inbound();
+                    $inbound->proxy_id = $proxy->id;
+                    $inbound->name = $inboundItem['tag'];
+                    $inbound->data = $inboundItem['tag'];
+                }
+                $inbound->is_active = $inboundItem['enabled'];
+                $inbound->save();
+                if ($inboundItem['enabled']) {
+                    $anyEnabled = true;
                 }
             }
-            $headers = [
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-                'authorization' => $token,
-            ];
-            $result = ['success' => false, 'body' => []];
-            $vmess = [];
-            $params = [
-                'username' => $accountId,
-                'expire' => $utc,
-                'data_limit' => $vol,
-                'proxies' => $proxy,
-                'inbounds' => $inbounds,
-            ];
 
-            $url = "{$mainUrl}/api/user/$accountId";
-
-            $response = Http::withHeaders($headers)->put($url, $params);
-            $result = ['success' => $response->ok(), 'body' => $response->json()];
-
-            return $result['body']['links'];
-        } catch (\Throwable $th) {
-            \Log::info('Marzban Resault', ['error' => ($result['error'] = $th->getMessage())]);
-
-            return null;
+            $proxy->is_active = $anyEnabled;
+            $proxy->update();
         }
     }
 }

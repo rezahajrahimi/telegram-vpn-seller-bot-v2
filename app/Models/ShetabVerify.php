@@ -11,10 +11,17 @@ class ShetabVerify extends Model
     protected $table = 'shetab_verifies';
     protected $fillable = [
         'user_id',
+        'product_category_id',
         'amount',
+        'base_amount',
         'tracking_code',
         'status',
     ];
+
+    public function productCategory()
+    {
+        return $this->belongsTo(ProductCategory::class, 'product_category_id');
+    }
     public function user()
     {
         return $this->belongsTo(User::class);

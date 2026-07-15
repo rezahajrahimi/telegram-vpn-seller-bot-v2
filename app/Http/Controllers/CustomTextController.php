@@ -16,6 +16,7 @@ class CustomTextController extends Controller
     public function getAllTexts()
     {
         try {
+            $this->syncMissingSeedKeys();
             $data = CustomText::all();
             return response()->json($data);
         } catch (\Throwable $th) {
@@ -98,6 +99,98 @@ class CustomTextController extends Controller
                 ]),
                 'custom_text' => null,
                 'description' => 'متن ارسال شماره تماس'
+            ],
+            [
+                'key' => 'action.mobile_verification.prompt',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'برای خرید، ابتدا باید شماره موبایل خود را تایید کنید.'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'لطفاً با دکمه زیر شماره تماس خود را ارسال کنید (فقط شماره متعلق به خودتان پذیرفته می‌شود).'],
+                ]),
+                'custom_text' => null,
+                'description' => 'درخواست تایید موبایل قبل از خرید'
+            ],
+            [
+                'key' => 'action.mobile_verification.prompt_iran_only',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'برای خرید، ابتدا باید شماره موبایل ایران خود را تایید کنید.'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'لطفاً با دکمه زیر شماره تماس خود را ارسال کنید. فقط شماره‌های با پیش‌شماره ایران (+98) پذیرفته می‌شوند.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'درخواست تایید موبایل (فقط ایران)'
+            ],
+            [
+                'key' => 'action.mobile_verification.button',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'ارسال شماره تماس برای تایید'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه ارسال شماره برای تایید موبایل'
+            ],
+            [
+                'key' => 'action.mobile_verification.success',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'شماره موبایل شما با موفقیت تایید شد. اکنون می‌توانید خرید کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیام موفقیت تایید موبایل'
+            ],
+            [
+                'key' => 'action.mobile_verification.already_verified',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'شماره موبایل شما قبلاً تایید شده است.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیام تایید قبلی موبایل'
+            ],
+            [
+                'key' => 'error.mobile_verification.required',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'برای خرید باید ابتدا شماره موبایل خود را در ربات تلگرام تایید کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'خطای الزام تایید موبایل'
+            ],
+            [
+                'key' => 'error.mobile_verification.required_iran_only',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'برای خرید باید ابتدا شماره موبایل ایران خود را در ربات تلگرام تایید کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'خطای الزام تایید موبایل ایران'
+            ],
+            [
+                'key' => 'error.mobile_verification.iran_only',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'فقط شماره موبایل با پیش‌شماره ایران (+98) برای تایید پذیرفته می‌شود.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'رد شماره غیرایرانی در تایید موبایل'
+            ],
+            [
+                'key' => 'error.mobile_verification.invalid_contact',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'شماره ارسالی معتبر نیست. لطفاً شماره متعلق به خودتان را از دکمه «ارسال شماره تماس» بفرستید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'خطای شماره تماس نامعتبر'
+            ],
+            [
+                'key' => 'error.mobile_verification.disabled',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید موبایل در حال حاضر فعال نیست.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید موبایل غیرفعال'
+            ],
+            [
+                'key' => 'error.mobile_verification.not_applicable',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید موبایل برای این حساب کاربری لازم نیست.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید موبایل برای نقش غیرکاربر'
             ],
             [
                 'key' => 'action.upload_file',
@@ -557,6 +650,120 @@ class CustomTextController extends Controller
                 'description' => 'متن خرید شما با موفقیت انجام شد - پارامترها: {uuid}'
             ],
             [
+                'key' => 'action.subscription.sanaei',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "شناسه کانفیگ شما:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{uuid}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خرید سنایی - پارامترها: {uuid}'
+            ],
+            [
+                'key' => 'action.subscription.marzban',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
+                    ['type' => 'newline'],
+                    ['type' => 'link', 'text' => "لینک ساب", 'url' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "همچنین می‌توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خرید مرزبان - پارامترها: {panel_link} {subscription_link}'
+            ],
+            [
+                'key' => 'action.subscription.marzban.link',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "کانفیگ:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{link}"],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن ارسال لینک کانفیگ مرزبان - پارامترها: {link}'
+            ],
+            [
+                'key' => 'action.subscription.marzban.help',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'جهت نیاز به راهنمایی بر روی یکی از گزینه‌های زیر کلیک کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن راهنمای بعد از ارسال کانفیگ مرزبان'
+            ],
+            [
+                'key' => 'action.test_account.marzban',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "اکانت آزمایشی شما فعال شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
+                    ['type' => 'newline'],
+                    ['type' => 'link', 'text' => "لینک ساب", 'url' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "می‌توانید QRCode ارسال شده را اسکن نمایید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن اکانت آزمایشی مرزبان - پارامترها: {subscription_link}'
+            ],
+            [
+                'key' => 'action.subscription.pasarguard',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
+                    ['type' => 'newline'],
+                    ['type' => 'link', 'text' => "لینک ساب", 'url' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "همچنین می‌توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خرید پاسارگارد - پارامترها: {panel_link} {subscription_link}'
+            ],
+            [
+                'key' => 'action.subscription.pasarguard.link',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "کانفیگ:"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{link}"],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن ارسال لینک کانفیگ پاسارگارد - پارامترها: {link}'
+            ],
+            [
+                'key' => 'action.subscription.pasarguard.help',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'جهت نیاز به راهنمایی بر روی یکی از گزینه‌های زیر کلیک کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن راهنمای بعد از ارسال کانفیگ پاسارگارد'
+            ],
+            [
+                'key' => 'action.test_account.pasarguard',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => "اکانت آزمایشی شما فعال شد"],
+                    ['type' => 'newline'],
+                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
+                    ['type' => 'newline'],
+                    ['type' => 'link', 'text' => "لینک ساب", 'url' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'code', 'text' => "{subscription_link}"],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => "می‌توانید QRCode ارسال شده را اسکن نمایید."],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن اکانت آزمایشی پاسارگارد - پارامترها: {subscription_link}'
+            ],
+            [
                 'key' => 'action.buy_history.title',
                 'default_text' => json_encode([
                     ['type' => 'text', 'text' => 'سابقه خرید'],
@@ -621,12 +828,78 @@ class CustomTextController extends Controller
                 'description' => 'متن تغییر نام بسته'
             ],
             [
+                'key' => 'action.history.buttun.delete',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'حذف بسته'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه حذف بسته در سابقه خرید'
+            ],
+            [
+                'key' => 'action.delete_history.confirm',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'آیا از حذف بسته «{name}» اطمینان دارید؟'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'این عمل غیرقابل بازگشت است و دسترسی شما قطع خواهد شد.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن تایید حذف بسته - پارامترها: {name}'
+            ],
+            [
+                'key' => 'action.delete_history.confirm_button',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید و حذف'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه تایید حذف بسته'
+            ],
+            [
+                'key' => 'action.delete_history.cancel_button',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'انصراف'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه انصراف از حذف بسته'
+            ],
+            [
+                'key' => 'action.delete_history.success',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'بسته «{name}» با موفقیت حذف شد.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن موفقیت حذف بسته - پارامترها: {name}'
+            ],
+            [
+                'key' => 'action.delete_history.failed',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'خطا در حذف بسته. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خطا در حذف بسته'
+            ],
+            [
                 'key' => 'action.recharge.success',
                 'default_text' => json_encode([
                     ['type' => 'text', 'text' => 'شارژ مجدد با موفقیت انجام شد'],
                 ]),
                 'custom_text' => null,
                 'description' => 'متن شارژ مجدد با موفقیت انجام شد'
+            ],
+            [
+                'key' => 'action.recharge.confirm',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'آیا از تمدید بسته {package} به مبلغ {price} تومان مطمئن هستید؟'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید تمدید بسته - پارامترها: {package} {price}'
+            ],
+            [
+                'key' => 'action.recharge.button_confirm',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید تمدید'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه تایید تمدید'
             ],
             [
                 'key' => 'action.account.details',
@@ -644,10 +917,42 @@ class CustomTextController extends Controller
                     ['type' => 'text', 'text' => 'موجودی دلاری: {balance_in_dollar}'],
                     ['type' => 'newline'],
                     ['type' => 'text', 'text' => 'موجودی کیف همکاری: {referral_balance}'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'امتیاز باشگاه مشتریان: {loyalty_balance}'],
 
                 ]),
                 'custom_text' => null,
-                'description' => 'متن اطلاعات حساب شما: - پارامترها: {username} {name} {last_name} {account_id} {balance} {balance_in_dollar} {referral_balance}'
+                'description' => 'متن اطلاعات حساب شما: - پارامترها: {username} {name} {last_name} {account_id} {balance} {balance_in_dollar} {referral_balance} {loyalty_balance}'
+            ],
+            [
+                'key' => 'action.account.additional_options.loyalty_history',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تاریخچه امتیاز ⭐'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه تاریخچه امتیاز باشگاه مشتریان'
+            ],
+            [
+                'key' => 'action.account.loyalty_history.title',
+                'default_text' => json_encode([
+                    ['type' => 'bold', 'text' => 'باشگاه مشتریان'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'موجودی امتیاز شما: {balance}'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'ارزش هر امتیاز: {toman_per_point} تومان'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'آخرین فعالیت‌ها:'],
+                ]),
+                'custom_text' => null,
+                'description' => 'عنوان تاریخچه امتیاز — پارامترها: {balance} {toman_per_point}'
+            ],
+            [
+                'key' => 'action.account.loyalty_history.no_records',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'هنوز هیچ امتیازی برای شما ثبت نشده است.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن خالی بودن تاریخچه امتیاز'
             ],
             [
                 'key' => 'action.account.additional_options',
@@ -889,6 +1194,174 @@ class CustomTextController extends Controller
             ],
 
             [
+                'key' => 'action.promo.enter_code',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کد تخفیف خود را وارد کنید:'],
+                ]),
+                'custom_text' => null,
+                'description' => 'درخواست ورود کد تخفیف'
+            ],
+            [
+                'key' => 'action.promo.invalid',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کد تخفیف نامعتبر است. {reason}'],
+                ]),
+                'custom_text' => null,
+                'description' => 'کد تخفیف نامعتبر - پارامتر: {reason}'
+            ],
+            [
+                'key' => 'action.promo.applied',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کد {code} اعمال شد.'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'تخفیف: {discount} تومان'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'مبلغ نهایی: {final_price} تومان'],
+                ]),
+                'custom_text' => null,
+                'description' => 'کد تخفیف اعمال شد - پارامترها: {code} {discount} {final_price}'
+            ],
+            [
+                'key' => 'action.promo.button',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کد تخفیف دارم'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه کد تخفیف'
+            ],
+            [
+                'key' => 'action.promo.confirm_buy',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید خرید با تخفیف'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید خرید با کد تخفیف'
+            ],
+            [
+                'key' => 'action.buy_subscription.button_confirm',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید خرید'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه تایید خرید بدون تخفیف'
+            ],
+            [
+                'key' => 'action.promo.confirm_recharge',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تایید تمدید با تخفیف'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید تمدید با کد تخفیف'
+            ],
+            [
+                'key' => 'action.buy_subscription.confirm',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'آیا از خرید بسته {package} به مبلغ {price} تومان مطمئن هستید؟'],
+                ]),
+                'custom_text' => null,
+                'description' => 'تایید خرید بسته - پارامترها: {package} {price}'
+            ],
+            [
+                'key' => 'action.upsell.offer',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'پیشنهاد ویژه!'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'بسته {current_package} ({current_price} تومان)'],
+                    ['type' => 'newline'],
+                    ['type' => 'text', 'text' => 'یا بسته {upsell_package} ({upsell_price} تومان)'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیشنهاد upsell - پارامترها: {current_package} {upsell_package} {current_price} {upsell_price}'
+            ],
+            [
+                'key' => 'action.upsell.buy_upsell',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'خرید {package}'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه خرید بسته پیشنهادی - پارامتر: {package}'
+            ],
+            [
+                'key' => 'action.upsell.continue_current',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'ادامه با {package}'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه ادامه با بسته فعلی - پارامتر: {package}'
+            ],
+            [
+                'key' => 'recovery.package_selected.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'بسته {package_name} را انتخاب کردید ولی خرید را تکمیل نکردید. برای ادامه خرید دکمه زیر را بزنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'یادآوری خرید ناتمام - پارامتر: {package_name}'
+            ],
+            [
+                'key' => 'recovery.insufficient_balance.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'موجودی شما برای خرید بسته {package_name} کافی نیست. کیف پول خود را شارژ کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'یادآوری موجودی ناکافی - پارامتر: {package_name}'
+            ],
+            [
+                'key' => 'recovery.recharge.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تمدید بسته {package_name} را فراموش نکنید!'],
+                ]),
+                'custom_text' => null,
+                'description' => 'یادآوری تمدید ناتمام - پارامتر: {package_name}'
+            ],
+            [
+                'key' => 'recovery.button.buy',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'ادامه خرید'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه ادامه خرید در یادآوری'
+            ],
+            [
+                'key' => 'recovery.button.add_balance',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'شارژ کیف پول'],
+                ]),
+                'custom_text' => null,
+                'description' => 'دکمه شارژ کیف پول در یادآوری'
+            ],
+            [
+                'key' => 'cron.expired.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کاربر گرامی بسته {product_text} منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیام خودکار انقضای بسته - پارامترها: {product_name} {category_name} {product_text}'
+            ],
+            [
+                'key' => 'cron.expiring_soon.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کاربر گرامی تنها {days_left} روز دیگر از بسته {product_text} باقی مانده است.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیام خودکار نزدیک انقضا - پارامترها: {product_name} {category_name} {product_text} {days_left}'
+            ],
+            [
+                'key' => 'cron.usage_high.message',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'کاربر گرامی شما بیشتر از {usage_percent} درصد از بسته {product_text} را مصرف کرده‌اید.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'پیام خودکار مصرف بالا - پارامترها: {product_name} {category_name} {product_text} {usage_percent}'
+            ],
+            [
+                'key' => 'cron.button.renew',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'تمدید بسته'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه تمدید در پیام‌های خودکار'
+            ],
+            [
                 'key' => 'error.menu.not_found',
                 'default_text' => json_encode([
                     ['type' => 'text', 'text' => 'گزینه ای یافت نشد'],
@@ -929,23 +1402,6 @@ class CustomTextController extends Controller
                 'custom_text' => null,
                 'description' => 'متن این بسته قابلیت شارژ ندارد'
             ],
-            [
-                'key' => 'action.subscription.hiddify',
-                'default_text' => json_encode([
-                    ['type' => 'bold', 'text' => "خرید شما با موفقیت انجام شد"],
-                    ['type' => 'newline'],
-                    ['type' => 'bold', 'text' => "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:"],
-                    ['type' => 'link', 'text' => "لینک پنل", 'url' => "{panel_link}"],
-                    ['type' => 'newline'],
-                    ['type' => 'bold', 'text' => "لینک سابسکریپشن:"],
-                    ['type' => 'newline'],
-                    ['type' => 'code', 'text' => "{subscription_link}"],
-                    ['type' => 'newline'],
-                    ['type' => 'text', 'text' => "همچینین شما می توانید QRCode ارسال شده را اسکن نمایید. در صورت نیاز به راهنمایی بر روی آموزش استفاده از لینک سابسکریپشن کلیک کنید."],
-                ]),
-                'custom_text' => null,
-                'description' => 'متن خرید شما با موفقیت انجام شد - پارامترها: {panel_link} {subscription_link}'
-            ],
 
 
         ];
@@ -968,11 +1424,28 @@ class CustomTextController extends Controller
                 \Log::info('CustomText table seeded successfully');
                 return true;
             }
+
+            return $this->syncMissingSeedKeys();
         } catch (\Throwable $th) {
             \Log::info("sdaaa: $th");
             return;
         }
 
+    }
+
+    public function syncMissingSeedKeys(): bool
+    {
+        $inserted = false;
+
+        foreach ($this->getSeedData() as $data) {
+            if (! CustomText::where('key', $data['key'])->exists()) {
+                CustomText::create($data);
+                $inserted = true;
+                \Log::info('CustomText missing key added: ' . $data['key']);
+            }
+        }
+
+        return $inserted;
     }
     public function getText($key, $variables = [])
     {
@@ -984,9 +1457,8 @@ class CustomTextController extends Controller
             return $text;
         } catch (\Throwable $th) {
             \Log::info("getText: $key");
+            $this->syncMissingSeedKeys();
             $this->seedSingleKey($key);
-            // await for seeding
-            sleep(1);
             $text = $this->customText->getText($key);
             if (json_validate($text)) {
                 return json_decode($text, true);

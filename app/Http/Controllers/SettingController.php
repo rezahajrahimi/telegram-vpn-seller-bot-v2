@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 use App\Models\Setting;
 use App\Http\Controllers\DotenvEditor;
+use App\Services\ConfigNameService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 
 class SettingController extends Controller
 {
@@ -16,6 +18,9 @@ class SettingController extends Controller
             $setting->bot_token = env('TELEGRAM_BOT_TOKEN');
             $setting->welcome_message = 'به ربات  [@powerPsBot] خوش آمدید.';
             $setting->panel_address = env('APP_URL');
+            $setting->config_name_prefix = ConfigNameService::DEFAULT_PREFIX;
+            $setting->config_name_format = ConfigNameService::DEFAULT_FORMAT;
+            $setting->use_admin_alias_in_config_name = true;
             $setting->save();
             return true;
         }
@@ -50,6 +55,9 @@ class SettingController extends Controller
             'bot_name' => 'required|string',
             'admin_id' => 'required',
             'panel_address' => 'required|string',
+            'config_name_prefix' => 'nullable|string|max:20|regex:/^[a-zA-Z0-9]*$/',
+            'config_name_format' => 'nullable|string|max:64|regex:/^[a-zA-Z0-9_{}\-]*$/',
+            'use_admin_alias_in_config_name' => 'nullable|boolean',
         ]);
 
         $data = Setting::first();
@@ -61,6 +69,17 @@ class SettingController extends Controller
         $data->admin_id = $request->admin_id;
         $data->bot_token = $request->bot_token;
         $data->panel_address = $request->panel_address;
+        $data->config_name_prefix = ConfigNameService::normalizePrefix(
+            $request->input('config_name_prefix')
+        );
+        $data->config_name_format = ConfigNameService::normalizeFormat(
+            $request->input('config_name_format')
+        );
+        if ($request->has('use_admin_alias_in_config_name')) {
+            $data->use_admin_alias_in_config_name = $request->boolean('use_admin_alias_in_config_name');
+        } elseif (! $data->exists) {
+            $data->use_admin_alias_in_config_name = true;
+        }
 
         // Only set welcome message if it's empty
         if (empty($data->welcome_message)) {
@@ -89,6 +108,8 @@ class SettingController extends Controller
 
                 file_put_contents($path, $envContent);
             }
+
+            Artisan::call('config:clear');
 
             return response()->json([
                 'status' => true,

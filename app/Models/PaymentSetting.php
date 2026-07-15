@@ -9,6 +9,10 @@ class PaymentSetting extends Model
 {
     use HasFactory;
     protected $fillable = ['key', 'value', 'description', 'status'];
+
+    protected $casts = [
+        'status' => 'boolean',
+    ];
     public function getPaymentSettingByKey($key)
     {
         return PaymentSetting::where('key', $key)->first();
@@ -17,11 +21,8 @@ class PaymentSetting extends Model
     public function checkStatusByKey($key)
     {
         $paymentSetting = $this->getPaymentSettingByKey($key);
-        $data = $paymentSetting->status;
-        if ($data == 1 || $data == true) {
-            return true;
-        }
-        return false;
+
+        return (bool) ($paymentSetting->status ?? false);
     }
     public function getPaymentSettingValueByKey($key)
     {
@@ -46,12 +47,9 @@ class PaymentSetting extends Model
     {
         $paymentSetting = $this->getPaymentSettingByKey($key);
         if ($paymentSetting) {
-            $data = $paymentSetting->status;
-            if ($data == 1 || $data == true) {
-                return true;
-            }
-            return false;
+            return (bool) $paymentSetting->status;
         }
+
         return false;
     }
     public function setPaymentSettingValueByKey($key, $value)

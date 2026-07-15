@@ -104,6 +104,23 @@ class BackupController extends Controller
             ], 500);
         }
     }
+
+    public function downloadBackup(string $filename)
+    {
+        if (!preg_match('/^backup_[\d\-_]+\.sql$/', $filename)) {
+            return response()->json(['message' => 'نام فایل نامعتبر است'], 400);
+        }
+
+        $filePath = storage_path('app/public/backups/' . $filename);
+        if (!file_exists($filePath)) {
+            return response()->json(['message' => 'فایل پشتیبان یافت نشد'], 404);
+        }
+
+        return response()->download($filePath, $filename, [
+            'Content-Type' => 'application/sql',
+        ]);
+    }
+
     public function createBackupAndReturnZipFile()
     {
         try {

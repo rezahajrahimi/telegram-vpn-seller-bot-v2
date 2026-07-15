@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\CustomTextController;
 use App\Models\MainMenuItem;
 use App\Models\ProductCategory;
+use App\Models\Product;
 use App\Models\BotUser;
 use App\Models\TransactionSetting;
 use App\Services\TelegramMessageFormatter;
@@ -123,7 +124,7 @@ class GeneralController extends Controller
                 ->whereMonth('created_at', \Carbon\Carbon::now()->month)
                 ->sum('amount');
 
-            // Panel Status
+            // Panel list (live status fetched separately per panel — avoids blocking dashboard)
             $pannels = \App\Models\Pannel::all();
             $pannelsStatus = [];
             foreach ($pannels as $pannel) {
@@ -131,41 +132,11 @@ class GeneralController extends Controller
                     $query->where('pannel_id', $pannel->id);
                 })->count();
 
-                $onlineUsers = 0;
-                $isOnline = false;
-
-                try {
-                    if ($pannel->type == 'sanaei') {
-                        $sanaei = new SanaeiPannelController();
-                        $onlines = $sanaei->onlines($pannel);
-                        if ($onlines !== null) {
-                            $onlineUsers = count($onlines);
-                            $isOnline = true;
-                        }
-                    } elseif ($pannel->type == 'hiddify') {
-                        // Hiddify status check
-                        $url = $pannel->admin_url . "/api/v2/admin/server_status/";
-                        $response = \Illuminate\Support\Facades\Http::withHeaders([
-                            'Hiddify-API-Key' => $pannel->secret_code,
-                        ])->timeout(2)->get($url);
-
-                        if ($response->ok()) {
-                            $isOnline = true;
-                            // Hiddify doesn't directly give online count in server_status usually, 
-                            // but we can at least confirm it's up.
-                        }
-                    }
-                } catch (\Throwable $th) {
-                    // Silent fail for status check
-                }
-
                 $pannelsStatus[] = [
                     'id' => $pannel->id,
                     'type' => $pannel->type,
                     'location' => $pannel->location,
                     'total_users' => $totalUsers,
-                    'online_users' => $onlineUsers,
-                    'is_online' => $isOnline,
                 ];
             }
 
@@ -191,6 +162,64 @@ class GeneralController extends Controller
             return response()->json(null, 500);
         }
     }
+
+    /**
+     * Lightweight per-panel status for dashboard widgets (short timeout, independent of main analytics).
+     */
+    public function getPanelDashboardStatus($pannelID)
+    {
+        try {
+            $pannel = \App\Models\Pannel::find($pannelID);
+            if (!$pannel) {
+                return response()->json(['success' => false, 'message' => 'Panel not found'], 404);
+            }
+
+            $totalUsers = \App\Models\Product::whereHas('product_category', function ($query) use ($pannel) {
+                $query->where('pannel_id', $pannel->id);
+            })->count();
+
+            $isOnline = false;
+            $onlineUsers = 0;
+
+            if ($pannel->type === 'sanaei') {
+                $status = (new SanaeiPannelController())->dashboardStatus($pannel);
+                $isOnline = (bool) ($status['is_online'] ?? false);
+                $onlineUsers = (int) ($status['online_users'] ?? 0);
+            } elseif ($pannel->type === 'hiddify') {
+                $url = rtrim((string) $pannel->admin_url, '/') . '/api/v2/admin/server_status/';
+                $response = \Illuminate\Support\Facades\Http::withoutVerifying()
+                    ->withHeaders(['Hiddify-API-Key' => $pannel->secret_code ?? ''])
+                    ->timeout(6)
+                    ->connectTimeout(6)
+                    ->get($url);
+                $isOnline = $response->ok();
+            } elseif ($pannel->isMarzbanCompatible()) {
+                $controller = MarzbanPannelController::resolve($pannel);
+                $isOnline = $controller->isOnline($pannel);
+            }
+
+            return response()->json([
+                'success' => true,
+                'id' => $pannel->id,
+                'type' => $pannel->type,
+                'location' => $pannel->location,
+                'total_users' => $totalUsers,
+                'online_users' => $onlineUsers,
+                'is_online' => $isOnline,
+            ], 200);
+        } catch (\Throwable $th) {
+            \Log::debug('getPanelDashboardStatus failed: ' . $th->getMessage());
+
+            return response()->json([
+                'success' => true,
+                'id' => (int) $pannelID,
+                'is_online' => false,
+                'online_users' => 0,
+                'error' => $th->getMessage(),
+            ], 200);
+        }
+    }
+
     public function getAgentDashboardAnalytics()
     {
         try {
@@ -201,12 +230,17 @@ class GeneralController extends Controller
             // $boughtProducts =  $agentPrCntrl->getAgentSelledProducts(10);
             $logCntrl = new LogController();
             $getTop20Log = $logCntrl->getAllLogsOfLoggedAgent(20);
+            $agentPermisson = \App\Models\AgentPermisson::where('user_id', auth()->user()->id)->first();
+            $agentPrCntrl = new AgentProductController();
+            $agentLimitUsage = $agentPrCntrl->getAgentLimitUsage(auth()->user()->id);
             return response()->json(
                 [
                     'accBallance' => $accBallance,
                     'products' => $products,
                     // 'boughtProducts' => $boughtProducts,
                     'Last20Logs' => $getTop20Log,
+                    'agentPermisson' => $agentPermisson,
+                    'agentLimitUsage' => $agentLimitUsage,
                 ],
                 200,
             );
@@ -218,10 +252,38 @@ class GeneralController extends Controller
     public function getAgentPaymentWays()
     {
         try {
+            $paymentAccessService = new \App\Services\PaymentAccessService();
+            $user = auth('sanctum')->user();
+            $group = $user ? $paymentAccessService->getGroupForUser($user) : null;
+
             $pymntCntrl = new PaymentTypeController();
             $pymentType = $pymntCntrl->getAllActivePaymentTypesWithZarinpalMerchentIDFilter();
             $cryptoPymentCntrl = new CryptoPaymentController();
             $cryptiPymentIsActive = $cryptoPymentCntrl->getNowPaymentsStatus();
+
+            if ($group && $user) {
+                $pymentType = collect($pymentType)->filter(function ($payment) use ($paymentAccessService, $group, $user) {
+                    if ($payment->name === 'زرین پال') {
+                        return $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'zarinpal');
+                    }
+                    if ($payment->type === 'offline') {
+                        return $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'offline');
+                    }
+
+                    return true;
+                })->values();
+
+                $allowCrypto = $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'usd_transaction')
+                    && (
+                        $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'nowpayments')
+                        || $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'cryptomus')
+                    );
+
+                if (!$allowCrypto) {
+                    $cryptiPymentIsActive = false;
+                }
+            }
+
             return response()->json(['active_payment' => $pymentType, 'crypto_payment_status' => $cryptiPymentIsActive], 200);
         } catch (\Throwable $th) {
             \Log::info("error on getAgentPaymentWays-> $th");
@@ -235,8 +297,9 @@ class GeneralController extends Controller
             $accCntrl = new AccountBallanceController();
             $accBallance = $accCntrl->getLoggedUserBallancce();
             $prCatCntrl = new ProductCategoryController();
+            $userGroupId = auth('sanctum')->user()?->user_group_id;
 
-            $products = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
+            $products = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice($userGroupId, true);
             // $boughtProducts =  $agentPrCntrl->getAgentSelledProducts(10);
             $logCntrl = new LogController();
             $getTop20Log = $logCntrl->getAllLogsOfLoggedAgent(20);
@@ -298,32 +361,8 @@ class GeneralController extends Controller
     {
         $menu = new MainMenuItemController();
         $menuItem = $menu->getAllActivatedMainMenuItems();
-        $opr = [];
-
-        if ($menuItem[0]->name == 'خرید اشتراک') {
-            array_push($opr, [['text' => $menuItem[0]->alias_name, 'callback_data' => "main-{$menuItem[0]->id}"]]);
-            $menuItem = $menuItem->slice(1);
-        }
-
-        $countOfMenuItem = count($menuItem);
-        for ($i = 0; $i < $countOfMenuItem; $i += 2) {
-            $pair = $menuItem->slice($i, 2);
-            $row = [];
-
-            foreach ($pair as $item) {
-                $row[] = [
-                    'text' => $item->alias_name,
-                    'callback_data' => "main-{$item->id}",
-                ];
-            }
-
-            if (!empty($row)) {
-                $opr[] = $row;
-            }
-        }
-
-        // $settingCtrl = new SettingController();
-// $this->message = $settingCtrl->getWelcomeMessage();
+        $keyboardConfig = new \App\Services\BotKeyboardConfigService();
+        $opr = $keyboardConfig->buildMainMenuKeyboard($menuItem);
 
         $result = $this->telegramService->sendMessageWithKeyboard($chat_id, $message, $opr);
 
@@ -339,17 +378,9 @@ class GeneralController extends Controller
         $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
         $text = '';
         $agentCntrl = new AgentProductController();
-        $configStatus = $agentCntrl->getBoughtProductsStatusFromServerById($selectedProduct->id);
+        $configStatus = $agentCntrl->resolveBoughtProductStatusFromServer($selectedProduct->id);
 
-        // روش 1: بررسی نوع داده
-        if (is_string($configStatus)) {
-            $configStatus = json_decode($configStatus, true);
-        }
-        // یا
-        // روش 2: حذف json_decode
-        // $configStatus = $configStatus;
-
-        if ($configStatus != null) {
+        if (is_array($configStatus)) {
             $enableText = $configStatus['enable'] == true ? 'فعال' : 'غیر فعال';
             $text = "📦 وضعیت بسته: {$enableText} \r\n";
             $usageGB = $configStatus['current_usage_GB'];
@@ -386,15 +417,23 @@ class GeneralController extends Controller
         try {
             $hiddifcCntrl = new HiddifyPannelController();
             $pnlCntrl = new PannelController();
+            $accountLabel = BotUser::resolveConfigAccountLabel($chat_id, $productID);
 
             $req = new Request();
-            $req->accountId = "$chat_id-$productID";
+            $req->accountId = $accountLabel;
+            $req->chat_id = $chat_id;
+            $req->product_id = $productID;
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
 
             $newUUID = $hiddifcCntrl->addUserToHiddifyPanel($req); // api v2
             if ($newUUID == false) {
+                \Log::error('new_hiddify_config_telegram_text: addUserToHiddifyPanel returned false', [
+                    'chat_id' => $chat_id,
+                    'pannel_id' => $selectedPrCat->pannel_id,
+                    'product_id' => $productID,
+                ]);
 
                 return false;
             }
@@ -406,7 +445,8 @@ class GeneralController extends Controller
                 $userLink = substr($userLink, 0, -1);
             }
 
-            $userSubscriptionLInk = "$userLink/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            // $userSubscriptionLInk = "$userLink/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
+            $userSubscriptionLInk = "$userLink/{$newUUID}/#{$req->accountId}";
             $userPannelLink = "$userLink/{$newUUID}/#{$req->accountId}";
 
             $image = $pnlCntrl->generateQrMOC($userSubscriptionLInk);
@@ -425,7 +465,8 @@ class GeneralController extends Controller
             $request->product_categories_id = $selectedPrCat->id;
             $request->panel_link = "/{$newUUID}/#{$req->accountId}";
             $request->configs = '';
-            $request->remark = "$chat_id-$productID";
+            $request->remark = $accountLabel;
+            $request->product_id = $productID;
             $prCntrl = new ProductController();
             $prCntrl->addAutomatedProductDetails($request);
             return $newUUID;
@@ -439,86 +480,81 @@ class GeneralController extends Controller
     {
         try {
             $snCtrl = new SanaeiPannelController();
-            $req = new Request();
-            $req->accountId = "$chat_id-$productID";
-            $req->pannelID = $selectedPrCat->pannel_id;
-            $req->vol = $volume;
-            $req->day = $day;
-            $req->inbound_id = $selectedPrCat->inbound_id;
-            $req->ip_limit = $selectedPrCat->ip_limit;
+            $accountLabel = BotUser::resolveConfigAccountLabel($chat_id, $productID);
+            $category = ProductCategory::query()->find($selectedPrCat->id) ?? $selectedPrCat;
+            $inboundIds = $category->resolveInboundIds();
+            \Log::info('Sanaei create client inbound_ids', [
+                'category_id' => $category->id,
+                'category_name' => $category->category_name,
+                'inbound_ids' => $inboundIds,
+            ]);
 
-            $result = $snCtrl->addUserToSanaeiPanel($req);
+            $req = new Request();
+            $req->merge([
+                'accountId' => $accountLabel,
+                'chat_id' => $chat_id,
+                'product_id' => $productID,
+                'pannelID' => $category->pannel_id,
+                'vol' => $volume,
+                'day' => $day,
+                'inbound_ids' => $inboundIds,
+                'inbound_id' => $inboundIds[0] ?? $category->inbound_id,
+                'ip_limit' => $category->ip_limit,
+            ]);
+
+            $result = $snCtrl->addUserToSanaeiPanel($req, $inboundIds);
             if ($result === false) {
                 return false;
             }
             if (is_array($result)) {
                 $uuid = $result['uuid'];
                 $subId = $result['subId'];
+                $clientEmail = $result['email'] ?? '';
             } else {
                 $uuid = $result;
                 $subId = $uuid;
+                $clientEmail = '';
             }
 
             // Generate client links and QR codes
-            $links = $snCtrl->getUserLinks($pannel, $uuid, "$chat_id-$productID", $selectedPrCat->inbound_id);
+            $links = $snCtrl->getUserLinks($pannel, $uuid, $accountLabel, $selectedPrCat->inbound_id, $clientEmail ?: null);
 
-            if ($selectedPrCat->show_subscription_link) {
-                $baseUrl = $pannel->admin_url;
-                if (empty($baseUrl)) {
-                    $baseUrl = $pannel->url_port;
-                }
-                if (!empty($pannel->sub_port)) {
-                    $parsed = parse_url($baseUrl);
-                    $host = $parsed['host'] ?? '';
-                    $scheme = $parsed['scheme'] ?? 'http';
-                    if ($host) {
-                        $baseUrl = "$scheme://$host:{$pannel->sub_port}";
-                    }
-                }
-                if (substr($baseUrl, -1) == '/') {
-                    $baseUrl = substr($baseUrl, 0, -1);
-                }
-                $subLink = "$baseUrl/sub/$subId";
+            $subLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
 
-                $text = "لینک اشتراک شما:\n" . $subLink;
-                $this->telegramService->sendMessage($chat_id, $text);
+            $pnlCntrl = new PannelController();
+            $subText = "لینک اشتراک شما:\n" . $subLink;
+            $this->telegramService->sendMessage($chat_id, $subText);
+            $image = $pnlCntrl->generateQrMOC($subLink);
+            $this->telegramService->sendPhotoFile($chat_id, $image, $subLink);
 
-                $pnlCntrl = new PannelController();
-                $image = $pnlCntrl->generateQrMOC($subLink);
-                $this->telegramService->sendPhotoFile($chat_id, $image, $subLink);
-
-            } elseif (!empty($links)) {
-
-                $text = "";
-                // get sample_inbound from selectedPrCat and replace uuid from text with sample_inbound if sample_inbound is not empty
-                if (!empty($selectedPrCat->sample_inbound)) {
+            if ($this->categoryShouldSendConfigToUser($selectedPrCat) && ! empty($links)) {
+                if (! empty($selectedPrCat->sample_inbound)) {
                     $config = preg_replace('/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/i', $uuid, $selectedPrCat->sample_inbound);
                     $links[0] = $config;
+                }
 
-                }
-                $text = $this->customTextCtrl->getText('action.subscription.sanaei_without_subscription', [
-                    'uuid' => $links[0] ?? $uuid,
-                ]);
-                $this->telegramService->sendMessage($chat_id, is_array($text) ? $this->telegramService->formatText($text) : $text);
                 foreach ($links as $link) {
-                    $pnlCntrl = new PannelController();
-                    $image = $pnlCntrl->generateQrMOC($link);
-                    $this->telegramService->sendPhotoFile($chat_id, $image, $link);
+                    $linkText = $this->formatCustomTelegramText('action.subscription.sanaei_without_subscription', [
+                        'uuid' => $link,
+                    ]);
+                    $linkImage = $pnlCntrl->generateQrMOC($link);
+                    $this->telegramService->sendPhotoFile($chat_id, $linkImage, $linkText);
                 }
-            } else {
-                $text = $this->customTextCtrl->getText('action.subscription.sanaei', [
-                    'uuid' => $uuid,
-                ]);
-                $this->telegramService->sendMessage($chat_id, is_array($text) ? $this->telegramService->formatText($text) : $text);
             }
 
             $request = new Request();
             $request->account_id = $chat_id;
-            $request->subscription_link = '';
+            $request->subscription_link = $subLink;
             $request->product_categories_id = $selectedPrCat->id;
-            $request->panel_link = '';
-            $request->configs = json_encode(['uuid' => $uuid, 'links' => $links ?? []]);
-            $request->remark = "$chat_id-$productID";
+            $request->panel_link = $subLink;
+            $request->configs = json_encode([
+                'uuid' => $uuid,
+                'email' => $clientEmail,
+                'subId' => $subId,
+                'links' => $links ?? [],
+            ]);
+            $request->remark = $accountLabel;
+            $request->product_id = $productID;
             $prCntrl = new ProductController();
             $prCntrl->addAutomatedProductDetails($request);
             return $uuid;
@@ -527,7 +563,115 @@ class GeneralController extends Controller
             return false;
         }
     }
-    public function send_using_subscription_manual_message($chat_id, $recharge = null, $productID = null)
+
+    public function new_marzban_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $chat_id, $productID, ?string $username = null, ?string $textKey = null)
+    {
+        try {
+            $mbCtrl = MarzbanPannelController::resolve($pannel);
+            $pnlCntrl = new PannelController();
+            $username = $username ?? $mbCtrl->buildBotUsername($chat_id, $productID);
+            $textKey = $textKey ?? $pannel->customTextKey('action.subscription.marzban');
+
+            $category = $selectedPrCat instanceof ProductCategory
+                ? (ProductCategory::query()->find($selectedPrCat->id) ?? $selectedPrCat)
+                : null;
+            $marzbanInbounds = $category?->resolveMarzbanInbounds() ?? [];
+            $pasarguardGroupIds = $category?->resolvePasarguardGroupIds() ?? [];
+            \Log::info('Marzban create client inbounds', [
+                'category_id' => $category?->id,
+                'marzban_inbounds' => $marzbanInbounds,
+                'pasarguard_group_ids' => $pasarguardGroupIds,
+            ]);
+
+            $userData = $mbCtrl->createUser(
+                $pannel,
+                $username,
+                (int) $day,
+                $volume,
+                $marzbanInbounds !== [] ? $marzbanInbounds : null,
+                $pasarguardGroupIds !== [] ? $pasarguardGroupIds : null
+            );
+            if ($userData === false) {
+                return false;
+            }
+
+            $username = $userData['username'];
+            $userSub = $userData['subscription_link'];
+            $links = $userData['links'] ?? [];
+
+            $text = $this->formatCustomTelegramText($textKey, [
+                'panel_link' => $userSub,
+                'subscription_link' => $userSub,
+            ]);
+
+            $image = $pnlCntrl->generateQrMOC($userSub);
+            $this->telegramService->sendPhotoFile($chat_id, $image, $text);
+
+            if ($this->categoryShouldSendConfigToUser($selectedPrCat)) {
+                $linkTextKey = $pannel->customTextKey('action.subscription.marzban.link');
+                $helpTextKey = $pannel->customTextKey('action.subscription.marzban.help');
+                foreach ($links as $link) {
+                    $linkText = $this->formatCustomTelegramText($linkTextKey, [
+                        'link' => $link,
+                    ]);
+                    $linkImage = $pnlCntrl->generateQrMOC($link);
+                    $this->telegramService->sendPhotoFile($chat_id, $linkImage, $linkText);
+                }
+
+                $helpText = $this->formatCustomTelegramText($helpTextKey);
+                if ($helpText !== '') {
+                    $this->telegramService->sendMessage($chat_id, $helpText);
+                }
+            }
+
+            $request = new Request();
+            $request->account_id = $chat_id;
+            $request->subscription_link = $userData['subscription_url'] ?? '';
+            $request->product_categories_id = $selectedPrCat->id;
+            $request->panel_link = $userSub;
+            $request->configs = json_encode([
+                'username' => $username,
+                'links' => $links,
+            ]);
+            $request->remark = $username;
+            $request->product_id = $productID;
+            $prCntrl = new ProductController();
+            $prCntrl->addAutomatedProductDetails($request);
+
+            return $username;
+        } catch (\Throwable $th) {
+            \Log::info("error on new_marzban_config_telegram_text-> $th");
+
+            return false;
+        }
+    }
+
+    private function categoryShouldSendConfigToUser($category): bool
+    {
+        if ($category instanceof ProductCategory) {
+            return $category->shouldSendConfigToUser();
+        }
+
+        if (is_object($category) && isset($category->send_config_to_user)) {
+            return filter_var($category->send_config_to_user, FILTER_VALIDATE_BOOLEAN);
+        }
+
+        return true;
+    }
+
+    private function formatCustomTelegramText(string $key, array $variables = []): string
+    {
+        $text = $this->customTextCtrl->getText($key, $variables);
+        if (is_array($text)) {
+            return $this->telegramService->formatText($text);
+        }
+
+        $formatter = new TelegramMessageFormatter($this->telegramService);
+
+        return $formatter->addFormattedText('', (string) $text)->getMessage();
+    }
+
+    public function send_using_subscription_manual_message($chat_id, $recharge = null, $productID = null, $inventoryOnly = false)
     {
         $opr = [];
         // check faq is active in menu
@@ -555,24 +699,39 @@ class GeneralController extends Controller
                 $text => "toturial-appDownload",
             ];
         }
-        if ($recharge != null) {
-            $text = $this->customTextCtrl->getText('action.history.buttun.recharge');
-            if (is_array($text)) {
-                // use format text service
-                $text = $this->telegramService->formatText($text);
-            }
-            $opr[] = [
-                $text => "recharge-{$productID}",
-            ];
-            $text = $this->customTextCtrl->getText('action.history.buttun.remark');
-            if (is_array($text)) {
-                // use format text service
-                $text = $this->telegramService->formatText($text);
-            }
-            $opr[] = [
-                $text => "remark-{$productID}",
-            ];
+        if ($recharge != null && ! $inventoryOnly) {
+            $product = $productID !== null
+                ? Product::with('product_category.pannel')->find($productID)
+                : null;
+            $isInventoryProduct = $product?->product_category?->pannel?->isInventoryPanel() ?? false;
 
+            if (! $isInventoryProduct) {
+                $text = $this->customTextCtrl->getText('action.history.buttun.recharge');
+                if (is_array($text)) {
+                    // use format text service
+                    $text = $this->telegramService->formatText($text);
+                }
+                $opr[] = [
+                    $text => "recharge-{$productID}",
+                ];
+                if ($product?->product_category?->pannel?->supportsRemarkRename() ?? false) {
+                    $text = $this->customTextCtrl->getText('action.history.buttun.remark');
+                    if (is_array($text)) {
+                        // use format text service
+                        $text = $this->telegramService->formatText($text);
+                    }
+                    $opr[] = [
+                        $text => "remark-{$productID}",
+                    ];
+                }
+                $text = $this->customTextCtrl->getText('action.history.buttun.delete');
+                if (is_array($text)) {
+                    $text = $this->telegramService->formatText($text);
+                }
+                $opr[] = [
+                    $text => "deleteHistory-{$productID}",
+                ];
+            }
         }
 
         $text = $this->customTextCtrl->getText('action.help.using_subscription');
@@ -588,11 +747,21 @@ class GeneralController extends Controller
                 return;
             }
 
+            $agentProductCtrl = new AgentProductController();
+            $pricing = $agentProductCtrl->resolveProductPricingForAccount($chat_id, $productCategoryID);
+            if ($pricing === null) {
+                $this->telegramService->sendMessage($chat_id, 'این بسته برای شما در دسترس نیست.');
+                return false;
+            }
+
+            $productPriceInToman = $pricing['price'];
+            $productPriceInDollar = $pricing['price_in_dollar'];
+            $productCategory = $pricing['category'];
+
             $user_ballance = $this->accBlCtrl->getLoggedUserBallancce($chat_id);
             $user_ballance_in_toman = $user_ballance->ballance;
             $user_ballance_in_toman = number_format($user_ballance_in_toman, 0, ',', '.');
             $user_ballance_in_toman = $user_ballance_in_toman . ' تومان';
-            $productPriceInToman = $productCategory->price;
             // calculate the diffrence between user_ballance and productPriceInToman
             $mainDiffrenceInToman = $diffrence = $productPriceInToman - $user_ballance->ballance;
             $diffrence = number_format($diffrence, 0, ',', '.');
@@ -604,7 +773,6 @@ class GeneralController extends Controller
             $dollarTransaction = $this->paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
             $text = '';
             if ($dollarTransaction == true || $dollarTransaction == 1) {
-                $productPriceInDollar = $productCategory->price_in_dollar;
                 $user_ballance_in_dollar = $user_ballance->account_ballance_in_dollar;
                 $mainDiffrenceInDollar = $diffrence_in_dollar = $productPriceInDollar - $user_ballance_in_dollar;
                 $productPriceInDollar = number_format($productPriceInDollar, 2, ',', '.');
@@ -615,7 +783,7 @@ class GeneralController extends Controller
                 $diffrence_in_dollar = $diffrence_in_dollar . ' دلار';
 
                 $text = $this->customTextCtrl->getText('action.process.insufficient_balance_with_dollar', [
-                    'product_category_name' => $productCategory->name,
+                    'product_category_name' => $productCategory->category_name,
                     'product_price_in_toman' => $productPriceInToman,
                     'product_price_in_dollar' => $productPriceInDollar,
                     'user_balance_in_toman' => $user_ballance_in_toman,
@@ -628,7 +796,7 @@ class GeneralController extends Controller
 
             } else {
                 $text = $this->customTextCtrl->getText('action.process.insufficient_balance', [
-                    'product_category_name' => $productCategory->name,
+                    'product_category_name' => $productCategory->category_name,
                     'product_price_in_toman' => $productPriceInToman,
                     'user_balance_in_toman' => $user_ballance_in_toman,
                     'difference_in_toman' => $diffrence,
@@ -639,7 +807,8 @@ class GeneralController extends Controller
                 $text = $formatter->addFormattedText('', $text)->getMessage();
             }
             $this->telegramService->sendMessage($chat_id, $text);
-            $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar);
+            (new \App\Services\PurchaseIntentService())->record($chat_id, (int) $productCategoryID, 'insufficient_balance');
+            $this->send_add_ballance_option_message($chat_id, $mainDiffrenceInToman, $mainDiffrenceInDollar, $productCategoryID);
             return true;
         } catch (\Throwable $th) {
             \Log::info("error on send_insufficient_balance_message-> $th");
@@ -649,22 +818,43 @@ class GeneralController extends Controller
     public function send_admin_message_to_botuser(Request $request)
     {
         try {
-            if ($request->message != "") {
-                $accountId = BotUser::find($request->userID)->account_id;
-                $message = $request->message;
-                $this->telegramService->sendMessage($accountId, $message);
-                // add log
-                $this->addNewBotLog("send", $message, $accountId, "");
-                return response()->json(true, 200);
+            if ($request->message == "") {
+                return response()->json(false, 400);
             }
-            return response()->json(false, 400);
+
+            $botUser = BotUser::find($request->userID)
+                ?? BotUser::where('account_id', $request->userID)->first();
+
+            if (!$botUser) {
+                return response()->json(['message' => 'کاربر یافت نشد'], 404);
+            }
+
+            $accountId = $botUser->account_id;
+            $message = $request->message;
+
+            $response = $this->telegramService->sendMessage($accountId, $message);
+            if (!($response['ok'] ?? false)) {
+                $response = $this->telegramService->sendPlainMessage($accountId, $message);
+            }
+
+            if (!($response['ok'] ?? false)) {
+                $error = $response['description'] ?? 'خطا در ارسال پیام به تلگرام';
+                \Log::error('send_admin_message_to_botuser failed', [
+                    'account_id' => $accountId,
+                    'error' => $error,
+                ]);
+                return response()->json(['message' => $error], 422);
+            }
+
+            $this->addNewBotLog("send", $message, $accountId, "");
+            return response()->json(true, 200);
         } catch (\Throwable $th) {
             \Log::info("errer on send_admin_message_to_botuser" . $th->getMessage());
             return response()->json(false, 500);
 
         }
     }
-    public function send_add_ballance_option_message($chat_id, $estimatedPrice, $estimatedPriceInDollar)
+    public function send_add_ballance_option_message($chat_id, $estimatedPrice, $estimatedPriceInDollar, ?int $productCategoryId = null)
     {
         $opr = [];
         $hasZarinPal = $this->pymntCntrl->getZarinpalStatus();
@@ -726,8 +916,11 @@ class GeneralController extends Controller
                     // use format text service
                     $shetabVerify_text = $this->telegramService->formatText($shetabVerify_text);
                 }
+                $shetabAutoCallback = $productCategoryId
+                    ? "shetabVerifyAuto-{$productCategoryId}"
+                    : "shetabVerifyAuto-{$estimatedPrice}";
                 $opr[] = [
-                    $shetabVerify_text => "shetabVerifyAuto-{$estimatedPrice}"
+                    $shetabVerify_text => $shetabAutoCallback,
                 ];
             }
 
@@ -962,6 +1155,12 @@ class GeneralController extends Controller
             }
         }
         $text = $this->customTextCtrl->getText('action.help.support.title');
+        if ($opr === []) {
+            $this->telegramService->sendMessage($chatId, $text);
+
+            return "";
+        }
+
         $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $opr);
         return "";
     }
@@ -987,22 +1186,53 @@ class GeneralController extends Controller
             $this->telegramService->sendMessage($chatId, $text);
             return "";
         }
-        $text = $this->customTextCtrl->getText('action.test_account.success');
 
-        $this->telegramService->sendMessage($chatId, $text);
+        $selectedPrCat = $this->prCatCntrl->getProdctCategoryByCategoryName('اکانت آزمایشی');
+        if ($selectedPrCat == null) {
+            \Log::error('testAccount: ProductCategory اکانت آزمایشی not found', ['chat_id' => $chatId]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+
         $panelCntrl = new PannelController();
         $pannel = $panelCntrl->getPannelById($testAccount->pannel_id);
-        // get selected item specefic data
         $day = $testAccount->expire_day;
         $volume = $testAccount->volume;
+        $created = false;
 
         if ($pannel->type == 'hiddify') {
+            $created = $this->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $chatId, $selectedPrCat->id) !== false;
+            if ($created) {
+                $this->send_using_subscription_manual_message($chatId);
+            }
+        } elseif ($pannel->isMarzbanCompatible()) {
+            $mbCtrl = MarzbanPannelController::resolve($pannel);
+            $created = $this->new_marzban_config_telegram_text(
+                $selectedPrCat,
+                $pannel,
+                $volume,
+                $day,
+                $chatId,
+                $selectedPrCat->id,
+                $mbCtrl->buildTestAccountUsername($chatId),
+                $pannel->customTextKey('action.test_account.marzban')
+            ) !== false;
+            if ($created) {
+                $this->send_using_subscription_manual_message($chatId);
+            }
+        }
 
-            // $newUUID = $hiddifcCntrl->addUserToHiddifyPanelOldApi($req);
-            $userLink = $pannel->user_link;
+        if ($created) {
             $text = $this->customTextCtrl->getText('action.test_account.success');
-            $this->new_hiddify_config_telegram_text($testAccount, $pannel, $volume, $day, $chatId, $testAccount->id);
-            $this->send_using_subscription_manual_message($chatId);
+            $this->telegramService->sendMessage($chatId, $text);
+        } else {
+            \Log::error('testAccount: failed to create test account on panel', [
+                'chat_id' => $chatId,
+                'panel_type' => $pannel->type ?? null,
+            ]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
         }
 
         return "";
@@ -1083,6 +1313,12 @@ class GeneralController extends Controller
     public function referral($chatId)
     {
         try {
+            $referralSettingCntrl = new ReferralSettingController();
+            if (!$referralSettingCntrl->check_referral_setting_is_active()) {
+                $this->telegramService->sendMessage($chatId, 'سیستم بازاریابی در حال حاضر غیرفعال است.');
+                return '';
+            }
+
             $text = $this->customTextCtrl->getText('action.referral.title');
             $opr = [];
             $opr[] = [
@@ -1105,27 +1341,21 @@ class GeneralController extends Controller
     {
         try {
             $referralSettingCntrl = new ReferralSettingController();
+            if (!$referralSettingCntrl->check_referral_setting_is_active()) {
+                $text = $this->customTextCtrl->getText('error.server_error');
+                $this->telegramService->sendMessage($chatId, 'سیستم بازاریابی در حال حاضر غیرفعال است.');
+                return '';
+            }
+
             $settingCntrl = new SettingController();
             $botName = $settingCntrl->get_bot_name();
             $inviteUrl = "https://t.me/{$botName}?start={$chatId}";
 
-            // get percent of referral
             $referralPercent = $referralSettingCntrl->get_referral_setting_referral_percent();
-            // check referralPercent is null
             if ($referralPercent == null) {
                 $referralPercent = 0;
             }
-            // check referal is double or not
-
-            // درصد چون اعشار هست و متن هم فارسی، ترتیب نوشتاریش تغییر می کنه برای همین می بایست متنش را بصورت استرینگ و برعکس کنیم
-            // تبدیل به رشته و معکوس کردن درصد برای نمایش صحیح در متن فارسی
-            // بررسی اینکه آیا درصد اعشاری هست یا خیر و اگر  رقم اعشار ان برابر با صفر نبود
-            if (is_double($referralPercent)) {
-                $referralPercentStr = (string) $referralPercent;
-                // $referralPercentStr = strrev($referralPercentStr);
-            } else {
-                $referralPercentStr = "0";
-            }
+            $referralPercentStr = rtrim(rtrim((string) $referralPercent, '0'), '.');
 
             $text = $this->customTextCtrl->getText('action.referral.text', [
                 'link' => $inviteUrl,
@@ -1140,7 +1370,7 @@ class GeneralController extends Controller
             return "";
         }
     }
-    public function block_user_command(string $type, string $chatId, string $reason = null)
+    public function block_user_command(string $type, string $chatId, ?string $reason = null)
     {
         try {
             $blockedUserCntrl = new BlockedUserController();

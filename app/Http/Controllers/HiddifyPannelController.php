@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pannel;
+use App\Services\ConfigNameService;
+use App\Services\LicenseFeatureService;
 use App\Models\Proxy;
 use App\Models\Inbound;
 
@@ -14,6 +16,21 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class HiddifyPannelController extends Controller
 {
+    private function buildHiddifyUserName(Request $request): string
+    {
+        $accountLabel = ConfigNameService::resolvePanelAccountLabel(
+            $request->chat_id ?? null,
+            $request->product_id ?? null,
+            $request->accountId
+        );
+
+        return ConfigNameService::buildHiddifyName(
+            $accountLabel,
+            $request->chat_id ?? null,
+            $request->product_id ?? null
+        );
+    }
+
     public function generateUUID($data = null)
     {
         // Generate 16 bytes (128 bits) of random data or use the data passed into the function.
@@ -52,6 +69,91 @@ class HiddifyPannelController extends Controller
         }
         return "{$mainUrl}";
     }
+
+    private function normalizeHiddifyUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+
+        if (! preg_match('#^https?://#i', $url)) {
+            $url = 'https://' . ltrim($url, '/');
+        }
+
+        return rtrim($url, '/');
+    }
+
+    private function resolveHiddifyBaseUrl(?Pannel $pannel): string
+    {
+        if (! $pannel) {
+            return '';
+        }
+
+        $candidates = array_values(array_filter([
+            trim((string) ($pannel->admin_url ?? '')),
+            trim((string) ($pannel->user_link ?? '')),
+        ]));
+
+        $urlPort = trim((string) ($pannel->url_port ?? ''));
+        if ($urlPort !== '') {
+            $candidates[] = str_contains($urlPort, '://') ? $urlPort : "https://{$urlPort}";
+        }
+
+        foreach ($candidates as $candidate) {
+            $url = $this->normalizeHiddifyUrl(
+                $this->getClearHiddifyRequestUrl($candidate, '')
+            );
+
+            if ($url !== '' && parse_url($url, PHP_URL_SCHEME)) {
+                return $url;
+            }
+        }
+
+        return '';
+    }
+
+    private function buildHiddifyRequestUrl(?Pannel $pannel, string $requestApi): string
+    {
+        $baseUrl = $this->resolveHiddifyBaseUrl($pannel);
+        if ($baseUrl === '') {
+            return '';
+        }
+
+        return $baseUrl . '/' . ltrim($requestApi, '/');
+    }
+
+    private function logInvalidHiddifyPanelUrl(int|string $pannelID, ?Pannel $pannel, string $requestApi): void
+    {
+        \Log::error('Hiddify panel URL is missing or invalid', [
+            'pannelID' => $pannelID,
+            'requestApi' => $requestApi,
+            'admin_url' => $pannel?->admin_url,
+            'user_link' => $pannel?->user_link,
+            'url_port' => $pannel?->url_port,
+        ]);
+    }
+
+    private function logHiddifyRequestFailure(int|string $pannelID, string $method, string $url, $response = null, ?\Throwable $error = null): void
+    {
+        $context = [
+            'pannelID' => $pannelID,
+            'method' => $method,
+            'url' => $url,
+        ];
+
+        if ($response !== null) {
+            $context['status'] = method_exists($response, 'status') ? $response->status() : null;
+            $context['body'] = method_exists($response, 'body') ? $response->body() : null;
+        }
+
+        if ($error !== null) {
+            $context['error'] = $error->getMessage();
+        }
+
+        \Log::error('Hiddify panel request failed', $context);
+    }
+
     public function extractUUID($string)
     {
         // get substring between '/' and '/'
@@ -92,31 +194,21 @@ class HiddifyPannelController extends Controller
     public function addHiddifyPannel(Request $request)
     {
         try {
-            $authCntrl = new AuthController();
-            $license = $authCntrl->getPowerPsLicenseType();
-            // normalize license (handle boolean false and case)
-            if ($license === false) {
-                $license = 'false';
+            $licenseService = new LicenseFeatureService();
+            if (! $licenseService->canAddPanel(Pannel::count())) {
+                return $licenseService->panelLimitReachedResponse();
             }
-            $license = strtolower((string) $license);
 
-            // check license
-            $panelCount = Pannel::count();
-            $limitedLicenses = ['false', 'trial', 'bronze'];
-            $hasAccountLimitation = in_array($license, $limitedLicenses, true) || ($license === 'silver' && $panelCount >= 2);
-
-            if ($hasAccountLimitation && $panelCount >= 2) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'به محدودیت افزودن پنل رسیده اید، برای افزودن پنل جدید با پشتیبانی تماس بگیرید و اکانت خود را ارتقا بدهید.'
-                ], 403);
-            }
             // add pannel
             $pannel = new Pannel();
             $pannel->type = 'hiddify';
             $pannel->location = $request->location ?? null;
-            $pannel->admin_url = $request->admin_url;
-            $pannel->user_link = $request->user_link ?? null;
+            $pannel->admin_url = $this->normalizeHiddifyUrl(
+                $this->getClearHiddifyRequestUrl((string) $request->admin_url, '')
+            );
+            $pannel->user_link = $request->user_link
+                ? $this->normalizeHiddifyUrl((string) $request->user_link)
+                : null;
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->secret_code = $request->secretValue;
             $pannel->url_port = parse_url($request->admin_url, PHP_URL_HOST);
@@ -133,10 +225,14 @@ class HiddifyPannelController extends Controller
         try {
             $pannel = Pannel::find($request->id);
             $pannel->location = $request->location ?? null;
-            $pannel->admin_url = $request->admin_url;
+            $pannel->admin_url = $this->normalizeHiddifyUrl(
+                $this->getClearHiddifyRequestUrl((string) $request->admin_url, '')
+            );
             $pannel->capacity = $request->capacity ?? 1333333;
             $pannel->secret_code = $request->secretValue;
-            $pannel->user_link = $request->user_link ?? null;
+            $pannel->user_link = $request->user_link
+                ? $this->normalizeHiddifyUrl((string) $request->user_link)
+                : null;
 
             $pannel->url_port = parse_url($request->admin_url, PHP_URL_HOST);
             // check cookie
@@ -152,21 +248,45 @@ class HiddifyPannelController extends Controller
         }
     }
 
-    public function getHiddifyPanelUsersByPannelID($pannelID)
+    public function resolvePanelUsersList($pannelID): array
     {
         $pannel = Pannel::find($pannelID);
-        if (!$pannel)
-            return response()->json([], 404);
+        if (! $pannel) {
+            return [];
+        }
 
         if ($pannel->type == 'sanaei') {
             $sn = new SanaeiPannelController();
+
             return $sn->getAllClients($pannel);
         }
 
-        $adminUUID = $pannel->admin_url;
+        if (Pannel::isMarzbanCompatibleType($pannel->type)) {
+            $mb = MarzbanPannelController::resolve($pannel);
 
-        $data = $this->sendGetRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/");
+            return $mb->getAllUsers($pannel);
+        }
+
+        if ($pannel->type !== 'hiddify') {
+            return [];
+        }
+
+        $data = $this->sendGetRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/');
+        if ($data instanceof \Illuminate\Http\JsonResponse || ! is_array($data)) {
+            return [];
+        }
+
         return $data;
+    }
+
+    public function getHiddifyPanelUsersByPannelID($pannelID)
+    {
+        $pannel = Pannel::find($pannelID);
+        if (! $pannel) {
+            return response()->json([], 404);
+        }
+
+        return response()->json($this->resolvePanelUsersList($pannelID));
     }
     public function getHiddifyPanelUserByPannelID($pannelID, $userUUID)
     {
@@ -226,7 +346,7 @@ class HiddifyPannelController extends Controller
         $uuid = $this->generateUUID();
         $params = [
             'uuid' => "$uuid",
-            'name' => "bot$accountId",
+            'name' => $this->buildHiddifyUserName($request),
             'current_usage_GB' => 0,
             'usage_limit_GB' => $vol,
             'package_days' => $day,
@@ -235,16 +355,19 @@ class HiddifyPannelController extends Controller
             'comment' => "$comment",
         ];
         $data = $this->sendPostRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/', $params);
-        // decode data
-        // check data have not error and 401 response
 
-        if (is_array($data)) {
-            if (isset($data['uuid'])) {
-                return $uuid;
-            }
-        } else {
+        if ($data === false) {
+            \Log::error('Hiddify addUserToHiddifyPanel failed', [
+                'pannelID' => $pannelID,
+                'accountId' => $accountId,
+                'uuid' => $uuid,
+            ]);
+
             return false;
         }
+
+        // UUID is generated locally and sent in the request body.
+        return $uuid;
     }
     public function addUserToHiddifyPanelOldApi(Request $request)
     {
@@ -260,7 +383,7 @@ class HiddifyPannelController extends Controller
         $uuid = $this->generateUUID();
         $params = [
             'uuid' => "$uuid",
-            'name' => "bot$accountId",
+            'name' => $this->buildHiddifyUserName($request),
             'current_usage_GB' => 0,
             'usage_limit_GB' => $vol,
             'package_days' => $day,
@@ -337,64 +460,98 @@ class HiddifyPannelController extends Controller
 
         return $data;
     }
+
+    private function buildHiddifyRechargeParams(Request $request): array
+    {
+        $pannel = Pannel::find($request->pannelID);
+        $adminUUID = (string) ($pannel?->secret_code ?? '');
+        $today = date('Y-m-d');
+
+        return [
+            'uuid' => (string) $request->uuid,
+            'name' => (string) ($request->name ?? ''),
+            'current_usage_GB' => 0,
+            'usage_limit_GB' => (float) $request->vol,
+            'package_days' => (int) $request->day,
+            'mode' => 'no_reset',
+            'start_date' => $today,
+            'last_reset_time' => date('Y-m-d H:i:s'),
+            'enable' => true,
+            'added_by_uuid' => $adminUUID,
+            'comment' => (string) ($request->comment ?? ''),
+        ];
+    }
+
+    private function verifyHiddifyRechargeState(int|string $pannelID, string $uuid, float $expectedVolumeGb): bool
+    {
+        $user = $this->sendGetRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/");
+        if (! is_array($user)) {
+            return false;
+        }
+
+        $currentUsage = (float) ($user['current_usage_GB'] ?? -1);
+        $usageLimit = (float) ($user['usage_limit_GB'] ?? 0);
+
+        return $currentUsage <= 0.01 && abs($usageLimit - $expectedVolumeGb) < 0.01;
+    }
+
+    public function hiddifyMutationSucceeded(mixed $result): bool
+    {
+        if ($result === false || $result === null) {
+            return false;
+        }
+
+        if ($result instanceof \Illuminate\Http\Client\Response) {
+            return $result->successful();
+        }
+
+        if ($result instanceof \Symfony\Component\HttpFoundation\Response) {
+            return $result->getStatusCode() >= 200 && $result->getStatusCode() < 300;
+        }
+
+        return is_array($result);
+    }
+
     public function rechargeUserOfHiddifyPanelOldApi(Request $request)
     {
         $pannelID = $request->pannelID;
         $pannel = Pannel::find($pannelID);
-        $vol = $request->vol;
-        $day = $request->day;
+        if (! $pannel) {
+            return false;
+        }
 
         $adminUUID = $pannel->secret_code;
-
         $uuid = $request->uuid;
-        $name = $request->name ?? '';
-        $comment = $request->comment ?? '';
-        // get today date as format like 2024-01-01
-        $today = date('Y-m-d');
-        $params = [
-            'uuid' => "$uuid",
-            'name' => "$name",
-            'current_usage_GB' => 0,
-            'usage_limit_GB' => $vol,
-            'package_days' => $day,
-            'mode' => 'no_reset',
-            'start_date' => "$today",
-            'added_by_uuid' => "$adminUUID",
-            'comment' => "$comment",
-        ];
-        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, $pannel->secret_code);
-        $url = "$adminUUID/api/v1/user/?uuid={$uuid}";
+        $params = $this->buildHiddifyRechargeParams($request);
+        $path = "$adminUUID/api/v1/user/?uuid={$uuid}";
 
-        $data = $this->sendPostRequestToHiddifyPannel($pannelID, $url, $params);
-        return $data;
+        return $this->sendPostRequestToHiddifyPannel($pannelID, $path, $params);
     }
+
     public function rechargeUserOfHiddifyPanelApi(Request $request)
     {
         $pannelID = $request->pannelID;
-        $pannel = Pannel::find($pannelID);
-        $vol = $request->vol;
-        $day = $request->day;
+        $uuid = (string) $request->uuid;
+        $expectedVolume = (float) $request->vol;
+        $params = $this->buildHiddifyRechargeParams($request);
 
-        $adminUUID = $pannel->secret_code;
+        $response = $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
+        if ($this->hiddifyMutationSucceeded($response) && $this->verifyHiddifyRechargeState($pannelID, $uuid, $expectedVolume)) {
+            return $response;
+        }
 
-        $uuid = $request->uuid;
-        $name = $request->name ?? '';
-        $comment = $request->comment ?? '';
-        // get today date as format like 2024-01-01
-        $today = date('Y-m-d');
-        $params = [
-            'uuid' => "$uuid",
-            'name' => "$name",
-            'current_usage_GB' => 0,
-            'usage_limit_GB' => $vol,
-            'package_days' => $day,
-            'mode' => 'no_reset',
-            'start_date' => "$today",
-            'added_by_uuid' => "$adminUUID",
-            'comment' => "$comment",
-        ];
+        \Log::warning('Hiddify v2 recharge did not fully reset user, falling back to v1 API', [
+            'pannelID' => $pannelID,
+            'uuid' => $uuid,
+            'expected_volume_GB' => $expectedVolume,
+        ]);
 
-        return $this->sendPatchRequestToHiddifyPannel($pannelID, "/api/v2/admin/user/$uuid/", $params);
+        $fallback = $this->rechargeUserOfHiddifyPanelOldApi($request);
+        if ($this->hiddifyMutationSucceeded($fallback)) {
+            return response()->json(['msg' => 'ok'], 200);
+        }
+
+        return false;
     }
     public function upgradeUserOfHiddifyPanelOldApi(Request $request)
     {
@@ -539,118 +696,177 @@ class HiddifyPannelController extends Controller
     public function sendGetRequestToHiddifyPannel($pannelID, $requestAPi)
     {
         $pannel = Pannel::find($pannelID);
-        $url = $this->getClearHiddifyRequestUrl($pannel->admin_url, "");
-        if (str_starts_with($requestAPi, '/')) {
-            $requestAPi = ltrim($requestAPi, '/');
-        }
-        $url = $url . '/' . $requestAPi;
-        $secretValue = $pannel->secret_code;
-        $subsequentResponse = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-            'Hiddify-API-Key' => $secretValue,
-        ])->get($url);
+        $url = $this->buildHiddifyRequestUrl($pannel, $requestAPi);
+        if ($url === '') {
+            $this->logInvalidHiddifyPanelUrl($pannelID, $pannel, $requestAPi);
 
-        if ($subsequentResponse->getStatusCode() == 200) {
-            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
-            if ($checkIsHtmlPage !== false) {
-                return response()->json(false, 401);
-            }
-            // dd($subsequentResponse);
-            return json_decode($subsequentResponse->getBody(), true);
+            return false;
         }
-        return response()->json(false, 401);
+
+        $secretValue = $pannel->secret_code;
+        try {
+            $subsequentResponse = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+                'Hiddify-API-Key' => $secretValue,
+            ])->get($url);
+        } catch (\Throwable $th) {
+            $this->logHiddifyRequestFailure($pannelID, 'GET', $url, error: $th);
+
+            return false;
+        }
+
+        if ($subsequentResponse->successful()) {
+            $checkIsHtmlPage = strpos($subsequentResponse->body(), '<html>');
+            if ($checkIsHtmlPage !== false) {
+                $this->logHiddifyRequestFailure($pannelID, 'GET', $url, $subsequentResponse);
+
+                return false;
+            }
+
+            return json_decode($subsequentResponse->body(), true);
+        }
+
+        $this->logHiddifyRequestFailure($pannelID, 'GET', $url, $subsequentResponse);
+
+        return false;
     }
     public function sendDeleteRequestToHiddifyPannel($pannelID, $requestAPi)
     {
         $pannel = Pannel::find($pannelID);
         $secretValue = $pannel->secret_code;
+        $url = $this->buildHiddifyRequestUrl($pannel, $requestAPi);
+        if ($url === '') {
+            $this->logInvalidHiddifyPanelUrl($pannelID, $pannel, $requestAPi);
 
-        $url = $pannel->admin_url;
-        // checkj if url ended with "/" remove it
-        if (substr($url, -1) == '/') {
-            $url = substr($url, 0, -1);
+            return false;
         }
-        $url = $url . $requestAPi;
 
-        $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->delete($url);
+        try {
+            $subsequentResponse = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+                'Hiddify-API-Key' => $secretValue,
+            ])->delete($url);
+        } catch (\Throwable $th) {
+            $this->logHiddifyRequestFailure($pannelID, 'DELETE', $url, error: $th);
 
-        if ($subsequentResponse->getStatusCode() == 200) {
-            // dd($subsequentResponse);
-            return response()->json(true, 200);
+            return false;
         }
-        return response()->json(false, 401);
+
+        if ($subsequentResponse->successful()) {
+            return true;
+        }
+
+        $this->logHiddifyRequestFailure($pannelID, 'DELETE', $url, $subsequentResponse);
+
+        return false;
     }
     public function sendPutRequestToHiddifyPannel($pannelID, $requestAPi, $params = [])
     {
         $pannel = Pannel::find($pannelID);
         $secretValue = $pannel->secret_code;
+        $url = $this->buildHiddifyRequestUrl($pannel, $requestAPi);
+        if ($url === '') {
+            $this->logInvalidHiddifyPanelUrl($pannelID, $pannel, $requestAPi);
 
-        $url = $pannel->admin_url;
-        // checkj if url ended with "/" remove it
-        if (substr($url, -1) == '/') {
-            $url = substr($url, 0, -1);
+            return false;
         }
-        $url = $url . $requestAPi;
 
-        $subsequentResponse = Http::withHeaders([
-            'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
-            'Hiddify-API-Key' => $secretValue,
-        ])->put($url, $params);
+        try {
+            $subsequentResponse = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+                'Hiddify-API-Key' => $secretValue,
+            ])->put($url, $params);
+        } catch (\Throwable $th) {
+            $this->logHiddifyRequestFailure($pannelID, 'PUT', $url, error: $th);
 
-        if ($subsequentResponse->getStatusCode() == 200) {
-            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
+            return false;
+        }
+
+        if ($subsequentResponse->successful()) {
+            $checkIsHtmlPage = strpos($subsequentResponse->body(), '<html>');
             if ($checkIsHtmlPage !== false) {
-                return response()->json(false, 401);
+                $this->logHiddifyRequestFailure($pannelID, 'PUT', $url, $subsequentResponse);
+
+                return false;
             }
-            // dd($subsequentResponse);
-            return json_decode($subsequentResponse->getBody(), true);
+
+            return json_decode($subsequentResponse->body(), true);
         }
-        return response()->json(false, 401);
+
+        $this->logHiddifyRequestFailure($pannelID, 'PUT', $url, $subsequentResponse);
+
+        return false;
     }
     public function sendPostRequestToHiddifyPannel($pannelID, $requestAPi, $params = [])
     {
         $pannel = Pannel::find($pannelID);
         $secretValue = $pannel->secret_code;
+        $url = $this->buildHiddifyRequestUrl($pannel, $requestAPi);
+        if ($url === '') {
+            $this->logInvalidHiddifyPanelUrl($pannelID, $pannel, $requestAPi);
 
-        $url = $pannel->admin_url;
-        // checkj if url ended with "/" remove it
-        if (substr($url, -1) == '/') {
-            $url = substr($url, 0, -1);
+            return false;
         }
-        $url = $url . $requestAPi;
 
-        $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->post($url, $params);
-        // \Log::info(["subsequentResponse => {$subsequentResponse->getBody()}"]);
-        if ($subsequentResponse->getStatusCode() == 200) {
-            $checkIsHtmlPage = strpos($subsequentResponse->getBody(), '<html>');
+        try {
+            $subsequentResponse = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+                'Hiddify-API-Key' => $secretValue,
+            ])->post($url, $params);
+        } catch (\Throwable $th) {
+            $this->logHiddifyRequestFailure($pannelID, 'POST', $url, error: $th);
+
+            return false;
+        }
+
+        if ($subsequentResponse->successful()) {
+            $checkIsHtmlPage = strpos($subsequentResponse->body(), '<html>');
             if ($checkIsHtmlPage !== false) {
-                return response()->json(false, 401);
+                $this->logHiddifyRequestFailure($pannelID, 'POST', $url, $subsequentResponse);
+
+                return false;
             }
-            // dd($subsequentResponse);
-            return json_decode($subsequentResponse->getBody(), true);
+
+            $decoded = json_decode($subsequentResponse->body(), true);
+
+            return is_array($decoded) ? $decoded : [];
         }
-        return response()->json(false, 401);
+
+        $this->logHiddifyRequestFailure($pannelID, 'POST', $url, $subsequentResponse);
+
+        return false;
     }
     public function sendPatchRequestToHiddifyPannel($pannelID, $requestAPi, $params = [])
     {
         $pannel = Pannel::find($pannelID);
         $secretValue = $pannel->secret_code;
+        $url = $this->buildHiddifyRequestUrl($pannel, $requestAPi);
+        if ($url === '') {
+            $this->logInvalidHiddifyPanelUrl($pannelID, $pannel, $requestAPi);
 
-        $url = $pannel->admin_url;
-        // checkj if url ended with "/" remove it
-        if (substr($url, -1) == '/') {
-            $url = substr($url, 0, -1);
+            return false;
         }
-        $url = $url . $requestAPi;
-        $subsequentResponse = Http::withHeaders(['Content-Type' => 'application/json', 'Accept' => 'application/json', 'Hiddify-API-Key' => $secretValue])->patch($url, $params);
-        // check if status code is 200
-        // \Log::info(json_decode($subsequentResponse, true));
 
-        if ($subsequentResponse->getStatusCode() == 200) {
+        try {
+            $subsequentResponse = Http::withHeaders([
+                'Content-Type' => 'application/json',
+                'Accept' => 'application/json',
+                'Hiddify-API-Key' => $secretValue,
+            ])->patch($url, $params);
+        } catch (\Throwable $th) {
+            $this->logHiddifyRequestFailure($pannelID, 'PATCH', $url, error: $th);
+
+            return false;
+        }
+        if ($subsequentResponse->successful()) {
             return $subsequentResponse;
         }
+
+        $this->logHiddifyRequestFailure($pannelID, 'PATCH', $url, $subsequentResponse);
 
         return false;
     }

@@ -19,7 +19,12 @@ class ReferralLogs extends Model
     ];
     public function getReferralLogsText()
     {
-        return $this->referral_user->username . " - " . $this->amount . " - " . $this->created_at;
+        $invitee = $this->referral_to;
+        $inviteeName = $invitee != null
+            ? ($invitee->name ?? $invitee->username ?? 'نامشخص')
+            : 'نامشخص';
+
+        return $inviteeName . ' - ' . $this->amount . ' - ' . $this->getRawOriginal('created_at');
     }
     public function getCreatedAtAttribute($value)
     {

@@ -189,6 +189,29 @@ class SanaeiPannelControllerTest extends TestCase
     {
         Http::fake([
             '*/login' => Http::response(["success" => true, "msg" => "logged in", "obj" => null], 200, ['Set-Cookie' => '3x-ui=abcd']),
+            '*/clients/*' => Http::response(["success" => false], 404),
+            '*/inbounds/list' => Http::response([
+                "success" => true,
+                "msg" => "",
+                "obj" => [
+                    [
+                        'id' => 1,
+                        'settings' => json_encode([
+                            'clients' => [
+                                [
+                                    'id' => 'client-1',
+                                    'email' => 'test-email',
+                                    'subId' => 'subid',
+                                    'expiryTime' => 1766660000000,
+                                ]
+                            ]
+                        ]),
+                        'streamSettings' => json_encode(['network' => 'tcp']),
+                        'protocol' => 'vless',
+                        'port' => 37191
+                    ]
+                ]
+            ], 200),
             '*/inbounds/get/*' => Http::response([
                 "success" => true,
                 "msg" => "",

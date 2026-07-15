@@ -37,14 +37,32 @@ class TelegramCallbackHandler
     {
         return match ($action) {
             'buySubscription' => $this->subscriptionProcessCtrl->buySubscriptionAction($chatId, $params[0] ?? null),
+            'openBuySubscription' => $this->subscriptionProcessCtrl->buySubscriptionMenu($chatId),
+            'confirmBuy' => $this->subscriptionProcessCtrl->confirmPurchase($chatId, $params[0] ?? null, null),
+            'confirmBuyPromo' => $this->subscriptionProcessCtrl->confirmPurchase(
+                $chatId,
+                $params[0] ?? null,
+                $params[1] ?? null
+            ),
+            'applyPromo' => $this->subscriptionProcessCtrl->promptPromoCode($chatId, $params[0] ?? null),
             'buySubscriptionByLocation' => $this->subscriptionProcessCtrl->buySubscriptionByLocationAction($chatId, $params[0] ?? null),
             'offlineGateway' => $this->subscriptionProcessCtrl->handle_offline_add_balance($chatId, $params[0] ?? null),
             'buyHistory' => $this->subscriptionProcessCtrl->subBuyHistory($chatId, $params[0] ?? null),
             'buyHistoryNext' => $this->subscriptionProcessCtrl->buyHistory($chatId, $params[0] ?? null),
             'recharge' => $this->subscriptionProcessCtrl->recharge($chatId, $params[0] ?? null),
+            'confirmRecharge' => $this->subscriptionProcessCtrl->confirmRecharge($chatId, $params[0] ?? null, null),
+            'confirmRechargePromo' => $this->subscriptionProcessCtrl->confirmRecharge(
+                $chatId,
+                $params[0] ?? null,
+                $params[1] ?? null
+            ),
+            'applyPromoRecharge' => $this->subscriptionProcessCtrl->promptPromoCodeForRecharge($chatId, $params[0] ?? null),
             'remark' => $this->subscriptionProcessCtrl->remark($chatId, $params[0] ?? null),
+            'deleteHistory' => $this->subscriptionProcessCtrl->deleteHistory($chatId, $params[0] ?? null),
+            'confirmDeleteHistory' => $this->subscriptionProcessCtrl->confirmDeleteHistory($chatId, $params[0] ?? null),
 
             'accountTransactions' => $this->accountProcessCtrl->accountTransactions($chatId),
+            'accountLoyaltyHistory' => $this->accountProcessCtrl->accountLoyaltyHistory($chatId),
             'accountSubAccounts' => $this->accountProcessCtrl->accountSubAccounts($chatId),
             'accountAddBalance' => $this->accountProcessCtrl->accountAddBalance($chatId),
             'accountSubAccountsZarinpal' => $this->accountProcessCtrl->handleActionAddBalanceZarinpal($chatId),

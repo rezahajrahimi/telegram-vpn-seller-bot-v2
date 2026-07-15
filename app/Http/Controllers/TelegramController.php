@@ -1,5 +1,5 @@
 <?php
-// https://api.telegram.org/bot380422547:AAH38rivvYZvRnIF6zM-mwZpvqanKJCTclk/setwebhook?url=https://93692a74b715.ngrok-free.app/api/telegram/webhooks/inbound
+// https://api.telegram.org/bot380422547:AAH38rivvYZvRnIF6zM-mwZpvqanKJCTclk/setwebhook?url=https://ubuntu.powernad.ir/api/telegram/webhooks/inbound
 
 // https://api.telegram.org/bot7449013530:AAEbAaPDU9AUkyKviA2ffhhuVIswN7iMqNQ/setwebhook?url=https://classic-loved-condor.ngrok-free.apphttps://classic-loved-condor.ngrok-free.app/api/telegram/webhooks/inbound
 // https://api.telegram.org/bot6650381860:AAFCJka-B2NsIY5RlATIOQvlXiOpKdDqUlM/setwebhook?url=https://laravel-rq3qi6.chbk.run/api/telegram/webhooks/inbound
@@ -12,12 +12,14 @@ use App\Models\AgentProduct;
 use App\Models\ProductCategory;
 use App\Models\Product;
 use App\Models\Pannel;
+use App\Models\BotUser;
 use App\Models\User;
 use App\Models\AgentPermisson;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Carbon;
 use Hekmatinasser\Verta\Verta;
+use App\Services\PackageButtonLayoutService;
 
 class TelegramController extends Controller
 {
@@ -535,37 +537,8 @@ class TelegramController extends Controller
         $prCatCntrl = new ProductCategoryController();
 
         $prCat = $prCatCntrl->getAllActiveProdctCategoryOrderByPrice();
-        $opr = [];
-        $index = 0;
-        $advancedSettingCntrl = new AdvanceSettingLookupController();
-        $hasShowOneRowConfigText = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
-        if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
-            // check if show one row config text is true or not
-            $advancedSettingCntrl = new AdvancedSettingController();
-            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->category_name - $value->price_in_dollar$ - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            } else {
-                array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            }
-        } else {
-            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->category_name - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            } else {
-                array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            }
-        }
-
-        $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        $selection = $this->buildPackageSelectionLegacyMessage($prCat, $text);
+        $result = app('telegram_bot')->commandMessage($selection['opr'], $this->chat_id, $selection['text']);
         // $result = app('telegram_bot')->editMessageReplyMarkup( $this->chat_id,$this->message_id,$opr,);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
@@ -580,37 +553,8 @@ class TelegramController extends Controller
         $prCatCntrl = new ProductCategoryController();
 
         $prCat = $prCatCntrl->get_all_active_prodct_category_by_pannel_id_order_by_price($panelId);
-        $opr = [];
-        $index = 0;
-        $advancedSettingCntrl = new AdvanceSettingLookupController();
-        $hasShowOneRowConfigText = $advancedSettingCntrl->getValueByNameWithBooleanValue('bot_show_one_row_config');
-        if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1) {
-            // check if show one row config text is true or not
-            $advancedSettingCntrl = new AdvancedSettingController();
-            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->category_name - $value->price_in_dollar$ - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            } else {
-                array_push($opr, [['text' => 'قیمت(دلار)', 'callback_data' => '0'], ['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->price_in_dollar", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            }
-        } else {
-            if ($hasShowOneRowConfigText == true || $hasShowOneRowConfigText == 1) {
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->category_name - $value->price تومان", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            } else {
-                array_push($opr, [['text' => 'قیمت(تومان)', 'callback_data' => '0'], ['text' => 'بسته', 'callback_data' => '0']]);
-                foreach ($prCat as $key => $value) {
-                    array_push($opr, [['text' => "$value->price", 'callback_data' => "buySubscription-$value->id"], ['text' => "$value->category_name", 'callback_data' => "buySubscription-$value->id"]]);
-                }
-            }
-        }
-
-        $result = app('telegram_bot')->commandMessage($opr, $this->chat_id, $text);
+        $selection = $this->buildPackageSelectionLegacyMessage($prCat, $text);
+        $result = app('telegram_bot')->commandMessage($selection['opr'], $this->chat_id, $selection['text']);
         // $result = app('telegram_bot')->editMessageReplyMarkup( $this->chat_id,$this->message_id,$opr,);
         $this->setNewLevel($this->buySubscriptionLevel);
         return response()->json($result, 200);
@@ -660,41 +604,16 @@ class TelegramController extends Controller
                 $generalCntrl = new GeneralController();
                 $resualt = $generalCntrl->new_hiddify_config_telegram_text($selectedPrCat, $pannel, $volume, $day, $this->chat_id, $productID);
 
-            } elseif ($pannel->type == 'marzban') {
-                $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id$productID", $day, $volume, $selectedPrCat->pannel_id);
-                $userSub = $userData['subscription_link'];
-                $links = $userData['links'];
-
-                $text = '';
-                $text .= "خرید شما با موفقیت انجام شد\r\n";
-                $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$userSub \r\n";
-                $text .= "کانفیگهای شما: \r\n";
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-
-                foreach ($links as $key => $link) {
-                    $image = $pnlCntrl->generateQrMOC($link);
-
-                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
-
-                    // $text .= "$link \r\n";
-                }
-                // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
-                $text = "جهت نیاز به راهنمایی بر روی یکی از این گزینه ها کلیک کنید. \r\n";
-                $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-
-                // save as dectivate product, So we can use it in future when user want to recharge it;
-                $request = new Request();
-                $request->account_id = $this->chat_id;
-                $request->subscription_link = '';
-                $request->product_categories_id = $selectedPrCat->id;
-                $request->panel_link = $userSub;
-                // convert links arrey to string
-                $links = json_encode($links);
-
-                $request->configs = $links;
-                $request->remark = "BotUser$this->chat_id$productID";
-
-                $prCntrl->addAutomatedProductDetails($request);
+            } elseif ($pannel->isMarzbanCompatible()) {
+                $generalCntrl = new GeneralController();
+                $resualt = $generalCntrl->new_marzban_config_telegram_text(
+                    $selectedPrCat,
+                    $pannel,
+                    $volume,
+                    $day,
+                    $this->chat_id,
+                    $productID
+                );
             } else {
                 $userData = $prCntrl->getProductConfigAndChangeStatus($selectedPrCat->id, $this->chat_id);
                 // $pannelLink = $userData["panel_link"];
@@ -714,18 +633,16 @@ class TelegramController extends Controller
                     $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
                     $text = '';
                 }
-                if ($userData->configs != null) {
-                    // json decode $userData->configs
-                    $links = json_decode($userData->configs);
-                    // check is $links is array or not
-                    if (is_array($links)) {
-                        foreach ($links as $key => $link) {
+                if ($selectedPrCat->shouldSendConfigToUser() && $userData->configs != null) {
+                    $configLinks = ProductCategory::extractConfigLinks($userData->configs);
+                    if (! empty($configLinks)) {
+                        foreach ($configLinks as $link) {
                             $image = $pnlCntrl->generateQrMOC($link);
 
                             $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
                         }
                         $text = '';
-                    } else {
+                    } elseif (is_string($userData->configs) && $userData->configs !== '') {
                         $text .= "کانفیگ: \r\n";
                         $text .= "$userData->configs \r\n";
                     }
@@ -1090,21 +1007,21 @@ class TelegramController extends Controller
                     $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
                 }
 
-                $links = $selectedProduct->configs;
-                // json decode links
-                $links = json_decode($links);
-                if (is_array($links)) {
-                    foreach ($links as $key => $value) {
-                        $text = "$value";
-                        $image = $pnlCntrl->generateQrMOC($text);
+                if ($selectedProductCategory->shouldSendConfigToUser()) {
+                    $configLinks = ProductCategory::extractConfigLinks($selectedProduct->configs);
+                    if (! empty($configLinks)) {
+                        foreach ($configLinks as $link) {
+                            $text = $link;
+                            $image = $pnlCntrl->generateQrMOC($text);
+
+                            $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
+                        }
+                    } elseif (is_string($selectedProduct->configs) && $selectedProduct->configs !== '') {
+                        $text = "$selectedProduct->configs \r\n";
+                        $image = $pnlCntrl->generateQrMOC($selectedProduct->configs);
 
                         $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
                     }
-                } else {
-                    $text = "$selectedProduct->configs \r\n";
-                    $image = $pnlCntrl->generateQrMOC($selectedProduct->configs);
-
-                    $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $text);
                 }
             }
             // sent data by pannel type
@@ -1209,7 +1126,7 @@ class TelegramController extends Controller
                 $req->comment = "شارژ مجدد در {$today}";
 
                 $updateRemark = $hiddifcCntrl->rechargeUserOfHiddifyPanelApi($req);
-                if ($updateRemark->getStatusCode() == 200) {
+                if ($hiddifcCntrl->hiddifyMutationSucceeded($updateRemark)) {
                     if ($hasBallance == true) {
                         $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                         $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
@@ -1447,6 +1364,8 @@ class TelegramController extends Controller
         $ballanceInDollar = $accCntrl->getUserAccuntBalanceInDollar($this->chat_id);
         $referalCntrl = new ReferralWalletController();
         $referralAmount = $referalCntrl->get_amount_of_ref_wallet_by_account_id($this->chat_id);
+        $loyaltyService = new \App\Services\LoyaltyPointsService();
+        $loyaltyPoints = $loyaltyService->getBalanceByAccountId($this->chat_id);
         $text = "♦️ اطلاعات حساب شما: \n\r";
 
         $text .= "نام کاربری: $this->username \n\r";
@@ -1465,6 +1384,11 @@ class TelegramController extends Controller
         // show $ballance with thousands seperator
         $text .= number_format($referralAmount, 0, '.', ',');
         $text .= " تومان \n\r";
+        if ($loyaltyService->isActive()) {
+            $text .= 'امتیاز باشگاه مشتریان: ';
+            $text .= number_format($loyaltyPoints, 0, '.', ',');
+            $text .= " امتیاز \n\r";
+        }
 
         $text .= ' ➖➖➖ ';
         $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
@@ -1670,8 +1594,11 @@ class TelegramController extends Controller
         $volume = $selectedPrCat->volume;
 
         if ($pannel->type == 'hiddify') {
+            $testAccountLabel = BotUser::resolveConfigAccountLabel($this->chat_id, 'اکانت_آزمایشی');
             $req = new Request();
-            $req->accountId = "$this->chat_id-اکانت_آزمایشی";
+            $req->accountId = $testAccountLabel;
+            $req->chat_id = $this->chat_id;
+            $req->product_id = 'اکانت_آزمایشی';
             $req->pannelID = $selectedPrCat->pannel_id;
             $req->vol = $volume;
             $req->day = $day;
@@ -1703,42 +1630,22 @@ class TelegramController extends Controller
             $request->product_categories_id = $selectedPrCat->id;
             $request->panel_link = "/{$newUUID}/#{$req->accountId}";
             $request->configs = '';
-            $request->remark = "$this->chat_id-اکانت_آزمایشی";
+            $request->remark = $testAccountLabel;
 
             $prCntrl->addAutomatedProductDetails($request);
-        } elseif ($pannel->type == 'marzban') {
-            $userData = $pnlCntrl->createMarzbanUser("BotUser$this->chat_id اکانت_آزمایشی", $day, $volume, $selectedPrCat->pannel_id);
-            $userSub = $userData['subscription_link'];
-            $links = $userData['links'];
-
-            $text .= "لینک پنل شما برای مشاهده اطلاعات بسته خریداری شده:$userSub \r\n";
-            $text .= "کانفیگهای شما: \r\n";
-            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-
-            foreach ($links as $key => $link) {
-                $image = $pnlCntrl->generateQrMOC($link);
-
-                $resualt = app('telegram_bot')->imageMessageByLink($image, $this->chat_id, $link);
-
-                // $text .= "$link \r\n";
-            }
-            // $text .= "لینک سابسکریپشن: $userSubscriptionLInk \r\n";
-            $text = "جهت نیاز به راهنمایی بر روی یکی از این گزینه ها کلیک کنید. \r\n";
-            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
-
-            // save as dectivate product, So we can use it in future when user want to recharge it;
-            $request = new Request();
-            $request->account_id = $this->chat_id;
-            $request->subscription_link = '';
-            $request->product_categories_id = $selectedPrCat->id;
-            $request->panel_link = $userSub;
-            // convert links arrey to string
-            $links = json_encode($links);
-
-            $request->configs = $links;
-            $request->remark = "BotUser$this->chat_id اکانت_آزمایشی";
-
-            $prCntrl->addAutomatedProductDetails($request);
+        } elseif ($pannel->isMarzbanCompatible()) {
+            $generalCntrl = new GeneralController();
+            $mbCtrl = MarzbanPannelController::resolve($pannel);
+            $generalCntrl->new_marzban_config_telegram_text(
+                $selectedPrCat,
+                $pannel,
+                $volume,
+                $day,
+                $this->chat_id,
+                $selectedPrCat->id,
+                $mbCtrl->buildTestAccountUsername($this->chat_id),
+                $pannel->customTextKey('action.test_account.marzban')
+            );
         }
 
         $this->addNewBotLog('account', 'اکانت تست فعال شد', 'test-account');
@@ -1894,6 +1801,28 @@ class TelegramController extends Controller
             return false;
         }
     }
+
+    /**
+     * @param  iterable<int, object>  $categories
+     * @return array{text: string, opr: array<int, array<int, array{text: string, callback_data: string}>>}
+     */
+    private function buildPackageSelectionLegacyMessage(iterable $categories, string $baseText): array
+    {
+        $paymnetSettingCntrl = new PaymentSettingController();
+        $dollarTransaction = $paymnetSettingCntrl->getPaymentSettingStatusByKey('usd_transaction');
+        $layoutService = new PackageButtonLayoutService();
+        $selection = $layoutService->buildPackageSelection(
+            collect($categories),
+            $dollarTransaction == true || $dollarTransaction == 1,
+            $baseText
+        );
+
+        return [
+            'text' => $selection['message'],
+            'opr' => $layoutService->toLegacyInlineKeyboard($selection['buttons']),
+        ];
+    }
+
     // preper text
     public function prepareText($text)
     {

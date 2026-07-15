@@ -7,19 +7,57 @@ class TelegramService
 {
     private string $baseUrl;
     private string $botToken;
+    private BotKeyboardConfigService $keyboardConfig;
 
-    public function __construct()
+    public function __construct(?BotKeyboardConfigService $keyboardConfig = null)
     {
         $this->baseUrl = 'https://api.telegram.org/';
-        $token = config('services.telegram.bot_token');
+        $this->botToken = $this->resolveBotToken();
+        $this->keyboardConfig = $keyboardConfig ?? new BotKeyboardConfigService();
+    }
 
-        // تمیز کردن توکن
-        $token = preg_replace('/bot:?bot/i', 'bot', $token);
-        if (!str_starts_with($token, 'bot')) {
+    private function resolveBotToken(): string
+    {
+        try {
+            $settingToken = trim((string) (\App\Models\Setting::query()->value('bot_token') ?? ''));
+            if ($settingToken !== '') {
+                return $this->normalizeBotToken($settingToken);
+            }
+        } catch (\Throwable) {
+            // Settings table may be unavailable during early bootstrap/tests.
+        }
+
+        return $this->normalizeBotToken((string) config('services.telegram.bot_token', ''));
+    }
+
+    private function normalizeBotToken(string $token): string
+    {
+        $token = preg_replace('/bot:?bot/i', 'bot', trim($token));
+        if ($token !== '' && ! str_starts_with($token, 'bot')) {
             $token = 'bot' . $token;
         }
 
-        $this->botToken = $token;
+        return $token;
+    }
+
+    public function isUnreachableChatError(array $response): bool
+    {
+        if (($response['ok'] ?? null) !== false) {
+            return false;
+        }
+
+        $description = strtolower((string) ($response['description'] ?? ''));
+        $errorCode = (int) ($response['error_code'] ?? 0);
+
+        if ($errorCode === 403) {
+            return true;
+        }
+
+        return $errorCode === 400 && (
+            str_contains($description, 'chat not found')
+            || str_contains($description, 'user is deactivated')
+            || str_contains($description, 'peer_id_invalid')
+        );
     }
 
     public function sendMessage(string $chatId, string|array $text, array $options = []): array
@@ -32,6 +70,17 @@ class TelegramService
             'chat_id' => $chatId,
             'text' => $text,
             'parse_mode' => 'HTML',
+        ], $options));
+    }
+
+    public function sendPlainMessage(string $chatId, string|array $text, array $options = []): array
+    {
+        if (is_array($text)) {
+            $text = $this->formatText($text);
+        }
+        return $this->makeRequest('sendMessage', array_merge([
+            'chat_id' => $chatId,
+            'text' => $text,
         ], $options));
     }
 
@@ -220,32 +269,48 @@ class TelegramService
             // use format text service
             $text = $this->formatText($text);
         }
-        $response = $this->sendMessage($chatId, $text, [
-            'reply_markup' => json_encode([
+        $replyMarkup = array_merge(
+            $this->keyboardConfig->replyKeyboardOptions(),
+            [
                 'keyboard' => $this->formatKeyboardButtons($buttons),
                 'resize_keyboard' => $resize,
-            ]),
+            ],
+        );
+        $response = $this->sendMessage($chatId, $text, [
+            'reply_markup' => json_encode($replyMarkup),
         ]);
         return $response;
     }
 
-    public function sendMessageWithInlineKeyboard(string $chatId, string|array $text, array $buttons): array
-    {
+    public function sendMessageWithInlineKeyboard(
+        string $chatId,
+        string|array $text,
+        array $buttons,
+        ?int $columnsPerRow = null,
+        bool $regroupSingleRows = true,
+    ): array {
         try {
             if (is_array($text)) {
                 // use format text service
                 $text = $this->formatText($text);
             }
+            if ($buttons === []) {
+                return $this->sendMessage($chatId, $text);
+            }
             $response = $this->sendMessage($chatId, $text, [
                 'reply_markup' => json_encode([
-                    'inline_keyboard' => $this->formatInlineKeyboardButtons($buttons),
+                    'inline_keyboard' => $this->formatInlineKeyboardButtons($buttons, $columnsPerRow, $regroupSingleRows),
                 ]),
             ]);
             // log response as a array
             return $response;
-        } catch (\Exception $e) {
-            \Log::error("sendMessageWithInlineKeyboard " . $e->getMessage());
-            return false;
+        } catch (\Throwable $e) {
+            \Log::error('sendMessageWithInlineKeyboard ' . $e->getMessage());
+
+            return [
+                'ok' => false,
+                'description' => $e->getMessage(),
+            ];
         }
     }
 
@@ -438,18 +503,7 @@ class TelegramService
 
     private function formatKeyboardButtons(array $buttons): array
     {
-        $keyboard = [];
-        foreach ($buttons as $row) {
-            $keyboardRow = [];
-            foreach ($row as $button) {
-                if (!isset($button['callback_data'])) {
-                    $button['callback_data'] = '';
-                }
-                $keyboardRow[] = $button;
-            }
-            $keyboard[] = $keyboardRow;
-        }
-        return $keyboard;
+        return $this->keyboardConfig->formatReplyKeyboard($buttons);
     }
     public function formatText(array $text): string
     {
@@ -458,20 +512,12 @@ class TelegramService
         return $text;
     }
 
-    public function formatInlineKeyboardButtons(array $buttons): array
-    {
-        $keyboard = [];
-        foreach ($buttons as $row) {
-            $keyboardRow = [];
-            foreach ($row as $text => $callbackData) {
-                $keyboardRow[] = [
-                    'text' => $text,
-                    'callback_data' => $callbackData,
-                ];
-            }
-            $keyboard[] = $keyboardRow;
-        }
-        return $keyboard;
+    public function formatInlineKeyboardButtons(
+        array $buttons,
+        ?int $columnsPerRow = null,
+        bool $regroupSingleRows = true,
+    ): array {
+        return $this->keyboardConfig->formatInlineKeyboard($buttons, $columnsPerRow, $regroupSingleRows);
     }
 
     private function makeRequest(string $method, array $params = []): array
@@ -495,12 +541,35 @@ class TelegramService
         }
 
         $decoded = json_decode($response, true) ?? [];
-        \Log::info("Telegram API Response ($method): " . json_encode($decoded));
-        if (isset($decoded['ok']) && !$decoded['ok']) {
-            \Log::error("Telegram API Error ($method): " . json_encode($decoded) . " | Params: " . json_encode($params));
+        if (isset($decoded['ok']) && $decoded['ok'] === true) {
+            \Log::info("Telegram API Response ($method): ok");
+        } else {
+            $this->logTelegramApiFailure($method, $decoded, $params);
         }
 
         return $decoded;
+    }
+
+    private function logTelegramApiFailure(string $method, array $decoded, array $params): void
+    {
+        $logParams = $params;
+        foreach ($logParams as $key => $value) {
+            if ($value instanceof \CURLFile) {
+                $logParams[$key] = '[CURLFile: ' . $value->getFilename() . ']';
+            }
+        }
+
+        $payload = json_encode($decoded, JSON_UNESCAPED_UNICODE)
+            . ' | Params: '
+            . json_encode($logParams, JSON_UNESCAPED_UNICODE);
+
+        if ($this->isUnreachableChatError($decoded)) {
+            \Log::warning("Telegram API delivery skipped ($method): {$payload}");
+
+            return;
+        }
+
+        \Log::error("Telegram API Error ($method): {$payload}");
     }
 
     private function makeRequestFile(string $method, array $params = []): array
@@ -525,16 +594,10 @@ class TelegramService
         }
 
         $decoded = json_decode($response, true) ?? [];
-        \Log::info("Telegram API Response ($method): " . json_encode($decoded));
-        if (isset($decoded['ok']) && !$decoded['ok']) {
-            // Remove the actual file object from params for logging to avoid clutter and potential issues
-            $logParams = $params;
-            foreach ($logParams as $key => $value) {
-                if ($value instanceof \CURLFile) {
-                    $logParams[$key] = '[CURLFile: ' . $value->getFilename() . ']';
-                }
-            }
-            \Log::error("Telegram API Error ($method): " . json_encode($decoded) . " | Params: " . json_encode($logParams));
+        if (isset($decoded['ok']) && $decoded['ok'] === true) {
+            \Log::info("Telegram API Response ($method): ok");
+        } else {
+            $this->logTelegramApiFailure($method, $decoded, $params);
         }
 
         return $decoded;
@@ -556,13 +619,18 @@ class TelegramService
         }
         $buttons = [];
         foreach ($buttonsList as $button) {
-            $buttons[] = [
-                [
-                    'text' => $button['text'],
-                    'url' => trim($button['url']),
-                ],
+            $normalized = [
+                'text' => $button['text'],
+                'url' => trim($button['url']),
             ];
+            foreach (['style', 'icon_custom_emoji_id'] as $field) {
+                if (! empty($button[$field])) {
+                    $normalized[$field] = $button[$field];
+                }
+            }
+            $buttons[] = [$normalized];
         }
+        $buttons = $this->keyboardConfig->formatInlineKeyboard($buttons, null, false);
 
         $response = $this->makeRequest('sendMessage', [
             'chat_id' => $chatId,
@@ -593,14 +661,20 @@ class TelegramService
         ]);
     }
 
-    public function editMessageWithInlineKeyboard(string $chatId, int $messageId, string|array $text, array $buttons): array
-    {
+    public function editMessageWithInlineKeyboard(
+        string $chatId,
+        int $messageId,
+        string|array $text,
+        array $buttons,
+        ?int $columnsPerRow = null,
+        bool $regroupSingleRows = true,
+    ): array {
         if (is_array($text)) {
             $text = $this->formatText($text);
         }
         return $this->editMessageText($chatId, $messageId, $text, [
             'reply_markup' => json_encode([
-                'inline_keyboard' => $this->formatInlineKeyboardButtons($buttons),
+                'inline_keyboard' => $this->formatInlineKeyboardButtons($buttons, $columnsPerRow, $regroupSingleRows),
             ]),
         ]);
     }

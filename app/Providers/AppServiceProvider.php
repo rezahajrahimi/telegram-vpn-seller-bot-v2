@@ -13,6 +13,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        if (class_exists(\sbamtr\LaravelSourceEncrypter\SourceEncryptServiceProvider::class)) {
+            $this->app->register(\sbamtr\LaravelSourceEncrypter\SourceEncryptServiceProvider::class);
+        }
+
         // create a singleton telegram_bot.
         $this->app->singleton('telegram_bot',function(){
             return new TelegramBot();

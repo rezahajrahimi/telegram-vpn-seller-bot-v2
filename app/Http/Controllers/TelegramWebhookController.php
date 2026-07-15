@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\AccountProcessController;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\SubscriptionProcessController;
+use App\Models\BotUser;
 use App\Models\User;
 use App\Models\Transaction;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
 use App\Services\TelegramCallbackHandler;
+use App\Services\MobileVerificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -96,25 +98,25 @@ class TelegramWebhookController extends Controller
                     $this->handleAwaitingReply($this->chatId, $message['text']);
                     return response()->json(['status' => 'success']);
                 }
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['photo'])) {
                 $response = $this->processPhotoMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['document'])) {
                 $response = $this->processDocumentMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['location'])) {
                 $response = $this->processLocationMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['voice'])) {
                 $response = $this->processVoiceMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['video'])) {
                 $response = $this->processVideoMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             } elseif (isset($message['contact'])) {
                 $response = $this->processContactMessage($message);
-                $this->telegramService->sendMessage($this->chatId, $response);
+                $this->sendResponseIfNotEmpty($this->chatId, $response);
             }
 
             return response()->json(['status' => 'success']);
@@ -134,6 +136,16 @@ class TelegramWebhookController extends Controller
             if (str_starts_with($text, '/')) {
                 return $this->processCommand($text);
             }
+
+            $promoState = \App\Models\UserState::where('chat_id', $this->chatId)
+                ->whereIn('state', ['promo_code_pending', 'promo_code_pending_recharge'])
+                ->latest()
+                ->first();
+            if ($promoState) {
+                $this->subscriptionProcessCtrl->handlePromoCodeReply($this->chatId, trim($text));
+                return "";
+            }
+
             // check if text is a menu item
             $menuItemCtrl = new MainMenuItemController();
             $menuItem = $menuItemCtrl->getMenuItemByAliasName($text);
@@ -267,7 +279,7 @@ class TelegramWebhookController extends Controller
 
             $imageTrCntrl = new TransactionImageController();
             $imageTrCntrl->saveNewTransactionImage($request);
-            \Log::info("processPhotoMessage received 44");
+            $this->addUserBotLog($chatId, 'payment', 'تصویر رسید پرداخت آفلاین ارسال شد', 'upload');
             $this->sendMessageToAdmin($chatId, $fileId, $request->transaction_id, 'image');
             // tell user that image is received
             $text = $this->customTextCtrl->getText('action.send_photo.success', [
@@ -337,11 +349,23 @@ class TelegramWebhookController extends Controller
     private function processContactMessage(array $message): string|array
     {
         $contact = $message['contact'];
-        $phoneNumber = $contact['phone_number'];
-        $firstName = $contact['first_name'];
-        $lastName = $contact['last_name'] ?? '';
+        $chatId = $message['chat']['id'] ?? $message['from']['id'] ?? null;
+        $from = $message['from'] ?? [];
 
-        return "اطلاعات تماس دریافت شد:\nنام: {$firstName} {$lastName}\nشماره تماس: {$phoneNumber}";
+        if ($chatId === null) {
+            return $this->customTextCtrl->getText('error.server_error');
+        }
+
+        $mobileVerification = new MobileVerificationService();
+        $result = $mobileVerification->verifyFromContact($chatId, $contact, $from);
+
+        if ($result['success']) {
+            $this->generalCntrl->return_main_menu_items($chatId, $result['message']);
+
+            return '';
+        }
+
+        return $result['message'];
     }
 
     private function processCommand(string $text): string|array
@@ -471,7 +495,10 @@ class TelegramWebhookController extends Controller
 
             $result = $botUserCtrl->hasRegistred($chatId, $userName, $firstName, $lastName);
             if ($ref != null) {
-                $saveRef = $referralLogsCntrl->check_user_has_referral_and_create($chatId, $ref);
+                $referralSettingCntrl = new ReferralSettingController();
+                if ($referralSettingCntrl->check_referral_setting_is_active()) {
+                    $referralLogsCntrl->check_user_has_referral_and_create($chatId, $ref);
+                }
             }
             return '/start';
         } catch (\Throwable $th) {
@@ -514,6 +541,11 @@ class TelegramWebhookController extends Controller
         $actionList = explode('-', $data);
         $action = array_shift($actionList); // Get action and remove it from list
         $params = $actionList; // Remaining items are params
+
+        if (in_array($action, ['confirmBuyPromo', 'confirmRechargePromo'], true) && count($params) >= 2) {
+            $entityId = array_shift($params);
+            $params = [$entityId, implode('-', $params)];
+        }
 
         $response = $this->callbackHandler->handle($chatId, $action, $params, $messageId, $callbackQueryId);
 
@@ -754,6 +786,12 @@ class TelegramWebhookController extends Controller
             $transaction->confirmed = 0;
             $transaction->recipe_number = 'REJECTED';
             $transaction->save();
+            $this->addUserBotLog(
+                $transaction->account_id,
+                'payment',
+                'رسید پرداخت آفلاین توسط مدیر رد شد',
+                'reject'
+            );
             $this->telegramService->sendMessage($transaction->account_id, "رسید تراکنش شما توسط مدیریت رد شد.");
         }
 
@@ -783,6 +821,19 @@ class TelegramWebhookController extends Controller
             $transaction->save();
 
             $this->accountProcessCtrl->adminFastCharge($adminChatId, $amount, $transaction->account_id);
+            $formattedAmount = number_format($amount, 0, '.', ',');
+            $this->addUserBotLog(
+                $transaction->account_id,
+                'payment',
+                "رسید پرداخت آفلاین توسط مدیر تایید شد (مبلغ: {$formattedAmount} تومان)",
+                'confirm'
+            );
+            $this->addUserBotLog(
+                $transaction->account_id,
+                'ballance',
+                "میزان موجودی کاربر به مقدار {$formattedAmount} تومان افزایش یافت",
+                'edit'
+            );
 
             // Add referral amount
             $referralLogsCntrl = new ReferralLogsController();
@@ -801,11 +852,32 @@ class TelegramWebhookController extends Controller
         }
     }
 
+    private function sendResponseIfNotEmpty(string $chatId, string|array|null $response): void
+    {
+        if ($response === null || $response === '') {
+            return;
+        }
+
+        if (is_array($response) && $response === []) {
+            return;
+        }
+
+        $this->telegramService->sendMessage($chatId, $response);
+    }
+
     private function addNewBotLog($type, $message, $event)
     {
         $logCtrl = new LogController();
         $logCtrl->addNewLog($type, $message, $this->getCurrentChatId(), $this->getCurrentChatUserName(), $event);
         return true;
+    }
+
+    private function addUserBotLog(string $accountId, string $type, string $message, string $event): void
+    {
+        $botUser = BotUser::where('account_id', $accountId)->first();
+        $username = $botUser?->username ?? '';
+        $logCtrl = new LogController();
+        $logCtrl->addNewLog($type, $message, $accountId, $username, $event);
     }
     private function is_first_time_bot_start_event()
     {
