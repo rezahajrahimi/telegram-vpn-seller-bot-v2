@@ -63,6 +63,11 @@ class TelegramCallbackHandler
 
             'accountTransactions' => $this->accountProcessCtrl->accountTransactions($chatId),
             'accountLoyaltyHistory' => $this->accountProcessCtrl->accountLoyaltyHistory($chatId),
+            'accountLoyaltyHistoryPage' => $this->accountProcessCtrl->accountLoyaltyHistory(
+                $chatId,
+                (int) ($params[0] ?? 1),
+                $messageId
+            ),
             'accountSubAccounts' => $this->accountProcessCtrl->accountSubAccounts($chatId),
             'accountAddBalance' => $this->accountProcessCtrl->accountAddBalance($chatId),
             'accountSubAccountsZarinpal' => $this->accountProcessCtrl->handleActionAddBalanceZarinpal($chatId),

@@ -33,6 +33,7 @@ class BotKeyboardConfigService
         ['match' => 'deleteHistory', 'match_type' => 'action_prefix', 'style' => 'danger'],
         ['match' => 'buySubscription', 'match_type' => 'action_prefix', 'style' => 'primary'],
         ['match' => 'buyHistoryNext', 'match_type' => 'action_prefix', 'style' => 'primary'],
+        ['match' => 'accountLoyaltyHistoryPage', 'match_type' => 'action_prefix', 'style' => 'primary'],
         ['match' => 'recharge', 'match_type' => 'action_prefix', 'style' => 'primary'],
         ['match' => '0', 'match_type' => 'exact', 'style' => null],
     ];

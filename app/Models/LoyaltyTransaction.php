@@ -24,4 +24,17 @@ class LoyaltyTransaction extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function eventLabel(): string
+    {
+        return match ($this->event) {
+            'purchase' => 'خرید',
+            'renewal' => 'تمدید',
+            'deposit' => 'واریز',
+            'referral_signup' => 'معرفی',
+            'checkout' => 'استفاده در خرید',
+            'admin' => 'تغییر مدیر',
+            default => $this->event ?? 'امتیاز',
+        };
+    }
 }

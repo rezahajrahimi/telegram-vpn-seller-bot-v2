@@ -969,7 +969,7 @@ class AgentProductController extends Controller
 
             if ($pannel && $pannel->isMarzbanCompatible()) {
                 $mb = MarzbanPannelController::resolve($pannel);
-                $res = $mb->updateLimits($pannel->id, $data->remark, $selectedPrCat->expire_day, $selectedPrCat->volume);
+                $res = $mb->updateLimits($pannel->id, $data->resolveMarzbanPanelUsername(), $selectedPrCat->expire_day, $selectedPrCat->volume);
                 if ($res) {
                     $this->addNewBotLog('product', "$data->remark توسط مدیر شارژ شد", 'charge product');
 
@@ -1044,7 +1044,7 @@ class AgentProductController extends Controller
 
             if ($pannel && $pannel->isMarzbanCompatible()) {
                 $mb = MarzbanPannelController::resolve($pannel);
-                $res = $mb->updateLimits($pannel->id, $data->remark, $newPrCat->expire_day, $newPrCat->volume);
+                $res = $mb->updateLimits($pannel->id, $data->resolveMarzbanPanelUsername(), $newPrCat->expire_day, $newPrCat->volume);
                 if ($res) {
                     if ($request->changeBallance == 1 || $request->changeBallance == true) {
                         $accBalCntrl = new AccountBallanceController();
@@ -1167,7 +1167,7 @@ class AgentProductController extends Controller
             if ($pannel && $pannel->isMarzbanCompatible()) {
                 $mb = MarzbanPannelController::resolve($pannel);
                 $enable = ($request->enable == true || $request->enable == 1 || $request->enable == 'true');
-                $res = $mb->changeUserActivation($pannel->id, $data->remark, $enable);
+                $res = $mb->changeUserActivation($pannel->id, $data->resolveMarzbanPanelUsername(), $enable);
                 if ($res) {
                     $data->deactive_by_admin = ! $enable;
                     $this->addNewBotLog('product', "$data->remark توسط مدیر " . ($enable ? 'فعال' : 'غیر فعال') . " شد.", 'change activation');
@@ -1224,7 +1224,7 @@ class AgentProductController extends Controller
                 }
                 $mb = MarzbanPannelController::resolve($pannel);
 
-                return $mb->getSubscriptionLink($pannel, $data->remark) ?? $pannel->url_port;
+                return $mb->getSubscriptionLink($pannel, $data->resolveMarzbanPanelUsername()) ?? $pannel->url_port;
             }
 
             $hiddifcCntrl = new HiddifyPannelController();
@@ -1260,7 +1260,7 @@ class AgentProductController extends Controller
             }
             if ($pannel && $pannel->isMarzbanCompatible()) {
                 $mb = MarzbanPannelController::resolve($pannel);
-                $res = $mb->deleteUser($pannel->id, $data->remark);
+                $res = $mb->deleteUser($pannel->id, $data->resolveMarzbanPanelUsername());
                 if ($res) {
                     $data->delete();
                     $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
@@ -1575,7 +1575,7 @@ class AgentProductController extends Controller
 
                 if ($pannel && $pannel->isMarzbanCompatible()) {
                     $mb = MarzbanPannelController::resolve($pannel);
-                    $res = $mb->updateLimits($pannel->id, $data->remark, $selectedPrCat->expire_day, $selectedPrCat->volume);
+                    $res = $mb->updateLimits($pannel->id, $data->resolveMarzbanPanelUsername(), $selectedPrCat->expire_day, $selectedPrCat->volume);
                     if ($res) {
                         $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                         $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
@@ -1853,7 +1853,7 @@ class AgentProductController extends Controller
 
             if ($pannel->isMarzbanCompatible()) {
                 $mb = MarzbanPannelController::resolve($pannel);
-                $status = $mb->getClientStatus($pannel, $data->remark);
+                $status = $mb->getClientStatus($pannel, $data->resolveMarzbanPanelUsername());
                 if ($status) {
                     $status['panel_type'] = $pannel->type;
 
@@ -1894,7 +1894,11 @@ class AgentProductController extends Controller
         }
 
         $authUser = auth('sanctum')->user();
-        if ($authUser && (string) $authUser->account_id !== (string) $data->account_id) {
+        if (
+            $authUser
+            && ($authUser->role ?? '') !== 'admin'
+            && (string) $authUser->account_id !== (string) $data->account_id
+        ) {
             return response()->json(false, 401);
         }
 
@@ -1929,7 +1933,7 @@ class AgentProductController extends Controller
                 }
                 $mb = MarzbanPannelController::resolve($pannel);
 
-                return $mb->getSubscriptionLink($pannel, $data->remark) ?? '';
+                return $mb->getSubscriptionLink($pannel, $data->resolveMarzbanPanelUsername()) ?? '';
             }
 
             $hiddifcCntrl = new HiddifyPannelController();
@@ -2048,7 +2052,7 @@ class AgentProductController extends Controller
                 }
                 if ($pannel && $pannel->isMarzbanCompatible()) {
                     $mb = MarzbanPannelController::resolve($pannel);
-                    $res = $mb->updateLimits($pannel->id, $data->remark, $selectedPrCat->expire_day, $selectedPrCat->volume);
+                    $res = $mb->updateLimits($pannel->id, $data->resolveMarzbanPanelUsername(), $selectedPrCat->expire_day, $selectedPrCat->volume);
                     if ($res) {
                         $accBlCtrl->decUserAccuntBalance($accountID, $productPrice, $productPriceInDollar);
                         $this->addNewBotLog('ballance', "مبلغ  $productPrice را از حساب کاربری بابت شارژ بسته کم شد.", 'minus ballance');
@@ -2262,9 +2266,10 @@ class AgentProductController extends Controller
             }
 
             if ($data->product_category_and_panel->pannel->isMarzbanCompatible()) {
+                $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
                 $mb = MarzbanPannelController::resolve($pannel);
                 $enable = ($request->enable == true || $request->enable == 1 || $request->enable == 'true');
-                $res = $mb->changeUserActivation($data->product_category_and_panel->pannel_id, $data->remark, $enable);
+                $res = $mb->changeUserActivation($pannel->id, $data->resolveMarzbanPanelUsername(), $enable);
                 if ($res) {
                     $status = $enable ? 'فعال' : 'غیر فعال';
                     $this->addNewBotLog('product', "$data->remark توسط کاربر {$status} شد.", 'change activation');
@@ -2353,7 +2358,7 @@ class AgentProductController extends Controller
             }
             if ($pannel && $pannel->isMarzbanCompatible()) {
                 $mb = MarzbanPannelController::resolve($pannel);
-                $res = $mb->deleteUser($pannel->id, $data->remark);
+                $res = $mb->deleteUser($pannel->id, $data->resolveMarzbanPanelUsername());
                 if ($res) {
                     $data->delete();
                     $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');
@@ -2440,7 +2445,7 @@ class AgentProductController extends Controller
 
             if ($pannel && $pannel->isMarzbanCompatible()) {
                 $mb = MarzbanPannelController::resolve($pannel);
-                $res = $mb->deleteUser($pannel->id, $data->remark);
+                $res = $mb->deleteUser($pannel->id, $data->resolveMarzbanPanelUsername());
                 if ($res) {
                     $data->delete();
                     $this->addNewBotLog('product', "بسته $data->remark حذف شد.", 'remove product');

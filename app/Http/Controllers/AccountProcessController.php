@@ -22,6 +22,8 @@ use Illuminate\Http\Request;
 
 class AccountProcessController extends Controller
 {
+    private const LOYALTY_HISTORY_PER_PAGE = 8;
+
     private TelegramService $telegramService;
     private CustomTextController $customTextCtrl;
     private SubscriptionProcessController $subscriptionProcessCtrl;
@@ -185,12 +187,16 @@ class AccountProcessController extends Controller
         }
     }
 
-    public function accountLoyaltyHistory($chatId)
+    public function accountLoyaltyHistory($chatId, $page = 1, $messageId = null)
     {
         try {
             $this->telegramService->sendChatAction($chatId, 'typing');
             $this->chatId = $chatId;
-            $this->addNewBotLog('account', 'وارد بخش تاریخچه امتیاز شد.', 'show');
+            $page = max(1, (int) $page);
+
+            if ($page === 1 && $messageId === null) {
+                $this->addNewBotLog('account', 'وارد بخش تاریخچه امتیاز شد.', 'show');
+            }
 
             $loyaltyService = new LoyaltyPointsService();
             if (! $loyaltyService->isActive()) {
@@ -200,17 +206,6 @@ class AccountProcessController extends Controller
                 );
             }
 
-            $balance = $loyaltyService->getBalanceByAccountId($chatId);
-            $settings = $loyaltyService->getSettings();
-            $title = $this->customTextCtrl->getText('action.account.loyalty_history.title', [
-                'balance' => number_format($balance, 0, '.', ','),
-                'toman_per_point' => (string) ($settings?->toman_per_point ?? 10),
-            ]);
-            if (is_array($title)) {
-                $title = $this->telegramService->formatText($title);
-            }
-            $this->telegramService->sendMessage($chatId, $title);
-
             $user = User::where('account_id', $chatId)->first();
             if ($user === null) {
                 return $this->generalCntrl->return_main_menu_items(
@@ -219,49 +214,159 @@ class AccountProcessController extends Controller
                 );
             }
 
-            $transactions = \App\Models\LoyaltyTransaction::where('user_id', $user->id)
-                ->orderByDesc('id')
-                ->limit(15)
-                ->get();
+            $balance = $loyaltyService->getBalanceByAccountId($chatId);
+            $settings = $loyaltyService->getSettings();
+            $baseQuery = \App\Models\LoyaltyTransaction::where('user_id', $user->id);
+            $total = (clone $baseQuery)->count();
 
-            if ($transactions->isEmpty()) {
+            if ($total === 0) {
                 $text = $this->customTextCtrl->getText('action.account.loyalty_history.no_records');
                 if (is_array($text)) {
                     $text = $this->telegramService->formatText($text);
                 }
                 $this->telegramService->sendMessage($chatId, $text);
-                return "";
+
+                return '';
             }
 
-            $lines = [];
-            foreach ($transactions as $transaction) {
-                $sign = $transaction->points > 0 ? '+' : '';
-                $eventLabel = match ($transaction->event) {
-                    'purchase' => 'خرید',
-                    'renewal' => 'تمدید',
-                    'deposit' => 'واریز',
-                    'referral_signup' => 'معرفی',
-                    'checkout' => 'استفاده در خرید',
-                    'admin' => 'تغییر مدیر',
-                    default => $transaction->event ?? 'امتیاز',
-                };
-                $description = trim((string) ($transaction->description ?? ''));
-                $line = "{$sign}{$transaction->points} امتیاز — {$eventLabel}";
-                if ($description !== '') {
-                    $line .= " — {$description}";
-                }
-                $lines[] = $line;
+            $summary = [
+                'total' => $total,
+                'earn_count' => (clone $baseQuery)->where('points', '>', 0)->count(),
+                'redeem_count' => (clone $baseQuery)->where('points', '<', 0)->count(),
+                'total_earned' => (int) (clone $baseQuery)->where('points', '>', 0)->sum('points'),
+            ];
+
+            $lastPage = max(1, (int) ceil($total / self::LOYALTY_HISTORY_PER_PAGE));
+            $page = min($page, $lastPage);
+
+            $transactions = (clone $baseQuery)
+                ->orderByDesc('id')
+                ->forPage($page, self::LOYALTY_HISTORY_PER_PAGE)
+                ->get();
+
+            $text = $this->buildLoyaltyHistoryMessage(
+                $balance,
+                $settings,
+                $summary,
+                $transactions,
+                $page,
+                $lastPage
+            );
+            $buttons = $this->buildLoyaltyHistoryPaginationButtons($page, $lastPage);
+
+            if ($messageId !== null) {
+                $this->telegramService->editMessageWithInlineKeyboard($chatId, $messageId, $text, $buttons);
+            } else {
+                $this->telegramService->sendMessageWithInlineKeyboard($chatId, $text, $buttons);
             }
 
-            $this->telegramService->sendMessage($chatId, implode("\n", $lines));
-
-            return "";
+            return '';
         } catch (\Throwable $th) {
             \Log::error(['accountLoyaltyHistory: ' . $th]);
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
 
-            return "";
+            return '';
         }
+    }
+
+    private function buildLoyaltyHistoryMessage(
+        int $balance,
+        $settings,
+        array $summary,
+        $transactions,
+        int $page,
+        int $lastPage
+    ): string {
+        $formatter = new TelegramMessageFormatter($this->telegramService);
+        $balanceFormatted = number_format($balance, 0, '.', ',');
+        $tomanPerPoint = number_format((int) ($settings?->toman_per_point ?? 10), 0, '.', ',');
+        $totalEarnedFormatted = number_format($summary['total_earned'], 0, '.', ',');
+
+        $formatter
+            ->addBold('⭐ باشگاه مشتریان')
+            ->addNewLine()
+            ->addNewLine()
+            ->addText("💰 موجودی: {$balanceFormatted} امتیاز")
+            ->addNewLine()
+            ->addText("💵 ارزش هر امتیاز: {$tomanPerPoint} تومان")
+            ->addNewLine()
+            ->addNewLine()
+            ->addBold('📊 آمار کلی')
+            ->addNewLine()
+            ->addText("• کل رویدادها: {$summary['total']}")
+            ->addNewLine()
+            ->addText("• امتیازدهی: {$summary['earn_count']}")
+            ->addNewLine()
+            ->addText("• مصرف امتیاز: {$summary['redeem_count']}")
+            ->addNewLine()
+            ->addText("• جمع امتیاز کسب‌شده: {$totalEarnedFormatted}")
+            ->addNewLine()
+            ->addNewLine()
+            ->addBold("📋 تاریخچه فعالیت‌ها (صفحه {$page} از {$lastPage})")
+            ->addNewLine()
+            ->addText('─────────────────');
+
+        foreach ($transactions as $transaction) {
+            $sign = $transaction->points > 0 ? '+' : '';
+            $icon = $transaction->points > 0 ? '🟢' : '🔴';
+            $pointsFormatted = number_format(abs((int) $transaction->points), 0, '.', ',');
+            $eventLabel = $transaction->eventLabel();
+
+            $formatter
+                ->addNewLine()
+                ->addNewLine()
+                ->addText("{$icon} {$sign}{$pointsFormatted} امتیاز — {$eventLabel}")
+                ->addNewLine()
+                ->addText('   🕐 '.$this->formatLoyaltyHistoryDate($transaction->created_at));
+
+            $description = trim((string) ($transaction->description ?? ''));
+            if ($description !== '') {
+                $formatter->addNewLine()->addText("   📝 {$description}");
+            }
+        }
+
+        return $formatter->getMessage();
+    }
+
+    private function formatLoyaltyHistoryDate($createdAt): string
+    {
+        try {
+            if ($createdAt instanceof \DateTimeInterface) {
+                return verta($createdAt)->format('Y/m/d H:i');
+            }
+
+            $value = trim((string) $createdAt);
+            if ($value === '') {
+                return '—';
+            }
+
+            return verta($value)->format('Y/m/d H:i');
+        } catch (\Throwable) {
+            if ($createdAt instanceof \DateTimeInterface) {
+                return $createdAt->format('Y-m-d H:i');
+            }
+
+            $value = trim((string) $createdAt);
+
+            return $value !== '' ? $value : '—';
+        }
+    }
+
+    private function buildLoyaltyHistoryPaginationButtons(int $page, int $lastPage): array
+    {
+        if ($lastPage <= 1) {
+            return [];
+        }
+
+        $buttons = [];
+        if ($page > 1) {
+            $buttons['◀️ قبلی'] = 'accountLoyaltyHistoryPage-'.($page - 1);
+        }
+        if ($page < $lastPage) {
+            $buttons['بعدی ▶️'] = 'accountLoyaltyHistoryPage-'.($page + 1);
+        }
+
+        return $buttons === [] ? [] : [$buttons];
     }
 
     public function accountSubAccounts($chatId)

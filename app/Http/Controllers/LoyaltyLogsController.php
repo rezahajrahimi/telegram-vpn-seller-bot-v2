@@ -9,18 +9,55 @@ use Illuminate\Http\Request;
 
 class LoyaltyLogsController extends Controller
 {
-    public function get_loyalty_logs($account_id)
+    public function get_loyalty_logs(Request $request, $account_id)
     {
         try {
-            $user = User::where('account_id', $account_id)->first();
+            $request->validate([
+                'page' => 'nullable|integer|min:1',
+                'per_page' => 'nullable|integer|min:5|max:50',
+            ]);
+
+            $perPage = (int) $request->input('per_page', 15);
+            $page = (int) $request->input('page', 1);
+
+            $user = User::with('loyalty_wallet')->where('account_id', $account_id)->first();
             if ($user === null) {
-                return response()->json([], 200);
+                return response()->json([
+                    'data' => [],
+                    'current_page' => 1,
+                    'last_page' => 1,
+                    'per_page' => $perPage,
+                    'total' => 0,
+                    'summary' => [
+                        'earn_count' => 0,
+                        'redeem_count' => 0,
+                        'total_earned' => 0,
+                        'current_balance' => 0,
+                    ],
+                ], 200);
             }
 
-            return LoyaltyTransaction::where('user_id', $user->id)
+            $query = LoyaltyTransaction::where('user_id', $user->id);
+
+            $summary = [
+                'earn_count' => (clone $query)->where('points', '>', 0)->count(),
+                'redeem_count' => (clone $query)->where('points', '<', 0)->count(),
+                'total_earned' => (int) (clone $query)->where('points', '>', 0)->sum('points'),
+                'current_balance' => (int) ($user->loyalty_wallet?->balance ?? 0),
+            ];
+
+            $paginated = (clone $query)
                 ->orderByDesc('id')
-                ->limit(200)
-                ->get();
+                ->paginate($perPage, ['*'], 'page', $page);
+
+            return response()->json([
+                'data' => $paginated->items(),
+                'current_page' => $paginated->currentPage(),
+                'last_page' => $paginated->lastPage(),
+                'per_page' => $paginated->perPage(),
+                'total' => $paginated->total(),
+                'summary' => $summary,
+            ]);
         } catch (\Throwable $th) {
             \Log::info("Throwable get_loyalty_logs: $th");
 

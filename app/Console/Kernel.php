@@ -14,48 +14,39 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')->hourly();
         $schedule->command('queue:work --stop-when-empty')
-            ->everyMinute()
-            ->withoutOverlapping(120);
+            ->everyMinute();
 
         $schedule->call('App\Http\Controllers\CronJobController@execute_send_lass_there_than_3_days')
             ->name('cron.send-less-than-3-days')
-            ->dailyAt('12:00')
-            ->withoutOverlapping(60);
+            ->dailyAt('12:00');
 
         $schedule->call('App\Http\Controllers\CronJobController@execute_send_expired_products')
             ->name('cron.send-expired-products')
-            ->everyFiveMinutes()
-            ->withoutOverlapping(60);
+            ->everyFiveMinutes();
 
         $schedule->call('App\Http\Controllers\CronJobController@execute_send_useage_more_than_85_percent')
             ->name('cron.send-usage-more-than-85-percent')
-            ->everyFourMinutes()
-            ->withoutOverlapping(60);
+            ->everyFifteenMinutes();
 
         $schedule->call('App\Http\Controllers\CronJobController@execute_create_daily_backup')
             ->name('cron.create-daily-backup')
-            ->everyThreeHours()
-            ->withoutOverlapping(180);
+            ->everyThreeHours();
 
         $schedule->call('App\Http\Controllers\CronJobController@calculate_product_category_price_by_tether')
             ->name('cron.calculate-price-by-tether')
-            ->everyFiveMinutes()
-            ->withoutOverlapping(30);
+            ->everyFiveMinutes();
 
         $schedule->call('App\Http\Controllers\CronJobController@calculate_product_category_price_in_dollar_by_toman')
             ->name('cron.calculate-price-in-dollar-by-toman')
-            ->everyFiveMinutes()
-            ->withoutOverlapping(30);
+            ->everyFiveMinutes();
 
         $schedule->call('App\Http\Controllers\CronJobController@execute_auto_delete_expired_configs')
             ->name('cron.auto-delete-expired-configs')
-            ->dailyAt('08:02')
-            ->withoutOverlapping(60);
+            ->dailyAt('08:02');
 
         $schedule->call('App\Http\Controllers\CronJobController@clear_laravel_log')
             ->name('cron.clear-laravel-log')
-            ->everyTwoHours()
-            ->withoutOverlapping(120);
+            ->everyTwoHours();
     }
 
     /**
