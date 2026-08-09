@@ -284,8 +284,8 @@ class CronJobController extends Controller
                 return false;
             }
 
-            $items = $this->collectExpiredConfigsForDeletion();
-            $this->deleteExpiredConfigItems($items);
+            $result = $this->collectExpiredConfigsForDeletion();
+            $this->deleteExpiredConfigItems($result['items']);
 
             return true;
         } catch (\Throwable $th) {
@@ -306,12 +306,14 @@ class CronJobController extends Controller
         }
 
         try {
-            $items = $this->collectExpiredConfigsForDeletion();
+            @set_time_limit(600);
+            $result = $this->collectExpiredConfigsForDeletion();
 
             return response()->json([
                 'success' => true,
-                'count' => count($items),
-                'items' => $items,
+                'count' => count($result['items']),
+                'items' => $result['items'],
+                'warnings' => $result['warnings'],
             ]);
         } catch (\Throwable $th) {
             \Log::error('previewExpiredConfigsForDeletion: ' . $th->getMessage());
@@ -324,9 +326,9 @@ class CronJobController extends Controller
     }
 
     /**
-     * Delete selected expired configs (manual admin action).
-     * Body: { items: [{ product_id, panel_id, uuid }, ...] }
-     * Silver/Gold only.
+     * Queue deletion of selected expired configs (manual admin action).
+     * Body: { items: [{ product_id, panel_id, uuid, remark? }, ...] }
+     * Silver/Gold only. Returns immediately with job_id to avoid HTTP timeout.
      */
     public function deleteSelectedExpiredConfigs(Request $request)
     {
@@ -341,54 +343,90 @@ class CronJobController extends Controller
                 'items.*.product_id' => 'required|integer',
                 'items.*.panel_id' => 'required|integer',
                 'items.*.uuid' => 'required|string',
+                'items.*.remark' => 'nullable|string',
             ]);
-
-            $eligible = collect($this->collectExpiredConfigsForDeletion())
-                ->keyBy(fn ($item) => $this->expiredConfigItemKey($item));
 
             $toDelete = [];
             foreach ($validated['items'] as $item) {
-                $key = $this->expiredConfigItemKey($item);
-                if ($eligible->has($key)) {
-                    $toDelete[] = $eligible->get($key);
+                $productId = (int) $item['product_id'];
+                if ($productId <= 0) {
+                    continue;
                 }
+                // Soft validation: product may already be gone; still try panel delete.
+                $toDelete[] = [
+                    'product_id' => $productId,
+                    'panel_id' => (int) $item['panel_id'],
+                    'uuid' => (string) $item['uuid'],
+                    'remark' => (string) ($item['remark'] ?? ''),
+                ];
             }
 
             if ($toDelete === []) {
                 return response()->json([
                     'success' => false,
+                    'status' => 'error',
                     'message' => 'هیچ مورد معتبری برای حذف انتخاب نشده است.',
-                    'deleted' => 0,
                 ], 422);
             }
 
-            $deleted = $this->deleteExpiredConfigItems($toDelete);
+            $firstPanelId = (int) ($toDelete[0]['panel_id'] ?? 0);
+            $jobRecord = \App\Models\GroupOperationJob::create([
+                'action' => 'delete_expired',
+                'panel_id' => $firstPanelId > 0 ? $firstPanelId : (Pannel::query()->value('id') ?? 0),
+                'status' => 'pending',
+                'total_configs' => count($toDelete),
+                'processed_configs' => 0,
+                'success_items' => [],
+                'failed_items' => [],
+            ]);
+
+            \App\Jobs\DeleteExpiredConfigsJob::dispatchAfterResponse($toDelete, $jobRecord->id);
 
             return response()->json([
                 'success' => true,
-                'deleted' => $deleted,
-                'message' => "{$deleted} اکانت منقضی حذف شد.",
+                'status' => 'success',
+                'job_id' => $jobRecord->id,
+                'message' => 'درخواست حذف در صف اجرا قرار گرفت.',
             ]);
         } catch (\Throwable $th) {
             \Log::error('deleteSelectedExpiredConfigs: ' . $th->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'خطا در حذف اکانت‌های منقضی.',
+                'status' => 'error',
+                'message' => 'خطا در ثبت درخواست حذف اکانت‌های منقضی.',
             ], 500);
         }
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * @return array{items: list<array<string, mixed>>, warnings: list<string>}
      */
     private function collectExpiredConfigsForDeletion(): array
     {
         $items = [];
         $seen = [];
+        $warnings = [];
 
         foreach (Pannel::all() as $panel) {
-            $usersResponse = $this->getPanelUsers($panel);
+            try {
+                if (! ($panel->type === 'hiddify' || $panel->type === 'sanaei' || $panel->isMarzbanCompatible())) {
+                    continue;
+                }
+                $usersResponse = (new HiddifyPannelController())->resolvePanelUsersList($panel->id);
+                if (! is_array($usersResponse)) {
+                    $usersResponse = [];
+                }
+            } catch (\Throwable $th) {
+                $label = (string) ($panel->name ?? $panel->location ?? $panel->id);
+                $warnings[] = "پنل «{$label}» در دسترس نیست و رد شد.";
+                \Log::warning('collectExpiredConfigsForDeletion panel skipped', [
+                    'panel_id' => $panel->id,
+                    'error' => $th->getMessage(),
+                ]);
+                continue;
+            }
+
             if ($usersResponse === []) {
                 continue;
             }
@@ -414,7 +452,7 @@ class CronJobController extends Controller
                     'remark' => (string) ($product->remark ?? $value['name'] ?? $uuid),
                     'account_id' => (string) ($product->account_id ?? ''),
                     'panel_id' => (int) $panel->id,
-                    'panel_name' => (string) ($panel->name ?? ''),
+                    'panel_name' => (string) ($panel->name ?? $panel->location ?? ''),
                     'panel_type' => (string) ($panel->type ?? ''),
                     'category_name' => (string) (optional(ProductCategory::find($product->product_categories_id))->category_name ?? '—'),
                     'reason' => $this->expiredConfigReason($value),
@@ -429,7 +467,10 @@ class CronJobController extends Controller
             }
         }
 
-        return $items;
+        return [
+            'items' => $items,
+            'warnings' => $warnings,
+        ];
     }
 
     /**
@@ -960,11 +1001,20 @@ class CronJobController extends Controller
 
     private function getPanelUsers(Pannel $panel): array
     {
-        if ($panel->type === 'hiddify' || $panel->type === 'sanaei' || $panel->isMarzbanCompatible()) {
-            return (new HiddifyPannelController())->resolvePanelUsersList($panel->id);
-        }
+        try {
+            if ($panel->type === 'hiddify' || $panel->type === 'sanaei' || $panel->isMarzbanCompatible()) {
+                return (new HiddifyPannelController())->resolvePanelUsersList($panel->id);
+            }
 
-        return [];
+            return [];
+        } catch (\Throwable $th) {
+            \Log::warning('getPanelUsers failed', [
+                'panel_id' => $panel->id,
+                'error' => $th->getMessage(),
+            ]);
+
+            return [];
+        }
     }
 
     private function deletePanelUser(Pannel $panel, string $uuid): void

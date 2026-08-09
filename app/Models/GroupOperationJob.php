@@ -35,6 +35,7 @@ class GroupOperationJob extends Model
             'active' => 'فعالسازی',
             'deactive' => 'غیرفعالسازی',
             'delete' => 'حذف',
+            'delete_expired' => 'حذف اکانت‌های منقضی',
         ];
     }
 
