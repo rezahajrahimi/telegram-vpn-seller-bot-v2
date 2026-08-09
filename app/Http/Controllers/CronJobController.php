@@ -9,7 +9,9 @@ use App\Models\Pannel;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
+use App\Services\LicenseFeatureService;
 use App\Services\TelegramService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
@@ -278,47 +280,227 @@ class CronJobController extends Controller
             if ($cronJob->is_active == false) {
                 return false;
             }
-            $authCntrl = new AuthController();
-            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
+            if (! (new LicenseFeatureService())->isSilverOrAbove()) {
                 return false;
             }
 
-            $pannel = Pannel::all();
-
-            foreach ($pannel as $key => $panel) {
-                $usersResponse = $this->getPanelUsers($panel);
-                if ($usersResponse === []) {
-                    continue;
-                }
-
-                $productsIds = [];
-                $productsUuids = [];
-                foreach ($usersResponse as $value) {
-                    if (! $this->shouldAutoDeletePanelUser($value)) {
-                        continue;
-                    }
-
-                    $uuid = $value['uuid'];
-                    $product = $this->findProductForPanelUser($panel, $uuid);
-                    if ($product != null) {
-                        $productsIds[] = $product->id;
-                        $productsUuids[] = $uuid;
-                    }
-                }
-                Product::whereIn('id', $productsIds)->delete();
-                // delete users from panel
-                foreach ($productsUuids as $key => $uuid) {
-                    $this->deletePanelUser($panel, $uuid);
-                }
-
-            }
+            $items = $this->collectExpiredConfigsForDeletion();
+            $this->deleteExpiredConfigItems($items);
 
             return true;
         } catch (\Throwable $th) {
             \Log::error($th->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Preview expired configs eligible for deletion (manual admin action).
+     * Silver/Gold only.
+     */
+    public function previewExpiredConfigsForDeletion()
+    {
+        $license = new LicenseFeatureService();
+        if (! $license->isSilverOrAbove()) {
+            return $license->silverRequiredResponse();
+        }
+
+        try {
+            $items = $this->collectExpiredConfigsForDeletion();
+
+            return response()->json([
+                'success' => true,
+                'count' => count($items),
+                'items' => $items,
+            ]);
+        } catch (\Throwable $th) {
+            \Log::error('previewExpiredConfigsForDeletion: ' . $th->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'خطا در دریافت لیست اکانت‌های منقضی.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete selected expired configs (manual admin action).
+     * Body: { items: [{ product_id, panel_id, uuid }, ...] }
+     * Silver/Gold only.
+     */
+    public function deleteSelectedExpiredConfigs(Request $request)
+    {
+        $license = new LicenseFeatureService();
+        if (! $license->isSilverOrAbove()) {
+            return $license->silverRequiredResponse();
+        }
+
+        try {
+            $validated = $request->validate([
+                'items' => 'required|array|min:1',
+                'items.*.product_id' => 'required|integer',
+                'items.*.panel_id' => 'required|integer',
+                'items.*.uuid' => 'required|string',
+            ]);
+
+            $eligible = collect($this->collectExpiredConfigsForDeletion())
+                ->keyBy(fn ($item) => $this->expiredConfigItemKey($item));
+
+            $toDelete = [];
+            foreach ($validated['items'] as $item) {
+                $key = $this->expiredConfigItemKey($item);
+                if ($eligible->has($key)) {
+                    $toDelete[] = $eligible->get($key);
+                }
+            }
+
+            if ($toDelete === []) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'هیچ مورد معتبری برای حذف انتخاب نشده است.',
+                    'deleted' => 0,
+                ], 422);
+            }
+
+            $deleted = $this->deleteExpiredConfigItems($toDelete);
+
+            return response()->json([
+                'success' => true,
+                'deleted' => $deleted,
+                'message' => "{$deleted} اکانت منقضی حذف شد.",
+            ]);
+        } catch (\Throwable $th) {
+            \Log::error('deleteSelectedExpiredConfigs: ' . $th->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'خطا در حذف اکانت‌های منقضی.',
+            ], 500);
+        }
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function collectExpiredConfigsForDeletion(): array
+    {
+        $items = [];
+        $seen = [];
+
+        foreach (Pannel::all() as $panel) {
+            $usersResponse = $this->getPanelUsers($panel);
+            if ($usersResponse === []) {
+                continue;
+            }
+
+            foreach ($usersResponse as $value) {
+                if (! $this->shouldAutoDeletePanelUser($value)) {
+                    continue;
+                }
+
+                $uuid = (string) ($value['uuid'] ?? '');
+                if ($uuid === '') {
+                    continue;
+                }
+
+                $product = $this->findProductForPanelUser($panel, $uuid);
+                if ($product == null) {
+                    continue;
+                }
+
+                $item = [
+                    'product_id' => (int) $product->id,
+                    'uuid' => $uuid,
+                    'remark' => (string) ($product->remark ?? $value['name'] ?? $uuid),
+                    'account_id' => (string) ($product->account_id ?? ''),
+                    'panel_id' => (int) $panel->id,
+                    'panel_name' => (string) ($panel->name ?? ''),
+                    'panel_type' => (string) ($panel->type ?? ''),
+                    'category_name' => (string) (optional(ProductCategory::find($product->product_categories_id))->category_name ?? '—'),
+                    'reason' => $this->expiredConfigReason($value),
+                ];
+
+                $key = $this->expiredConfigItemKey($item);
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $items[] = $item;
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     */
+    private function deleteExpiredConfigItems(array $items): int
+    {
+        if ($items === []) {
+            return 0;
+        }
+
+        $byPanel = [];
+        $productIds = [];
+        foreach ($items as $item) {
+            $panelId = (int) ($item['panel_id'] ?? 0);
+            $uuid = (string) ($item['uuid'] ?? '');
+            $productId = (int) ($item['product_id'] ?? 0);
+            if ($panelId <= 0 || $uuid === '' || $productId <= 0) {
+                continue;
+            }
+            $byPanel[$panelId][] = $uuid;
+            $productIds[] = $productId;
+        }
+
+        if ($productIds !== []) {
+            Product::whereIn('id', array_values(array_unique($productIds)))->delete();
+        }
+
+        foreach ($byPanel as $panelId => $uuids) {
+            $panel = Pannel::find($panelId);
+            if ($panel == null) {
+                continue;
+            }
+            foreach (array_unique($uuids) as $uuid) {
+                try {
+                    $this->deletePanelUser($panel, (string) $uuid);
+                } catch (\Throwable $th) {
+                    \Log::error('deleteExpiredConfigItems panel delete failed', [
+                        'panel_id' => $panelId,
+                        'uuid' => $uuid,
+                        'error' => $th->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        return count(array_unique($productIds));
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function expiredConfigItemKey(array $item): string
+    {
+        return ((int) ($item['panel_id'] ?? 0)) . ':' . ((string) ($item['uuid'] ?? '')) . ':' . ((int) ($item['product_id'] ?? 0));
+    }
+
+    private function expiredConfigReason(array $user): string
+    {
+        $expireTs = (int) ($user['expire_timestamp'] ?? 0);
+        if ($expireTs > 0) {
+            return 'expired_grace';
+        }
+
+        $packageDays = (int) ($user['package_days'] ?? 0);
+        $startDateRaw = $user['start_date'] ?? null;
+        if (! empty($startDateRaw) && $packageDays > 0) {
+            return 'expired_grace';
+        }
+
+        return 'usage_exceeded';
     }
 
     public function execute_send_lass_there_than_3_days()
