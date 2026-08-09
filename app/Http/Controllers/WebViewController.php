@@ -24,10 +24,8 @@ class WebViewController extends Controller
 
     public function orderRedirect(Request $request)
     {
-        return redirect()->action(
-            [TransactionController::class, 'order'],
-            ['transaction_id' => $request->Authority, 'status' => $request->Status],
-        );
+        // Keep Zarinpal query params (Authority/Status) when handing off to verify.
+        return app(TransactionController::class)->order($request);
     }
 
     public function cryptoPayment(string $account_id, string $invoiceID, string $price)

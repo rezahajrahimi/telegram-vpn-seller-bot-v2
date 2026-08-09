@@ -30,16 +30,20 @@ class TransactionController extends Controller
         $this->account_id = $request->account_id;
 
         if ($this->amount != null) {
-            // Get zarinpal merchant id from database
-            $zarinpalMerchentID = PaymentType::where('name', 'زرین پال')->first()->merchant_id;
+            $zarinpalPayment = PaymentType::where('name', 'زرین پال')->first();
+            $zarinpalMerchentID = $zarinpalPayment?->merchant_id;
             if ($zarinpalMerchentID == null) {
                 return 'ZARINPAL_MERCHANT_ID is not set';
             }
 
-            $callbackUrl = $mainUrl . '/order';
+            $callbackUrl = PaymentType::resolveZarinpalCallbackUrl(
+                $zarinpalPayment->callback_url ?? null,
+                $mainUrl
+            );
+            $isSandbox = (bool) ($zarinpalPayment->is_sandbox ?? false);
 
             // Use custom ZarinpalService
-            $zarinpal = new ZarinpalService($zarinpalMerchentID, null, $callbackUrl);
+            $zarinpal = new ZarinpalService($zarinpalMerchentID, $isSandbox, $callbackUrl);
             $response = $zarinpal->request($this->amount, 'خرید کالا');
 
             \Log::info("Zarinpal payment link created: " . ($response['success'] ? $response['authority'] : $response['error']));
@@ -57,7 +61,7 @@ class TransactionController extends Controller
             $transaction->amount = $this->amount;
             $transaction->confirmed = 0;
             $transaction->recipe_number = $authority;
-            $transaction->payment_type_id = PaymentType::where('name', 'زرین پال')->first()->id;
+            $transaction->payment_type_id = $zarinpalPayment->id;
 
             $transaction->save();
 
@@ -90,10 +94,12 @@ class TransactionController extends Controller
                 return 'تراکنش قبلاً تایید شده است.';
             }
 
-            $zarinpalMerchentID = PaymentType::where('name', 'زرین پال')->first()->merchant_id;
+            $zarinpalPayment = PaymentType::where('name', 'زرین پال')->first();
+            $zarinpalMerchentID = $zarinpalPayment?->merchant_id;
+            $isSandbox = (bool) ($zarinpalPayment->is_sandbox ?? false);
 
             // Use custom ZarinpalService for verification
-            $zarinpal = new ZarinpalService($zarinpalMerchentID);
+            $zarinpal = new ZarinpalService($zarinpalMerchentID, $isSandbox);
             $response = $zarinpal->verify($authority, (int)$amount);
 
             if (!$response['success']) {
