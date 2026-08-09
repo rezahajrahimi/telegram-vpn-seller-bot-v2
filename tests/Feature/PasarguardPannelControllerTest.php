@@ -236,5 +236,9 @@ class PasarguardPannelControllerTest extends TestCase
         $this->assertNotSame(2026, $users[0]['expire_timestamp']);
         $this->assertTrue($users[0]['expire_timestamp'] > time());
         $this->assertTrue($users[1]['expire_timestamp'] < time());
+        $this->assertIsInt($users[0]['package_days']);
+        $this->assertGreaterThan(0, $users[0]['package_days']);
+        $this->assertSame(0, $users[1]['package_days']);
+        $this->assertLessThanOrEqual(21, $users[0]['package_days']);
     }
 }

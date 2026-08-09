@@ -1869,6 +1869,7 @@ class SanaeiPannelController extends Controller
                     $email = $rec['email'] ?? '';
                     $total = (int) ($rec['totalGB'] ?? 0);
                     $enable = $rec['enable'] ?? true;
+                    $expiry = $rec['expiryTime'] ?? ($rec['expiry_time'] ?? 0);
                     $traffic = $this->getClientTrafficsByEmail($panel, $email);
                     $up = (int) ($traffic['up'] ?? 0);
                     $down = (int) ($traffic['down'] ?? 0);
@@ -1878,7 +1879,7 @@ class SanaeiPannelController extends Controller
                         'name' => $email,
                         'current_usage_GB' => round(($up + $down) / 1024 / 1024 / 1024, 2),
                         'usage_limit_GB' => round($total / 1024 / 1024 / 1024, 2),
-                        'package_days' => 0,
+                        'package_days' => $this->packageDaysFromSanaeiExpiry($expiry),
                         'is_active' => $enable,
                     ];
                 }
@@ -1911,7 +1912,7 @@ class SanaeiPannelController extends Controller
                         'name' => $email,
                         'current_usage_GB' => round(($up + $down) / 1024 / 1024 / 1024, 2),
                         'usage_limit_GB' => round($total / 1024 / 1024 / 1024, 2),
-                        'package_days' => 0, // Hard to calculate without start_date
+                        'package_days' => $this->packageDaysFromSanaeiExpiry($expiry),
                         'is_active' => $enable,
                     ];
                 }
@@ -1921,6 +1922,36 @@ class SanaeiPannelController extends Controller
             \Log::error('getAllClients error: ' . $th->getMessage());
             return [];
         }
+    }
+
+    /**
+     * Remaining whole days until Sanaei/3x-ui expiryTime.
+     * expiryTime: 0 = unlimited, >0 unix ms (or seconds), <0 relative ms from now (panel convention).
+     */
+    private function packageDaysFromSanaeiExpiry(mixed $expiryRaw): int
+    {
+        $expiry = (int) $expiryRaw;
+        if ($expiry === 0) {
+            return 0;
+        }
+
+        $nowMs = (int) floor(microtime(true) * 1000);
+        if ($expiry < 0) {
+            // Relative remaining duration encoded as negative milliseconds.
+            $secondsLeft = (int) ceil(abs($expiry) / 1000);
+        } elseif ($expiry > 9999999999) {
+            // Absolute expiry in milliseconds.
+            $secondsLeft = (int) ceil(($expiry - $nowMs) / 1000);
+        } else {
+            // Absolute expiry in seconds.
+            $secondsLeft = $expiry - time();
+        }
+
+        if ($secondsLeft <= 0) {
+            return 0;
+        }
+
+        return (int) ceil($secondsLeft / 86400);
     }
 
     /**

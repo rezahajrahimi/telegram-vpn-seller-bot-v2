@@ -296,18 +296,42 @@ class CronJobController extends Controller
 
     /**
      * Preview expired configs eligible for deletion (manual admin action).
-     * Silver/Gold only.
+     * Silver/Gold only. Optional query: panel_id to scan a single panel.
      */
-    public function previewExpiredConfigsForDeletion()
+    public function previewExpiredConfigsForDeletion(Request $request)
     {
+        \Log::info('previewExpiredConfigsForDeletion: start', [
+            'panel_id' => $request->query('panel_id'),
+            'user_id' => optional(auth('sanctum')->user())->id,
+        ]);
+
         $license = new LicenseFeatureService();
         if (! $license->isSilverOrAbove()) {
-            return $license->silverRequiredResponse();
+            \Log::info('previewExpiredConfigsForDeletion: license blocked', [
+                'license' => $license->current(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'این قابلیت برای لایسنس نقره‌ای و طلایی فعال است.',
+            ], 403);
         }
 
         try {
             @set_time_limit(600);
-            $result = $this->collectExpiredConfigsForDeletion();
+            $panelId = $request->query('panel_id');
+            $panelId = is_numeric($panelId) ? (int) $panelId : null;
+            if ($panelId !== null && $panelId <= 0) {
+                $panelId = null;
+            }
+
+            $result = $this->collectExpiredConfigsForDeletion($panelId);
+
+            \Log::info('previewExpiredConfigsForDeletion: done', [
+                'panel_id' => $panelId,
+                'count' => count($result['items']),
+                'warnings' => count($result['warnings']),
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -316,11 +340,13 @@ class CronJobController extends Controller
                 'warnings' => $result['warnings'],
             ]);
         } catch (\Throwable $th) {
-            \Log::error('previewExpiredConfigsForDeletion: ' . $th->getMessage());
+            \Log::error('previewExpiredConfigsForDeletion: ' . $th->getMessage(), [
+                'trace' => $th->getTraceAsString(),
+            ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'خطا در دریافت لیست اکانت‌های منقضی.',
+                'message' => 'خطا در دریافت لیست اکانت‌های منقضی: ' . $th->getMessage(),
             ], 500);
         }
     }
@@ -332,9 +358,17 @@ class CronJobController extends Controller
      */
     public function deleteSelectedExpiredConfigs(Request $request)
     {
+        \Log::info('deleteSelectedExpiredConfigs: start', [
+            'items_count' => is_array($request->input('items')) ? count($request->input('items')) : 0,
+        ]);
+
         $license = new LicenseFeatureService();
         if (! $license->isSilverOrAbove()) {
-            return $license->silverRequiredResponse();
+            return response()->json([
+                'success' => false,
+                'status' => 'error',
+                'message' => 'این قابلیت برای لایسنس نقره‌ای و طلایی فعال است.',
+            ], 403);
         }
 
         try {
@@ -352,7 +386,6 @@ class CronJobController extends Controller
                 if ($productId <= 0) {
                     continue;
                 }
-                // Soft validation: product may already be gone; still try panel delete.
                 $toDelete[] = [
                     'product_id' => $productId,
                     'panel_id' => (int) $item['panel_id'],
@@ -370,9 +403,10 @@ class CronJobController extends Controller
             }
 
             $firstPanelId = (int) ($toDelete[0]['panel_id'] ?? 0);
+            $fallbackPanelId = (int) (Pannel::query()->value('id') ?? 0);
             $jobRecord = \App\Models\GroupOperationJob::create([
                 'action' => 'delete_expired',
-                'panel_id' => $firstPanelId > 0 ? $firstPanelId : (Pannel::query()->value('id') ?? 0),
+                'panel_id' => $firstPanelId > 0 ? $firstPanelId : $fallbackPanelId,
                 'status' => 'pending',
                 'total_configs' => count($toDelete),
                 'processed_configs' => 0,
@@ -380,21 +414,46 @@ class CronJobController extends Controller
                 'failed_items' => [],
             ]);
 
-            \App\Jobs\DeleteExpiredConfigsJob::dispatchAfterResponse($toDelete, $jobRecord->id);
+            // Run after HTTP response so the client does not wait / timeout.
+            // Uses terminating callback (same PHP process) so it works even when
+            // queue workers are not running (database/redis queue idle).
+            $jobId = (int) $jobRecord->id;
+            $itemsForJob = $toDelete;
+            app()->terminating(function () use ($itemsForJob, $jobId) {
+                try {
+                    (new \App\Jobs\DeleteExpiredConfigsJob($itemsForJob, $jobId))->handle();
+                } catch (\Throwable $th) {
+                    \Log::error('deleteSelectedExpiredConfigs terminating failed: ' . $th->getMessage());
+                    $job = \App\Models\GroupOperationJob::find($jobId);
+                    if ($job) {
+                        $job->update([
+                            'status' => 'failed',
+                            'error_message' => $th->getMessage(),
+                        ]);
+                    }
+                }
+            });
+
+            \Log::info('deleteSelectedExpiredConfigs: queued via terminating', [
+                'job_id' => $jobId,
+                'count' => count($toDelete),
+            ]);
 
             return response()->json([
                 'success' => true,
                 'status' => 'success',
                 'job_id' => $jobRecord->id,
-                'message' => 'درخواست حذف در صف اجرا قرار گرفت.',
+                'message' => 'درخواست حذف ثبت شد و در حال اجراست.',
             ]);
         } catch (\Throwable $th) {
-            \Log::error('deleteSelectedExpiredConfigs: ' . $th->getMessage());
+            \Log::error('deleteSelectedExpiredConfigs: ' . $th->getMessage(), [
+                'trace' => $th->getTraceAsString(),
+            ]);
 
             return response()->json([
                 'success' => false,
                 'status' => 'error',
-                'message' => 'خطا در ثبت درخواست حذف اکانت‌های منقضی.',
+                'message' => 'خطا در ثبت درخواست حذف: ' . $th->getMessage(),
             ], 500);
         }
     }
@@ -402,15 +461,28 @@ class CronJobController extends Controller
     /**
      * @return array{items: list<array<string, mixed>>, warnings: list<string>}
      */
-    private function collectExpiredConfigsForDeletion(): array
+    private function collectExpiredConfigsForDeletion(?int $panelId = null): array
     {
         $items = [];
         $seen = [];
         $warnings = [];
 
-        foreach (Pannel::all() as $panel) {
+        $panelsQuery = Pannel::query();
+        if ($panelId !== null) {
+            $panelsQuery->where('id', $panelId);
+        }
+        $panels = $panelsQuery->get();
+
+        if ($panelId !== null && $panels->isEmpty()) {
+            $warnings[] = 'پنل انتخاب‌شده یافت نشد.';
+
+            return ['items' => [], 'warnings' => $warnings];
+        }
+
+        foreach ($panels as $panel) {
             try {
                 if (! ($panel->type === 'hiddify' || $panel->type === 'sanaei' || $panel->isMarzbanCompatible())) {
+                    $warnings[] = 'نوع پنل پشتیبانی نمی‌شود.';
                     continue;
                 }
                 $usersResponse = (new HiddifyPannelController())->resolvePanelUsersList($panel->id);
@@ -428,6 +500,10 @@ class CronJobController extends Controller
             }
 
             if ($usersResponse === []) {
+                if ($panelId !== null) {
+                    $label = (string) ($panel->name ?? $panel->location ?? $panel->id);
+                    $warnings[] = "از پنل «{$label}» کاربری دریافت نشد یا پنل در دسترس نیست.";
+                }
                 continue;
             }
 

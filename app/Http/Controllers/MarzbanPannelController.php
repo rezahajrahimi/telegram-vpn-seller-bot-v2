@@ -796,9 +796,8 @@ class MarzbanPannelController extends Controller
         $startDate = null;
         $packageDays = 0;
         if ($expireTs > 0) {
-            $expireDate = Carbon::createFromTimestamp($expireTs, 'UTC');
             $startDate = Carbon::now('UTC')->toDateString();
-            $packageDays = max(0, Carbon::now('UTC')->diffInDays($expireDate, false));
+            $packageDays = $this->remainingDaysUntil($expireTs);
         }
 
         $status = $user['status'] ?? 'unknown';
@@ -879,12 +878,8 @@ class MarzbanPannelController extends Controller
         $limitBytes = (int) ($user['data_limit'] ?? 0);
         $expireTs = $this->normalizeExpireTimestamp($user['expire'] ?? 0);
 
-        $packageDays = 0;
+        $packageDays = $this->remainingDaysUntil($expireTs);
         $startDate = Carbon::now('UTC')->toDateString();
-        if ($expireTs > 0) {
-            $expireDate = Carbon::createFromTimestamp($expireTs, 'UTC');
-            $packageDays = max(0, Carbon::now('UTC')->diffInDays($expireDate, false));
-        }
 
         return [
             'current_usage_GB' => round($usedBytes / 1024 / 1024 / 1024, 2),
@@ -892,10 +887,28 @@ class MarzbanPannelController extends Controller
                 ? round($limitBytes / 1024 / 1024 / 1024, 2)
                 : 0,
             'start_date' => $startDate,
+            // Must be an int: Carbon float diffs break Flutter int.tryParse → shows 0 days.
             'package_days' => $packageDays,
             'expire_timestamp' => $expireTs > 0 ? $expireTs : null,
             'is_active' => ($user['status'] ?? '') === 'active',
         ];
+    }
+
+    /**
+     * Whole remaining days until expire timestamp (0 if expired/missing).
+     */
+    private function remainingDaysUntil(int $expireTs): int
+    {
+        if ($expireTs <= 0) {
+            return 0;
+        }
+
+        $secondsLeft = $expireTs - Carbon::now('UTC')->getTimestamp();
+        if ($secondsLeft <= 0) {
+            return 0;
+        }
+
+        return (int) ceil($secondsLeft / 86400);
     }
 
     public static function resolve($panelOrId = null): self

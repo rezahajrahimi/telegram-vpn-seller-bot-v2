@@ -250,33 +250,42 @@ class HiddifyPannelController extends Controller
 
     public function resolvePanelUsersList($pannelID): array
     {
-        $pannel = Pannel::find($pannelID);
-        if (! $pannel) {
+        try {
+            $pannel = Pannel::find($pannelID);
+            if (! $pannel) {
+                return [];
+            }
+
+            if ($pannel->type == 'sanaei') {
+                $sn = new SanaeiPannelController();
+
+                return $sn->getAllClients($pannel) ?: [];
+            }
+
+            if (Pannel::isMarzbanCompatibleType($pannel->type)) {
+                $mb = MarzbanPannelController::resolve($pannel);
+
+                return $mb->getAllUsers($pannel) ?: [];
+            }
+
+            if ($pannel->type !== 'hiddify') {
+                return [];
+            }
+
+            $data = $this->sendGetRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/');
+            if ($data instanceof \Illuminate\Http\JsonResponse || ! is_array($data)) {
+                return [];
+            }
+
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::warning('resolvePanelUsersList failed', [
+                'panel_id' => $pannelID,
+                'error' => $th->getMessage(),
+            ]);
+
             return [];
         }
-
-        if ($pannel->type == 'sanaei') {
-            $sn = new SanaeiPannelController();
-
-            return $sn->getAllClients($pannel);
-        }
-
-        if (Pannel::isMarzbanCompatibleType($pannel->type)) {
-            $mb = MarzbanPannelController::resolve($pannel);
-
-            return $mb->getAllUsers($pannel);
-        }
-
-        if ($pannel->type !== 'hiddify') {
-            return [];
-        }
-
-        $data = $this->sendGetRequestToHiddifyPannel($pannelID, '/api/v2/admin/user/');
-        if ($data instanceof \Illuminate\Http\JsonResponse || ! is_array($data)) {
-            return [];
-        }
-
-        return $data;
     }
 
     public function getHiddifyPanelUsersByPannelID($pannelID)
