@@ -79,4 +79,19 @@ class CronJobAutoDeleteTest extends TestCase
             'package_days' => 0,
         ]));
     }
+
+    public function test_does_not_delete_when_expire_timestamp_is_misparsed_year_bug(): void
+    {
+        // Guard against the old Pasarguard bug: (int)"2026-..." === 2026.
+        // A real future expire must not look like epoch year 1970.
+        $futureTs = Carbon::now('UTC')->addDays(30)->timestamp;
+
+        $this->assertFalse($this->shouldAutoDelete([
+            'uuid' => 'user-6',
+            'current_usage_GB' => 1.0,
+            'usage_limit_GB' => 50.0,
+            'package_days' => 0,
+            'expire_timestamp' => $futureTs,
+        ]));
+    }
 }

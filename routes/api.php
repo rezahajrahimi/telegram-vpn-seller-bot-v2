@@ -108,6 +108,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
 
     // backup
     Route::get('createBackup', [BackupController::class, 'createBackup']);
+    Route::get('downloadBackup/{filename}', [BackupController::class, 'downloadBackup']);
     Route::post('restoreBackup', [BackupController::class, 'restoreBackup']);
     Route::get('testDatabaseConnection', [BackupController::class, 'testDatabaseConnection']);
     Route::get('testMysqldump', [BackupController::class, 'testMysqldump']);
@@ -596,7 +597,7 @@ Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPa
 
 Route::get('/prd', [CronJobController::class, 'execute_auto_delete_expired_configs']);
 
-Route::get('/create-backup-and-send-to-telegram', [BackupController::class, 'createBackupAndSendToTelegram']);
+Route::get('/create-backup-and-send-to-telegram', [BackupController::class, 'createBackupAndSendToTelegramHttp']);
 
 
 Route::post('/orderch', [TransactionController::class, 'add_order']);

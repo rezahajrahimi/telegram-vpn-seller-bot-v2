@@ -199,4 +199,42 @@ class PasarguardPannelControllerTest extends TestCase
             return $request->url() === self::BASE_URL . '/api/user';
         });
     }
+
+    public function test_get_all_users_parses_iso_expire_from_pasarguard(): void
+    {
+        $panel = $this->createPasarguardPanel();
+        $futureExpire = now('UTC')->addDays(20)->startOfSecond();
+        $pastExpire = now('UTC')->subDays(15)->startOfSecond();
+
+        Http::fake([
+            self::BASE_URL . '/api/users*' => Http::response([
+                'users' => [
+                    [
+                        'username' => 'active-user',
+                        'status' => 'active',
+                        'used_traffic' => 1024 * 1024 * 1024,
+                        'data_limit' => 10 * 1024 * 1024 * 1024,
+                        'expire' => $futureExpire->toIso8601String(),
+                    ],
+                    [
+                        'username' => 'old-expired-user',
+                        'status' => 'expired',
+                        'used_traffic' => 1024,
+                        'data_limit' => 0,
+                        'expire' => $pastExpire->utc()->format('Y-m-d\TH:i:s\Z'),
+                    ],
+                ],
+                'total' => 2,
+            ], 200),
+        ]);
+
+        $users = (new PasarguardPannelController())->getAllUsers($panel);
+
+        $this->assertCount(2, $users);
+        $this->assertSame($futureExpire->timestamp, $users[0]['expire_timestamp']);
+        $this->assertSame($pastExpire->timestamp, $users[1]['expire_timestamp']);
+        $this->assertNotSame(2026, $users[0]['expire_timestamp']);
+        $this->assertTrue($users[0]['expire_timestamp'] > time());
+        $this->assertTrue($users[1]['expire_timestamp'] < time());
+    }
 }

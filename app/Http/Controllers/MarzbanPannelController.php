@@ -439,18 +439,57 @@ class MarzbanPannelController extends Controller
         return (int) round((float) $gb * 1024 * 1024 * 1024);
     }
 
+    /**
+     * Normalize panel expire values to a unix timestamp (seconds).
+     *
+     * Marzban historically returns an int timestamp. Pasarguard (and newer APIs)
+     * return ISO-8601 datetime strings. Casting those strings with (int) yields
+     * only the year (e.g. 2026), which looks like "expired since 1970" and causes
+     * auto-delete to wipe every account.
+     */
     private function normalizeExpireTimestamp($expireRaw): int
     {
-        $expireTs = (int) $expireRaw;
-        if ($expireTs <= 0) {
+        if ($expireRaw === null || $expireRaw === '' || $expireRaw === false) {
             return 0;
         }
 
-        if ($expireTs > 9999999999) {
-            return (int) floor($expireTs / 1000);
+        if ($expireRaw instanceof \DateTimeInterface) {
+            return (int) $expireRaw->getTimestamp();
         }
 
-        return $expireTs;
+        if (is_numeric($expireRaw)) {
+            $expireTs = (int) $expireRaw;
+            if ($expireTs <= 0) {
+                return 0;
+            }
+
+            // Milliseconds (13+ digits)
+            if ($expireTs > 9999999999) {
+                return (int) floor($expireTs / 1000);
+            }
+
+            return $expireTs;
+        }
+
+        if (is_string($expireRaw)) {
+            $trimmed = trim($expireRaw);
+            if ($trimmed === '' || $trimmed === '0' || strcasecmp($trimmed, 'null') === 0) {
+                return 0;
+            }
+
+            try {
+                return Carbon::parse($trimmed)->utc()->getTimestamp();
+            } catch (\Throwable $e) {
+                Log::warning('Failed to parse panel expire value', [
+                    'expire' => $trimmed,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return 0;
+            }
+        }
+
+        return 0;
     }
 
     protected function expireTimestamp(int $days): int
