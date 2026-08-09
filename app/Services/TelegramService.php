@@ -433,14 +433,33 @@ class TelegramService
 
     public function downloadFile(string $filePath): string
     {
-        $url = "https://api.telegram.org/file{$this->botToken}/{$filePath}";
-        return file_get_contents($url);
+        $url = $this->baseUrl . 'file/' . $this->botToken . '/' . ltrim($filePath, '/');
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 25,
+            ],
+        ]);
+        $contents = @file_get_contents($url, false, $context);
+        if ($contents === false) {
+            throw new \Exception('خطا در دانلود فایل از تلگرام');
+        }
+
+        return $contents;
     }
     public function downloadImageFile($file_path)
     {
-        $url = "https://api.telegram.org/file/" . $this->botToken . "/" . $file_path;
-        // $url = "https://api.telegram.org/file/bot" . $this->botToken . "/" . $file_path;
-        return file_get_contents($url);
+        $url = $this->baseUrl . 'file/' . $this->botToken . '/' . ltrim((string) $file_path, '/');
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 25,
+            ],
+        ]);
+        $contents = @file_get_contents($url, false, $context);
+        if ($contents === false) {
+            throw new \Exception('خطا در دانلود تصویر از تلگرام');
+        }
+
+        return $contents;
     }
     public function sendVoice(string $chatId, string $voice, string|array $caption = '', array $options = []): array
     {
@@ -530,6 +549,8 @@ class TelegramService
         curl_setopt($ch, CURLOPT_POST, true);
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($params));
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 25);
 
         $response = curl_exec($ch);
         $error = curl_error($ch);
@@ -583,6 +604,8 @@ class TelegramService
         curl_setopt($ch, CURLOPT_POSTFIELDS, $params);
         // برای ارسال فایل نیازی به تنظیم Content-Type نیست
         // CURL به صورت خودکار Content-Type: multipart/form-data را تنظیم می‌کند
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 45);
 
         $response = curl_exec($ch);
         $error = curl_error($ch);

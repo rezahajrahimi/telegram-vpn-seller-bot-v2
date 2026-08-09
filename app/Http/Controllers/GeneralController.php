@@ -1177,11 +1177,15 @@ class GeneralController extends Controller
         $this->addNewBotLog('test_account', 'تست اکانت آزمایشی به کاربر.', $chatId, 'show');
         $testAccountCntrl = new TestAccountController();
         $testAccount = $testAccountCntrl->getTestAccountDetails();
+        if ($testAccount == null) {
+            \Log::error('testAccount: TestAccount config not found', ['chat_id' => $chatId]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
 
         $usedTestAccountCntrl = new UsedTestAccountController();
-        $hasAccount = $usedTestAccountCntrl->newTestAccount($chatId, $testAccount->id);
-
-        if ($hasAccount == true || $hasAccount == 1) {
+        if ($usedTestAccountCntrl->checkUserHasTestAccount($chatId, $testAccount->id)) {
             $text = $this->customTextCtrl->getText('error.test_account.exist');
             $this->telegramService->sendMessage($chatId, $text);
             return "";
@@ -1197,6 +1201,16 @@ class GeneralController extends Controller
 
         $panelCntrl = new PannelController();
         $pannel = $panelCntrl->getPannelById($testAccount->pannel_id);
+        if ($pannel == null) {
+            \Log::error('testAccount: panel not found', [
+                'chat_id' => $chatId,
+                'pannel_id' => $testAccount->pannel_id,
+            ]);
+            $text = $this->customTextCtrl->getText('error.server_error');
+            $this->telegramService->sendMessage($chatId, $text);
+            return "";
+        }
+
         $day = $testAccount->expire_day;
         $volume = $testAccount->volume;
         $created = false;
@@ -1206,6 +1220,15 @@ class GeneralController extends Controller
             if ($created) {
                 $this->send_using_subscription_manual_message($chatId);
             }
+        } elseif ($pannel->type == 'sanaei') {
+            $created = $this->new_sanaei_config_telegram_text(
+                $selectedPrCat,
+                $pannel,
+                $volume,
+                $day,
+                $chatId,
+                $selectedPrCat->id
+            ) !== false;
         } elseif ($pannel->isMarzbanCompatible()) {
             $mbCtrl = MarzbanPannelController::resolve($pannel);
             $created = $this->new_marzban_config_telegram_text(
@@ -1224,6 +1247,7 @@ class GeneralController extends Controller
         }
 
         if ($created) {
+            $usedTestAccountCntrl->markTestAccountUsed($chatId, $testAccount->id);
             $text = $this->customTextCtrl->getText('action.test_account.success');
             $this->telegramService->sendMessage($chatId, $text);
         } else {

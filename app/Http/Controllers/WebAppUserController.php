@@ -219,8 +219,7 @@ class WebAppUserController extends Controller
             }
 
             $usedTestAccountCntrl = new UsedTestAccountController();
-            $hasAccount = $usedTestAccountCntrl->newTestAccount($accountId, $testAccount->id);
-            if ($hasAccount == true || $hasAccount == 1) {
+            if ($usedTestAccountCntrl->checkUserHasTestAccount($accountId, $testAccount->id)) {
                 return response()->json([
                     'success' => false,
                     'message' => $customTextCtrl->getText('error.test_account.exist'),
@@ -236,11 +235,21 @@ class WebAppUserController extends Controller
                 ], 404);
             }
 
+            $prCatCntrl = new ProductCategoryController();
+            $selectedPrCat = $prCatCntrl->getProdctCategoryByCategoryName('اکانت آزمایشی');
+            if ($selectedPrCat == null) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'دسته اکانت آزمایشی یافت نشد.',
+                ], 404);
+            }
+
             $day = $testAccount->expire_day;
             $volume = $testAccount->volume;
             $subscriptionLink = null;
             $panelLink = null;
             $config = null;
+            $created = false;
 
             if ($pannel->type == 'hiddify') {
                 $hiddifcCntrl = new HiddifyPannelController();
@@ -268,13 +277,72 @@ class WebAppUserController extends Controller
                 $request = new Request();
                 $request->account_id = $accountId;
                 $request->subscription_link = "/{$newUUID}/all.txt?name=sublink-unknown&asn=unknown&mode=new";
-                $request->product_categories_id = $testAccount->id;
+                $request->product_categories_id = $selectedPrCat->id;
                 $request->panel_link = "/{$newUUID}/#{$accountLabel}";
                 $request->configs = '';
                 $request->remark = $accountLabel;
-                $request->product_id = $testAccount->id;
+                $request->product_id = $selectedPrCat->id;
                 $prCntrl = new ProductController();
                 $prCntrl->addAutomatedProductDetails($request);
+                $created = true;
+            } elseif ($pannel->type == 'sanaei') {
+                $snCtrl = new SanaeiPannelController();
+                $accountLabel = BotUser::resolveConfigAccountLabel($accountId, $selectedPrCat->id);
+                $inboundIds = method_exists($selectedPrCat, 'resolveInboundIds')
+                    ? $selectedPrCat->resolveInboundIds()
+                    : [];
+                $req = new Request();
+                $req->merge([
+                    'accountId' => $accountLabel,
+                    'chat_id' => $accountId,
+                    'product_id' => $selectedPrCat->id,
+                    'pannelID' => $pannel->id,
+                    'vol' => $volume,
+                    'day' => $day,
+                    'inbound_ids' => $inboundIds,
+                    'inbound_id' => $inboundIds[0] ?? $selectedPrCat->inbound_id,
+                    'ip_limit' => $selectedPrCat->ip_limit,
+                ]);
+
+                $result = $snCtrl->addUserToSanaeiPanel($req, $inboundIds);
+                if ($result === false) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'خطا در ایجاد اکانت آزمایشی',
+                    ], 500);
+                }
+
+                if (is_array($result)) {
+                    $uuid = $result['uuid'];
+                    $subId = $result['subId'];
+                    $clientEmail = $result['email'] ?? '';
+                } else {
+                    $uuid = $result;
+                    $subId = $uuid;
+                    $clientEmail = '';
+                }
+
+                $links = $snCtrl->getUserLinks($pannel, $uuid, $accountLabel, $selectedPrCat->inbound_id, $clientEmail ?: null);
+                $subscriptionLink = $snCtrl->buildSubscriptionLink($pannel, $subId);
+                $panelLink = $subscriptionLink;
+                $config = ! empty($links) ? $links[0] : null;
+
+                $request = new Request();
+                $request->account_id = $accountId;
+                $request->subscription_link = $subscriptionLink;
+                $request->product_categories_id = $selectedPrCat->id;
+                $request->panel_link = $subscriptionLink;
+                $request->configs = json_encode([
+                    'uuid' => $uuid,
+                    'email' => $clientEmail,
+                    'subId' => $subId,
+                    'links' => $links ?? [],
+                ]);
+                $request->remark = $accountLabel;
+                $request->product_id = $selectedPrCat->id;
+                $prCntrl = new ProductController();
+                $prCntrl->addAutomatedProductDetails($request);
+                $created = true;
             } elseif ($pannel->isMarzbanCompatible()) {
                 $mbCtrl = MarzbanPannelController::resolve($pannel);
                 $username = $mbCtrl->buildTestAccountUsername($accountId);
@@ -294,22 +362,32 @@ class WebAppUserController extends Controller
                 $request = new Request();
                 $request->account_id = $accountId;
                 $request->subscription_link = $userData['subscription_url'] ?? '';
-                $request->product_categories_id = $testAccount->id;
+                $request->product_categories_id = $selectedPrCat->id;
                 $request->panel_link = $subscriptionLink;
                 $request->configs = json_encode([
                     'username' => $userData['username'] ?? $username,
                     'links' => $links,
                 ]);
                 $request->remark = $username;
-                $request->product_id = $testAccount->id;
+                $request->product_id = $selectedPrCat->id;
                 $prCntrl = new ProductController();
                 $prCntrl->addAutomatedProductDetails($request);
+                $created = true;
             } else {
                 return response()->json([
                     'success' => false,
                     'message' => 'نوع پنل پشتیبانی نمی‌شود.',
                 ], 400);
             }
+
+            if (! $created) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'خطا در ایجاد اکانت آزمایشی',
+                ], 500);
+            }
+
+            $usedTestAccountCntrl->markTestAccountUsed($accountId, $testAccount->id);
 
             $logCtrl = new LogController();
             $logCtrl->addNewLog('test_account', 'دریافت اکانت آزمایشی از وب‌اپ', $accountId, '', 'show');

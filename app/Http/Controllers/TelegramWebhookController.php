@@ -53,6 +53,18 @@ class TelegramWebhookController extends Controller
                 return response()->json(['status' => 'success']);
             }
             $update = $request->all();
+
+            // Telegram retries the same update when our webhook is slow (>~60s).
+            // Deduplicate by update_id so photos / messages are not processed repeatedly.
+            $updateId = $update['update_id'] ?? null;
+            if ($updateId !== null) {
+                $dedupeKey = 'telegram_webhook_update_' . $updateId;
+                if (! Cache::add($dedupeKey, 1, now()->addDay())) {
+                    \Log::info('Skipping duplicate telegram update', ['update_id' => $updateId]);
+                    return response()->json(['status' => 'success', 'deduplicated' => true]);
+                }
+            }
+
             $this->chatId = $update['message']['chat']['id'] ?? $update['callback_query']['from']['id'] ?? null;
 
             try {
@@ -263,6 +275,19 @@ class TelegramWebhookController extends Controller
             $fileId = $photo['file_id'];
             $caption = $message['caption'] ?? '';
             $chatId = $message['chat']['id'];
+            $messageId = $message['message_id'] ?? null;
+
+            // Extra guard if Telegram somehow resends without same update_id.
+            if ($messageId !== null) {
+                $photoKey = "telegram_photo_{$chatId}_{$messageId}";
+                if (! Cache::add($photoKey, 1, now()->addDay())) {
+                    \Log::info('Skipping duplicate telegram photo', [
+                        'chat_id' => $chatId,
+                        'message_id' => $messageId,
+                    ]);
+                    return "";
+                }
+            }
 
             // دریافت اطلاعات فایل از تلگرام
             $fileInfo = $this->telegramService->getFile($fileId);
@@ -285,17 +310,18 @@ class TelegramWebhookController extends Controller
             $request->account_id = $chatId;
             $request->user_text = $caption ?? 'بدون متن';
 
+            // Acknowledge user ASAP so Telegram does not keep retrying the webhook.
+            $text = $this->customTextCtrl->getText('action.send_photo.success', [
+                'name' => $this->getCurrentChatFirstName(),
+            ]);
+            $this->telegramService->sendMessage($chatId, $text);
+
             if ((int) $transactionId > 0) {
                 $imageTrCntrl = new TransactionImageController();
                 $imageTrCntrl->saveNewTransactionImage($request);
             }
             $this->addUserBotLog($chatId, 'payment', 'تصویر رسید پرداخت آفلاین ارسال شد', 'upload');
             $this->sendMessageToAdmin($chatId, $fileId, (int) $transactionId, 'image');
-            // tell user that image is received
-            $text = $this->customTextCtrl->getText('action.send_photo.success', [
-                'name' => $this->getCurrentChatFirstName(),
-            ]);
-            $this->telegramService->sendMessage($chatId, $text);
             return "";
         } catch (\Throwable $th) {
             \Log::error("خطا در پردازش تصویر: " . $th->getMessage());

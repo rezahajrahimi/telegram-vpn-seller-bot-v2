@@ -1558,15 +1558,11 @@ class TelegramController extends Controller
     {
         $testAccountCntrl = new TestAccountController();
         $testAccount = $testAccountCntrl->getTestAccountDetails();
-
         $usedTestAccountCntrl = new UsedTestAccountController();
-        $pnlCntrl = new PannelController();
-        $pannel = $pnlCntrl->getPannelById($testAccount->pannel_id);
+        $customTextCtrl = new CustomTextController();
 
         $text = '';
-        $hasAccount = $usedTestAccountCntrl->newTestAccount($this->chat_id, $testAccount->id);
-        \Log::info("message: $hasAccount");
-        if ($hasAccount == true || $hasAccount == 1) {
+        if ($usedTestAccountCntrl->checkUserHasTestAccount($this->chat_id, $testAccount->id)) {
             $text .= "اکانت آزمایشی از قبل برای شما فعال شده است، می توانید از سابقه خرید به اطلاعات آن دسترسی داشته باشید.  \n\r";
             $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
 
@@ -1588,10 +1584,11 @@ class TelegramController extends Controller
         $prCntrl = new ProductController();
 
         $pnlCntrl = new PannelController();
-        $pannel = $pnlCntrl->getPannelById($selectedPrCat->pannel_id);
-        // get selected item specefic data
-        $day = $selectedPrCat->expire_day;
-        $volume = $selectedPrCat->volume;
+        $pannel = $pnlCntrl->getPannelById($testAccount->pannel_id);
+        // Prefer test-account config days/volume when available.
+        $day = $testAccount->expire_day ?? $selectedPrCat->expire_day;
+        $volume = $testAccount->volume ?? $selectedPrCat->volume;
+        $created = false;
 
         if ($pannel->type == 'hiddify') {
             $testAccountLabel = BotUser::resolveConfigAccountLabel($this->chat_id, 'اکانت_آزمایشی');
@@ -1633,10 +1630,21 @@ class TelegramController extends Controller
             $request->remark = $testAccountLabel;
 
             $prCntrl->addAutomatedProductDetails($request);
+            $created = $newUUID !== false && $newUUID !== null;
+        } elseif ($pannel->type == 'sanaei') {
+            $generalCntrl = new GeneralController();
+            $created = $generalCntrl->new_sanaei_config_telegram_text(
+                $selectedPrCat,
+                $pannel,
+                $volume,
+                $day,
+                $this->chat_id,
+                $selectedPrCat->id
+            ) !== false;
         } elseif ($pannel->isMarzbanCompatible()) {
             $generalCntrl = new GeneralController();
             $mbCtrl = MarzbanPannelController::resolve($pannel);
-            $generalCntrl->new_marzban_config_telegram_text(
+            $created = $generalCntrl->new_marzban_config_telegram_text(
                 $selectedPrCat,
                 $pannel,
                 $volume,
@@ -1645,8 +1653,16 @@ class TelegramController extends Controller
                 $selectedPrCat->id,
                 $mbCtrl->buildTestAccountUsername($this->chat_id),
                 $pannel->customTextKey('action.test_account.marzban')
-            );
+            ) !== false;
         }
+
+        if (! $created) {
+            $text = $customTextCtrl->getText('error.server_error');
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+            return response()->json($resualt, 200);
+        }
+
+        $usedTestAccountCntrl->markTestAccountUsed($this->chat_id, $testAccount->id);
 
         $this->addNewBotLog('account', 'اکانت تست فعال شد', 'test-account');
 
