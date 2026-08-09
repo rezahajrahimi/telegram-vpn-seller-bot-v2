@@ -14,6 +14,7 @@ class UserGroup extends Model
         'offline',
         'nowpayments',
         'cryptomus',
+        'swappay',
         'usd_transaction',
     ];
 
@@ -22,6 +23,7 @@ class UserGroup extends Model
         'offline' => 'پرداخت آفلاین (کارت به کارت و ...)',
         'nowpayments' => 'NOWPayments',
         'cryptomus' => 'Cryptomus',
+        'swappay' => 'SwapPay (سواپ‌ولت)',
         'usd_transaction' => 'پرداخت دلاری / ارزی',
     ];
 

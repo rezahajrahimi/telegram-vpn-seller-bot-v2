@@ -1572,7 +1572,16 @@ class TelegramController extends Controller
         // get test product id
 
         $prCat = new ProductCategoryController();
-        $selectedPrCat = $prCat->getProdctCategoryByCategoryName('اکانت آزمایشی');
+        $selectedPrCat = $prCat->getProdctCategoryByCategoryName(TestAccountController::CATEGORY_NAME);
+        if ($selectedPrCat == null && $testAccount != null) {
+            $selectedPrCat = $testAccountCntrl->ensureTestProductCategory($testAccount);
+        }
+        if ($selectedPrCat == null) {
+            $text = $customTextCtrl->getText('error.server_error');
+            $resualt = app('telegram_bot')->sendMessage($text, $this->chat_id, null, 'MarkDown');
+
+            return response()->json($resualt, 200);
+        }
 
         $text .= "اکانت آزمایشی شما با موفقیت فعال شد. \n\r";
 

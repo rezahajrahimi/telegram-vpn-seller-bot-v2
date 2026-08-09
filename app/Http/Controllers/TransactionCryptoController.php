@@ -27,7 +27,7 @@ class TransactionCryptoController extends Controller
     public function initiateCryptoPayment(Request $request)
     {
         $validated = $request->validate([
-            'gateway' => 'required|string|in:nowpayments,cryptomus',
+            'gateway' => 'required|string|in:nowpayments,cryptomus,swappay',
             'invoiceID' => 'required|exists:bills,bill_id', // Validate invoice exists in bills table
             'account_id' => 'required|integer|exists:users,account_id',
             // 'currency' => 'nullable|string', // Optional: For Cryptomus currency selection
@@ -69,6 +69,16 @@ class TransactionCryptoController extends Controller
 
             $cryptomusController = new CryptomusController();
             $response = $cryptomusController->createPayment($cryptomusRequest);
+        } elseif ($gateway === 'swappay') {
+            $amountDollar = (float) $amountDollar;
+            $swapPayRequest = new Request([
+                'amount' => $amountDollar,
+                'order_id' => (string) $invoiceID,
+                'account_id' => $accountId,
+                'preferred_link' => $request->input('preferred_link', 'WEBSITE'),
+            ]);
+            $swapPayController = new SwapPayController();
+            $response = $swapPayController->createPayment($swapPayRequest);
         } else {
             // DB::rollBack(); // Rollback if using DB transaction
             return response()->json(['success' => false, 'message' => 'درگاه پرداخت نامعتبر است.'], 400);

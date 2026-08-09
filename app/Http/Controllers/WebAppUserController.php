@@ -236,7 +236,10 @@ class WebAppUserController extends Controller
             }
 
             $prCatCntrl = new ProductCategoryController();
-            $selectedPrCat = $prCatCntrl->getProdctCategoryByCategoryName('اکانت آزمایشی');
+            $selectedPrCat = $prCatCntrl->getProdctCategoryByCategoryName(TestAccountController::CATEGORY_NAME);
+            if ($selectedPrCat == null) {
+                $selectedPrCat = $testAccountCntrl->ensureTestProductCategory($testAccount);
+            }
             if ($selectedPrCat == null) {
                 return response()->json([
                     'success' => false,

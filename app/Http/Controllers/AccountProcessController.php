@@ -483,6 +483,21 @@ class AccountProcessController extends Controller
                     ];
                     array_push($opr, $newOpr);
                 }
+                $swappay = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('swappay')
+                    && $paymentAccessService->isAllowedForAccountId($this->chatId, 'swappay');
+                if ($swappay == true || $swappay == 1) {
+                    $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.swappay');
+                    if (is_array($text)) {
+                        $text = $this->telegramService->formatText($text);
+                    }
+                    if ($text === null || $text === '' || $text === false) {
+                        $text = 'پرداخت آنلاین با SwapPay (سواپ‌ولت)';
+                    }
+                    $newOpr = [
+                        $text => "accountSubAccountsSwappay",
+                    ];
+                    array_push($opr, $newOpr);
+                }
 
 
             }
@@ -576,6 +591,22 @@ class AccountProcessController extends Controller
             return "";
         }
     }
+    public function handleActionAddBalanceSwappay(string $chatId): string
+    {
+        try {
+            $this->setAwaitingReply($chatId, 'add_balance_reply', 'swappay');
+            $reply = $this->customTextCtrl->getText('action.process.add_online_balance.swappay.reply');
+            if ($reply === null || $reply === '' || $reply === false) {
+                $reply = 'مبلغ دلاری مورد نظر برای پرداخت با SwapPay را وارد کنید:';
+            }
+            $this->telegramService->forceReply($chatId, $reply);
+            return "";
+        } catch (\Throwable $th) {
+            \Log::error(["handleActionAddBalanceSwappay: " . $th]);
+            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            return "";
+        }
+    }
     public function addBalanceReply(string $chatId, string $text): string
     {
         try {
@@ -618,6 +649,17 @@ class AccountProcessController extends Controller
                 array_push($opr, $link);
 
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.cryptomus.reply.invoice'), $opr);
+                return "";
+            } else if ($paymentType == "swappay") {
+                $opr = [];
+                $link = $this->generalCntrl->createSwapPayLink($chatId, $text);
+                array_push($opr, $link);
+                $invoiceText = $this->customTextCtrl->getText('action.process.add_online_balance.swappay.reply.invoice');
+                if ($invoiceText === null || $invoiceText === '' || $invoiceText === false) {
+                    $invoiceText = 'برای پرداخت روی دکمه زیر بزنید:';
+                }
+                $this->telegramService->sendMessageWithLinkButtons($chatId, $invoiceText, $opr);
+                $this->clearAwaitingReply($chatId, '');
                 return "";
             } elseif ($paymentType == "dollarpay") {
                 // create a new invoice with amount

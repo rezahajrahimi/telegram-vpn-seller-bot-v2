@@ -277,6 +277,7 @@ class GeneralController extends Controller
                     && (
                         $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'nowpayments')
                         || $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'cryptomus')
+                        || $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'swappay')
                     );
 
                 if (!$allowCrypto) {
@@ -284,7 +285,18 @@ class GeneralController extends Controller
                 }
             }
 
-            return response()->json(['active_payment' => $pymentType, 'crypto_payment_status' => $cryptiPymentIsActive], 200);
+            $swappayActive = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('swappay');
+            if ($group && $user) {
+                $swappayActive = $swappayActive
+                    && $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'usd_transaction')
+                    && $paymentAccessService->isAllowedForUserAndGroup($user, $group, 'swappay');
+            }
+
+            return response()->json([
+                'active_payment' => $pymentType,
+                'crypto_payment_status' => $cryptiPymentIsActive,
+                'swappay_payment_status' => (bool) $swappayActive,
+            ], 200);
         } catch (\Throwable $th) {
             \Log::info("error on getAgentPaymentWays-> $th");
             return response()->json(null, 500);
@@ -877,6 +889,13 @@ class GeneralController extends Controller
                 $cryptomusOpr = $this->createCryptomusLink($chat_id, $estimatedPriceInDollar);
                 array_push($opr, $cryptomusOpr);
             }
+            $swappay = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('swappay');
+            if ($swappay == true || $swappay == 1) {
+                $swappayOpr = $this->createSwapPayLink($chat_id, $estimatedPriceInDollar);
+                if (! empty($swappayOpr)) {
+                    array_push($opr, $swappayOpr);
+                }
+            }
         }
 
         if (count($opr) > 0) {
@@ -1033,6 +1052,44 @@ class GeneralController extends Controller
             'url' => $paymentLink,
 
         ];
+    }
+
+    public function createSwapPayLink($chat_id, $estimatedPriceInDollar)
+    {
+        try {
+            $request = new Request();
+            $request->account_id = $chat_id;
+            $request->amount = $estimatedPriceInDollar;
+            $bill = $this->billCntrl->createNewBillInDollar($request);
+
+            $trCryptoCntrl = new TransactionCryptoController();
+            $trRequest = new Request([
+                'gateway' => 'swappay',
+                'invoiceID' => $bill->bill_id,
+                'account_id' => $chat_id,
+                'preferred_link' => 'TELEGRAM_BOT',
+            ]);
+            $paymentLink = $trCryptoCntrl->initiateCryptoPayment($trRequest);
+            \Log::info('createSwapPayLink: ' . (is_string($paymentLink) ? $paymentLink : json_encode($paymentLink)));
+
+            $formattedPrice = number_format((float) $estimatedPriceInDollar, 0, ',', '.');
+            $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.swappay');
+            if (is_array($text)) {
+                $text = $this->telegramService->formatText($text);
+            }
+            if ($text === null || $text === '' || $text === false) {
+                $text = 'پرداخت آنلاین با SwapPay';
+            }
+
+            return [
+                'text' => $text . " $formattedPrice دلار",
+                'url' => is_string($paymentLink) ? $paymentLink : '',
+            ];
+        } catch (\Throwable $th) {
+            \Log::error('createSwapPayLink: ' . $th);
+
+            return [];
+        }
     }
     public function getFaqs($chatId, $messageId = null)
     {
@@ -1191,7 +1248,10 @@ class GeneralController extends Controller
             return "";
         }
 
-        $selectedPrCat = $this->prCatCntrl->getProdctCategoryByCategoryName('اکانت آزمایشی');
+        $selectedPrCat = $this->prCatCntrl->getProdctCategoryByCategoryName(TestAccountController::CATEGORY_NAME);
+        if ($selectedPrCat == null) {
+            $selectedPrCat = $testAccountCntrl->ensureTestProductCategory($testAccount);
+        }
         if ($selectedPrCat == null) {
             \Log::error('testAccount: ProductCategory اکانت آزمایشی not found', ['chat_id' => $chatId]);
             $text = $this->customTextCtrl->getText('error.server_error');

@@ -73,6 +73,7 @@ class TelegramCallbackHandler
             'accountSubAccountsZarinpal' => $this->accountProcessCtrl->handleActionAddBalanceZarinpal($chatId),
             'accountSubAccountsNowpayment' => $this->accountProcessCtrl->handleActionAddBalanceNowpayments($chatId),
             'accountSubAccountsCryptomus' => $this->accountProcessCtrl->handleActionAddBalanceCryptomus($chatId),
+            'accountSubAccountsSwappay' => $this->accountProcessCtrl->handleActionAddBalanceSwappay($chatId),
             'addBalanceReply' => $this->accountProcessCtrl->addBalanceReply($chatId, $params[0] ?? null),
             'charge' => $this->accountProcessCtrl->adminFastCharge($chatId, $params[0] ?? null, $params[1] ?? null),
             'shetabVerify' => $this->accountProcessCtrl->handleActionAddBalanceShetabVerify($chatId, $params[0] ?? null),

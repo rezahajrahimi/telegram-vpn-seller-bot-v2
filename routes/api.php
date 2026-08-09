@@ -386,6 +386,8 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::patch('updateNowPayment', [CryptoPaymentController::class, 'updateNowPayment']);
     Route::get('getCryptoPaymentData', [CryptoPaymentController::class, 'getCryptoPaymentData']);
     Route::patch('updateCryptomusPayment', [CryptoPaymentController::class, 'updateCryptomusPayment']);
+    Route::get('getSwapPayData', [CryptoPaymentController::class, 'getSwapPayData']);
+    Route::patch('updateSwapPayPayment', [CryptoPaymentController::class, 'updateSwapPayPayment']);
 
 
     // PaymentSettingController
@@ -557,6 +559,8 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     // BillController
     Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
     Route::get('createNewAgentDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
+    Route::get('createNewAgentSwapPayBillUrl/{amount}', [BillController::class, 'createNewAgentSwapPayBillUrl']);
+    Route::get('createNewUserSwapPayBillUrl/{amount}', [BillController::class, 'createNewAgentSwapPayBillUrl']);
 
     // UserController
     Route::put('updateUserPassword', [UserController::class, 'update_logged_password']);
