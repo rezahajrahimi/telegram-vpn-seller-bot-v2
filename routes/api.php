@@ -171,6 +171,8 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
     Route::get('deleteProductByProductID/{id}', [ProductController::class, 'deleteProductByProductID']);
     Route::get('syncUserProductsHistoryByAccountIDwithPanels/{accountid}', [ProductController::class, 'syncUserProductsHistoryByAccountIDwithPanels']);
+    Route::get('previewMissingUserProductsOnPanels/{botUserId}', [ProductController::class, 'previewMissingUserProductsOnPanels']);
+    Route::post('deleteSelectedMissingUserProducts', [ProductController::class, 'deleteSelectedMissingUserProducts']);
     Route::get('getUserProductsHistoryByUserIDWithPagination/{userId}', [ProductController::class, 'getUserProductsHistoryByUserIDWithPagination']);
     Route::get('getInventoryPanels', [InventoryImportController::class, 'getInventoryPanels']);
     Route::get('downloadInventoryImportTemplate', [InventoryImportController::class, 'downloadTemplate']);

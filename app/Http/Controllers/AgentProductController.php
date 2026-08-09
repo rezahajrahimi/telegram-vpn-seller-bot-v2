@@ -1271,6 +1271,12 @@ class AgentProductController extends Controller
 
         if ($data != null) {
             $pannel = Pannel::find($data->product_category_and_panel->pannel_id);
+            if ($pannel && $pannel->isInventoryPanel()) {
+                $data->delete();
+                $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
+
+                return response()->json(true, 200);
+            }
             if ($pannel && $pannel->type == 'sanaei') {
                 $configs = json_decode($data->configs, true) ?? [];
                 $uuid = $configs['uuid'] ?? null;
@@ -1298,15 +1304,23 @@ class AgentProductController extends Controller
 
                 return response()->json(null, 500);
             }
-            $hiddifcCntrl = new HiddifyPannelController();
-            $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
-            $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
-            if ($updateRemark->getStatusCode() == 200) {
-                $data->delete();
-                $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
-                return response()->json(true, 200);
+            if ($pannel && $pannel->type === Pannel::TYPE_HIDDIFY) {
+                $hiddifcCntrl = new HiddifyPannelController();
+                $uuid = $hiddifcCntrl->extractUUID($data->subscription_link);
+                $updateRemark = $hiddifcCntrl->deleteUserOfHiddifyPanel($pannel->id, $uuid);
+                if ($updateRemark->getStatusCode() == 200) {
+                    $data->delete();
+                    $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
+                    return response()->json(true, 200);
+                }
+                return response()->json(null, 500);
             }
-            return response()->json(null, 500);
+
+            // Unknown / unreachable panel types: still allow admin DB cleanup
+            $data->delete();
+            $this->addNewBotLog('product', "بسته $data->remark توسط مدیر حذف شد", 'remove product');
+
+            return response()->json(true, 200);
         }
         return response()->json(false, 401);
     }
