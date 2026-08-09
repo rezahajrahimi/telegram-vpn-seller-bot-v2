@@ -138,6 +138,13 @@ class TransactionController extends Controller
         try {
             if ($paymentTypeId == 0 || $paymentTypeId == null) {
                 $pay = PaymentType::where('is_active', true)->where('type', 'offline')->first();
+                if ($pay == null) {
+                    $pay = PaymentType::where('type', 'offline')->first();
+                }
+                if ($pay == null) {
+                    \Log::error('addUserTranaction failed: no offline payment type found');
+                    return null;
+                }
                 $paymentTypeId = $pay->id;
             }
             $transaction = new Transaction();
@@ -151,6 +158,7 @@ class TransactionController extends Controller
             return $transaction->id;
         } catch (\Throwable $th) {
             \Log::info("Throwable  $th");
+            return null;
         }
     }
     public function removeUnconfirmedTransaction($id)
