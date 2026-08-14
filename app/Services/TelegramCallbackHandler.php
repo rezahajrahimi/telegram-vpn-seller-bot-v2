@@ -77,7 +77,11 @@ class TelegramCallbackHandler
             'addBalanceReply' => $this->accountProcessCtrl->addBalanceReply($chatId, $params[0] ?? null),
             'charge' => $this->accountProcessCtrl->adminFastCharge($chatId, $params[0] ?? null, $params[1] ?? null),
             'shetabVerify' => $this->accountProcessCtrl->handleActionAddBalanceShetabVerify($chatId, $params[0] ?? null),
-            'shetabVerifyAuto' => $this->accountProcessCtrl->processShetabVerification($chatId, $params[0] ?? null),
+            'shetabVerifyAuto' => $this->accountProcessCtrl->processShetabVerification(
+                $chatId,
+                $params[0] ?? null,
+                $params[1] ?? null
+            ),
 
             'toturial' => ($params[0] ?? null) == 'appDownload'
             ? $this->generalCntrl->appDownload($chatId, $messageId)

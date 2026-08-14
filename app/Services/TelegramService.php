@@ -323,20 +323,35 @@ class TelegramService
         ]);
     }
 
+    public function isCancelOrExitText(string $text): bool
+    {
+        $trimmed = trim($text);
+        if ($trimmed === '') {
+            return false;
+        }
+
+        $normalized = mb_strtolower($trimmed);
+
+        return in_array($normalized, ['لغو', 'cancel', '/cancel'], true)
+            || str_starts_with($normalized, '/start')
+            || str_starts_with($normalized, '/restart');
+    }
+
     public function forceReply(string $chatId, string|array $text): array
     {
         if (is_array($text)) {
             // use format text service
             $text = $this->formatText($text);
         }
-        $buttons = [[['text' => 'لغو', 'callback_data' => 'cancel']]];
+
+        $placeholder = is_string($text) ? mb_substr(trim(strip_tags($text)), 0, 64) : 'لغو';
 
         return $this->sendMessage($chatId, $text, [
             'reply_markup' => json_encode([
-                'force_reply' => true,
-                'selective' => true,
-                'input_field_placeholder' => $text,
-                'keyboard' => $buttons,
+                'keyboard' => $this->formatKeyboardButtons([['لغو']]),
+                'resize_keyboard' => true,
+                'one_time_keyboard' => true,
+                'input_field_placeholder' => $placeholder !== '' ? $placeholder : 'لغو',
             ]),
         ]);
     }

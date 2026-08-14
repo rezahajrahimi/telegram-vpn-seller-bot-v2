@@ -85,6 +85,14 @@ class CustomTextController extends Controller
                 'description' => 'متن لغو در پرداخت'
             ],
             [
+                'key' => 'action.process.reply.cancel_done',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'عملیات لغو شد.'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن تایید لغو عملیات در انتظار مبلغ'
+            ],
+            [
                 'key' => 'action.send_location',
                 'default_text' => json_encode([
                     ['type' => 'text', 'text' => 'ارسال موقعیت مکانی'],

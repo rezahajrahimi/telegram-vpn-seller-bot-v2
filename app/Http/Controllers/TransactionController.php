@@ -219,10 +219,10 @@ class TransactionController extends Controller
                     $referralSettingCntrl = new ReferralSettingController();
 
                     $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
-                    $amount = 0;
-                    if ($referral_percent !== null && $referral_percent != 0) {
-                        $amount = ($transaction->amount / 100) * $referral_percent;
-                    }
+                    $amount = \App\Models\ReferralSetting::commissionFromAmount(
+                        (float) $transaction->amount,
+                        $referral_percent
+                    );
                     if ($isConfirmed) {
                         $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$transaction->amount} به حساب شما افزوده شد.", $transaction->account_id, null, 'MarkDown');
                         (new LoyaltyPointsService())->awardDepositPoints(
@@ -278,10 +278,10 @@ class TransactionController extends Controller
             $referralLogsCntrl = new ReferralLogsController();
             $referralSettingCntrl = new ReferralSettingController();
             $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
-            $commissionAmount = 0;
-            if ($referral_percent !== null && $referral_percent != 0) {
-                $commissionAmount = ($data->amount / 100) * $referral_percent;
-            }
+            $commissionAmount = \App\Models\ReferralSetting::commissionFromAmount(
+                (float) $data->amount,
+                $referral_percent
+            );
             $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($data->id, $commissionAmount, false);
 
             return true;

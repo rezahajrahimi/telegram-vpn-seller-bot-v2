@@ -244,7 +244,14 @@ class ShetabVerifyController extends Controller
             } else {
                 SubscriptionPurchaseLock::markInProgress($user->account_id);
 
-                ProcessSubscriptionPurchase::dispatch($user->account_id, $shetabVerify->product_category_id);
+                ProcessSubscriptionPurchase::dispatch(
+                    $user->account_id,
+                    $shetabVerify->product_category_id,
+                    (new \App\Services\PromoCodeService())->pullPendingCode(
+                        (string) $user->account_id,
+                        (int) $shetabVerify->product_category_id
+                    )
+                );
 
                 $telegramService->sendMessage(
                     $user->account_id,

@@ -610,13 +610,13 @@ class AccountProcessController extends Controller
     public function addBalanceReply(string $chatId, string $text): string
     {
         try {
+            if ($this->telegramService->isCancelOrExitText($text)) {
+                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.reply.cancel_done'));
+                return "";
+            }
             // check if text is valid int or float
             if (!is_numeric($text)) {
                 $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invalid_amount'));
-                return "";
-            }
-            if ($text == null || trim($text) == 'لغو' || trim($text) == 'cancel') {
-                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.reply.cancel'));
                 return "";
             }
             $user_state = UserState::where('chat_id', $chatId)->latest()->first();
@@ -627,13 +627,7 @@ class AccountProcessController extends Controller
                 $link = $this->generalCntrl->createZarinpalPaymentLink($chatId, $text);
                 array_push($opr, $link);
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invoice'), $opr);
-
-                $text = $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply');
-                if (is_array($text)) {
-                    // use format text service
-                    $text = $this->telegramService->formatText($text);
-                }
-                $this->clearAwaitingReply($chatId, $text);
+                $this->clearAwaitingReply($chatId, '');
                 return "";
             } elseif ($paymentType == "nowpayments") {
                 $opr = [];
@@ -641,6 +635,7 @@ class AccountProcessController extends Controller
                 array_push($opr, $link);
 
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.nowpayments.reply.invoice'), $opr);
+                $this->clearAwaitingReply($chatId, '');
                 return "";
 
             } else if ($paymentType == "cryptomus") {
@@ -649,6 +644,7 @@ class AccountProcessController extends Controller
                 array_push($opr, $link);
 
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.cryptomus.reply.invoice'), $opr);
+                $this->clearAwaitingReply($chatId, '');
                 return "";
             } else if ($paymentType == "swappay") {
                 $opr = [];
@@ -664,13 +660,14 @@ class AccountProcessController extends Controller
             } elseif ($paymentType == "dollarpay") {
                 // create a new invoice with amount
                 $this->generalCntrl->createDollarPayPaymentLink($chatId, $text);
+                $this->clearAwaitingReply($chatId, '');
                 return "";
             } elseif ($paymentType == "shetab_verify") {
                 // create a new invoice with amount
                 $this->processShetabVerification($chatId, $text);
                 return "";
             }
-            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply'));
+            $this->clearAwaitingReply($chatId, '');
             return "";
         } catch (\Throwable $th) {
             \Log::error(["addBalanceReply: " . $th]);
@@ -763,17 +760,17 @@ class AccountProcessController extends Controller
     {
         try {
             if (is_array($text)) {
-                // use format text service
                 $text = $this->telegramService->formatText($text);
             }
-            // Cache::forget("awaiting_reply_{$chatId}");
-            // clear all cache
-            Cache::flush();
-            // delete last user state where chat_id == $chatId
+            Cache::forget("awaiting_reply_{$chatId}");
             $user_state = UserState::where('chat_id', $chatId)->latest()->first();
             if ($user_state != null) {
                 $user_state->delete();
             }
+            if ($text === '' || $text === null) {
+                $text = 'یک گزینه را از منوی اصلی انتخاب کنید.';
+            }
+            $this->generalCntrl->return_main_menu_items($chatId, $text);
         } catch (\Throwable $th) {
             \Log::error(["clearAwaitingReply: " . $th]);
         }
@@ -785,7 +782,7 @@ class AccountProcessController extends Controller
         return true;
     }
 
-    public function processShetabVerification($chatId, $text)
+    public function processShetabVerification($chatId, $text, $amountOverride = null)
     {
         try {
             $this->chatId = $chatId;
@@ -804,8 +801,12 @@ class AccountProcessController extends Controller
             $productCategory = \App\Models\ProductCategory::find($text);
             if ($productCategory) {
                 $productCategoryId = (int) $productCategory->id;
-                $balance = $this->accBlCtrl->getLoggedUserBallancce($chatId);
-                $amount = max(1, (int) ceil($productCategory->price - $balance->ballance));
+                if ($amountOverride !== null && is_numeric($amountOverride) && (float) $amountOverride > 0) {
+                    $amount = max(1, (int) ceil((float) $amountOverride));
+                } else {
+                    $balance = $this->accBlCtrl->getLoggedUserBallancce($chatId);
+                    $amount = max(1, (int) ceil($productCategory->price - $balance->ballance));
+                }
 
                 $this->addNewBotLog(
                     'shetab_verify',
@@ -839,7 +840,6 @@ class AccountProcessController extends Controller
                 $messageText = $this->telegramService->formatText($messageText);
             }
 
-            $this->telegramService->sendMessage($chatId, $messageText);
             $this->clearAwaitingReply($chatId, $messageText);
 
             return '';
@@ -847,7 +847,6 @@ class AccountProcessController extends Controller
         } catch (\Exception $e) {
             \Log::error('Error in processShetabVerification: ' . $e);
             $this->addNewBotLog('shetab_verify', 'خطا در فرآیند تایید خودکار شتاب: ' . $e->getMessage(), 'failed');
-            $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('error.server_error'));
             $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
 
             return false;

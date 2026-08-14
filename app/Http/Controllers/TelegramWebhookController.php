@@ -6,6 +6,7 @@ use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\SubscriptionProcessController;
 use App\Models\BotUser;
 use App\Models\User;
+use App\Models\UserState;
 use App\Models\Transaction;
 use App\Services\TelegramMessageFormatter;
 use App\Services\TelegramService;
@@ -649,6 +650,11 @@ class TelegramWebhookController extends Controller
 
     private function handleAwaitingReply(string $chatId, string $text): void
     {
+        if ($this->telegramService->isCancelOrExitText($text)) {
+            $this->cancelAwaitingInput($chatId, $text);
+            return;
+        }
+
         $awaitingType = $this->getAwaitingReplyType($chatId);
 
         if ($awaitingType && str_starts_with($awaitingType, 'awaiting_receipt_amount:')) {
@@ -675,6 +681,26 @@ class TelegramWebhookController extends Controller
                 break;
             // سایر موارد...
         }
+    }
+
+    private function cancelAwaitingInput(string $chatId, string $text): void
+    {
+        $this->clearAwaitingReply($chatId);
+        UserState::where('chat_id', $chatId)
+            ->whereIn('state', ['add_balance_reply', 'promo_code_pending', 'promo_code_pending_recharge'])
+            ->delete();
+
+        $trimmed = mb_strtolower(trim($text));
+        if (str_starts_with($trimmed, '/start') || str_starts_with($trimmed, '/restart')) {
+            $this->handleStartCommand($text);
+            return;
+        }
+
+        $message = $this->customTextCtrl->getText('action.process.reply.cancel_done');
+        if (is_array($message)) {
+            $message = $this->telegramService->formatText($message);
+        }
+        $this->generalCntrl->return_main_menu_items($chatId, $message);
     }
 
     // متدهای کمکی برای مدیریت وضعیت انتظار پاسخ
@@ -836,13 +862,7 @@ class TelegramWebhookController extends Controller
             ? "لطفاً مبلغ شارژ برای کاربر {$accountId} را به تومان وارد کنید:"
             : "تراکنش در سیستم ثبت نشده بود. لطفاً مبلغ شارژ برای کاربر {$accountId} را به تومان وارد کنید تا به حسابش اضافه شود:";
 
-        $this->telegramService->sendMessage($adminChatId, $hint, [
-            'reply_markup' => json_encode([
-                'force_reply' => true,
-                'selective' => true,
-                'input_field_placeholder' => 'مبلغ به تومان',
-            ]),
-        ]);
+        $this->telegramService->forceReply($adminChatId, $hint);
         return "";
     }
 
@@ -881,7 +901,7 @@ class TelegramWebhookController extends Controller
             $this->telegramService->sendMessage($accountId, "رسید تراکنش شما توسط مدیریت رد شد.");
         }
 
-        $this->telegramService->sendMessage($adminChatId, "رسید با موفقیت رد شد.");
+        $this->generalCntrl->return_main_menu_items($adminChatId, "رسید با موفقیت رد شد.");
         return "";
     }
 
@@ -901,13 +921,7 @@ class TelegramWebhookController extends Controller
 
         $normalizedAmount = $this->normalizeAmountInput($amount);
         if ($normalizedAmount === null) {
-            $this->telegramService->sendMessage($adminChatId, "لطفاً یک مبلغ معتبر (عدد بزرگتر از صفر) وارد کنید:", [
-                'reply_markup' => json_encode([
-                    'force_reply' => true,
-                    'selective' => true,
-                    'input_field_placeholder' => 'مبلغ به تومان',
-                ]),
-            ]);
+            $this->telegramService->forceReply($adminChatId, "لطفاً یک مبلغ معتبر (عدد بزرگتر از صفر) وارد کنید:");
             return;
         }
 
@@ -968,14 +982,15 @@ class TelegramWebhookController extends Controller
             $referralLogsCntrl = new ReferralLogsController();
             $referralSettingCntrl = new ReferralSettingController();
             $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
-            $referralAmount = 0;
-            if ($referral_percent !== null && $referral_percent !== 0) {
-                $referralAmount = ($normalizedAmount / 100) * $referral_percent;
-            }
+            $referralAmount = \App\Models\ReferralSetting::commissionFromAmount(
+                (float) $normalizedAmount,
+                $referral_percent
+            );
             $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($transaction->id, $referralAmount, false);
         }
 
         $this->clearAwaitingReply($adminChatId);
+        $this->generalCntrl->return_main_menu_items($adminChatId, 'یک گزینه را از منوی اصلی انتخاب کنید.');
     }
 
     private function receiptProcessedCacheKey(int $transactionId, ?string $accountId): string

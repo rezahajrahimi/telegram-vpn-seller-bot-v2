@@ -6,6 +6,7 @@ use App\Models\PromoCode;
 use App\Models\PromoCodeUsage;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class PromoCodeService
 {
@@ -97,6 +98,28 @@ class PromoCodeService
             'fixed_dollar' => $currency === 'dollar' ? min($amount, (float) $promo->value) : 0.0,
             default => $currency === 'toman' ? min($amount, (float) $promo->value) : 0.0,
         };
+    }
+
+    public function rememberPendingCode(string $accountId, int $categoryId, ?string $code): void
+    {
+        $normalized = strtoupper(trim((string) $code));
+        if ($normalized === '') {
+            return;
+        }
+
+        Cache::put($this->pendingCodeCacheKey($accountId, $categoryId), $normalized, now()->addHours(12));
+    }
+
+    public function pullPendingCode(string $accountId, int $categoryId): ?string
+    {
+        $code = Cache::pull($this->pendingCodeCacheKey($accountId, $categoryId));
+
+        return is_string($code) && $code !== '' ? $code : null;
+    }
+
+    private function pendingCodeCacheKey(string $accountId, int $categoryId): string
+    {
+        return "pending_promo_{$accountId}_{$categoryId}";
     }
 
     public function recordUsage(PromoCode $promo, string $accountId, float $discountAmount, ?int $productId = null): void

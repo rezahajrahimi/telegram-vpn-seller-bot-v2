@@ -749,8 +749,13 @@ class GeneralController extends Controller
         $text = $this->customTextCtrl->getText('action.help.using_subscription');
         $this->telegramService->sendMessageWithInlineKeyboard($chat_id, $text, $opr);
     }
-    public function send_insufficient_balance_message($chat_id, $productCategoryID)
-    {
+    public function send_insufficient_balance_message(
+        $chat_id,
+        $productCategoryID,
+        $overridePriceToman = null,
+        $overridePriceDollar = null,
+        $promoCode = null
+    ) {
         try {
             $productCategory = $this->productCategory->find($productCategoryID);
 
@@ -766,9 +771,21 @@ class GeneralController extends Controller
                 return false;
             }
 
-            $productPriceInToman = $pricing['price'];
-            $productPriceInDollar = $pricing['price_in_dollar'];
+            $productPriceInToman = $overridePriceToman !== null
+                ? (float) $overridePriceToman
+                : $pricing['price'];
+            $productPriceInDollar = $overridePriceDollar !== null
+                ? (float) $overridePriceDollar
+                : $pricing['price_in_dollar'];
             $productCategory = $pricing['category'];
+
+            if (is_string($promoCode) && trim($promoCode) !== '') {
+                (new \App\Services\PromoCodeService())->rememberPendingCode(
+                    (string) $chat_id,
+                    (int) $productCategoryID,
+                    $promoCode
+                );
+            }
 
             $user_ballance = $this->accBlCtrl->getLoggedUserBallancce($chat_id);
             $user_ballance_in_toman = $user_ballance->ballance;
@@ -935,9 +952,10 @@ class GeneralController extends Controller
                     // use format text service
                     $shetabVerify_text = $this->telegramService->formatText($shetabVerify_text);
                 }
+                $amountForCallback = max(1, (int) ceil((float) $estimatedPrice));
                 $shetabAutoCallback = $productCategoryId
-                    ? "shetabVerifyAuto-{$productCategoryId}"
-                    : "shetabVerifyAuto-{$estimatedPrice}";
+                    ? "shetabVerifyAuto-{$productCategoryId}-{$amountForCallback}"
+                    : "shetabVerifyAuto-{$amountForCallback}";
                 $opr[] = [
                     $shetabVerify_text => $shetabAutoCallback,
                 ];
@@ -1439,7 +1457,7 @@ class GeneralController extends Controller
             if ($referralPercent == null) {
                 $referralPercent = 0;
             }
-            $referralPercentStr = rtrim(rtrim((string) $referralPercent, '0'), '.');
+            $referralPercentStr = \App\Models\ReferralSetting::formatPercentValue($referralPercent);
 
             $text = $this->customTextCtrl->getText('action.referral.text', [
                 'link' => $inviteUrl,

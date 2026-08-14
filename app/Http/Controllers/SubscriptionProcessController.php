@@ -603,7 +603,13 @@ class SubscriptionProcessController extends Controller
             $hasRefballance = $loyaltyCheckout['has_ref_balance'];
 
             if (! $loyaltyCheckout['can_proceed']) {
-                $this->generalCntrl->send_insufficient_balance_message($chatId, $prCat->id);
+                $this->generalCntrl->send_insufficient_balance_message(
+                    $chatId,
+                    $prCat->id,
+                    (float) $productPrice,
+                    (float) $productPriceInDollar,
+                    $promoCode
+                );
                 return '';
             }
 

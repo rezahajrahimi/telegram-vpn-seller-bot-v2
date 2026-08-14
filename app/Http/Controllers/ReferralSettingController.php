@@ -19,7 +19,7 @@ class ReferralSettingController extends Controller
                 $referralSetting->description = 'با ارسال این لینک به دوستان خود، با هر بار واریزی آنها، امتیاز بگیرید.';
                 $referralSetting->visit_card_text = '🔥فروش پروکسی اختصاصی با بروزترین پروتکل ها \r\n 🏐 قابل استفاده در تلگرام و تمامی دستگاه ها به عنوان فیلترشکن \r\n ⏰ تجهیز شده با کانکشن هوشمند (بیش از 20 سرور برای هر کاربر) \r\n 📬فاقد هر گونه تبلیغات! \r\n ✔️پشتیبانی ۲۴/۷ \r\n ♾بدون قطعی و کندی سرعت \r\n💰 خرید: \r\n';
 
-                $referralSetting->referral_percent = 0.5;
+                $referralSetting->referral_percent = 10.0;
                 $referralSetting->is_active = true;
 
                 $referralSetting->save();

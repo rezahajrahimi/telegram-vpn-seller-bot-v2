@@ -9,6 +9,33 @@ use Tests\TestCase;
 
 class TelegramServiceTest extends TestCase
 {
+    public function test_is_cancel_or_exit_text(): void
+    {
+        $service = new TelegramService();
+
+        $this->assertTrue($service->isCancelOrExitText('لغو'));
+        $this->assertTrue($service->isCancelOrExitText('  لغو  '));
+        $this->assertTrue($service->isCancelOrExitText('cancel'));
+        $this->assertTrue($service->isCancelOrExitText('/start'));
+        $this->assertTrue($service->isCancelOrExitText('/start ref123'));
+        $this->assertTrue($service->isCancelOrExitText('/restart'));
+        $this->assertFalse($service->isCancelOrExitText('660000'));
+        $this->assertFalse($service->isCancelOrExitText('aria2026'));
+        $this->assertFalse($service->isCancelOrExitText(''));
+    }
+
+    public function test_cancel_reply_button_has_no_callback_data(): void
+    {
+        $service = new TelegramService();
+        $method = new ReflectionMethod(TelegramService::class, 'formatKeyboardButtons');
+        $method->setAccessible(true);
+
+        $keyboard = $method->invoke($service, [['لغو']]);
+
+        $this->assertSame('لغو', $keyboard[0][0]['text'] ?? null);
+        $this->assertArrayNotHasKey('callback_data', $keyboard[0][0]);
+    }
+
     public function test_format_keyboard_buttons_strips_callback_data(): void
     {
         $service = new TelegramService();

@@ -55,6 +55,12 @@ class PromoCodeController extends Controller
         }
 
         $data['code'] = strtoupper(trim($data['code']));
+        if (($data['type'] ?? '') === 'percent' && (float) $data['value'] > 100) {
+            return response()->json([
+                'message' => 'درصد تخفیف باید بین ۰ تا ۱۰۰ باشد.',
+                'errors' => ['value' => ['درصد تخفیف باید بین ۰ تا ۱۰۰ باشد.']],
+            ], 422);
+        }
         $promo = PromoCode::create($data);
 
         return response()->json($promo, 201);
@@ -91,6 +97,14 @@ class PromoCodeController extends Controller
 
         if (isset($data['code'])) {
             $data['code'] = strtoupper(trim($data['code']));
+        }
+
+        $type = $data['type'] ?? $promo->type;
+        if ($type === 'percent' && array_key_exists('value', $data) && (float) $data['value'] > 100) {
+            return response()->json([
+                'message' => 'درصد تخفیف باید بین ۰ تا ۱۰۰ باشد.',
+                'errors' => ['value' => ['درصد تخفیف باید بین ۰ تا ۱۰۰ باشد.']],
+            ], 422);
         }
 
         $promo->update($data);

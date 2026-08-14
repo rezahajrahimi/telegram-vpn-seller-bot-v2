@@ -84,11 +84,12 @@ class WebAppUserController extends Controller
             $accountId = $user->account_id;
             $inviteUrl = "https://t.me/{$botName}?start={$accountId}";
             $percent = $referralSettingCntrl->get_referral_setting_referral_percent() ?? 0;
+            $percentStr = \App\Models\ReferralSetting::formatPercentValue($percent);
 
             $customTextCtrl = new CustomTextController();
             $description = $customTextCtrl->getText('action.referral.text', [
                 'link' => $inviteUrl,
-                'percent' => (string) $percent,
+                'percent' => $percentStr,
             ]);
             if (is_array($description)) {
                 $description = implode("\n", $description);
@@ -97,7 +98,7 @@ class WebAppUserController extends Controller
             return response()->json([
                 'is_active' => true,
                 'invite_url' => $inviteUrl,
-                'percent' => $percent,
+                'percent' => (float) $percent,
                 'description' => $setting->description,
                 'visit_card_text' => $setting->visit_card_text,
                 'formatted_text' => $description,

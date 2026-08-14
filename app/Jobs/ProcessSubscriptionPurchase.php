@@ -161,7 +161,13 @@ class ProcessSubscriptionPurchase implements ShouldQueue
             $hasRefballance = $loyaltyCheckout['has_ref_balance'];
 
             if (! $loyaltyCheckout['can_proceed']) {
-                $generalCntrl->send_insufficient_balance_message($this->chatId, $selectedPrCat->id);
+                $generalCntrl->send_insufficient_balance_message(
+                    $this->chatId,
+                    $selectedPrCat->id,
+                    (float) $productPrice,
+                    (float) $productPriceInDollar,
+                    $this->promoCode
+                );
                 return;
             }
 
@@ -193,7 +199,13 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                         'amount_dollar' => 0.0,
                     ];
                 } elseif (! $paymentService->wasCharged($chargeResult)) {
-                    $generalCntrl->send_insufficient_balance_message($this->chatId, $selectedPrCat->id);
+                    $generalCntrl->send_insufficient_balance_message(
+                        $this->chatId,
+                        $selectedPrCat->id,
+                        (float) $productPrice,
+                        (float) $productPriceInDollar,
+                        $this->promoCode
+                    );
                     return;
                 }
 
@@ -245,7 +257,13 @@ class ProcessSubscriptionPurchase implements ShouldQueue
                     ];
                 } elseif (! $paymentService->wasCharged($chargeResult)) {
                     $prCntrl->deletePendingProduct($reservedProductId);
-                    $generalCntrl->send_insufficient_balance_message($this->chatId, $selectedPrCat->id);
+                    $generalCntrl->send_insufficient_balance_message(
+                        $this->chatId,
+                        $selectedPrCat->id,
+                        (float) $productPrice,
+                        (float) $productPriceInDollar,
+                        $this->promoCode
+                    );
                     return;
                 }
 
