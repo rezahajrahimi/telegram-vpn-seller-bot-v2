@@ -8,6 +8,7 @@ use App\Models\CryptoPayment;
 use Illuminate\Support\Facades\Config; // Added Config facade
 use Illuminate\Support\Facades\Log; // Added Log facade
 use Illuminate\Support\Facades\DB; // Added DB facade for potential transactions
+use Illuminate\Validation\ValidationException;
 use PrevailExcel\Nowpayments\Facades\Nowpayments;
 use App\Models\User; // Added User model
 use App\Models\Bill; // Added Bill model
@@ -26,13 +27,18 @@ class TransactionCryptoController extends Controller
     // New method to handle gateway selection
     public function initiateCryptoPayment(Request $request)
     {
-        $validated = $request->validate([
-            'gateway' => 'required|string|in:nowpayments,cryptomus,swappay',
-            'invoiceID' => 'required|exists:bills,bill_id', // Validate invoice exists in bills table
-            'account_id' => 'required|integer|exists:users,account_id',
-            // 'currency' => 'nullable|string', // Optional: For Cryptomus currency selection
-            // Add other necessary fields from your form
-        ]);
+        try {
+            $validated = $request->validate([
+                'gateway' => 'required|string|in:nowpayments,cryptomus,swappay',
+                'invoiceID' => 'required|exists:bills,bill_id',
+                'account_id' => 'required|exists:users,account_id',
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first() ?? 'اطلاعات پرداخت نامعتبر است.',
+            ], 422);
+        }
 
         $gateway = $validated['gateway'];
         $invoiceID = $validated['invoiceID'];

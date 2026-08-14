@@ -41,7 +41,7 @@ Route::get('/payment/success', [CryptomusController::class, 'paymentSuccess'])->
 Route::get('/payment/return', [CryptomusController::class, 'paymentReturn'])->name('payment.return');
 
 // SwapPay (SwapWallet)
-Route::get('/swappay/return', [SwapPayController::class, 'handleReturn'])->name('swappay.return');
+Route::match(['get', 'post'], '/swappay/return', [SwapPayController::class, 'handleReturn'])->name('swappay.return');
 
 
 // run command by url

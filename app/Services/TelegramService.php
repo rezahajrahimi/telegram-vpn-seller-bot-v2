@@ -337,6 +337,62 @@ class TelegramService
             || str_starts_with($normalized, '/restart');
     }
 
+    /**
+     * Parse a user-entered amount, including Persian/Arabic digits.
+     */
+    public function parseNumericAmount(?string $text): ?float
+    {
+        if ($text === null) {
+            return null;
+        }
+
+        $normalized = trim($text);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $normalized = strtr($normalized, [
+            '۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4',
+            '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9',
+            '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4',
+            '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9',
+            '٫' => '.', '٬' => ',',
+        ]);
+
+        $normalized = str_ireplace(['تومان', 'toman', 'usd', 'dollar', 'دلار', '$'], '', $normalized);
+        $normalized = str_replace([' ', "\u{00A0}"], '', trim($normalized));
+        $normalized = str_replace('،', ',', $normalized);
+
+        if (str_contains($normalized, '.') && str_contains($normalized, ',')) {
+            $normalized = str_replace(',', '', $normalized);
+        } elseif (substr_count($normalized, ',') === 1) {
+            [$left, $right] = explode(',', $normalized, 2);
+            $normalized = strlen($right) <= 2
+                ? $left . '.' . $right
+                : str_replace(',', '', $normalized);
+        } else {
+            $normalized = str_replace(',', '', $normalized);
+        }
+
+        if (! is_numeric($normalized)) {
+            return null;
+        }
+
+        $value = (float) $normalized;
+        if ($value <= 0 || ! is_finite($value)) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    public static function isInlineUrlButtonValid(?string $url): bool
+    {
+        $url = trim((string) $url);
+
+        return $url !== '' && (bool) preg_match('#^(https?://|tg://)#i', $url);
+    }
+
     public function forceReply(string $chatId, string|array $text): array
     {
         if (is_array($text)) {
@@ -657,9 +713,17 @@ class TelegramService
         }
         $buttons = [];
         foreach ($buttonsList as $button) {
+            if (! is_array($button)) {
+                continue;
+            }
+            $url = trim((string) ($button['url'] ?? ''));
+            $label = trim((string) ($button['text'] ?? ''));
+            if ($label === '' || ! self::isInlineUrlButtonValid($url)) {
+                continue;
+            }
             $normalized = [
-                'text' => $button['text'],
-                'url' => trim($button['url']),
+                'text' => $label,
+                'url' => $url,
             ];
             foreach (['style', 'icon_custom_emoji_id'] as $field) {
                 if (! empty($button[$field])) {
@@ -668,16 +732,17 @@ class TelegramService
             }
             $buttons[] = [$normalized];
         }
-        $buttons = $this->keyboardConfig->formatInlineKeyboard($buttons, null, false);
-
-        $response = $this->makeRequest('sendMessage', [
+        $payload = [
             'chat_id' => $chatId,
             'text' => $text,
-            'reply_markup' => json_encode([
-                'inline_keyboard' => $buttons,
-            ]),
-        ]);
-        return $response;
+        ];
+        if ($buttons !== []) {
+            $payload['reply_markup'] = json_encode([
+                'inline_keyboard' => $this->keyboardConfig->formatInlineKeyboard($buttons, null, false),
+            ]);
+        }
+
+        return $this->makeRequest('sendMessage', $payload);
     }
 
     public function editMessageText(string $chatId, int $messageId, string $text, array $options = []): array

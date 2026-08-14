@@ -24,6 +24,30 @@ class TelegramServiceTest extends TestCase
         $this->assertFalse($service->isCancelOrExitText(''));
     }
 
+    public function test_parse_numeric_amount_accepts_persian_digits_and_decimals(): void
+    {
+        $service = new TelegramService();
+
+        $this->assertSame(5.0, $service->parseNumericAmount('5'));
+        $this->assertSame(1.5, $service->parseNumericAmount('1.5'));
+        $this->assertSame(1.5, $service->parseNumericAmount('۱٫۵'));
+        $this->assertSame(10.0, $service->parseNumericAmount('۱۰'));
+        $this->assertSame(1000000.0, $service->parseNumericAmount('1,000,000 تومان'));
+        $this->assertNull($service->parseNumericAmount('abc'));
+        $this->assertNull($service->parseNumericAmount('0'));
+        $this->assertNull($service->parseNumericAmount(''));
+    }
+
+    public function test_inline_url_button_validation(): void
+    {
+        $this->assertTrue(TelegramService::isInlineUrlButtonValid('https://swapwallet.app/pay/1'));
+        $this->assertTrue(TelegramService::isInlineUrlButtonValid('http://example.com'));
+        $this->assertTrue(TelegramService::isInlineUrlButtonValid('tg://resolve?domain=swapwallet'));
+        $this->assertFalse(TelegramService::isInlineUrlButtonValid(''));
+        $this->assertFalse(TelegramService::isInlineUrlButtonValid('javascript:alert(1)'));
+        $this->assertFalse(TelegramService::isInlineUrlButtonValid(null));
+    }
+
     public function test_cancel_reply_button_has_no_callback_data(): void
     {
         $service = new TelegramService();

@@ -1004,22 +1004,7 @@ class TelegramWebhookController extends Controller
 
     private function normalizeAmountInput($amount): ?float
     {
-        if (is_string($amount)) {
-            $amount = str_replace([',', '،', ' '], '', trim($amount));
-            $amount = str_replace('تومان', '', $amount);
-            $amount = trim($amount);
-        }
-
-        if (!is_numeric($amount)) {
-            return null;
-        }
-
-        $value = (float) $amount;
-        if ($value <= 0) {
-            return null;
-        }
-
-        return $value;
+        return $this->telegramService->parseNumericAmount(is_scalar($amount) ? (string) $amount : null);
     }
 
     private function sendResponseIfNotEmpty(string $chatId, string|array|null $response): void

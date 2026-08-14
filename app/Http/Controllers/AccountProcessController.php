@@ -551,7 +551,7 @@ class AccountProcessController extends Controller
 
         } catch (\Throwable $th) {
             \Log::error(["return_payment_options: " . $th]);
-            $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+            $this->clearAwaitingReply($this->chatId, $this->customTextCtrl->getText('error.server_error'));
             return "";
         }
     }
@@ -614,24 +614,31 @@ class AccountProcessController extends Controller
                 $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('action.process.reply.cancel_done'));
                 return "";
             }
-            // check if text is valid int or float
-            if (!is_numeric($text)) {
+            $amount = $this->telegramService->parseNumericAmount($text);
+            if ($amount === null) {
                 $this->telegramService->sendMessage($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invalid_amount'));
                 return "";
             }
-            $user_state = UserState::where('chat_id', $chatId)->latest()->first();
-            $paymentType = $user_state->data;
+            $user_state = UserState::where('chat_id', $chatId)
+                ->where('state', 'add_balance_reply')
+                ->latest()
+                ->first();
+            $paymentType = $this->resolveAwaitingPaymentType($user_state);
+            if ($paymentType === null) {
+                $this->clearAwaitingReply($chatId, $this->customTextCtrl->getText('error.server_error'));
+                return "";
+            }
             if ($paymentType == 'zarinpal') {
                 // zarinpal => create a new invoice with amount
                 $opr = [];
-                $link = $this->generalCntrl->createZarinpalPaymentLink($chatId, $text);
+                $link = $this->generalCntrl->createZarinpalPaymentLink($chatId, $amount);
                 array_push($opr, $link);
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.zarinpal.reply.invoice'), $opr);
                 $this->clearAwaitingReply($chatId, '');
                 return "";
             } elseif ($paymentType == "nowpayments") {
                 $opr = [];
-                $link = $this->generalCntrl->createNowPaymentsLink($chatId, $text);
+                $link = $this->generalCntrl->createNowPaymentsLink($chatId, $amount);
                 array_push($opr, $link);
 
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.nowpayments.reply.invoice'), $opr);
@@ -640,31 +647,46 @@ class AccountProcessController extends Controller
 
             } else if ($paymentType == "cryptomus") {
                 $opr = [];
-                $link = $this->generalCntrl->createCryptomusLink($chatId, $text);
+                $link = $this->generalCntrl->createCryptomusLink($chatId, $amount);
                 array_push($opr, $link);
 
                 $this->telegramService->sendMessageWithLinkButtons($chatId, $this->customTextCtrl->getText('action.process.add_online_balance.cryptomus.reply.invoice'), $opr);
                 $this->clearAwaitingReply($chatId, '');
                 return "";
             } else if ($paymentType == "swappay") {
-                $opr = [];
-                $link = $this->generalCntrl->createSwapPayLink($chatId, $text);
-                array_push($opr, $link);
+                if ($amount < 0.1) {
+                    $this->telegramService->sendMessage(
+                        $chatId,
+                        'حداقل مبلغ پرداخت SwapPay ۰٫۱ دلار است. لطفا مبلغ بزرگ‌تری وارد کنید.'
+                    );
+                    return "";
+                }
+                $link = $this->generalCntrl->createSwapPayLink($chatId, $amount);
+                if (! $this->isValidPaymentLinkButton($link)) {
+                    $error = is_array($link) ? trim((string) ($link['error'] ?? '')) : '';
+                    $this->telegramService->sendMessage(
+                        $chatId,
+                        $error !== ''
+                            ? $error
+                            : 'ایجاد لینک پرداخت SwapPay ناموفق بود. لطفا دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.'
+                    );
+                    return "";
+                }
                 $invoiceText = $this->customTextCtrl->getText('action.process.add_online_balance.swappay.reply.invoice');
                 if ($invoiceText === null || $invoiceText === '' || $invoiceText === false) {
                     $invoiceText = 'برای پرداخت روی دکمه زیر بزنید:';
                 }
-                $this->telegramService->sendMessageWithLinkButtons($chatId, $invoiceText, $opr);
+                $this->telegramService->sendMessageWithLinkButtons($chatId, $invoiceText, [$link]);
                 $this->clearAwaitingReply($chatId, '');
                 return "";
             } elseif ($paymentType == "dollarpay") {
                 // create a new invoice with amount
-                $this->generalCntrl->createDollarPayPaymentLink($chatId, $text);
+                $this->generalCntrl->createDollarPayPaymentLink($chatId, $amount);
                 $this->clearAwaitingReply($chatId, '');
                 return "";
             } elseif ($paymentType == "shetab_verify") {
                 // create a new invoice with amount
-                $this->processShetabVerification($chatId, $text);
+                $this->processShetabVerification($chatId, (string) $amount);
                 return "";
             }
             $this->clearAwaitingReply($chatId, '');
@@ -739,7 +761,7 @@ class AccountProcessController extends Controller
             $user_state = new UserState();
             $user_state->chat_id = $chatId;
             $user_state->state = 'add_balance_reply';
-            $user_state->data = $paymentType;
+            $user_state->data = ['type' => $paymentType];
             $user_state->save();
 
             // می‌توانید از کش یا دیتابیس استفاده کنید
@@ -747,6 +769,43 @@ class AccountProcessController extends Controller
         } catch (\Throwable $th) {
             \Log::error(["setAwaitingReply: " . $th]);
         }
+    }
+
+    private function resolveAwaitingPaymentType(?UserState $userState): ?string
+    {
+        if ($userState === null) {
+            return null;
+        }
+
+        $data = $userState->data;
+        if (is_string($data) && $data !== '') {
+            $decoded = json_decode($data, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $data = $decoded;
+            } else {
+                return $data;
+            }
+        }
+
+        if (is_array($data)) {
+            $type = $data['type'] ?? $data['payment_type'] ?? $data[0] ?? null;
+
+            return is_string($type) && $type !== '' ? $type : null;
+        }
+
+        return is_scalar($data) ? (string) $data : null;
+    }
+
+    private function isValidPaymentLinkButton(mixed $link): bool
+    {
+        if (! is_array($link)) {
+            return false;
+        }
+
+        $text = trim((string) ($link['text'] ?? ''));
+        $url = trim((string) ($link['url'] ?? ''));
+
+        return $text !== '' && TelegramService::isInlineUrlButtonValid($url);
     }
     private function awaitingReply(string $chatId): bool
     {

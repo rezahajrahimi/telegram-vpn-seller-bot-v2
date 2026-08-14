@@ -40,6 +40,10 @@ class Kernel extends ConsoleKernel
             ->name('cron.calculate-price-in-dollar-by-toman')
             ->everyFiveMinutes();
 
+        $schedule->call('App\Http\Controllers\CronJobController@execute_confirm_pending_swappay')
+            ->name('cron.swappay-confirm-pending')
+            ->everyFiveMinutes();
+
         $schedule->call('App\Http\Controllers\CronJobController@execute_auto_delete_expired_configs')
             ->name('cron.auto-delete-expired-configs')
             ->dailyAt('08:02');

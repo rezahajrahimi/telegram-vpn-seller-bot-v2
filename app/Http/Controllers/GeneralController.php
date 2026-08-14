@@ -909,7 +909,7 @@ class GeneralController extends Controller
             $swappay = $cryptoPymentCntrl->getCryptoPaymentStatusByKey('swappay');
             if ($swappay == true || $swappay == 1) {
                 $swappayOpr = $this->createSwapPayLink($chat_id, $estimatedPriceInDollar);
-                if (! empty($swappayOpr)) {
+                if (! empty($swappayOpr) && ! empty($swappayOpr['url'])) {
                     array_push($opr, $swappayOpr);
                 }
             }
@@ -1079,6 +1079,11 @@ class GeneralController extends Controller
             $request->account_id = $chat_id;
             $request->amount = $estimatedPriceInDollar;
             $bill = $this->billCntrl->createNewBillInDollar($request);
+            if ($bill === null) {
+                \Log::error('createSwapPayLink: failed to create bill');
+
+                return [];
+            }
 
             $trCryptoCntrl = new TransactionCryptoController();
             $trRequest = new Request([
@@ -1088,9 +1093,18 @@ class GeneralController extends Controller
                 'preferred_link' => 'TELEGRAM_BOT',
             ]);
             $paymentLink = $trCryptoCntrl->initiateCryptoPayment($trRequest);
-            \Log::info('createSwapPayLink: ' . (is_string($paymentLink) ? $paymentLink : json_encode($paymentLink)));
+            $paymentUrl = $this->extractCryptoPaymentUrl($paymentLink);
+            \Log::info('createSwapPayLink: ' . ($paymentUrl ?? json_encode($paymentLink)));
 
-            $formattedPrice = number_format((float) $estimatedPriceInDollar, 0, ',', '.');
+            if (! TelegramService::isInlineUrlButtonValid($paymentUrl)) {
+                $error = $this->extractCryptoPaymentError($paymentLink);
+
+                return [
+                    'error' => $error ?: \App\Services\SwapPayService::missingApplicationMessage(),
+                ];
+            }
+
+            $formattedPrice = $this->formatDollarAmount($estimatedPriceInDollar);
             $text = $this->customTextCtrl->getText('action.process.add_online_balance.dollarpay.swappay');
             if (is_array($text)) {
                 $text = $this->telegramService->formatText($text);
@@ -1101,13 +1115,69 @@ class GeneralController extends Controller
 
             return [
                 'text' => $text . " $formattedPrice دلار",
-                'url' => is_string($paymentLink) ? $paymentLink : '',
+                'url' => $paymentUrl,
             ];
         } catch (\Throwable $th) {
             \Log::error('createSwapPayLink: ' . $th);
 
             return [];
         }
+    }
+
+    public function extractCryptoPaymentUrl(mixed $paymentLink): ?string
+    {
+        if (is_string($paymentLink)) {
+            $url = trim($paymentLink);
+
+            return $url !== '' ? $url : null;
+        }
+
+        if ($paymentLink instanceof \Illuminate\Http\JsonResponse) {
+            $data = $paymentLink->getData(true);
+            if (! is_array($data)) {
+                return null;
+            }
+            foreach (['url', 'payment_url', 'invoice_url', 'pay_url'] as $key) {
+                if (! empty($data[$key]) && is_string($data[$key])) {
+                    return trim($data[$key]);
+                }
+            }
+
+            return null;
+        }
+
+        if (is_array($paymentLink)) {
+            foreach (['url', 'payment_url'] as $key) {
+                if (! empty($paymentLink[$key]) && is_string($paymentLink[$key])) {
+                    return trim($paymentLink[$key]);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public function extractCryptoPaymentError(mixed $paymentLink): ?string
+    {
+        if ($paymentLink instanceof \Illuminate\Http\JsonResponse) {
+            $data = $paymentLink->getData(true);
+            if (is_array($data) && ! empty($data['message']) && is_string($data['message'])) {
+                return $data['message'];
+            }
+        }
+
+        if (is_array($paymentLink) && ! empty($paymentLink['message']) && is_string($paymentLink['message'])) {
+            return $paymentLink['message'];
+        }
+
+        return null;
+    }
+
+    private function formatDollarAmount(mixed $amount): string
+    {
+        $formatted = number_format((float) $amount, 2, '.', '');
+
+        return rtrim(rtrim($formatted, '0'), '.') ?: '0';
     }
     public function getFaqs($chatId, $messageId = null)
     {

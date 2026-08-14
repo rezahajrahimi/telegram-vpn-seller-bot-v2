@@ -1119,4 +1119,15 @@ class CronJobController extends Controller
 
         return Product::where('subscription_link', 'LIKE', "%{$identifier}%")->first();
     }
+
+    public function execute_confirm_pending_swappay(): int
+    {
+        try {
+            return (new SwapPayController())->confirmPendingPayments();
+        } catch (\Throwable $th) {
+            \Log::error('execute_confirm_pending_swappay: ' . $th->getMessage());
+
+            return 0;
+        }
+    }
 }

@@ -217,6 +217,16 @@ class CryptoPaymentController extends Controller
                 $data->email = $request->email;
             }
             $data->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
+
+            $service = new \App\Services\SwapPayService($data->api_key, $data->password);
+            $check = $service->validateCredentials();
+            if (! ($check['ok'] ?? false)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $check['message'] ?? 'تنظیمات SwapPay نامعتبر است.',
+                ], 422);
+            }
+
             $data->update();
 
             return $data;

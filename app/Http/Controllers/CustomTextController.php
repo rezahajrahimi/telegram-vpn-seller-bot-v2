@@ -426,6 +426,30 @@ class CustomTextController extends Controller
                 'custom_text' => null,
                 'description' => 'متن پرداخت آنلاین بارمز ارز (Cryptomus)'
             ],
+            [
+                'key' => 'action.process.add_online_balance.dollarpay.swappay',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'پرداخت آنلاین با SwapPay (سواپ‌ولت)'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن دکمه پرداخت آنلاین با SwapPay'
+            ],
+            [
+                'key' => 'action.process.add_online_balance.swappay.reply',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'مقدار دلاری مورد نظر برای پرداخت با SwapPay را وارد کنید:'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن درخواست مبلغ برای پرداخت SwapPay'
+            ],
+            [
+                'key' => 'action.process.add_online_balance.swappay.reply.invoice',
+                'default_text' => json_encode([
+                    ['type' => 'text', 'text' => 'صورت حساب جدید برای پرداخت ایجاد شد، بر روی لینک زیر کلیک کنید. (مهلت اعتبار لینک تنها 10 دقیقه می باشد.)'],
+                ]),
+                'custom_text' => null,
+                'description' => 'متن لینک پرداخت SwapPay'
+            ],
 
             [
                 'key' => 'action.process.add_offline_balance_option_and_online_balance',
@@ -1459,19 +1483,26 @@ class CustomTextController extends Controller
     {
         try {
             $text = $this->customText->getText($key, $variables);
-            if (json_validate($text)) {
+            if (is_string($text) && json_validate($text)) {
                 return json_decode($text, true);
             }
             return $text;
         } catch (\Throwable $th) {
             \Log::info("getText: $key");
             $this->syncMissingSeedKeys();
-            $this->seedSingleKey($key);
-            $text = $this->customText->getText($key);
-            if (json_validate($text)) {
-                return json_decode($text, true);
+            if ($this->seedSingleKey($key)) {
+                try {
+                    $text = $this->customText->getText($key, $variables);
+                    if (is_string($text) && json_validate($text)) {
+                        return json_decode($text, true);
+                    }
+                    return $text;
+                } catch (\Throwable $seeded) {
+                    \Log::warning('getText after seed still failed: ' . $key . ' ' . $seeded->getMessage());
+                }
             }
-            return $text;
+
+            return '';
         }
     }
 

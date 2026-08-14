@@ -11,7 +11,9 @@ use App\Services\SwapPayService;
 use App\Services\TelegramService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class SwapPayController extends Controller
 {
@@ -38,12 +40,19 @@ class SwapPayController extends Controller
      */
     public function createPayment(Request $request)
     {
-        $validated = $request->validate([
-            'amount' => 'required|numeric|min:0.1',
-            'order_id' => 'required|string',
-            'account_id' => 'required|integer',
-            'preferred_link' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'amount' => 'required|numeric|min:0.1',
+                'order_id' => 'required|string',
+                'account_id' => 'required',
+                'preferred_link' => 'nullable|string',
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first() ?? 'مبلغ یا اطلاعات فاکتور نامعتبر است.',
+            ], 422);
+        }
 
         $config = $this->resolveCredentials();
         $service = $this->makeService($config);
@@ -88,7 +97,7 @@ class SwapPayController extends Controller
             default => ['WEBSITE', 'TELEGRAM_WEBAPP', 'TELEGRAM_BOT'],
         };
         $paymentUrl = SwapPayService::pickPaymentUrl($paymentLinks, $preferredOrder);
-        if (! $paymentUrl) {
+        if (! SwapPayService::isUsablePaymentUrl($paymentUrl)) {
             Log::error('SwapPay createPayment: no payment link in response', ['result' => $result]);
 
             return response()->json([
@@ -128,8 +137,21 @@ class SwapPayController extends Controller
      */
     public function handleReturn(Request $request)
     {
-        $invoiceId = trim((string) ($request->query('invoice_id') ?? $request->query('invoiceId') ?? ''));
-        $orderId = trim((string) ($request->query('order_id') ?? $request->query('orderId') ?? ''));
+        $invoiceId = trim((string) (
+            $request->input('invoice_id')
+            ?? $request->input('invoiceId')
+            ?? $request->input('id')
+            ?? data_get($request->all(), 'result.id')
+            ?? ''
+        ));
+        $orderId = trim((string) (
+            $request->input('order_id')
+            ?? $request->input('orderId')
+            ?? $request->input('externalId')
+            ?? $request->input('external_id')
+            ?? data_get($request->all(), 'result.externalId')
+            ?? ''
+        ));
 
         $transaction = null;
         if ($invoiceId !== '') {
@@ -170,7 +192,10 @@ class SwapPayController extends Controller
      */
     public function confirmPaidTransaction(TransactionCrypto $transaction): bool|string
     {
-        if (in_array(strtolower((string) $transaction->status), ['paid', 'confirmed'], true)) {
+        if (
+            $transaction->confirmed
+            || in_array(strtolower((string) $transaction->status), ['paid', 'confirmed'], true)
+        ) {
             return 'already';
         }
 
@@ -185,11 +210,11 @@ class SwapPayController extends Controller
         }
 
         $result = $remote['result'];
-        $status = strtoupper((string) ($result['status'] ?? ''));
+        $status = (string) ($result['status'] ?? '');
         $transaction->callback_data = json_encode($result);
         $transaction->updated_at = Carbon::now();
 
-        if ($status !== 'PAID') {
+        if (! SwapPayService::isPaidStatus($status)) {
             $transaction->status = strtolower($status !== '' ? $status : 'pending');
             $transaction->save();
 
@@ -199,59 +224,108 @@ class SwapPayController extends Controller
         return $this->creditTransaction($transaction, $result) ? true : false;
     }
 
+    /**
+     * Recheck unpaid SwapPay invoices so wallet is credited even if the user
+     * never opens the return URL.
+     */
+    public function confirmPendingPayments(): int
+    {
+        $confirmed = 0;
+        $pending = TransactionCrypto::where('gateway', 'swappay')
+            ->where(function ($query) {
+                $query->where('confirmed', false)->orWhereNull('confirmed');
+            })
+            ->whereNotIn('status', ['paid', 'confirmed', 'expired', 'cancelled', 'canceled', 'failed'])
+            ->whereNotNull('payment_id')
+            ->where('created_at', '>=', Carbon::now()->subDays(2))
+            ->orderBy('id')
+            ->limit(40)
+            ->get();
+
+        foreach ($pending as $transaction) {
+            try {
+                if ($this->confirmPaidTransaction($transaction) === true) {
+                    $confirmed++;
+                }
+            } catch (\Throwable $th) {
+                Log::error('SwapPay confirmPendingPayments', [
+                    'transaction_id' => $transaction->id,
+                    'error' => $th->getMessage(),
+                ]);
+            }
+        }
+
+        return $confirmed;
+    }
+
     protected function creditTransaction(TransactionCrypto $transaction, array $result): bool
     {
         try {
-            if (in_array(strtolower((string) $transaction->status), ['paid', 'confirmed'], true)) {
-                return true;
-            }
+            return DB::transaction(function () use ($transaction, $result) {
+                $locked = TransactionCrypto::where('id', $transaction->id)->lockForUpdate()->first();
+                if (! $locked) {
+                    return false;
+                }
+                if (
+                    $locked->confirmed
+                    || in_array(strtolower((string) $locked->status), ['paid', 'confirmed'], true)
+                ) {
+                    return true;
+                }
 
-            $amountToAdd = (float) ($transaction->amount_dollar ?? 0);
-            if ($amountToAdd <= 0 && isset($result['amount']['number'])) {
-                $amountToAdd = (float) $result['amount']['number'];
-            }
+                $amountToAdd = (float) ($locked->amount_dollar ?? 0);
+                if ($amountToAdd <= 0 && isset($result['amount']['number'])) {
+                    $amountToAdd = (float) $result['amount']['number'];
+                }
+                if ($amountToAdd <= 0) {
+                    Log::error('SwapPay credit: invalid amount', ['transaction_id' => $locked->id]);
 
-            $user = User::where('account_id', $transaction->account_id)->first();
-            if (! $user) {
-                Log::error('SwapPay credit: user not found', ['account_id' => $transaction->account_id]);
+                    return false;
+                }
 
-                return false;
-            }
+                $user = User::where('account_id', $locked->account_id)->first();
+                if (! $user) {
+                    Log::error('SwapPay credit: user not found', ['account_id' => $locked->account_id]);
 
-            $accountBalance = AccountBallance::firstOrCreate(
-                ['account_id' => $user->account_id],
-                ['ballance' => 0, 'account_ballance_in_dollar' => 0]
-            );
-            $accountBalance->account_ballance_in_dollar = (float) $accountBalance->account_ballance_in_dollar + $amountToAdd;
-            $accountBalance->save();
+                    return false;
+                }
 
-            $bill = Bill::where('bill_id', $transaction->order_id)->first();
-            if ($bill) {
-                $bill->status = 'paid';
-                $bill->save();
-            }
-
-            $transaction->status = 'confirmed';
-            $transaction->confirmed = true;
-            $transaction->save();
-
-            try {
-                $telegramService = new TelegramService();
-                $telegramService->sendMessage(
-                    (string) $user->account_id,
-                    "کیف پول شما به مقدار {$amountToAdd} دلار افزایش یافت (SwapPay)"
+                $accountBalance = AccountBallance::firstOrCreate(
+                    ['account_id' => $user->account_id],
+                    ['ballance' => 0, 'account_ballance_in_dollar' => 0]
                 );
-            } catch (\Throwable $th) {
-                Log::info('SwapPay telegram notify failed: ' . $th->getMessage());
-            }
+                $accountBalance->account_ballance_in_dollar = (float) $accountBalance->account_ballance_in_dollar + $amountToAdd;
+                $accountBalance->save();
 
-            Log::info('SwapPay payment confirmed', [
-                'transaction_id' => $transaction->id,
-                'account_id' => $user->account_id,
-                'amount' => $amountToAdd,
-            ]);
+                $bill = Bill::where('bill_id', $locked->order_id)->first();
+                if ($bill) {
+                    $bill->status = 'paid';
+                    $bill->save();
+                }
 
-            return true;
+                $locked->status = 'confirmed';
+                $locked->confirmed = true;
+                $locked->callback_data = json_encode($result);
+                $locked->save();
+
+                try {
+                    $telegramService = new TelegramService();
+                    $telegramService->sendMessage(
+                        (string) $user->account_id,
+                        "کیف پول شما به مقدار {$amountToAdd} دلار افزایش یافت (SwapPay)"
+                    );
+                } catch (\Throwable $th) {
+                    Log::info('SwapPay telegram notify failed: ' . $th->getMessage());
+                }
+
+                Log::info('SwapPay payment confirmed', [
+                    'transaction_id' => $locked->id,
+                    'account_id' => $user->account_id,
+                    'amount' => $amountToAdd,
+                ]);
+
+                return true;
+            });
         } catch (\Throwable $th) {
             Log::error('SwapPay creditTransaction error', [
                 'transaction_id' => $transaction->id,
