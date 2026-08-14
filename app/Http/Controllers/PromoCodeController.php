@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\PromoCode;
+use App\Models\PromoCodeUsage;
 use App\Services\LicenseFeatureService;
 use App\Services\PromoCodeService;
 use Illuminate\Http\Request;
@@ -123,15 +124,27 @@ class PromoCodeController extends Controller
         return response()->json(true);
     }
 
-    public function usages(int $id)
+    public function usages(Request $request, int $id)
     {
         if (! $this->license->isGold()) {
             return $this->license->goldRequiredResponse();
         }
 
-        $promo = PromoCode::with('usages')->findOrFail($id);
+        PromoCode::findOrFail($id);
 
-        return response()->json($promo->usages);
+        $paginated = PromoCodeUsage::paginateForPromo(
+            $id,
+            (int) $request->input('page', 1),
+            (int) $request->input('per_page', 15)
+        );
+
+        return response()->json([
+            'data' => $paginated->items(),
+            'current_page' => $paginated->currentPage(),
+            'last_page' => $paginated->lastPage(),
+            'per_page' => $paginated->perPage(),
+            'total' => $paginated->total(),
+        ]);
     }
 
     public function validateCode(Request $request, PromoCodeService $service)
