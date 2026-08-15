@@ -108,7 +108,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
 
     // backup
     Route::get('createBackup', [BackupController::class, 'createBackup']);
-    Route::get('downloadBackup/{filename}', [BackupController::class, 'downloadBackup']);
+    Route::get('downloadBackup', [BackupController::class, 'downloadBackup']);
+    Route::get('downloadBackup/{filename}', [BackupController::class, 'downloadBackup'])
+        ->where('filename', '.*');
     Route::post('restoreBackup', [BackupController::class, 'restoreBackup']);
     Route::get('testDatabaseConnection', [BackupController::class, 'testDatabaseConnection']);
     Route::get('testMysqldump', [BackupController::class, 'testMysqldump']);

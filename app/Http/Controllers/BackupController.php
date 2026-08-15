@@ -83,12 +83,13 @@ class BackupController extends Controller
 
             // بررسی اندازه فایل
             if (file_exists($filePath) && filesize($filePath) > 0) {
-                // return url to download file
+                $this->ensureBackupCorsHtaccess();
+
                 return response()->json([
                     'status' => 'success',
                     'message' => 'فایل بکاپ با موفقیت ایجاد شد',
                     'filename' => $filename,
-                    'url' => url('storage/backups/' . $filename)
+                    'url' => $this->backupDownloadUrl($filename),
                 ]);
             }
 
@@ -106,8 +107,10 @@ class BackupController extends Controller
         }
     }
 
-    public function downloadBackup(string $filename)
+    public function downloadBackup(Request $request, ?string $filename = null)
     {
+        $filename = basename(rawurldecode((string) ($filename ?: $request->query('filename', ''))));
+
         // Accept both backup_YYYY-mm-dd_HH-ii-ss.sql and backup_php_....sql
         if (!preg_match('/^backup_(?:php_)?[\d\-_]+\.sql$/', $filename)) {
             return response()->json(['message' => 'نام فایل نامعتبر است'], 400);
@@ -118,10 +121,7 @@ class BackupController extends Controller
             return response()->json(['message' => 'فایل پشتیبان یافت نشد'], 404);
         }
 
-        return response()->download($filePath, $filename, [
-            'Content-Type' => 'application/sql',
-            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-        ]);
+        return response()->download($filePath, $filename, $this->backupDownloadHeaders($filename));
     }
 
     public function createBackupAndReturnZipFile()
@@ -726,11 +726,13 @@ class BackupController extends Controller
 
             // بررسی اندازه فایل
             if (file_exists($filePath) && filesize($filePath) > 0) {
+                $this->ensureBackupCorsHtaccess();
+
                 return response()->json([
                     'status' => 'success',
                     'message' => 'فایل بکاپ با موفقیت ایجاد شد',
                     'filename' => $filename,
-                    'url' => url('storage/backups/' . $filename)
+                    'url' => $this->backupDownloadUrl($filename),
                 ]);
             }
 
@@ -812,6 +814,48 @@ class BackupController extends Controller
             \Log::error("خطا در ایجاد و ارسال بکاپ: " . $th->getMessage());
             return false;
         }
+    }
+
+    private function backupDownloadUrl(string $filename): string
+    {
+        return url('/api/downloadBackup?filename=' . rawurlencode($filename));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function backupDownloadHeaders(string $filename): array
+    {
+        return [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+            'Access-Control-Allow-Headers' => '*',
+            'Access-Control-Expose-Headers' => 'Content-Disposition, Content-Type, Content-Length',
+        ];
+    }
+
+    private function ensureBackupCorsHtaccess(): void
+    {
+        $backupPath = storage_path('app/public/backups');
+        if (! File::exists($backupPath)) {
+            File::makeDirectory($backupPath, 0775, true);
+        }
+
+        $htaccess = $backupPath . '/.htaccess';
+        if (File::exists($htaccess)) {
+            return;
+        }
+
+        File::put($htaccess, <<<'HTACCESS'
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, OPTIONS"
+    Header always set Access-Control-Allow-Headers "*"
+</IfModule>
+HTACCESS
+        );
     }
 
 }

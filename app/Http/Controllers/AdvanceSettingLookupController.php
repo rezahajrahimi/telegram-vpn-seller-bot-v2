@@ -7,6 +7,7 @@ use App\Services\LicenseFeatureService;
 use App\Services\MobileVerificationService;
 use App\Services\PackageButtonLayoutService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AdvanceSettingLookupController extends Controller
 {
@@ -92,9 +93,10 @@ class AdvanceSettingLookupController extends Controller
         }
 
         try{
-            // truncate all date and run seed
-            AdvanceSettingLookup::truncate();
-            $this->seed();
+            DB::transaction(function () {
+                AdvanceSettingLookup::query()->delete();
+                $this->seed();
+            });
         } catch (\Throwable $th) {
             \Log::info("AdvanceSettingLookupController->re_seed_advance_settings_lookup->error", ['error' => $th->getMessage()]);
             return response()->json('Server Error', 500);
@@ -138,11 +140,13 @@ class AdvanceSettingLookupController extends Controller
             if ($advanceSettingLookup == null) {
                 // get all advance setting lookups, then clear all of them, then run $this->seed function, update new ones with old values, then get the advance setting lookup by name
                 $advanceSettingLookups = AdvanceSettingLookup::all();
-                AdvanceSettingLookup::truncate();
-                $this->seed();
-                foreach ($advanceSettingLookups as $advanceSettingLookup) {
-                    $this->update(Request::create($advanceSettingLookup->id, $advanceSettingLookup->name, $advanceSettingLookup->value, $advanceSettingLookup->description));
-                }
+                DB::transaction(function () use ($advanceSettingLookups) {
+                    AdvanceSettingLookup::query()->delete();
+                    $this->seed();
+                    foreach ($advanceSettingLookups as $advanceSettingLookup) {
+                        $this->update(Request::create($advanceSettingLookup->id, $advanceSettingLookup->name, $advanceSettingLookup->value, $advanceSettingLookup->description));
+                    }
+                });
                 $advanceSettingLookup = AdvanceSettingLookup::getByName($name);
                 return $advanceSettingLookup->booleanValue;
             }
