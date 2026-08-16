@@ -30,6 +30,7 @@ class TelegramWebhookController extends Controller
     private UserController $userCtrl;
     private TelegramCallbackHandler $callbackHandler;
     private $chatId;
+    private ?string $pendingStartPayload = null;
 
     public function __construct(TelegramService $telegramService, TelegramCallbackHandler $callbackHandler)
     {
@@ -93,6 +94,14 @@ class TelegramWebhookController extends Controller
             }
 
             $chatId = $this->chatId;
+            $this->pendingStartPayload = self::extractStartPayload(
+                isset($message['text']) && is_string($message['text']) ? $message['text'] : null
+            );
+
+            // Referral must be saved even if channel lock blocks the rest of /start.
+            if ($this->pendingStartPayload !== null) {
+                $this->handleReferralCommand('/start ' . $this->pendingStartPayload);
+            }
 
             // check the chatId is exist in users on account_id
             $isChannelMember = $this->checkChannelLock();
@@ -405,6 +414,35 @@ class TelegramWebhookController extends Controller
         return $result['message'];
     }
 
+    public static function extractStartPayload(?string $text): ?string
+    {
+        if (! is_string($text)) {
+            return null;
+        }
+
+        $text = trim($text);
+        if ($text === '' || ! str_starts_with($text, '/')) {
+            return null;
+        }
+
+        if (! preg_match('#^/(?:start|restart)(?:@[A-Za-z0-9_]+)?(?:\s+|$)(.*)$#s', $text, $matches)) {
+            return null;
+        }
+
+        $payload = trim((string) ($matches[1] ?? ''));
+
+        return $payload === '' ? null : $payload;
+    }
+
+    public static function channelLockResumeStartParam(?string $payload): string
+    {
+        if (is_string($payload) && preg_match('/^[A-Za-z0-9_-]{1,64}$/', $payload) === 1) {
+            return $payload;
+        }
+
+        return 'start';
+    }
+
     private function processCommand(string $text): string|array
     {
         $parts = explode(' ', $text);
@@ -454,9 +492,10 @@ class TelegramWebhookController extends Controller
                     // get bot name from setting controller
                     $settingCntrl = new SettingController();
                     $botName = $settingCntrl->get_bot_name();
+                    $startParam = self::channelLockResumeStartParam($this->pendingStartPayload);
                     $notJoinedChannels[] = [
                         'text' => "عضو شدم",
-                        'url' => "https://t.me/" . $botName . "?start=start",
+                        'url' => "https://t.me/" . $botName . "?start=" . $startParam,
                     ];
                     // add start command to $notJoinedChannels
 

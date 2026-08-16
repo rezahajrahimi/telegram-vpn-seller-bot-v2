@@ -4,9 +4,12 @@ namespace App\Http\Controllers;
 use App\Jobs\ProcessSubscriptionPurchase;
 use App\Models\BotUser;
 use App\Models\PaymentSetting;
+use App\Models\PaymentType;
 use App\Models\ProductCategory;
 use App\Models\ShetabVerify;
+use App\Models\Transaction;
 use App\Models\User;
+use App\Services\LoyaltyPointsService;
 use Illuminate\Http\Request;
 use App\Services\TelegramService;
 use App\Services\SubscriptionPurchaseLock;
@@ -206,6 +209,7 @@ class ShetabVerifyController extends Controller
 
         $accountBallanceCtrl = new AccountBallanceController();
         $accountBallanceCtrl->incUserAccuntBalance($user->account_id, $amountToman);
+        $this->creditShetabDepositRewards($user, $amountToman, $shetabVerify);
 
         $this->addNewBotLog(
             'shetab_verify',
@@ -275,6 +279,54 @@ class ShetabVerifyController extends Controller
         ]);
 
         return response()->json(['message' => 'Shetab verify is verified'], 200);
+    }
+
+    public function creditShetabDepositRewards(User $user, int $amountToman, ShetabVerify $shetabVerify): void
+    {
+        try {
+            $transactionId = $this->recordConfirmedShetabTransaction($user, $amountToman, $shetabVerify);
+            (new LoyaltyPointsService())->awardDepositPoints(
+                $user->account_id,
+                (float) $amountToman,
+                $transactionId
+            );
+            (new ReferralLogsController())->creditCommissionForDeposit(
+                $user->account_id,
+                $amountToman,
+                $transactionId
+            );
+        } catch (\Throwable $th) {
+            Log::error('Shetab deposit rewards failed: ' . $th->getMessage(), [
+                'account_id' => $user->account_id,
+                'amount_toman' => $amountToman,
+            ]);
+        }
+    }
+
+    public function recordConfirmedShetabTransaction(User $user, int $amountToman, ShetabVerify $shetabVerify): ?int
+    {
+        $paymentType = PaymentType::where('is_active', true)->where('type', 'offline')->first()
+            ?? PaymentType::where('type', 'offline')->first()
+            ?? PaymentType::first();
+
+        if ($paymentType == null) {
+            $paymentType = PaymentType::create([
+                'name' => 'شتاب',
+                'type' => 'offline',
+                'is_active' => true,
+            ]);
+        }
+
+        $transaction = new Transaction();
+        $transaction->account_id = $user->account_id;
+        $transaction->username = '';
+        $transaction->amount = $amountToman;
+        $transaction->recipe_number = 'SHETAB-' . $shetabVerify->id;
+        $transaction->payment_type_id = $paymentType->id;
+        $transaction->confirmed = true;
+        $transaction->save();
+
+        return $transaction->id;
     }
 
     private function addNewBotLog($type, $message, $chatId, $username, $event)

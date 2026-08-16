@@ -46,6 +46,14 @@ class ReferralLogsController extends Controller
         }
     }
 
+    private function findSignupReferralLog($userId): ?ReferralLogs
+    {
+        return ReferralLogs::where('referral_to_id', $userId)
+            ->whereNull('transaction_id')
+            ->where('amount', 0)
+            ->first();
+    }
+
     public function check_user_is_referred($account_id)
     {
         try {
@@ -54,11 +62,7 @@ class ReferralLogsController extends Controller
                 return false;
             }
 
-            $referralLogs = ReferralLogs::where('referral_to_id', $user_id)
-                ->whereNull('transaction_id')
-                ->first();
-
-            return $referralLogs != null;
+            return $this->findSignupReferralLog($user_id) != null;
         } catch (\Throwable $th) {
             \Log::info("Throwable check_user_is_referred: $th");
 
@@ -86,9 +90,7 @@ class ReferralLogsController extends Controller
                 return false;
             }
 
-            $referralLogs = ReferralLogs::where('referral_to_id', $user_id)
-                ->whereNull('transaction_id')
-                ->first();
+            $referralLogs = $this->findSignupReferralLog($user_id);
             if ($referralLogs != null) {
                 return true;
             }
@@ -102,11 +104,9 @@ class ReferralLogsController extends Controller
 
             \Log::info("newReferralLogs: {$newReferralLogs->referral_user_id} {$newReferralLogs->referral_to_id}");
 
-            app('telegram_bot')->sendMessage(
-                'یک کاربر با لینک دعوت شما وارد ربات شد.',
+            $this->notifyReferrer(
                 (string) $referralCode,
-                null,
-                'MarkDown'
+                'یک کاربر با لینک دعوت شما وارد ربات شد.'
             );
 
             $referrer = User::find($referral_id);
@@ -141,9 +141,7 @@ class ReferralLogsController extends Controller
                 return null;
             }
 
-            $referralLogs = ReferralLogs::where('referral_to_id', $user_id)
-                ->whereNull('transaction_id')
-                ->first();
+            $referralLogs = $this->findSignupReferralLog($user_id);
             if ($referralLogs != null) {
                 return $referralLogs->referral_user_id;
             }
@@ -244,7 +242,28 @@ class ReferralLogsController extends Controller
         }
     }
 
+    public function creditCommissionForDeposit($accountId, $amountToman, $transactionId = null)
+    {
+        $referral_percent = (new ReferralSettingController())->get_referral_setting_referral_percent();
+        $commissionAmount = ReferralSetting::commissionFromAmount(
+            (float) $amountToman,
+            $referral_percent
+        );
+
+        return $this->creditCommissionToReferrer($accountId, $commissionAmount, $transactionId);
+    }
+
     public function add_amount_to_refrerral_user_Log_and_referral_wallet($transaction_id, $amount, $isPaymentBack = false)
+    {
+        $transaction = Transaction::find($transaction_id);
+        if ($transaction == null) {
+            return null;
+        }
+
+        return $this->creditCommissionToReferrer($transaction->account_id, $amount, $transaction_id);
+    }
+
+    public function creditCommissionToReferrer($accountId, $amount, $transactionId = null)
     {
         try {
             if (!$this->isReferralActive()) {
@@ -256,26 +275,21 @@ class ReferralLogsController extends Controller
                 return null;
             }
 
-            $transaction = Transaction::find($transaction_id);
-            if ($transaction == null) {
-                return null;
+            if ($transactionId) {
+                $existingCommission = ReferralLogs::where('transaction_id', $transactionId)
+                    ->where('amount', '>', 0)
+                    ->first();
+                if ($existingCommission != null) {
+                    return $existingCommission;
+                }
             }
 
-            $existingCommission = ReferralLogs::where('transaction_id', $transaction_id)
-                ->where('amount', '>', 0)
-                ->first();
-            if ($existingCommission != null) {
-                return $existingCommission;
-            }
-
-            $referredUser = User::where('account_id', $transaction->account_id)->first();
+            $referredUser = User::where('account_id', $accountId)->first();
             if ($referredUser == null) {
                 return null;
             }
 
-            $signupLog = ReferralLogs::where('referral_to_id', $referredUser->id)
-                ->whereNull('transaction_id')
-                ->first();
+            $signupLog = $this->findSignupReferralLog($referredUser->id);
             if ($signupLog == null) {
                 return null;
             }
@@ -284,7 +298,7 @@ class ReferralLogsController extends Controller
             $commissionLog->referral_user_id = $signupLog->referral_user_id;
             $commissionLog->referral_to_id = $referredUser->id;
             $commissionLog->amount = $amount;
-            $commissionLog->transaction_id = $transaction_id;
+            $commissionLog->transaction_id = $transactionId;
             $commissionLog->save();
 
             $referralWallet = ReferralWallet::where('referral_user_id', $commissionLog->referral_user_id)->first();
@@ -302,7 +316,7 @@ class ReferralLogsController extends Controller
             if ($user != null) {
                 $referralCode = $user->account_id;
                 $text = "مقدار {$amount} تومان به کیف همکاری شما افزوده شد.";
-                app('telegram_bot')->sendMessage($text, $referralCode, null, 'MarkDown');
+                $this->notifyReferrer((string) $referralCode, $text);
                 $this->addNewBotLog(
                     'referral',
                     $text,
@@ -345,7 +359,7 @@ class ReferralLogsController extends Controller
             if ($user != null) {
                 $referralCode = $user->account_id;
                 $text = "مقدار {$deductAmount} تومان از کیف همکاری شما کم شد.";
-                app('telegram_bot')->sendMessage($text, $referralCode, null, 'MarkDown');
+                $this->notifyReferrer((string) $referralCode, $text);
                 $this->addNewBotLog(
                     'referral',
                     $text,
@@ -362,6 +376,17 @@ class ReferralLogsController extends Controller
             \Log::info("Throwable decrease_amount_to_refrerral_user_Log_and_referral_wallet: $th");
 
             return null;
+        }
+    }
+
+    private function notifyReferrer(string $accountId, string $text): void
+    {
+        try {
+            if (app()->bound('telegram_bot')) {
+                app('telegram_bot')->sendMessage($text, $accountId, null, 'MarkDown');
+            }
+        } catch (\Throwable $th) {
+            \Log::info('referral telegram notify failed: ' . $th->getMessage());
         }
     }
 
