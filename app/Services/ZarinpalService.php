@@ -82,7 +82,7 @@ class ZarinpalService
     /**
      * Request a new payment
      *
-     * @param int $amount Amount in Toman
+     * @param int $amount Amount (In Toman)
      * @param string $description Payment description
      * @param string|null $email Optional customer email
      * @param string|null $mobile Optional customer mobile
@@ -90,6 +90,7 @@ class ZarinpalService
      */
     public function request(int $amount, string $description = 'پرداخت', ?string $email = null, ?string $mobile = null): array
     {
+        // Zarinpal API v4 expects amount in Toman.
         $data = [
             'merchant_id' => $this->merchantId,
             'amount' => $amount,
@@ -162,11 +163,12 @@ class ZarinpalService
      * Verify a payment
      *
      * @param string $authority The authority code from callback
-     * @param int $amount Amount in Toman (must match original request)
+     * @param int $amount Amount (In Toman)
      * @return array ['success' => bool, 'ref_id' => string|null, 'card_pan' => string|null, 'error' => string|null, 'code' => int|null]
      */
     public function verify(string $authority, int $amount): array
     {
+        // Zarinpal API v4 expects amount in Toman.
         $data = [
             'merchant_id' => $this->merchantId,
             'authority' => $authority,

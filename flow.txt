@@ -1,0 +1,108 @@
+فلوی انتشار نسخه جدید powerps-core
+====================================
+
+cd telegram-vpn-seller-bot-v2
+
+# اولین بار (اینکریپت app و routes — database اصلی می‌ماند)
+./tools/publish-powerps-core.sh
+
+# دفعات بعد (اگر encrypted/ آماده است)
+./tools/publish-powerps-core.sh --skip-encrypt
+
+
+Push به GitHub
+--------------
+cd dist/powerps-core
+git add -A
+git commit -m "release: PHP 8.4 / phpBolt 1.0.7"
+git push origin main
+
+# همین‌طور install.sh به‌روز را push کن:
+cd ../../powerps-core-scripts
+git add install.sh sanitize-release-composer.php README.md
+git commit -m "chore: sync composer lock on release (no update --lock on server)"
+git push origin main
+
+
+نصب روی سرور
+------------
+sudo bash -c "$(curl -sL https://raw.githubusercontent.com/rezahajrahimi/powerps-core-scripts/refs/heads/main/install.sh)" @ install
+
+
+اگر git pull خطای local changes داد (قبل از fix)
+-------------------------------------------------
+cd /var/www/html/laravel-app
+cp .env /tmp/powerps-env-backup
+cp -a public/images/qrcodes /tmp/ 2>/dev/null || true
+cp -a public/images/transaction_images /tmp/ 2>/dev/null || true
+git fetch origin main
+git reset --hard origin/main
+cp /tmp/powerps-env-backup .env
+cp -a /tmp/qrcodes/. public/images/qrcodes/ 2>/dev/null || true
+cp -a /tmp/transaction_images/. public/images/transaction_images/ 2>/dev/null || true
+# بعد دوباره install.sh را اجرا کن
+
+
+bolt.so از کجا می‌آید؟
+-----------------------
+روی سرور دانلود نمی‌شود!
+
+1. توسعه‌دهنده bolt.so را از https://phpbolt.com/download-phpbolt/ می‌گیرد
+2. با publish-powerps-core.sh داخل ریپوی powerps-core قرار می‌گیرد:
+   - bolt.so
+   - bolt-x86_64.so
+   - bolt-aarch64.so
+3. install.sh هنگام clone/pull فایل مناسب CPU را در PHP کپی می‌کند
+
+چه چیز اینکریپت می‌شود؟
+-------------------------
+- app/     → اینکریپت
+- routes/  → اینکریپت
+- database/ → اصلی (بدون اینکریپت)
+
+
+
+cd power_ps_front_3
+
+# بیلد + آماده‌سازی خروجی
+./tools/publish-powerps-webapp.sh
+
+# فقط بسته‌بندی (اگر build/web موجود است)
+./tools/publish-powerps-webapp.sh --skip-build
+
+# بیلد + push مستقیم به GitHub
+./tools/publish-powerps-webapp.sh --push
+
+# سریع‌ترین حالت برای انتشار مجدد
+./tools/publish-powerps-webapp.sh --skip-build --push
+
+
+
+
+
+
+
+
+
+
+
+#!/bin/bash
+# install.sh puts the app here (NOT /www/wwwroot/... — that is another host/panel)
+cd /var/www/html/laravel-app
+export COMPOSER_ALLOW_SUPERUSER=1
+
+composer install --no-dev --optimize-autoloader --no-interaction
+
+chown -R www:www storage bootstrap/cache
+chmod -R 775 storage bootstrap/cache
+
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+
+# Do NOT run `composer update --lock` on the server — lock sync belongs in publish-powerps-core.sh
+
+
+
+#  composer install --no-dev --optimize-autoloader

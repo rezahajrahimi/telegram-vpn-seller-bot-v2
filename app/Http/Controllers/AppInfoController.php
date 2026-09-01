@@ -3,14 +3,23 @@
 namespace App\Http\Controllers;
 
 use App\Models\AppInfo;
+use App\Services\LicenseFeatureService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 
-
-
 class AppInfoController extends Controller
 {
+    private function goldLicenseRequired()
+    {
+        $license = new LicenseFeatureService();
+        if (! $license->isGold()) {
+            return $license->goldRequiredResponse();
+        }
+
+        return null;
+    }
+
     public function index()
     {
         $appInfo = AppInfo::first();
@@ -28,11 +37,20 @@ class AppInfoController extends Controller
 
     public function update(Request $request)
     {
+        if ($denied = $this->goldLicenseRequired()) {
+            return $denied;
+        }
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'version' => 'nullable|string|max:50',
+            'primary_color' => 'nullable|string|max:20',
+            'secondary_color' => 'nullable|string|max:20',
+            'background_color' => 'nullable|string|max:20',
+            'panel_title' => 'nullable|string|max:255',
+            'footer_text' => 'nullable|string|max:500',
+            'show_powerps_credit' => 'nullable|boolean',
         ]);
-        // image is 
 
         $appInfo = AppInfo::first();
         $appInfo->setAppInfo($data);
@@ -41,6 +59,10 @@ class AppInfoController extends Controller
     }
     public function save_image(Request $request)
     {
+        if ($denied = $this->goldLicenseRequired()) {
+            return $denied;
+        }
+
         $image = $request->file('image');
         $imagePath = 'images/appinfo/';
         $imageName = time() . '.' . $image->getClientOriginalExtension(); // نام یکتا با پسوند

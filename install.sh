@@ -205,7 +205,7 @@ php artisan key:generate
 
 # Run migrations
 echo -e "${GREEN}Running migrations...${NC}"
-php artisan migrate
+php artisan migrate --force
 # Run Link Storage
 php artisan storage:link
 # Check if phpMyAdmin is installed

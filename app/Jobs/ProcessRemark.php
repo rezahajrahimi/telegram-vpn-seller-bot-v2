@@ -63,6 +63,15 @@ class ProcessRemark implements ShouldQueue
             }
 
             $pannel = Pannel::find($product->product_category_and_panel->pannel_id);
+            if ($pannel === null || ! $pannel->supportsRemarkRename()) {
+                $this->clearAwaitingReply(
+                    $this->chatId,
+                    'تغییر نام بسته فقط برای پنل‌های Hiddify و Sanaei امکان‌پذیر است.',
+                    $telegramService
+                );
+
+                return;
+            }
 
             if ($pannel->type == 'hiddify') {
                 $hiddifcCntrl = new HiddifyPannelController();

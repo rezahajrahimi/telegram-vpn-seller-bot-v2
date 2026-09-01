@@ -83,11 +83,13 @@ class BackupController extends Controller
 
             // بررسی اندازه فایل
             if (file_exists($filePath) && filesize($filePath) > 0) {
-                // return url to download file
+                $this->ensureBackupCorsHtaccess();
+
                 return response()->json([
                     'status' => 'success',
                     'message' => 'فایل بکاپ با موفقیت ایجاد شد',
-                    'url' => url('storage/backups/' . $filename)
+                    'filename' => $filename,
+                    'url' => $this->backupDownloadUrl($filename),
                 ]);
             }
 
@@ -104,6 +106,24 @@ class BackupController extends Controller
             ], 500);
         }
     }
+
+    public function downloadBackup(Request $request, ?string $filename = null)
+    {
+        $filename = basename(rawurldecode((string) ($filename ?: $request->query('filename', ''))));
+
+        // Accept both backup_YYYY-mm-dd_HH-ii-ss.sql and backup_php_....sql
+        if (!preg_match('/^backup_(?:php_)?[\d\-_]+\.sql$/', $filename)) {
+            return response()->json(['message' => 'نام فایل نامعتبر است'], 400);
+        }
+
+        $filePath = storage_path('app/public/backups/' . $filename);
+        if (!file_exists($filePath)) {
+            return response()->json(['message' => 'فایل پشتیبان یافت نشد'], 404);
+        }
+
+        return response()->download($filePath, $filename, $this->backupDownloadHeaders($filename));
+    }
+
     public function createBackupAndReturnZipFile()
     {
         try {
@@ -274,12 +294,11 @@ class BackupController extends Controller
 
 
     /**
-     * بازیابی اطلاعات از فایل بکاپ
+     * بازیابی اطلاعات از فایل بکاپ (.sql یا .sql.zip)
      */
     public function restoreBackup(Request $request)
     {
         try {
-            // بررسی وجود فایل در URL
             $backupUrl = $request->input('backup_url');
             if (!$backupUrl && !$request->hasFile('backup_file')) {
                 return response()->json([
@@ -288,95 +307,208 @@ class BackupController extends Controller
                 ], 400);
             }
 
-            // Create symbolic link if not exists
             if (!file_exists(public_path('storage'))) {
                 \Artisan::call('storage:link');
             }
 
-            // حذف تمام جداول موجود
-            DB::statement('SET FOREIGN_KEY_CHECKS = 0');
-
-            // گرفتن لیست تمام جداول
-            $tables = DB::select('SHOW TABLES');
-            $dbName = 'Tables_in_' . config('database.connections.mysql.database');
-
-            // حذف تک تک جداول
-            foreach ($tables as $table) {
-                DB::statement('DROP TABLE IF EXISTS ' . $table->$dbName);
-            }
-
-            DB::statement('SET FOREIGN_KEY_CHECKS = 1');
-
-            // ایجاد دایرکتوری temp اگر وجود نداشته باشد
             $tempPath = storage_path('app/public/backups/temp');
             if (!File::exists($tempPath)) {
                 File::makeDirectory($tempPath, 0775, true);
             }
 
-            // اگر URL ارسال شده باشد، فایل را از مسیر storage کپی می‌کنیم
+            $cleanupFiles = [];
+
+            // Prepare the SQL file FIRST — never drop tables until the file is ready.
             if ($backupUrl) {
                 $path = parse_url($backupUrl, PHP_URL_PATH);
                 $filename = basename($path);
-                $sourcePath = storage_path('app/public/backups/' . $filename);
+                if (!$this->isAllowedBackupFilename($filename)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'نام فایل بکاپ نامعتبر است'
+                    ], 400);
+                }
 
-                if (!file_exists($sourcePath)) {
+                $sourcePath = storage_path('app/public/backups/' . $filename);
+                if (!file_exists($sourcePath) || filesize($sourcePath) <= 0) {
                     return response()->json([
                         'status' => 'error',
                         'message' => 'فایل بکاپ در مسیر مشخص شده یافت نشد'
                     ], 404);
                 }
 
-                copy($sourcePath, $tempPath . '/' . $filename);
+                $workFile = $tempPath . '/' . $filename;
+                copy($sourcePath, $workFile);
+                $cleanupFiles[] = $workFile;
             } else {
                 $file = $request->file('backup_file');
-                if (!$file) {
+                if (!$file || !$file->isValid()) {
                     return response()->json([
                         'status' => 'error',
                         'message' => 'فایل آپلود شده معتبر نیست'
                     ], 400);
                 }
-                $filename = 'restore_' . time() . '.sql';
+
+                $originalName = strtolower((string) $file->getClientOriginalName());
+                if (!$this->isAllowedBackupExtension($originalName)) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'فقط فایل SQL یا ZIP بکاپ مجاز است'
+                    ], 400);
+                }
+
+                if ($file->getSize() <= 0) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'فایل بکاپ خالی است'
+                    ], 400);
+                }
+
+                $ext = str_ends_with($originalName, '.sql.zip') || str_ends_with($originalName, '.zip')
+                    ? '.sql.zip'
+                    : '.sql';
+                $filename = 'restore_' . time() . $ext;
                 $file->move($tempPath, $filename);
+                $workFile = $tempPath . '/' . $filename;
+                $cleanupFiles[] = $workFile;
             }
 
-            // دستور mysql برای بازیابی - اصلاح پارامترها
+            $sqlFile = $this->resolveSqlFileFromBackup($workFile, $tempPath, $cleanupFiles);
+            if ($sqlFile === null || !file_exists($sqlFile) || filesize($sqlFile) <= 0) {
+                $this->cleanupFiles($cleanupFiles);
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'فایل SQL داخل بکاپ یافت نشد یا خالی است'
+                ], 400);
+            }
+
+            // Drop existing tables only after the restore file is validated.
+            DB::statement('SET FOREIGN_KEY_CHECKS = 0');
+            $tables = DB::select('SHOW TABLES');
+            $dbName = 'Tables_in_' . config('database.connections.mysql.database');
+            foreach ($tables as $table) {
+                DB::statement('DROP TABLE IF EXISTS `' . str_replace('`', '``', $table->$dbName) . '`');
+            }
+            DB::statement('SET FOREIGN_KEY_CHECKS = 1');
+
             $command = sprintf(
                 'mysql -h %s -u %s -p%s %s < %s',
-                config('database.connections.mysql.host'),
-                config('database.connections.mysql.username'),
-                config('database.connections.mysql.password'),
-                config('database.connections.mysql.database'),
-                $tempPath . '/' . $filename
+                escapeshellarg(config('database.connections.mysql.host')),
+                escapeshellarg(config('database.connections.mysql.username')),
+                escapeshellarg(config('database.connections.mysql.password')),
+                escapeshellarg(config('database.connections.mysql.database')),
+                escapeshellarg($sqlFile)
             );
 
-            // \Log::info('File received: ' . ($file ? 'yes' : 'no'));
-            // \Log::info('Command: ' . $command);
-
-            // اجرای دستور و بررسی خطا
             $output = [];
             $returnVar = 0;
             exec($command . ' 2>&1', $output, $returnVar);
+
+            $this->cleanupFiles($cleanupFiles);
 
             if ($returnVar !== 0) {
                 \Log::error('MySQL Error: ' . implode("\n", $output));
                 throw new Exception('خطا در اجرای دستور MySQL: ' . implode("\n", $output));
             }
 
-            // پاک کردن فایل موقت
-            File::delete($tempPath . '/' . $filename);
-
             return response()->json([
                 'status' => 'success',
                 'message' => 'بازیابی اطلاعات با موفقیت انجام شد',
-
             ]);
-
         } catch (Exception $e) {
             \Log::error('خطا در بازیابی اطلاعات: ' . $e->getMessage());
             return response()->json([
                 'status' => 'error',
                 'message' => $e->getMessage()
             ], 500);
+        }
+    }
+
+    private function isAllowedBackupFilename(string $filename): bool
+    {
+        return (bool) preg_match(
+            '/^(backup_(?:php_)?[\d\-_]+|restore_\d+)\.(sql|sql\.zip|zip)$/',
+            $filename
+        );
+    }
+
+    private function isAllowedBackupExtension(string $originalName): bool
+    {
+        return str_ends_with($originalName, '.sql')
+            || str_ends_with($originalName, '.sql.zip')
+            || str_ends_with($originalName, '.zip');
+    }
+
+    /**
+     * @param  list<string>  $cleanupFiles
+     */
+    private function resolveSqlFileFromBackup(string $workFile, string $tempPath, array &$cleanupFiles): ?string
+    {
+        $lower = strtolower($workFile);
+        if (str_ends_with($lower, '.sql') && !str_ends_with($lower, '.sql.zip')) {
+            return $workFile;
+        }
+
+        if (!class_exists(\ZipArchive::class)) {
+            throw new Exception('افزونه ZipArchive روی سرور نصب نیست');
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($workFile) !== true) {
+            return null;
+        }
+
+        $sqlEntry = null;
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+            if ($name === false) {
+                continue;
+            }
+            if (str_ends_with(strtolower($name), '.sql') && !str_ends_with(strtolower($name), '/')) {
+                $sqlEntry = $name;
+                break;
+            }
+        }
+
+        if ($sqlEntry === null) {
+            $zip->close();
+            return null;
+        }
+
+        $extractName = 'restore_extracted_' . time() . '.sql';
+        $extractPath = $tempPath . '/' . $extractName;
+        $stream = $zip->getStream($sqlEntry);
+        if ($stream === false) {
+            $zip->close();
+            return null;
+        }
+
+        $out = fopen($extractPath, 'wb');
+        if ($out === false) {
+            fclose($stream);
+            $zip->close();
+            return null;
+        }
+
+        stream_copy_to_stream($stream, $out);
+        fclose($stream);
+        fclose($out);
+        $zip->close();
+
+        $cleanupFiles[] = $extractPath;
+
+        return $extractPath;
+    }
+
+    /**
+     * @param  list<string>  $files
+     */
+    private function cleanupFiles(array $files): void
+    {
+        foreach (array_unique($files) as $file) {
+            if (is_string($file) && $file !== '' && file_exists($file)) {
+                File::delete($file);
+            }
         }
     }
 
@@ -594,10 +726,13 @@ class BackupController extends Controller
 
             // بررسی اندازه فایل
             if (file_exists($filePath) && filesize($filePath) > 0) {
+                $this->ensureBackupCorsHtaccess();
+
                 return response()->json([
                     'status' => 'success',
                     'message' => 'فایل بکاپ با موفقیت ایجاد شد',
-                    'url' => url('storage/backups/' . $filename)
+                    'filename' => $filename,
+                    'url' => $this->backupDownloadUrl($filename),
                 ]);
             }
 
@@ -613,6 +748,30 @@ class BackupController extends Controller
                 'message' => 'خطای سرور: ' . $th->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * HTTP entry for cron/manual backup-to-telegram.
+     * Requires ?token= matching BACKUP_CRON_SECRET. Scheduler calls
+     * createBackupAndSendToTelegram() directly and does not need this.
+     */
+    public function createBackupAndSendToTelegramHttp(Request $request)
+    {
+        $expected = (string) env('BACKUP_CRON_SECRET', '');
+        $token = (string) $request->query('token', '');
+
+        if ($expected === '' || $token === '' || !hash_equals($expected, $token)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        $result = $this->createBackupAndSendToTelegram();
+
+        return response()->json([
+            'status' => $result ? 'success' : 'error',
+        ], $result ? 200 : 500);
     }
 
     /**
@@ -655,6 +814,48 @@ class BackupController extends Controller
             \Log::error("خطا در ایجاد و ارسال بکاپ: " . $th->getMessage());
             return false;
         }
+    }
+
+    private function backupDownloadUrl(string $filename): string
+    {
+        return url('/api/downloadBackup?filename=' . rawurlencode($filename));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function backupDownloadHeaders(string $filename): array
+    {
+        return [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, OPTIONS',
+            'Access-Control-Allow-Headers' => '*',
+            'Access-Control-Expose-Headers' => 'Content-Disposition, Content-Type, Content-Length',
+        ];
+    }
+
+    private function ensureBackupCorsHtaccess(): void
+    {
+        $backupPath = storage_path('app/public/backups');
+        if (! File::exists($backupPath)) {
+            File::makeDirectory($backupPath, 0775, true);
+        }
+
+        $htaccess = $backupPath . '/.htaccess';
+        if (File::exists($htaccess)) {
+            return;
+        }
+
+        File::put($htaccess, <<<'HTACCESS'
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, OPTIONS"
+    Header always set Access-Control-Allow-Headers "*"
+</IfModule>
+HTACCESS
+        );
     }
 
 }

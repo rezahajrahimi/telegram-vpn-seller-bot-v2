@@ -121,4 +121,33 @@ class BillController extends Controller
             return null;
         }
     }
+
+    public function createNewAgentSwapPayBillUrl($amount)
+    {
+        $account_id = auth('sanctum')->user()->account_id;
+
+        $bill = new Bill();
+        $bill->account_id = $account_id;
+        $bill->bill_id = abs(crc32(uniqid()));
+        $bill->amount = 0;
+        $bill->amount_dollar = $amount;
+        if ($bill->save()) {
+            $trCryptoCntrl = new TransactionCryptoController();
+            $trRequest = new Request([
+                'gateway' => 'swappay',
+                'invoiceID' => $bill->bill_id,
+                'account_id' => $account_id,
+                'preferred_link' => 'WEBSITE',
+            ]);
+            $paymentLink = $trCryptoCntrl->initiateCryptoPayment($trRequest);
+
+            if (is_string($paymentLink) && str_starts_with($paymentLink, 'http')) {
+                return $paymentLink;
+            }
+
+            return null;
+        }
+
+        return null;
+    }
 }
