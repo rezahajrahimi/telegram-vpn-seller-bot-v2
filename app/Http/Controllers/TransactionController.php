@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\LoyaltyPointsService;
 use App\Services\ZarinpalService;
 use Illuminate\Support\Facades\Config;
 
@@ -29,16 +30,20 @@ class TransactionController extends Controller
         $this->account_id = $request->account_id;
 
         if ($this->amount != null) {
-            // Get zarinpal merchant id from database
-            $zarinpalMerchentID = PaymentType::where('name', 'زرین پال')->first()->merchant_id;
+            $zarinpalPayment = PaymentType::where('name', 'زرین پال')->first();
+            $zarinpalMerchentID = $zarinpalPayment?->merchant_id;
             if ($zarinpalMerchentID == null) {
                 return 'ZARINPAL_MERCHANT_ID is not set';
             }
 
-            $callbackUrl = $mainUrl . '/order';
+            $callbackUrl = PaymentType::resolveZarinpalCallbackUrl(
+                $zarinpalPayment->callback_url ?? null,
+                $mainUrl
+            );
+            $isSandbox = (bool) ($zarinpalPayment->is_sandbox ?? false);
 
             // Use custom ZarinpalService
-            $zarinpal = new ZarinpalService($zarinpalMerchentID, null, $callbackUrl);
+            $zarinpal = new ZarinpalService($zarinpalMerchentID, $isSandbox, $callbackUrl);
             $response = $zarinpal->request($this->amount, 'خرید کالا');
 
             \Log::info("Zarinpal payment link created: " . ($response['success'] ? $response['authority'] : $response['error']));
@@ -56,7 +61,7 @@ class TransactionController extends Controller
             $transaction->amount = $this->amount;
             $transaction->confirmed = 0;
             $transaction->recipe_number = $authority;
-            $transaction->payment_type_id = PaymentType::where('name', 'زرین پال')->first()->id;
+            $transaction->payment_type_id = $zarinpalPayment->id;
 
             $transaction->save();
 
@@ -68,25 +73,34 @@ class TransactionController extends Controller
     public function order(Request $request)
     {
         try {
-            $transaction_id = $request->transaction_id;
-            $status = $request->status;
+            $authority = $request->Authority; // Zarinpal returns Authority in camelCase or depends on driver, v4 uses Authority
+            $status = $request->Status;
 
-            $amount = $this->getAmountByRecipeNUmber($transaction_id);
+            if ($status !== 'OK') {
+                return 'پرداخت توسط کاربر لغو شد یا ناموفق بود.';
+            }
 
-            // Get transaction with $transaction_id
-            $transaction = Transaction::where('recipe_number', $transaction_id)->first();
+            $amount = $this->getAmountByRecipeNUmber($authority);
+
+            // Get transaction with $authority
+            $transaction = Transaction::where('recipe_number', $authority)->first();
+
+            if (!$transaction) {
+                return 'تراکنش یافت نشد.';
+            }
 
             // Check if transaction was confirmed before
             if ($transaction->confirmed == true) {
-                return 'تراکنش تکراری می باشد.';
+                return 'تراکنش قبلاً تایید شده است.';
             }
 
-            $authority = $transaction_id;
-            $zarinpalMerchentID = PaymentType::where('name', 'زرین پال')->first()->merchant_id;
+            $zarinpalPayment = PaymentType::where('name', 'زرین پال')->first();
+            $zarinpalMerchentID = $zarinpalPayment?->merchant_id;
+            $isSandbox = (bool) ($zarinpalPayment->is_sandbox ?? false);
 
             // Use custom ZarinpalService for verification
-            $zarinpal = new ZarinpalService($zarinpalMerchentID);
-            $response = $zarinpal->verify($authority, $amount);
+            $zarinpal = new ZarinpalService($zarinpalMerchentID, $isSandbox);
+            $response = $zarinpal->verify($authority, (int)$amount);
 
             if (!$response['success']) {
                 return $response['error'];
@@ -105,15 +119,15 @@ class TransactionController extends Controller
 
             return 'پرداخت با موفقیت انجام شد. می توانید این پنجره را ببندید.';
         } catch (\Exception $exception) {
-            $transaction_id = $request->transaction_id;
+            $authority = $request->Authority;
 
-            $transaction = Transaction::where('recipe_number', $transaction_id)->first();
+            $transaction = Transaction::where('recipe_number', $authority)->first();
 
             if ($transaction) {
                 $this->removeUnconfirmedTransaction($transaction->id);
             }
-            \Log::info("back from zarinpal $exception");
-            return 'خطا در انجام عملیات';
+            \Log::error("Zarinpal callback error: " . $exception->getMessage());
+            return 'خطا در پردازش بازگشت از درگاه';
         }
     }
     public function getUserTranaction($userID)
@@ -130,6 +144,13 @@ class TransactionController extends Controller
         try {
             if ($paymentTypeId == 0 || $paymentTypeId == null) {
                 $pay = PaymentType::where('is_active', true)->where('type', 'offline')->first();
+                if ($pay == null) {
+                    $pay = PaymentType::where('type', 'offline')->first();
+                }
+                if ($pay == null) {
+                    \Log::error('addUserTranaction failed: no offline payment type found');
+                    return null;
+                }
                 $paymentTypeId = $pay->id;
             }
             $transaction = new Transaction();
@@ -139,31 +160,11 @@ class TransactionController extends Controller
             $transaction->recipe_number = $recipeNUmber;
             $transaction->payment_type_id = $paymentTypeId;
             $transaction->save();
-            // check user have referral, if has create referral log
-            $referralLogsCntrl = new ReferralLogsController();
-            $hasRef = $referralLogsCntrl->check_user_is_referred($transaction->account_id);
-
-            if ($hasRef == true) {
-                // get amount from referralsetting and calculate by percent stored in db
-                $referralSettingCntrl = new ReferralSettingController();
-                $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
-                $amount = 0;
-                if ($referral_percent !== null || $referral_percent !== 0) {
-                    $amount = ($transaction->amount / 100) * $referral_percent;
-                }
-
-                $referReq = new Request();
-                $referReq->referral_to_id = $userID;
-
-                $referReq->amount = $amount;
-                $referReq->transaction_id = $transaction->id;
-
-                $referralLogsCntrl->add_new_referral_logs($referReq);
-            }
 
             return $transaction->id;
         } catch (\Throwable $th) {
             \Log::info("Throwable  $th");
+            return null;
         }
     }
     public function removeUnconfirmedTransaction($id)
@@ -218,12 +219,17 @@ class TransactionController extends Controller
                     $referralSettingCntrl = new ReferralSettingController();
 
                     $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
-                    $amount = 0;
-                    if ($referral_percent !== null || $referral_percent !== 0) {
-                        $amount = ($transaction->amount / 100) * $referral_percent;
-                    }
+                    $amount = \App\Models\ReferralSetting::commissionFromAmount(
+                        (float) $transaction->amount,
+                        $referral_percent
+                    );
                     if ($isConfirmed) {
                         $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$transaction->amount} به حساب شما افزوده شد.", $transaction->account_id, null, 'MarkDown');
+                        (new LoyaltyPointsService())->awardDepositPoints(
+                            $transaction->account_id,
+                            (float) $transaction->amount,
+                            $transaction->id
+                        );
                         // set referral wallet
                         if ($request->isPaymntBack == true) {
                             $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($transaction->id, $amount, true);
@@ -269,9 +275,14 @@ class TransactionController extends Controller
             $data->update();
 
             $result = app('telegram_bot')->sendMessage("تراکنش شما با موفقیت ثبت شد و مبلغ {$data->amount} به حساب شما افزوده شد.", $data->account_id, null, 'MarkDown');
-            // set referral wallet
             $referralLogsCntrl = new ReferralLogsController();
-            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($data->id, $data->amount);
+            $referralSettingCntrl = new ReferralSettingController();
+            $referral_percent = $referralSettingCntrl->get_referral_setting_referral_percent();
+            $commissionAmount = \App\Models\ReferralSetting::commissionFromAmount(
+                (float) $data->amount,
+                $referral_percent
+            );
+            $referralLogsCntrl->add_amount_to_refrerral_user_Log_and_referral_wallet($data->id, $commissionAmount, false);
 
             return true;
         } else {

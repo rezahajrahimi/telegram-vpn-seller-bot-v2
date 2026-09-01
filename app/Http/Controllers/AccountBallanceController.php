@@ -12,6 +12,24 @@ use Illuminate\Http\Request;
 
 class AccountBallanceController extends Controller
 {
+    private function canAgentChargeMinusBalance(?AgentPermisson $agentPr, float $currentBalance, float $chargeAmount): bool
+    {
+        if ($agentPr === null) {
+            return false;
+        }
+
+        if ($agentPr->minus_ballance !== 1 && $agentPr->minus_ballance !== true) {
+            return false;
+        }
+
+        $limit = $agentPr->minus_ballance_limit;
+        if ($limit === null || (float) $limit <= 0) {
+            return true;
+        }
+
+        return ($currentBalance - $chargeAmount) >= (-1 * (float) $limit);
+    }
+
     public function checkUserHasBalance($userID, $price, $parice_in_dollar)
     {
         try {
@@ -31,11 +49,24 @@ class AccountBallanceController extends Controller
             // check agent
             if ($user->role == 'agent') {
                 $agentPremissionCntrl = new AgentPermissonController();
-                $agentPr = $agentPremissionCntrl->getUserPremission();
+                $agentPr = $agentPremissionCntrl->getUserPremissionByAgentID($user->id);
                 if ($agentPr != null) {
                     if ($agentPr->minus_ballance === 1 || $agentPr->minus_ballance === true) {
+                        $data = AccountBallance::where('account_id', $userID)->first();
+                        $currentBalance = $data ? (float) $data->ballance : 0;
+                        $currentDollarBalance = $data ? (float) $data->account_ballance_in_dollar : 0;
 
-                        return true;
+                        if ($currentBalance >= $price) {
+                            return true;
+                        }
+
+                        if ($currentDollarBalance >= $parice_in_dollar) {
+                            if ($this->checkDollarPay() == true || $this->checkDollarPay() == 1 && $parice_in_dollar > 0) {
+                                return true;
+                            }
+                        }
+
+                        return $this->canAgentChargeMinusBalance($agentPr, $currentBalance, (float) $price);
                     }
                 }
             }
@@ -156,6 +187,7 @@ class AccountBallanceController extends Controller
             $is_admin = false;
             $is_agent = false;
             $minus_ballance_permission = false;
+            $agent_permission = null;
             $minus_ballance_permission = $request->is_request_by_admin ?? false;
             $isReqByAdmin = $request->is_request_by_admin ?? false;
             if ($user == null) {
@@ -171,7 +203,7 @@ class AccountBallanceController extends Controller
                 }
                 if ($user_role->role == 'agent') {
                     $is_agent = true;
-                    $agent_permission = AgentPermisson::where('user_id', $user->account_id)->first();
+                    $agent_permission = AgentPermisson::where('user_id', $user_role->id)->first();
                     if (isset($agent_permission)) {
                         if ($agent_permission->minus_ballance == 1 || $agent_permission->minus_ballance == true) {
                             $minus_ballance_permission = true;
@@ -214,6 +246,11 @@ class AccountBallanceController extends Controller
                 } else {
                     // get auth user role for checking this requerst sent by admin
                     if ($is_admin || $minus_ballance_permission || $isReqByAdmin) {
+                        if ($minus_ballance_permission && ! $is_admin && ! $isReqByAdmin) {
+                            if (! $this->canAgentChargeMinusBalance($agent_permission ?? null, (float) $accBallance->ballance, (float) $ballance)) {
+                                return false;
+                            }
+                        }
                         $accBallance->ballance -= $ballance;
                         $accBallance->update();
                         $logCtrl = new LogController();
@@ -251,6 +288,11 @@ class AccountBallanceController extends Controller
                     return $res;
                 } else {
                     if ($is_admin || $minus_ballance_permission) {
+                        if ($minus_ballance_permission && ! $is_admin) {
+                            if (! $this->canAgentChargeMinusBalance($agent_permission ?? null, $currentUserDollarBalance, $ballance)) {
+                                return false;
+                            }
+                        }
                         $accBallance->account_ballance_in_dollar -= doubleval($ballance);
                         $accBallance->update();
                         $logCtrl = new LogController();
@@ -312,13 +354,17 @@ class AccountBallanceController extends Controller
                 $data->update();
                 return true;
             } else {
-                $agentPremissionCntrl = new AgentPermissonController();
-                $agentPr = $agentPremissionCntrl->getUserPremission();
-                if ($agentPr != null) {
-                    if ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true) {
-                        $data->ballance -= $ballance;
-                        $data->update();
-                        return true;
+                $user = User::where('account_id', $userID)->first();
+                if ($user != null && $user->role == 'agent') {
+                    $agentPr = AgentPermisson::where('user_id', $user->id)->first();
+                    if ($agentPr != null && ($agentPr->minus_ballance == 1 || $agentPr->minus_ballance == true)) {
+                        if ($this->canAgentChargeMinusBalance($agentPr, (float) $data->ballance, (float) $ballance)) {
+                            $data->ballance -= $ballance;
+                            $data->update();
+                            return true;
+                        }
+
+                        return false;
                     }
                 }
                 return false;

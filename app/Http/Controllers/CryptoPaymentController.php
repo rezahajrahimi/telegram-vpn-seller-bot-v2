@@ -7,13 +7,19 @@ use Illuminate\Http\Request;
 
 class CryptoPaymentController extends Controller
 {
-    public function seed(){
-        if (CryptoPayment::all()->isEmpty()) {
+    public function seed()
+    {
+        if (CryptoPayment::where('name', 'nowpayments')->doesntExist()) {
             $this->createNowPaymentData();
-            $this->createCryptoPaymentData();
-            return true;
         }
-        return false;
+        if (CryptoPayment::where('name', 'cryptomus')->doesntExist()) {
+            $this->createCryptoPaymentData();
+        }
+        if (CryptoPayment::where('name', 'swappay')->doesntExist()) {
+            $this->createSwapPayData();
+        }
+
+        return true;
     }
     public function getCryptoPaymentStatusByKey($key)
     {
@@ -155,6 +161,78 @@ class CryptoPaymentController extends Controller
             return $data;
         } catch (\Throwable $th) {
             \Log::info('message : ' . $th->getMessage());
+            return response()->json(null, 500);
+        }
+    }
+
+    public function createSwapPayData()
+    {
+        try {
+            $transactionCryptoCntrl = new TransactionCryptoController();
+            $data = new CryptoPayment();
+            $data->name = 'swappay';
+            $data->api_key = 'xxxxxxx-xxxxxxx-xxxxxxx-xxxxxxx';
+            $data->env = 'live';
+            $data->callback_url = "https://{$transactionCryptoCntrl->getCurrentUrl()}/swappay/return";
+            $data->email = '';
+            $data->password = 'your-application-username';
+            $data->ipn_callback_url = "https://{$transactionCryptoCntrl->getCurrentUrl()}/swappay/return";
+            $data->success_url = "https://{$transactionCryptoCntrl->getCurrentUrl()}/swappay/return";
+            $data->cancel_url = "https://{$transactionCryptoCntrl->getCurrentUrl()}/cancelpay/";
+            $data->is_active = false;
+            $data->save();
+
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info('createSwapPayData: ' . $th->getMessage());
+
+            return null;
+        }
+    }
+
+    public function getSwapPayData()
+    {
+        $data = CryptoPayment::where('name', 'swappay')->first();
+        if ($data != null) {
+            return $data;
+        }
+
+        return $this->createSwapPayData();
+    }
+
+    public function updateSwapPayPayment(Request $request)
+    {
+        try {
+            $data = CryptoPayment::where('name', 'swappay')->first();
+            if ($data == null) {
+                $data = $this->createSwapPayData();
+            }
+            if ($data == null) {
+                return response()->json(null, 500);
+            }
+
+            $data->api_key = $request->api_key;
+            $data->password = $request->password; // application username
+            if ($request->has('email')) {
+                $data->email = $request->email;
+            }
+            $data->is_active = $request->is_active == true || $request->is_active == 1 ? true : false;
+
+            $service = new \App\Services\SwapPayService($data->api_key, $data->password);
+            $check = $service->validateCredentials();
+            if (! ($check['ok'] ?? false)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $check['message'] ?? 'تنظیمات SwapPay نامعتبر است.',
+                ], 422);
+            }
+
+            $data->update();
+
+            return $data;
+        } catch (\Throwable $th) {
+            \Log::info('updateSwapPayPayment: ' . $th->getMessage());
+
             return response()->json(null, 500);
         }
     }

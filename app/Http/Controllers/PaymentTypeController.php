@@ -102,12 +102,27 @@ class PaymentTypeController extends Controller
     public function getZarinpalPaymentDetails()
     {
         $data = PaymentType::where('name', 'زرین پال')->first();
-        if ($data != null) {
-            return $data;
-        } else {
+        if ($data == null) {
             $this->seed();
-            return $data;
+            $data = PaymentType::where('name', 'زرین پال')->first();
         }
+
+        if ($data == null) {
+            return response()->json(null, 404);
+        }
+
+        $settingCntrl = new SettingController();
+        $mainUrl = $settingCntrl->getMainUrl();
+        $payload = $data->toArray();
+        $payload['callback_domain'] = PaymentType::normalizeCallbackDomain($data->callback_url ?? null);
+        $payload['default_callback_url'] = PaymentType::resolveZarinpalCallbackUrl(null, $mainUrl);
+        $payload['resolved_callback_url'] = PaymentType::resolveZarinpalCallbackUrl(
+            $data->callback_url ?? null,
+            $mainUrl
+        );
+        $payload['is_sandbox'] = (bool) ($data->is_sandbox ?? false);
+
+        return response()->json($payload, 200);
     }
     public function getZarinpalStatus()
     {
@@ -169,6 +184,13 @@ class PaymentTypeController extends Controller
         $data = PaymentType::where('name', $request->name)->first();
         if ($data != null) {
             $data->merchant_id = $request->merchant_id;
+            if ($request->has('callback_url') || $request->has('callback_domain')) {
+                $rawDomain = $request->input('callback_domain', $request->input('callback_url'));
+                $data->callback_url = PaymentType::normalizeCallbackDomain($rawDomain);
+            }
+            if ($request->has('is_sandbox')) {
+                $data->is_sandbox = filter_var($request->is_sandbox, FILTER_VALIDATE_BOOLEAN);
+            }
             $data->update();
             return $data;
         } else {

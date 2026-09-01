@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ConfigNameService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Verta;
@@ -10,12 +11,17 @@ class BotUser extends Model
 {
     use HasFactory;
     protected $guarded = ['id'];
-    protected $fillable = ['account_id', 'username', 'first_name', 'last_name'];
+    protected $fillable = ['account_id', 'username', 'first_name', 'last_name', 'phone_number', 'admin_alias'];
 
     // get user by account_id
     public function getUserByAccountID($accountId)
     {
         return $this->where('account_id', $accountId)->first();
+    }
+
+    public static function resolveConfigAccountLabel(int|string $accountId, int|string|null $suffix = null): string
+    {
+        return ConfigNameService::resolveAccountLabel($accountId, $suffix);
     }
 
     public function getUserNameByAccountID($accountId)
@@ -64,7 +70,7 @@ class BotUser extends Model
     // }
     public function user()
     {
-        return $this->hasOne(User::class, 'account_id', 'account_id')->with('referral_wallet');
+        return $this->hasOne(User::class, 'account_id', 'account_id')->with(['referral_wallet', 'loyalty_wallet']);
     }
     public function blocked_user()
     {

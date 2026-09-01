@@ -1,17 +1,88 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\SanaeiPannelController;
+use App\Http\Controllers\MarzbanPannelController;
 use App\Models\CronJob;
 use App\Models\CronLog;
 use App\Models\Pannel;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
+use App\Services\LicenseFeatureService;
+use App\Services\TelegramService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 
 class CronJobController extends Controller
 {
+    private function telegramService(): TelegramService
+    {
+        return app(TelegramService::class);
+    }
+
+    private function customTextCtrl(): CustomTextController
+    {
+        return new CustomTextController();
+    }
+
+    private function formatCronMessage(string $messageKey, array $variables): string
+    {
+        $text = $this->customTextCtrl()->getText($messageKey, $variables);
+        if (is_array($text)) {
+            return $this->telegramService()->formatText($text);
+        }
+
+        return (string) $text;
+    }
+
+    private function formatCronButtonLabel(string $messageKey): string
+    {
+        $text = $this->customTextCtrl()->getText($messageKey);
+        if (is_array($text)) {
+            return $this->telegramService()->formatText($text);
+        }
+
+        return (string) $text;
+    }
+
+    private function canShowRenewButton(?ProductCategory $category, Pannel $panel): bool
+    {
+        if ($category === null || $panel->isInventoryPanel()) {
+            return false;
+        }
+
+        return $category->rechargable == true || $category->rechargable == 1;
+    }
+
+    private function sendProductCronNotification(
+        Product $product,
+        ProductCategory $category,
+        Pannel $panel,
+        string $messageKey,
+        array $variables = []
+    ): bool {
+        $productText = "{$category->category_name} - {$product->remark}";
+        $text = $this->formatCronMessage($messageKey, array_merge([
+            'product_name' => $product->remark,
+            'category_name' => $category->category_name,
+            'product_text' => $productText,
+        ], $variables));
+
+        $telegramService = $this->telegramService();
+        if ($this->canShowRenewButton($category, $panel)) {
+            $buttons = [[
+                $this->formatCronButtonLabel('cron.button.renew') => "recharge-{$product->id}",
+            ]];
+            $response = $telegramService->sendMessageWithInlineKeyboard($product->account_id, $text, $buttons);
+        } else {
+            $response = $telegramService->sendMessage($product->account_id, $text);
+        }
+
+        return ($response['ok'] ?? false) === true;
+    }
+
     public function seed()
     {
         if (CronJob::all()->isEmpty()) {
@@ -34,6 +105,12 @@ class CronJobController extends Controller
             $usageMoreThan85PercentCronJob->is_active = true;
             $usageMoreThan85PercentCronJob->description = 'ارسال پیام به کاربرانی که میزان استفاده از اکانت بیشتر از 85 درصد دارند.';
             $usageMoreThan85PercentCronJob->save();
+            $abandonedCartCronJob = new CronJob();
+            $abandonedCartCronJob->name = 'Abandoned Cart Reminders';
+            $abandonedCartCronJob->frequency = '30m';
+            $abandonedCartCronJob->is_active = true;
+            $abandonedCartCronJob->description = 'یادآوری خریدهای ناتمام و موجودی ناکافی.';
+            $abandonedCartCronJob->save();
             // $createDailyBackupCronJob              = new CronJob();
             // $createDailyBackupCronJob->name        = 'Create Daily Backup';
             // $createDailyBackupCronJob->frequency   = '1d';
@@ -53,6 +130,7 @@ class CronJobController extends Controller
     public function get_all_cron_jobs()
     {
         try {
+            $this->syncMissingCronJobs();
             $cronJobs = CronJob::all();
             if ($cronJobs->count() > 0) {
                 return response()->json($cronJobs);
@@ -65,6 +143,18 @@ class CronJobController extends Controller
             return response()->json('Server Error', 500);
         }
     }
+    private function syncMissingCronJobs(): void
+    {
+        if (! CronJob::where('name', 'Abandoned Cart Reminders')->exists()) {
+            $abandonedCartCronJob = new CronJob();
+            $abandonedCartCronJob->name = 'Abandoned Cart Reminders';
+            $abandonedCartCronJob->frequency = '30m';
+            $abandonedCartCronJob->is_active = true;
+            $abandonedCartCronJob->description = 'یادآوری خریدهای ناتمام و موجودی ناکافی.';
+            $abandonedCartCronJob->save();
+        }
+    }
+
     public function get_all_active_cron_jobs()
     {
         try {
@@ -101,13 +191,11 @@ class CronJobController extends Controller
         }
 
         $pannel = Pannel::all();
-        $hiddifyPanelCtrl = new HiddifyPannelController();
-        foreach ($pannel as $key => $value) {
-            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
-            // تبدیل Response به آرایه
-            // check if usersResponse is json or array
-            // $users = json_decode($usersResponse->getContent(), true);
-            // \Log::info("users: " . json_encode($users));
+        foreach ($pannel as $key => $panel) {
+            $usersResponse = $this->getPanelUsers($panel);
+            if ($usersResponse === []) {
+                continue;
+            }
 
             foreach ($usersResponse as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
@@ -116,7 +204,7 @@ class CronJobController extends Controller
 
                 // check divide zero
                 if ($usageGB == 0 || $limitGB == 0) {
-                    return true;
+                    continue;
                 }
 
                 // get usage percent
@@ -126,7 +214,7 @@ class CronJobController extends Controller
                 if ($usagePercent > 84.99 && $usagePercent < 99.99) {
                     // get releated products by uuid
                     $uuid = $value['uuid'];
-                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+                    $product = $this->findProductForPanelUser($panel, $uuid);
 
                     if ($product != null) {
                         $usagePercent = round($usagePercent, 2);
@@ -144,7 +232,18 @@ class CronJobController extends Controller
                             ->where('product_id', $product->id)
                             ->get();
                         if ($cronLog->count() == 0) {
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی شما بیشتر از $usagePercent درصد از بسته $productText را مصرف کرده اید.", $user_id, null, 'MarkDown');
+                            $prcategory = ProductCategory::find($product->product_categories_id);
+                            if ($prcategory === null) {
+                                continue;
+                            }
+
+                            $sendNotificationToUser = $this->sendProductCronNotification(
+                                $product,
+                                $prcategory,
+                                $panel,
+                                'cron.usage_high.message',
+                                ['usage_percent' => (string) $usagePercent]
+                            );
 
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
@@ -181,97 +280,344 @@ class CronJobController extends Controller
             if ($cronJob->is_active == false) {
                 return false;
             }
-            $authCntrl = new AuthController();
-            $getPowerPsLicenseType = $authCntrl->getPowerPsLicenseType();
-            if ($getPowerPsLicenseType == "false" || $getPowerPsLicenseType == "trial" || $getPowerPsLicenseType == "boronze") {
+            if (! (new LicenseFeatureService())->isSilverOrAbove()) {
                 return false;
             }
 
-            $pannel = Pannel::all();
-            $hiddifyPanelCtrl = new HiddifyPannelController();
-
-            foreach ($pannel as $key => $panel) {
-                $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($panel->id);
-                if (!is_array($usersResponse)) {
-                    continue;
-                }
-                $products = [];
-                // create a empty array of products ids and uuid
-                $productsIds = [];
-                $productsUuids = [];
-                foreach ($usersResponse as $key => $value) {
-                    // get releated products by uuid
-                    $uuid = $value['uuid'];
-
-                    $startDate = $value['start_date'];
-                    // convert $startDate to valid carbon date
-                    $startDate = Carbon::parse($startDate);
-
-                    $package_days = $value['package_days'];
-                    // convert $package_days to integer
-                    $package_days = intval($package_days);
-                    // add expireDate to $startDate
-                    $expireDate = Carbon::parse($startDate);
-
-                    // add $package_days to $expireDate
-                    $expireDate->addDays($package_days);
-
-                    // get usage_limit_GB
-                    $currentUsageGB = $value['current_usage_GB'];
-                    // check if usage_limit_GB is 0
-                    if ($currentUsageGB == 0) {
-                        continue;
-                    }
-                    // get usage_limit_GB
-                    $usageLimitGB = $value['usage_limit_GB'];
-                    // check if currentUsageGB is more than usageLimitGB
-                    if ($currentUsageGB >= $usageLimitGB) {
-                        $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
-                        if ($product != null) {
-                            $products[] = $product;
-                            $productsIds[] = $product->id;
-                            $productsUuids[] = $uuid;
-                            continue;
-
-                        }
-
-                    }
-
-                    // check if expireDate is not in the past, skip
-                    if (!$expireDate->isPast()) {
-                        continue;
-                    }
-                    // check if more than 10 days have passed since expireDate
-                    $dateDifference = Carbon::now()->diffInDays($expireDate);
-                    if ($dateDifference < 10) {
-                        continue;
-                    }
-
-                    // add product to deletion list
-                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
-                    if ($product != null) {
-                        $products[] = $product;
-                        $productsIds[] = $product->id;
-                        $productsUuids[] = $uuid;
-                    }
-                    // delete config on hiddify panel
-
-                    // delete products
-
-                }
-                Product::whereIn('id', $productsIds)->delete();
-                // delete users from hiddify panel
-                foreach ($productsUuids as $key => $uuid) {
-                    $hiddifyPanelCtrl->deleteUserOfHiddifyPanel($panel->id, $uuid);
-                }
-
-            }
+            $result = $this->collectExpiredConfigsForDeletion();
+            $this->deleteExpiredConfigItems($result['items']);
 
             return true;
         } catch (\Throwable $th) {
             \Log::error($th->getMessage());
             return false;
         }
+    }
+
+    /**
+     * Preview expired configs eligible for deletion (manual admin action).
+     * Silver/Gold only. Optional query: panel_id to scan a single panel.
+     */
+    public function previewExpiredConfigsForDeletion(Request $request)
+    {
+        \Log::info('previewExpiredConfigsForDeletion: start', [
+            'panel_id' => $request->query('panel_id'),
+            'user_id' => optional(auth('sanctum')->user())->id,
+        ]);
+
+        $license = new LicenseFeatureService();
+        if (! $license->isSilverOrAbove()) {
+            \Log::info('previewExpiredConfigsForDeletion: license blocked', [
+                'license' => $license->current(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'این قابلیت برای لایسنس نقره‌ای و طلایی فعال است.',
+            ], 403);
+        }
+
+        try {
+            @set_time_limit(600);
+            $panelId = $request->query('panel_id');
+            $panelId = is_numeric($panelId) ? (int) $panelId : null;
+            if ($panelId !== null && $panelId <= 0) {
+                $panelId = null;
+            }
+
+            $result = $this->collectExpiredConfigsForDeletion($panelId);
+
+            \Log::info('previewExpiredConfigsForDeletion: done', [
+                'panel_id' => $panelId,
+                'count' => count($result['items']),
+                'warnings' => count($result['warnings']),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'count' => count($result['items']),
+                'items' => $result['items'],
+                'warnings' => $result['warnings'],
+            ]);
+        } catch (\Throwable $th) {
+            \Log::error('previewExpiredConfigsForDeletion: ' . $th->getMessage(), [
+                'trace' => $th->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'خطا در دریافت لیست اکانت‌های منقضی: ' . $th->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Queue deletion of selected expired configs (manual admin action).
+     * Body: { items: [{ product_id, panel_id, uuid, remark? }, ...] }
+     * Silver/Gold only. Returns immediately with job_id to avoid HTTP timeout.
+     */
+    public function deleteSelectedExpiredConfigs(Request $request)
+    {
+        \Log::info('deleteSelectedExpiredConfigs: start', [
+            'items_count' => is_array($request->input('items')) ? count($request->input('items')) : 0,
+        ]);
+
+        $license = new LicenseFeatureService();
+        if (! $license->isSilverOrAbove()) {
+            return response()->json([
+                'success' => false,
+                'status' => 'error',
+                'message' => 'این قابلیت برای لایسنس نقره‌ای و طلایی فعال است.',
+            ], 403);
+        }
+
+        try {
+            $validated = $request->validate([
+                'items' => 'required|array|min:1',
+                'items.*.product_id' => 'required|integer',
+                'items.*.panel_id' => 'required|integer',
+                'items.*.uuid' => 'required|string',
+                'items.*.remark' => 'nullable|string',
+            ]);
+
+            $toDelete = [];
+            foreach ($validated['items'] as $item) {
+                $productId = (int) $item['product_id'];
+                if ($productId <= 0) {
+                    continue;
+                }
+                $toDelete[] = [
+                    'product_id' => $productId,
+                    'panel_id' => (int) $item['panel_id'],
+                    'uuid' => (string) $item['uuid'],
+                    'remark' => (string) ($item['remark'] ?? ''),
+                ];
+            }
+
+            if ($toDelete === []) {
+                return response()->json([
+                    'success' => false,
+                    'status' => 'error',
+                    'message' => 'هیچ مورد معتبری برای حذف انتخاب نشده است.',
+                ], 422);
+            }
+
+            $firstPanelId = (int) ($toDelete[0]['panel_id'] ?? 0);
+            $fallbackPanelId = (int) (Pannel::query()->value('id') ?? 0);
+            $jobRecord = \App\Models\GroupOperationJob::create([
+                'action' => 'delete_expired',
+                'panel_id' => $firstPanelId > 0 ? $firstPanelId : $fallbackPanelId,
+                'status' => 'pending',
+                'total_configs' => count($toDelete),
+                'processed_configs' => 0,
+                'success_items' => [],
+                'failed_items' => [],
+            ]);
+
+            // Run after HTTP response so the client does not wait / timeout.
+            // Uses terminating callback (same PHP process) so it works even when
+            // queue workers are not running (database/redis queue idle).
+            $jobId = (int) $jobRecord->id;
+            $itemsForJob = $toDelete;
+            app()->terminating(function () use ($itemsForJob, $jobId) {
+                try {
+                    (new \App\Jobs\DeleteExpiredConfigsJob($itemsForJob, $jobId))->handle();
+                } catch (\Throwable $th) {
+                    \Log::error('deleteSelectedExpiredConfigs terminating failed: ' . $th->getMessage());
+                    $job = \App\Models\GroupOperationJob::find($jobId);
+                    if ($job) {
+                        $job->update([
+                            'status' => 'failed',
+                            'error_message' => $th->getMessage(),
+                        ]);
+                    }
+                }
+            });
+
+            \Log::info('deleteSelectedExpiredConfigs: queued via terminating', [
+                'job_id' => $jobId,
+                'count' => count($toDelete),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'status' => 'success',
+                'job_id' => $jobRecord->id,
+                'message' => 'درخواست حذف ثبت شد و در حال اجراست.',
+            ]);
+        } catch (\Throwable $th) {
+            \Log::error('deleteSelectedExpiredConfigs: ' . $th->getMessage(), [
+                'trace' => $th->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'status' => 'error',
+                'message' => 'خطا در ثبت درخواست حذف: ' . $th->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * @return array{items: list<array<string, mixed>>, warnings: list<string>}
+     */
+    private function collectExpiredConfigsForDeletion(?int $panelId = null): array
+    {
+        $items = [];
+        $seen = [];
+        $warnings = [];
+
+        $panelsQuery = Pannel::query();
+        if ($panelId !== null) {
+            $panelsQuery->where('id', $panelId);
+        }
+        $panels = $panelsQuery->get();
+
+        if ($panelId !== null && $panels->isEmpty()) {
+            $warnings[] = 'پنل انتخاب‌شده یافت نشد.';
+
+            return ['items' => [], 'warnings' => $warnings];
+        }
+
+        foreach ($panels as $panel) {
+            try {
+                if (! ($panel->type === 'hiddify' || $panel->type === 'sanaei' || $panel->isMarzbanCompatible())) {
+                    $warnings[] = 'نوع پنل پشتیبانی نمی‌شود.';
+                    continue;
+                }
+                $usersResponse = (new HiddifyPannelController())->resolvePanelUsersList($panel->id);
+                if (! is_array($usersResponse)) {
+                    $usersResponse = [];
+                }
+            } catch (\Throwable $th) {
+                $label = (string) ($panel->name ?? $panel->location ?? $panel->id);
+                $warnings[] = "پنل «{$label}» در دسترس نیست و رد شد.";
+                \Log::warning('collectExpiredConfigsForDeletion panel skipped', [
+                    'panel_id' => $panel->id,
+                    'error' => $th->getMessage(),
+                ]);
+                continue;
+            }
+
+            if ($usersResponse === []) {
+                if ($panelId !== null) {
+                    $label = (string) ($panel->name ?? $panel->location ?? $panel->id);
+                    $warnings[] = "از پنل «{$label}» کاربری دریافت نشد یا پنل در دسترس نیست.";
+                }
+                continue;
+            }
+
+            foreach ($usersResponse as $value) {
+                if (! $this->shouldAutoDeletePanelUser($value)) {
+                    continue;
+                }
+
+                $uuid = (string) ($value['uuid'] ?? '');
+                if ($uuid === '') {
+                    continue;
+                }
+
+                $product = $this->findProductForPanelUser($panel, $uuid);
+                if ($product == null) {
+                    continue;
+                }
+
+                $item = [
+                    'product_id' => (int) $product->id,
+                    'uuid' => $uuid,
+                    'remark' => (string) ($product->remark ?? $value['name'] ?? $uuid),
+                    'account_id' => (string) ($product->account_id ?? ''),
+                    'panel_id' => (int) $panel->id,
+                    'panel_name' => (string) ($panel->name ?? $panel->location ?? ''),
+                    'panel_type' => (string) ($panel->type ?? ''),
+                    'category_name' => (string) (optional(ProductCategory::find($product->product_categories_id))->category_name ?? '—'),
+                    'reason' => $this->expiredConfigReason($value),
+                ];
+
+                $key = $this->expiredConfigItemKey($item);
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $items[] = $item;
+            }
+        }
+
+        return [
+            'items' => $items,
+            'warnings' => $warnings,
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     */
+    private function deleteExpiredConfigItems(array $items): int
+    {
+        if ($items === []) {
+            return 0;
+        }
+
+        $byPanel = [];
+        $productIds = [];
+        foreach ($items as $item) {
+            $panelId = (int) ($item['panel_id'] ?? 0);
+            $uuid = (string) ($item['uuid'] ?? '');
+            $productId = (int) ($item['product_id'] ?? 0);
+            if ($panelId <= 0 || $uuid === '' || $productId <= 0) {
+                continue;
+            }
+            $byPanel[$panelId][] = $uuid;
+            $productIds[] = $productId;
+        }
+
+        if ($productIds !== []) {
+            Product::whereIn('id', array_values(array_unique($productIds)))->delete();
+        }
+
+        foreach ($byPanel as $panelId => $uuids) {
+            $panel = Pannel::find($panelId);
+            if ($panel == null) {
+                continue;
+            }
+            foreach (array_unique($uuids) as $uuid) {
+                try {
+                    $this->deletePanelUser($panel, (string) $uuid);
+                } catch (\Throwable $th) {
+                    \Log::error('deleteExpiredConfigItems panel delete failed', [
+                        'panel_id' => $panelId,
+                        'uuid' => $uuid,
+                        'error' => $th->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        return count(array_unique($productIds));
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function expiredConfigItemKey(array $item): string
+    {
+        return ((int) ($item['panel_id'] ?? 0)) . ':' . ((string) ($item['uuid'] ?? '')) . ':' . ((int) ($item['product_id'] ?? 0));
+    }
+
+    private function expiredConfigReason(array $user): string
+    {
+        $expireTs = (int) ($user['expire_timestamp'] ?? 0);
+        if ($expireTs > 0) {
+            return 'expired_grace';
+        }
+
+        $packageDays = (int) ($user['package_days'] ?? 0);
+        $startDateRaw = $user['start_date'] ?? null;
+        if (! empty($startDateRaw) && $packageDays > 0) {
+            return 'expired_grace';
+        }
+
+        return 'usage_exceeded';
     }
 
     public function execute_send_lass_there_than_3_days()
@@ -288,21 +634,20 @@ class CronJobController extends Controller
             return false;
         }
         $pannel = Pannel::all();
-        $hiddifyPanelCtrl = new HiddifyPannelController();
-        foreach ($pannel as $key => $value) {
-            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
-
-            if (!is_array($usersResponse)) {
+        foreach ($pannel as $key => $panel) {
+            $usersResponse = $this->getPanelUsers($panel);
+            if ($usersResponse === []) {
                 continue;
             }
-            foreach ($usersResponse as $key => $value) {
-                $startDate = $value['start_date'];
-                // convert $startDate to valid carbon date
-                $startDate = Carbon::parse($startDate);
 
-                $package_days = $value['package_days'];
-                // convert $package_days to integer
-                $package_days = intval($package_days);
+            foreach ($usersResponse as $key => $value) {
+                $package_days = intval($value['package_days'] ?? 0);
+                $startDateRaw = $value['start_date'] ?? null;
+                if (empty($startDateRaw) || $package_days <= 0) {
+                    continue;
+                }
+
+                $startDate = Carbon::parse($startDateRaw);
                 // add expireDate to $startDate
                 $expireDate = Carbon::parse($startDate);
                 // add $pacje_days to $expireDate
@@ -315,7 +660,7 @@ class CronJobController extends Controller
                 if ($dateDifference < 4 && $dateDifference > 0) {
                     // get releated products by uuid
                     $uuid = $value['uuid'];
-                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+                    $product = $this->findProductForPanelUser($panel, $uuid);
 
                     if ($product != null) {
                         // get product category
@@ -334,7 +679,18 @@ class CronJobController extends Controller
                         // add $dateDifference +1 because time diff is on hout base
 
                         if ($cronLog->count() < 4) {
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage("کاربر گرامی تنها $dateDifference روز دیگر از بسته $productText باقی مانده است.", $user_id, null, 'MarkDown');
+                            $prcategory = ProductCategory::find($product->product_categories_id);
+                            if ($prcategory === null) {
+                                continue;
+                            }
+
+                            $sendNotificationToUser = $this->sendProductCronNotification(
+                                $product,
+                                $prcategory,
+                                $panel,
+                                'cron.expiring_soon.message',
+                                ['days_left' => (string) $dateDifference]
+                            );
 
                             if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
@@ -437,12 +793,12 @@ class CronJobController extends Controller
         }
 
         $pannel = Pannel::all();
-        $hiddifyPanelCtrl = new HiddifyPannelController();
 
-        foreach ($pannel as $key => $value) {
-            $usersResponse = $hiddifyPanelCtrl->getHiddifyPanelUsersByPannelID($value->id);
-            // تبدیل Response به آرایه
-
+        foreach ($pannel as $key => $panel) {
+            $usersResponse = $this->getPanelUsers($panel);
+            if ($usersResponse === []) {
+                continue;
+            }
 
             foreach ($usersResponse as $key => $value) {
                 $usageGB = $value['current_usage_GB'];
@@ -459,7 +815,7 @@ class CronJobController extends Controller
                 if ($usagePercent >= 99.97) {
                     // get releated products by uuid
                     $uuid = $value['uuid'];
-                    $product = Product::where('subscription_link', 'LIKE', "%{$uuid}%")->first();
+                    $product = $this->findProductForPanelUser($panel, $uuid);
 
                     if ($product != null) {
                         $cronLog = CronLog::where('cron_id', $cronJob->id)
@@ -467,23 +823,19 @@ class CronJobController extends Controller
                             ->get();
 
                         if ($cronLog->count() == 0) {
-                            // get product category
                             $prcategory = ProductCategory::find($product->product_categories_id);
-                            // get product category name
-                            $productCategoryName = $prcategory->category_name;
-                            $productText = "{$productCategoryName} - {$product->remark}";
+                            if ($prcategory === null) {
+                                continue;
+                            }
 
-                            // send notification
-                            $user_id = $product->account_id;
-
-                            $sendNotificationToUser = app('telegram_bot')->sendMessage(
-                                "کاربر گرامی بسته $productText منقضی شده است. لطفا برای تمدید بسته مجددا اقدام کنید.",
-                                $user_id,
-                                null,
-                                'MarkDown'
+                            $sendNotificationToUser = $this->sendProductCronNotification(
+                                $product,
+                                $prcategory,
+                                $panel,
+                                'cron.expired.message'
                             );
 
-                            if ($sendNotificationToUser['success']) {
+                            if ($sendNotificationToUser) {
                                 $cronLog = new CronLog();
                                 $cronLog->cron_id = $cronJob->id;
                                 $cronLog->product_id = $product->id;
@@ -494,6 +846,108 @@ class CronJobController extends Controller
                 }
             }
         }
+        return true;
+    }
+
+    public function execute_send_abandoned_cart_reminders()
+    {
+        $cronJob = CronJob::where('name', 'Abandoned Cart Reminders')->first();
+        if ($cronJob === null || $cronJob->is_active == false) {
+            return false;
+        }
+
+        $authCntrl = new AuthController();
+        $license = strtolower((string) $authCntrl->getPowerPsLicenseType());
+        if ($license !== 'gold') {
+            return false;
+        }
+
+        $intentService = new \App\Services\PurchaseIntentService();
+        $customTextCtrl = $this->customTextCtrl();
+        $telegramService = $this->telegramService();
+
+        foreach ($intentService->getFirstReminders('package_selected', 1) as $intent) {
+            $category = ProductCategory::find($intent->product_category_id);
+            if ($category === null) {
+                continue;
+            }
+
+            $text = $this->formatCronMessage('recovery.package_selected.message', [
+                'package_name' => $category->category_name,
+            ]);
+            $buyLabel = $this->formatCronButtonLabel('recovery.button.buy');
+            $response = $telegramService->sendMessageWithInlineKeyboard($intent->account_id, $text, [[
+                $buyLabel => "buySubscription-{$category->id}",
+            ]]);
+
+            if (($response['ok'] ?? false) === true) {
+                $intentService->markReminded($intent);
+            }
+        }
+
+        foreach ($intentService->getFollowUpReminders('package_selected', 23) as $intent) {
+            if ($intent->reminder_count >= 2) {
+                continue;
+            }
+            $category = ProductCategory::find($intent->product_category_id);
+            if ($category === null) {
+                continue;
+            }
+
+            $text = $this->formatCronMessage('recovery.package_selected.message', [
+                'package_name' => $category->category_name,
+            ]);
+            $buyLabel = $this->formatCronButtonLabel('recovery.button.buy');
+            $response = $telegramService->sendMessageWithInlineKeyboard($intent->account_id, $text, [[
+                $buyLabel => "buySubscription-{$category->id}",
+            ]]);
+
+            if (($response['ok'] ?? false) === true) {
+                $intentService->markReminded($intent);
+            }
+        }
+
+        foreach ($intentService->getFirstReminders('insufficient_balance', 2) as $intent) {
+            $category = ProductCategory::find($intent->product_category_id);
+            if ($category === null) {
+                continue;
+            }
+
+            $text = $this->formatCronMessage('recovery.insufficient_balance.message', [
+                'package_name' => $category->category_name,
+            ]);
+            $balanceLabel = $this->formatCronButtonLabel('recovery.button.add_balance');
+            $response = $telegramService->sendMessageWithInlineKeyboard($intent->account_id, $text, [[
+                $balanceLabel => 'accountAddBalance',
+            ]]);
+
+            if (($response['ok'] ?? false) === true) {
+                $intentService->markReminded($intent);
+            }
+        }
+
+        foreach ($intentService->getFirstReminders('recharge_pending', 2) as $intent) {
+            if ($intent->product_id === null) {
+                continue;
+            }
+            $category = ProductCategory::find($intent->product_category_id);
+            if ($category === null) {
+                continue;
+            }
+
+            $text = $this->formatCronMessage('recovery.recharge.message', [
+                'package_name' => $category->category_name,
+            ]);
+            $renewLabel = $this->formatCronButtonLabel('cron.button.renew');
+            $response = $telegramService->sendMessageWithInlineKeyboard($intent->account_id, $text, [[
+                $renewLabel => "recharge-{$intent->product_id}",
+            ]]);
+
+            if (($response['ok'] ?? false) === true) {
+                $intentService->markReminded($intent);
+            }
+        }
+
         return true;
     }
 
@@ -583,6 +1037,97 @@ class CronJobController extends Controller
         } catch (\Throwable $th) {
             \Log::error("Error clearing laravel log: " . $th->getMessage());
             return false;
+        }
+    }
+
+    private function shouldAutoDeletePanelUser(array $user): bool
+    {
+        $graceDays = 10;
+        $now = Carbon::now('UTC');
+
+        $expireTs = (int) ($user['expire_timestamp'] ?? 0);
+        if ($expireTs > 0) {
+            $expireDate = Carbon::createFromTimestamp($expireTs, 'UTC');
+            if (! $expireDate->isPast()) {
+                return false;
+            }
+
+            return $now->diffInDays($expireDate, true) >= $graceDays;
+        }
+
+        $packageDays = (int) ($user['package_days'] ?? 0);
+        $startDateRaw = $user['start_date'] ?? null;
+        if (! empty($startDateRaw) && $packageDays > 0) {
+            $expireDate = Carbon::parse($startDateRaw)->addDays($packageDays);
+            if (! $expireDate->isPast()) {
+                return false;
+            }
+
+            return Carbon::now()->diffInDays($expireDate, true) >= $graceDays;
+        }
+
+        $currentUsageGB = (float) ($user['current_usage_GB'] ?? 0);
+        $usageLimitGB = (float) ($user['usage_limit_GB'] ?? 0);
+        if ($currentUsageGB <= 0 || $usageLimitGB <= 0) {
+            return false;
+        }
+
+        return $currentUsageGB >= $usageLimitGB;
+    }
+
+    private function getPanelUsers(Pannel $panel): array
+    {
+        try {
+            if ($panel->type === 'hiddify' || $panel->type === 'sanaei' || $panel->isMarzbanCompatible()) {
+                return (new HiddifyPannelController())->resolvePanelUsersList($panel->id);
+            }
+
+            return [];
+        } catch (\Throwable $th) {
+            \Log::warning('getPanelUsers failed', [
+                'panel_id' => $panel->id,
+                'error' => $th->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    private function deletePanelUser(Pannel $panel, string $uuid): void
+    {
+        if ($panel->type === 'hiddify') {
+            (new HiddifyPannelController())->deleteUserOfHiddifyPanel($panel->id, $uuid);
+        } elseif ($panel->type === 'sanaei') {
+            (new SanaeiPannelController())->deleteUser($panel, $uuid);
+        } elseif ($panel->isMarzbanCompatible()) {
+            MarzbanPannelController::resolve($panel)->deleteUser($panel, $uuid);
+        }
+    }
+
+    private function findProductForPanelUser(Pannel $panel, string $identifier): ?Product
+    {
+        if ($panel->isMarzbanCompatible()) {
+            return Product::where('remark', $identifier)->first();
+        }
+
+        if ($panel->type == 'sanaei') {
+            $byConfig = Product::where('configs', 'like', '%"uuid":"' . $identifier . '"%')->first();
+            if ($byConfig) {
+                return $byConfig;
+            }
+        }
+
+        return Product::where('subscription_link', 'LIKE', "%{$identifier}%")->first();
+    }
+
+    public function execute_confirm_pending_swappay(): int
+    {
+        try {
+            return (new SwapPayController())->confirmPendingPayments();
+        } catch (\Throwable $th) {
+            \Log::error('execute_confirm_pending_swappay: ' . $th->getMessage());
+
+            return 0;
         }
     }
 }

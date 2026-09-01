@@ -9,7 +9,7 @@ class MainMenuItem extends Model
 {
     use HasFactory;
     protected $guarded = ['id'];
-    protected $fillable = ['name', 'alias_name', 'is_active', 'position'];
+    protected $fillable = ['name', 'alias_name', 'is_active', 'position', 'button_style', 'icon_custom_emoji_id', 'solo_row'];
     public $timestamps = false;
 
     // is item is active or not by alias name

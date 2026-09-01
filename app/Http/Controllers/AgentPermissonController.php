@@ -35,6 +35,7 @@ class AgentPermissonController extends Controller
             $agentPermisson                        = new AgentPermisson();
             $agentPermisson->user_id               = $request->user_id;
             $agentPermisson->minus_ballance        = $request->minus_ballance == 'false' || $request->minus_ballance == false || $request->minus_ballance == 0 ? 0 : 1;
+            $agentPermisson->minus_ballance_limit  = $this->resolveMinusBallanceLimit($request->minus_ballance_limit);
             $agentPermisson->create_products       = $request->create_products == 'false' || $request->create_products == false || $request->create_products == 0 ? 0 : 1;
             $agentPermisson->delete_products       = $request->delete_products == 'false' || $request->delete_products == false || $request->delete_products == 0 ? 0 : 1;
             $agentPermisson->traffic_limitation_tb = $request->traffic_limitation_tb ? $request->traffic_limitation_tb : 10;
@@ -54,6 +55,7 @@ class AgentPermissonController extends Controller
                 return $this->createANewAgentPermisson($request);
             }
             $agentPermisson->minus_ballance        = $request->minus_ballance == 'false' || $request->minus_ballance == 0 ? 0 : 1;
+            $agentPermisson->minus_ballance_limit  = $this->resolveMinusBallanceLimit($request->minus_ballance_limit);
             $agentPermisson->create_products       = $request->create_products == 'false' || $request->create_products == 0 ? 0 : 1;
             $agentPermisson->delete_products       = $request->delete_products == 'false' || $request->delete_products == 0 ? 0 : 1;
             $agentPermisson->traffic_limitation_tb = $request->traffic_limitation_tb ? $request->traffic_limitation_tb : 10;
@@ -66,6 +68,17 @@ class AgentPermissonController extends Controller
             return response()->json(false, 500);
         }
     }
+    private function resolveMinusBallanceLimit($value): ?float
+    {
+        if ($value === null || $value === '' || $value === 'null') {
+            return null;
+        }
+
+        $limit = (float) $value;
+
+        return $limit > 0 ? $limit : null;
+    }
+
     public function deleteAgentPremisson($userID)
     {
         try {

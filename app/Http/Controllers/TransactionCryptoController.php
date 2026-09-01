@@ -8,6 +8,7 @@ use App\Models\CryptoPayment;
 use Illuminate\Support\Facades\Config; // Added Config facade
 use Illuminate\Support\Facades\Log; // Added Log facade
 use Illuminate\Support\Facades\DB; // Added DB facade for potential transactions
+use Illuminate\Validation\ValidationException;
 use PrevailExcel\Nowpayments\Facades\Nowpayments;
 use App\Models\User; // Added User model
 use App\Models\Bill; // Added Bill model
@@ -26,13 +27,18 @@ class TransactionCryptoController extends Controller
     // New method to handle gateway selection
     public function initiateCryptoPayment(Request $request)
     {
-        $validated = $request->validate([
-            'gateway' => 'required|string|in:nowpayments,cryptomus',
-            'invoiceID' => 'required|exists:bills,bill_id', // Validate invoice exists in bills table
-            'account_id' => 'required|integer|exists:users,account_id',
-            // 'currency' => 'nullable|string', // Optional: For Cryptomus currency selection
-            // Add other necessary fields from your form
-        ]);
+        try {
+            $validated = $request->validate([
+                'gateway' => 'required|string|in:nowpayments,cryptomus,swappay',
+                'invoiceID' => 'required|exists:bills,bill_id',
+                'account_id' => 'required|exists:users,account_id',
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => collect($e->errors())->flatten()->first() ?? 'اطلاعات پرداخت نامعتبر است.',
+            ], 422);
+        }
 
         $gateway = $validated['gateway'];
         $invoiceID = $validated['invoiceID'];
@@ -69,6 +75,16 @@ class TransactionCryptoController extends Controller
 
             $cryptomusController = new CryptomusController();
             $response = $cryptomusController->createPayment($cryptomusRequest);
+        } elseif ($gateway === 'swappay') {
+            $amountDollar = (float) $amountDollar;
+            $swapPayRequest = new Request([
+                'amount' => $amountDollar,
+                'order_id' => (string) $invoiceID,
+                'account_id' => $accountId,
+                'preferred_link' => $request->input('preferred_link', 'WEBSITE'),
+            ]);
+            $swapPayController = new SwapPayController();
+            $response = $swapPayController->createPayment($swapPayRequest);
         } else {
             // DB::rollBack(); // Rollback if using DB transaction
             return response()->json(['success' => false, 'message' => 'درگاه پرداخت نامعتبر است.'], 400);

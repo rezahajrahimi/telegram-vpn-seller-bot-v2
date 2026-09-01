@@ -70,4 +70,15 @@ class Product extends Model
         return verta(verta($value))->formatDifference();
     }
 
+    public function resolveMarzbanPanelUsername(): string
+    {
+        $configs = json_decode($this->configs ?? '', true) ?? [];
+        $username = $configs['username'] ?? null;
+        if (is_string($username) && trim($username) !== '') {
+            return trim($username);
+        }
+
+        return trim((string) ($this->remark ?? ''));
+    }
+
 }

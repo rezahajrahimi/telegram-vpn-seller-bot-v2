@@ -13,8 +13,12 @@ class CustomText extends Model
 
     public function getText($key, $variables = [])
     {
-        $text = $this->where('key', $key)->first()->custom_text ??
-                $this->where('key', $key)->first()->default_text;
+        $record = $this->where('key', $key)->first();
+        if ($record === null) {
+            throw new \RuntimeException("Custom text key not found: {$key}");
+        }
+
+        $text = $record->custom_text ?? $record->default_text ?? '';
 
         return $this->replaceVariables($text, $variables);
     }
@@ -33,8 +37,12 @@ class CustomText extends Model
     }
     public function getDefaultText($key)
     {
-        \Log::info('getDefaultText: ' . $key);
-        return $this->where('key', $key)->first()->default_text;
+        $record = $this->where('key', $key)->first();
+        if ($record === null) {
+            throw new \RuntimeException("Custom text key not found: {$key}");
+        }
+
+        return $record->default_text;
     }
 
 }

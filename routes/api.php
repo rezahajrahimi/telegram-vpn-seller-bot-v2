@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BotButtonConfigController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\OrderController;
@@ -38,21 +39,32 @@ use App\Http\Controllers\CronJobController;
 use App\Http\Controllers\ReferralSettingController;
 use App\Http\Controllers\ReferralWalletController;
 use App\Http\Controllers\ReferralLogsController;
+use App\Http\Controllers\LoyaltySettingController;
+use App\Http\Controllers\LoyaltyWalletController;
+use App\Http\Controllers\LoyaltyLogsController;
 use App\Http\Controllers\ReserverdConfigController;
 use App\Http\Controllers\AdvanceSettingLookupController;
 use App\Http\Controllers\WebAppMenuItemController;
+use App\Http\Controllers\WebAppUserController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Controllers\CustomTextController;
 use App\Http\Controllers\BlockedUserController;
 use App\Http\Controllers\ShetabVerifyController;
 use App\Http\Controllers\SubscriptionProcessController;
+use App\Http\Controllers\GroupOperationController;
 use App\Http\Controllers\AppInfoController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\PromoCodeController;
+use App\Http\Controllers\MarketingCampaignController;
 use App\Http\Controllers\InboundTemplateController;
 use App\Http\Controllers\SanaeiPannelController;
+use App\Http\Controllers\MarzbanPannelController;
+use App\Http\Controllers\PasarguardPannelController;
+use App\Http\Controllers\UserGroupController;
 
 
+use App\Http\Controllers\InventoryImportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -77,13 +89,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout']);
 
 Route::post('/forgetPassword', [AuthController::class, 'forgetPassword']);
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
-Route::middleware('auth:sanctum')->get('/me', function (Request $request) {
-    return $request->user();
-});
-// /auth/me
+Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'me']);
+Route::middleware('auth:sanctum')->get('/me', [AuthController::class, 'me']);
 Route::get('/auth/me', [AuthController::class, 'me']);
 // Admin Routes
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.license']], function () {
@@ -101,6 +108,9 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
 
     // backup
     Route::get('createBackup', [BackupController::class, 'createBackup']);
+    Route::get('downloadBackup', [BackupController::class, 'downloadBackup']);
+    Route::get('downloadBackup/{filename}', [BackupController::class, 'downloadBackup'])
+        ->where('filename', '.*');
     Route::post('restoreBackup', [BackupController::class, 'restoreBackup']);
     Route::get('testDatabaseConnection', [BackupController::class, 'testDatabaseConnection']);
     Route::get('testMysqldump', [BackupController::class, 'testMysqldump']);
@@ -112,17 +122,36 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getNormalUsers', [UserController::class, 'getNormalUsers']);
     Route::get('getUserById/{id}', [UserController::class, 'getUserById']);
     Route::get('getAgentByIdWithProductsAndPremissons/{id}', [UserController::class, 'getAgentByIdWithProductsAndPremissons']);
+    Route::post('resetAgentLimitUsage/{userId}', [AgentProductController::class, 'resetAgentLimitUsageByAdmin']);
     Route::post('createUser', [UserController::class, 'createUser']);
     Route::put('updateUser', [UserController::class, 'updateUser']);
     Route::delete('deleteUser', [UserController::class, 'deleteUser']);
     Route::get('getAdminUsers', [UserController::class, 'get_admin_users']);
     Route::patch('changeUserRoleToAdmin/{id}', [UserController::class, 'change_user_role_to_admin']);
     Route::patch('changeAgentRoleToUser/{id}', [UserController::class, 'change_user_role_to_user']);
+    Route::patch('updateUserVerificationStatus', [UserController::class, 'updateUserVerificationStatus']);
+    Route::get('getNormalUsersForGrouping', [UserController::class, 'getNormalUsersForGrouping']);
+
+    // UserGroupController
+    Route::get('getUserGroups', [UserGroupController::class, 'index']);
+    Route::post('createUserGroup', [UserGroupController::class, 'store']);
+    Route::put('updateUserGroup/{id}', [UserGroupController::class, 'update']);
+    Route::delete('deleteUserGroup/{id}', [UserGroupController::class, 'destroy']);
+    Route::put('updateUserGroupPaymentMethods/{id}', [UserGroupController::class, 'updatePaymentMethods']);
+    Route::put('updateUserGroupVerificationPaymentMethods/{id}', [UserGroupController::class, 'updateVerificationPaymentMethods']);
+    Route::delete('clearUserGroupVerificationPaymentMethods/{id}', [UserGroupController::class, 'clearVerificationPaymentMethods']);
+    Route::put('updateGlobalVerificationPaymentMethods', [UserGroupController::class, 'updateGlobalVerificationPaymentMethods']);
+    Route::patch('assignUserToGroup', [UserGroupController::class, 'assignUserToGroup']);
+    Route::get('getGroupUsers/{id}', [UserGroupController::class, 'getGroupUsers']);
+    Route::post('addUsersToGroup', [UserGroupController::class, 'addUsersToGroup']);
+    Route::patch('removeUserFromGroup', [UserGroupController::class, 'removeUserFromGroup']);
+    Route::get('seedDefaultUserGroups', [UserGroupController::class, 'seedDefaults']);
 
     // GeneralController
     Route::get('get-license-type', [GeneralController::class, 'get_license_type']);
 
     Route::get('getDashboardAnalytics', [GeneralController::class, 'getDashboardAnalytics']);
+    Route::get('getPanelDashboardStatus/{pannelID}', [GeneralController::class, 'getPanelDashboardStatus']);
     Route::post('sendAdminMessageToUser', [GeneralController::class, 'send_admin_message_to_botuser']);
 
     //  ProductCategory
@@ -144,7 +173,15 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getCountOfProductSelledSummeryByCatID/{id}', [ProductController::class, 'getCountOfProductSelledSummeryByCatID']);
     Route::get('deleteProductByProductID/{id}', [ProductController::class, 'deleteProductByProductID']);
     Route::get('syncUserProductsHistoryByAccountIDwithPanels/{accountid}', [ProductController::class, 'syncUserProductsHistoryByAccountIDwithPanels']);
+    Route::get('previewMissingUserProductsOnPanels/{botUserId}', [ProductController::class, 'previewMissingUserProductsOnPanels']);
+    Route::post('deleteSelectedMissingUserProducts', [ProductController::class, 'deleteSelectedMissingUserProducts']);
     Route::get('getUserProductsHistoryByUserIDWithPagination/{userId}', [ProductController::class, 'getUserProductsHistoryByUserIDWithPagination']);
+    Route::get('getInventoryPanels', [InventoryImportController::class, 'getInventoryPanels']);
+    Route::get('downloadInventoryImportTemplate', [InventoryImportController::class, 'downloadTemplate']);
+    Route::post('importInventoryExcel', [InventoryImportController::class, 'import']);
+    Route::get('getInventoryStock', [InventoryImportController::class, 'getInventoryStock']);
+    Route::post('updateInventoryStockItem', [InventoryImportController::class, 'updateInventoryStockItem']);
+    Route::get('deleteInventoryStockItem/{id}', [InventoryImportController::class, 'deleteInventoryStockItem']);
 
     //Settings
     Route::get('getBotSetting', [SettingController::class, 'getBotSetting']);
@@ -159,6 +196,12 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::post('changeMainMenuAliasName', [MainMenuItemController::class, 'changeMainMenuAliasName']);
     Route::post('changeMainMenuPosition', [MainMenuItemController::class, 'changeMainMenuPosition']);
     Route::post('reorder-main-menu-items', [MainMenuItemController::class, 'reorderMainMenuItems']);
+    Route::post('update-main-menu-button-style', [MainMenuItemController::class, 'updateMainMenuButtonStyle']);
+
+    // bot button customization
+    Route::get('get-bot-button-config', [BotButtonConfigController::class, 'getConfig']);
+    Route::post('update-bot-button-layout', [BotButtonConfigController::class, 'updateLayoutSettings']);
+    Route::post('update-bot-button-style-rules', [BotButtonConfigController::class, 'updateStyleRules']);
 
     // payment type
     Route::get('getPaymentTypes', [PaymentTypeController::class, 'getPaymentTypes']);
@@ -200,6 +243,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::post('updateGiftCard', [GiftCardController::class, 'updateGiftCard']);
     Route::get('deleteGiftCardByCode/{code}', [GiftCardController::class, 'deleteGiftCardByCode']);
     Route::get('getGiftCardList', [GiftCardController::class, 'getGiftCardList']);
+    Route::get('getGiftCardUsers/{code}', [GiftCardController::class, 'getGiftCardUsers']);
 
     // support
     Route::get('getSupporstList', [SupportController::class, 'getSupporstList']);
@@ -251,9 +295,14 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getHiddifyPanelUserByPannelID/{pannelID}/{userUUID}', [HiddifyPannelController::class, 'getHiddifyPanelUserByPannelID']);
 
     // Sanaei Panel Management
+    Route::post('checkSanaeiPanelUrl', [SanaeiPannelController::class, 'checkSanaeiPanelUrl']);
+    Route::post('addSanaeiPannel', [SanaeiPannelController::class, 'addSanaeiPannel']);
+    Route::post('updateSanaeiPannel', [SanaeiPannelController::class, 'updateSanaeiPannel']);
     Route::post('addUserToSanaeiPanel', [SanaeiPannelController::class, 'addUserToSanaeiPanel']);
     Route::post('addUserWithTemplate', [SanaeiPannelController::class, 'addUserWithTemplate']);
     Route::get('syncSanaeiInbounds/{pannelID}', [SanaeiPannelController::class, 'syncInbounds']);
+    Route::get('syncMarzbanInbounds/{pannelID}', [MarzbanPannelController::class, 'syncInbounds']);
+    Route::get('syncPasarguardGroups/{pannelID}', [PasarguardPannelController::class, 'syncGroups']);
     Route::get('checkSanaeiLoginStatus/{pannelID}', [SanaeiPannelController::class, 'checkLoginStatus']);
     Route::post('refreshSanaeiLogin/{pannelID}', [SanaeiPannelController::class, 'refreshLogin']);
     Route::get('checkSanaeiInboundSources/{pannelID}', [SanaeiPannelController::class, 'checkInboundSources']);
@@ -292,6 +341,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('getUsersWithZeroBallance', [BotUserController::class, 'get_users_with_zero_ballance']);
     Route::get('getAgentRoleBotUsers', [BotUserController::class, 'get_agent_role_bot_users']);
     Route::get('getBotUserByID/{id}', [BotUserController::class, 'getBotUserByID']);
+    Route::patch('updateBotUserAdminAlias', [BotUserController::class, 'updateBotUserAdminAlias']);
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
     Route::post('searchBotUsers', [BotUserController::class, 'search_bot_users']);
     Route::post('sendAdminMessageToAllUsers', [BotUserController::class, 'send_Admin_message_to_All_users']);
@@ -329,12 +379,17 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     //  TestAccountController
     Route::get('getTestAccountDetails', [TestAccountController::class, 'getTestAccountDetails']);
     Route::post('updateTestAccountDetails', [TestAccountController::class, 'updateTestAccountDetails']);
+    Route::get('getTestUsers', [TestAccountController::class, 'getTestUsers']);
+    Route::delete('deleteTestUser/{id}', [TestAccountController::class, 'deleteTestUser']);
+    Route::delete('clearTestUsers', [TestAccountController::class, 'clearTestUsers']);
 
     // CryptoPaymentController
     Route::get('getNovPaymentData', [CryptoPaymentController::class, 'getNovPaymentData']);
     Route::patch('updateNowPayment', [CryptoPaymentController::class, 'updateNowPayment']);
     Route::get('getCryptoPaymentData', [CryptoPaymentController::class, 'getCryptoPaymentData']);
     Route::patch('updateCryptomusPayment', [CryptoPaymentController::class, 'updateCryptomusPayment']);
+    Route::get('getSwapPayData', [CryptoPaymentController::class, 'getSwapPayData']);
+    Route::patch('updateSwapPayPayment', [CryptoPaymentController::class, 'updateSwapPayPayment']);
 
 
     // PaymentSettingController
@@ -358,6 +413,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::delete('deleteAgentProduct/{id}', [AgentProductController::class, 'deleteAgentProduct']);
     Route::get('getAgentProductsByUserID/{userID}', [AgentProductController::class, 'getAgentProductsByUserID']);
     Route::get('getAgentProductsByID/{ID}', [AgentProductController::class, 'getAgentProductsByID']);
+    Route::get('getAgentSelledProductsByAdmin/{userId}', [AgentProductController::class, 'getAgentSelledProductsByAdmin']);
 
     // AgentPermissonController
     Route::get('getUserPremissionByAgentID/{ID}', [AgentPermissonController::class, 'getUserPremissionByAgentID']);
@@ -373,15 +429,30 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::get('/dailyBackup', [CronJobController::class, 'execute_create_daily_backup']);
     Route::get('/usage-more-than-85-percent', [CronJobController::class, 'execute_send_useage_more_than_85_percent']);
     Route::get('/auto-delete-expired-configs', [CronJobController::class, 'execute_auto_delete_expired_configs']);
+    Route::get('/preview-expired-configs-for-deletion', [CronJobController::class, 'previewExpiredConfigsForDeletion']);
+    Route::post('/delete-selected-expired-configs', [CronJobController::class, 'deleteSelectedExpiredConfigs']);
     Route::get('/less-than-3-days', [CronJobController::class, 'execute_send_lass_there_than_3_days']);
+    Route::get('/abandoned-cart-reminders', [CronJobController::class, 'execute_send_abandoned_cart_reminders']);
     Route::post('/updatePricesByTether', [CronJobController::class, 'calculate_product_category_price_by_tether']);
 
     // ReferralSettingController
     Route::get('/getReferralSetting', [ReferralSettingController::class, 'get_referral_setting']);
     Route::put('/updateReferralSetting', [ReferralSettingController::class, 'update_referral_setting']);
 
+    // ReferralLogsController
+    Route::get('/getAllReferralLogs', [ReferralLogsController::class, 'get_all_referral_logs']);
+    Route::get('/getTopReferrers', [ReferralLogsController::class, 'get_top_referrers']);
+
     //  ReferralWalletController
     Route::put('/editAmountOfRefWalletByAccountId', [ReferralWalletController::class, 'edit_amount_of_ref_wallet_by_account_id']);
+
+    // LoyaltySettingController
+    Route::get('/getLoyaltySetting', [LoyaltySettingController::class, 'get_loyalty_setting']);
+    Route::put('/updateLoyaltySetting', [LoyaltySettingController::class, 'update_loyalty_setting']);
+    Route::post('/updateLoyaltySetting', [LoyaltySettingController::class, 'update_loyalty_setting']);
+    Route::get('/getAllLoyaltyLogs', [LoyaltyLogsController::class, 'get_all_loyalty_logs']);
+    Route::get('/getTopLoyaltyUsers', [LoyaltyLogsController::class, 'get_top_loyalty_users']);
+    Route::put('/editLoyaltyPointsByAccountId', [LoyaltyWalletController::class, 'edit_points_by_account_id']);
 
     // ReserverdConfigController
     Route::post('/checkAProductHasReservedConfigByProductId', [ReserverdConfigController::class, 'check_a_product_has_reserved_config_by_product_id']);
@@ -400,6 +471,8 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
 
     // SubscriptionProcessController
     Route::post('/batchExistSubscriptionJob', [SubscriptionProcessController::class, 'batchExistSubscriptionJob']);
+    Route::get('/groupOperationJobs', [GroupOperationController::class, 'index']);
+    Route::get('/groupOperationJobs/{id}', [GroupOperationController::class, 'show']);
 
 
     // CustomTextController
@@ -420,15 +493,28 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:admin', 'powerps.li
     Route::post('/update-application-info', [AppInfoController::class, 'update']);
     Route::post('/save-application-image', [AppInfoController::class, 'save_image']);
 
-    // ShetabVerifyController
-    Route::post('/shetab-verify', [ShetabVerifyController::class, 'shetabVerify']);
-
     // Reports
     Route::get('getDashboardStats', [ReportController::class, 'getDashboardStats']);
     Route::get('getFinancialReport', [ReportController::class, 'getFinancialReport']);
     Route::get('getUserReport', [ReportController::class, 'getUserReport']);
     Route::get('getProductReport', [ReportController::class, 'getProductReport']);
+    Route::get('getRetentionStats', [ReportController::class, 'getRetentionStats']);
+    Route::get('getRetentionChart', [ReportController::class, 'getRetentionChart']);
     Route::get('getLastProductSelled/{count}', [ProductController::class, 'getLastProductSelled']);
+
+    // Promo codes
+    Route::get('promo-codes', [PromoCodeController::class, 'index']);
+    Route::post('promo-codes', [PromoCodeController::class, 'store']);
+    Route::put('promo-codes/{id}', [PromoCodeController::class, 'update']);
+    Route::delete('promo-codes/{id}', [PromoCodeController::class, 'destroy']);
+    Route::get('promo-codes/{id}/usages', [PromoCodeController::class, 'usages']);
+    Route::post('promo-codes/validate', [PromoCodeController::class, 'validateCode']);
+
+    // Marketing campaigns
+    Route::get('marketing-campaigns', [MarketingCampaignController::class, 'index']);
+    Route::post('marketing-campaigns/preview', [MarketingCampaignController::class, 'previewRecipients']);
+    Route::post('marketing-campaigns', [MarketingCampaignController::class, 'store']);
+    Route::delete('marketing-campaigns/{id}', [MarketingCampaignController::class, 'destroy']);
 });
 Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function () {
     // User
@@ -440,6 +526,7 @@ Route::group(['middleware' => ['auth:sanctum', 'restrictRole:agent']], function 
     // AccountBallanceController
     Route::get('getLoggedAgentUserBallancce', [AccountBallanceController::class, 'getLoggedUserBallancce']);
     // AgentProductController
+    Route::get('getLoggedAgentLimitUsage', [AgentProductController::class, 'getLoggedAgentLimitUsage']);
     Route::get('getProductsOfLoggedAgent', [AgentProductController::class, 'getProductsOfLoggedAgent']);
     Route::get('getAgentSelledProducts', [AgentProductController::class, 'getAgentSelledProducts']);
     Route::get('getAgentSelledProductsByPagination', [AgentProductController::class, 'getAgentSelledProductsByPagination']);
@@ -476,13 +563,30 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     // BillController
     Route::get('createNewAgentTomanBillUrl/{amount}', [BillController::class, 'createNewAgentTomanBillUrl']);
     Route::get('createNewAgentDollarBillUrl/{amount}', [BillController::class, 'createNewAgentDollarBillUrl']);
+    Route::get('createNewAgentSwapPayBillUrl/{amount}', [BillController::class, 'createNewAgentSwapPayBillUrl']);
+    Route::get('createNewUserSwapPayBillUrl/{amount}', [BillController::class, 'createNewAgentSwapPayBillUrl']);
 
     // UserController
     Route::put('updateUserPassword', [UserController::class, 'update_logged_password']);
     //  ReferralLogsController
     Route::get('/getReferralLogsByAccountId/{account_id}', [ReferralLogsController::class, 'get_referral_logs']);
+    Route::get('/getLoyaltyLogsByAccountId/{account_id}', [LoyaltyLogsController::class, 'get_loyalty_logs']);
     // WebAppMenuItemController
     Route::get('/getAllActiveWebAppMenuItems', [WebAppMenuItemController::class, 'get_all_active_web_app_menu_items']);
+
+    // WebApp user features (read-only + actions for user/agent panels)
+    Route::get('/webapp/faqs', [WebAppUserController::class, 'getFaqs']);
+    Route::get('/webapp/supports', [WebAppUserController::class, 'getSupports']);
+    Route::get('/webapp/application-oses', [WebAppUserController::class, 'getApplicationOses']);
+    Route::get('/webapp/applications/{os}', [WebAppUserController::class, 'getApplicationsByOs']);
+    Route::get('/webapp/referral-info', [WebAppUserController::class, 'getReferralInfo']);
+    Route::get('/webapp/loyalty-info', [LoyaltyWalletController::class, 'get_auth_user_loyalty']);
+    Route::post('/webapp/validate-loyalty-redemption', [LoyaltyWalletController::class, 'validate_redemption']);
+    Route::post('/webapp/redeem-gift-card', [WebAppUserController::class, 'redeemGiftCard']);
+    Route::post('/webapp/claim-test-account', [WebAppUserController::class, 'claimTestAccount']);
+    Route::post('/webapp/validate-promo-code', [WebAppUserController::class, 'validatePromoCode']);
+    Route::get('/webapp/package-name-hint', [WebAppUserController::class, 'getPackageNameHint']);
+    Route::get('/webapp/mobile-verification-status', [WebAppUserController::class, 'getMobileVerificationStatus']);
 
     //ProxyController
 
@@ -503,7 +607,7 @@ Route::get('/getPaymentStatus/{id}', [TransactionCryptoController::class, 'getPa
 
 Route::get('/prd', [CronJobController::class, 'execute_auto_delete_expired_configs']);
 
-Route::get('/create-backup-and-send-to-telegram', [BackupController::class, 'createBackupAndSendToTelegram']);
+Route::get('/create-backup-and-send-to-telegram', [BackupController::class, 'createBackupAndSendToTelegramHttp']);
 
 
 Route::post('/orderch', [TransactionController::class, 'add_order']);

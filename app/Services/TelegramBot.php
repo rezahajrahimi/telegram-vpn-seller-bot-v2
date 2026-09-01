@@ -20,8 +20,8 @@ class TelegramBot
      */
     public function __construct()
     {
-        $this->token = env('TELEGRAM_BOT_TOKEN');
-        $this->api_endpoint = env('TELEGRAM_API_ENDPOINT');
+        $this->token = (string) config('services.telegram.bot_token', '');
+        $this->api_endpoint = rtrim((string) config('services.telegram.api_endpoint', 'https://api.telegram.org'), '/');
         $this->setHeaders();
     }
 
