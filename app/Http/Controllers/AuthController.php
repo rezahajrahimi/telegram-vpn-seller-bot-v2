@@ -7,23 +7,25 @@ use App\Models\BlockedUser;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 use App\Services\TelegramService;
 use App\Http\Controllers\CustomTextController;
 use App\Services\TelegramMessageFormatter;
-use Illuminate\Support\Facades\Cache;
+use App\Services\LicenseCheckService;
 
 class AuthController extends Controller
 {
     private GeneralController $generalCntrl;
     private TelegramService $telegramService;
     private CustomTextController $customText;
-    public function __construct()
+    private LicenseCheckService $licenseCheckService;
+
+    public function __construct(?LicenseCheckService $licenseCheckService = null)
     {
         $this->generalCntrl = new GeneralController();
         $this->telegramService = new TelegramService();
         $this->customText = new CustomTextController();
+        $this->licenseCheckService = $licenseCheckService ?? app(LicenseCheckService::class);
     }
     public function me()
     {
@@ -39,7 +41,8 @@ class AuthController extends Controller
     }
     public function getPowerPsLicenseType()
     {
-      return "gold";
+        return "gold";
+        // return $this->licenseCheckService->getLicenseType();
     }
 
     public function createFirstAdminUser()
@@ -119,7 +122,10 @@ class AuthController extends Controller
     }
     public function logout(Request $request)
     {
-        auth('sanctum')->user()->tokens()->delete();
+        $user = auth('sanctum')->user();
+        if ($user) {
+            $user->tokens()->delete();
+        }
 
         return response()->json('Logged out successfully');
     }
@@ -146,14 +152,13 @@ class AuthController extends Controller
         $text = "کاربر گرامی \n\r";
         $text .= "رمز عبور شما به پنل تغییر یافت \n\r";
         $text .= 'نام کاربری ورود به پنل:';
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text = "<code>{$user_id}</code>";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
+        $this->telegramService->sendMessage($user_id, $text, ['parse_mode' => 'Markdown']);
+        $this->telegramService->sendMessage($user_id, "<code>{$user_id}</code>", ['parse_mode' => 'HTML']);
 
         $text = "پسورد ورود به پنل:  \n\r";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'MarkDown');
-        $text = "<code>{$user_password}</code>";
-        $result = app('telegram_bot')->sendMessage($text, $user_id, null, 'HTML');
+        $this->telegramService->sendMessage($user_id, $text, ['parse_mode' => 'Markdown']);
+        $this->telegramService->sendMessage($user_id, "<code>{$user_password}</code>", ['parse_mode' => 'HTML']);
+
         return response()->json(true);
     }
     public function generate_auto_login_link(Request $request)
