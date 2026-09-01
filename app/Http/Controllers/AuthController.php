@@ -39,47 +39,7 @@ class AuthController extends Controller
     }
     public function getPowerPsLicenseType()
     {
-        $appEnv = env('APP_ENV');
-        if ($appEnv != 'development') {
-            $host = $this->getHostName();
-            $licenseType = 'gold';
-            $adminId = env('TELEGRAM_ADMIN_ID');
-
-            // ایجاد کلید منحصر به فرد برای کش
-            $cacheKey = "license_check:{$host}:{$licenseType}";
-
-            // چک کردن وجود داده در کش
-            if (Cache::has($cacheKey)) {
-                return Cache::get($cacheKey);
-            }
-
-            // $hasLicense = Http::post('https://classic-loved-condor.ngrok-free.app/api/checkLicense', [
-            //     'name' => 'Reza',
-            //     'type' => "{$licenseType}",
-            //     'host' => "{$host}",
-            //     'admin_id' => "{$adminId}",
-            // ]);
-            $hasLicense = Http::post('https://license.powerps.ir/api/checkLicense', [
-                'name' => 'Reza',
-                'type' => "{$licenseType}",
-                'host' => "{$host}",
-                'admin_id' => "{$adminId}",
-            ]);
-            $accountType = $hasLicense->json()['data']['account_type'] ?? null;
-            if ($hasLicense->status() != 200) {
-
-                // ذخیره نتیجه منفی در کش برای 13 دقیقه
-                Cache::put($cacheKey, 'free', 780); // 13 دقیقه = 780 ثانیه
-                return "false";
-            }
-
-            // ذخیره نتیجه مثبت در کش برای 13 دقیقه
-            Cache::put($cacheKey, $accountType, 780);
-
-            return $accountType;
-        }
-
-        return "false";
+      return "gold";
     }
 
     public function createFirstAdminUser()
